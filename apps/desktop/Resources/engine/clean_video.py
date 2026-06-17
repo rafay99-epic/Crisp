@@ -21,6 +21,7 @@ is written to an "_originals" folder next to it.
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -31,19 +32,38 @@ from pathlib import Path
 # Configuration defaults (all overridable)
 # ----------------------------------------------------------------------------
 
-# Words treated as "fillers" and removed. Compared after lower-casing and
-# stripping punctuation. Kept to non-words / hesitations so we don't cut real
-# speech. Edit this list to taste.
+# Words treated as "fillers" and removed (see is_filler). Compared after
+# lower-casing and stripping punctuation. Kept to non-words / hesitations so we
+# don't cut real speech. This explicit set covers the common short forms; the
+# shape patterns below catch the endless elongated/variant spellings whisper
+# emits (ummh, hummm, errr, mm-hmm…). Edit either to taste.
 DEFAULT_FILLERS = {
-    "um", "umm", "ummm",
-    "uh", "uhh", "uhhh",
-    "erm", "er", "err",
-    "hmm", "hm", "hmmm",
-    "mm", "mmm",
-    "ah", "ahh", "ahem",
-    "aw", "aww", "awww",
-    "uhm", "mhm",
+    "um", "umm", "uh", "uhh", "uhm", "uhmm", "umh", "ummh",
+    "er", "err", "erm", "errm",
+    "hm", "hmm", "huh", "hu", "humm",
+    "mm", "mmm", "mhm", "mhmm", "mmhmm",
+    "ah", "ahh", "ahem", "aw", "aww",
+    "uh-huh", "mm-hmm",
 }
+
+# Hesitation sounds show up in countless elongated/variant spellings. Rather than
+# enumerate them all, match their *shape*. These are full-match patterns (see
+# is_filler), so they only fire on a token that is ENTIRELY a hesitation —
+# real words like "away", "him", "human", or the verb "hum" never match.
+FILLER_PATTERNS = tuple(re.compile(p) for p in (
+    r"u+m+h*",        # um, umm, ummm, umh, ummh, ummmh
+    r"u+h+m*",        # uh, uhh, uhhh, uhm, uhmm
+    r"h+u+h+",        # huh, huhh
+    r"h+u+m{2,}",     # humm, hummm  (≥2 m's so the verb "hum" is left alone)
+    r"h+m+",          # hm, hmm, hmmm
+    r"e+r+m*",        # er, err, erm, errm, errrm
+    r"a+h+",          # ah, ahh, aah, ahhh
+    r"a+w+",          # aw, aww, awww
+    r"m{2,}",         # mm, mmm
+    r"m+h+m*",        # mhm, mmhm, mhmm
+    r"u+h+[-\s]?h+u+h+",  # uh-huh, uhhuh
+    r"m+h?[-\s]?h+m+",    # mm-hmm, mhmm
+))
 
 DEFAULT_MAX_PAUSE = 0.6       # cut silences longer than this (seconds)
 DEFAULT_NOISE_DB = -30        # audio below this loudness (dB) counts as silence
@@ -108,6 +128,19 @@ def ffprobe_duration(path: Path) -> float:
 
 def normalize_word(text: str) -> str:
     return text.strip().strip(".,!?;:\"'()[]…-–—").lower()
+
+
+def is_filler(text: str) -> bool:
+    """True if `text` is a hesitation sound — um / uh / hmm / aww / huh and the
+    many elongated or variant spellings whisper produces (ummh, hummm, errr,
+    mm-hmm…). Matching is anchored (whole token only), so ordinary words such as
+    "away", "him", "human", or the verb "hum" are never treated as fillers."""
+    word = normalize_word(text)
+    if not word:
+        return False
+    if word in DEFAULT_FILLERS:
+        return True
+    return any(pattern.fullmatch(word) for pattern in FILLER_PATTERNS)
 
 
 # ----------------------------------------------------------------------------
@@ -212,19 +245,19 @@ def transcribe(whisper_bin, model, wav_path, out_prefix, on_log, on_progress):
 # Step 4 — Decide what to cut
 # ----------------------------------------------------------------------------
 
-def build_keep_segments(words, silences, duration, fillers, keep_pause):
+def build_keep_segments(words, silences, duration, keep_pause):
     """Return (keep, stats): list of (start, end) seconds to KEEP, plus counts."""
     remove = []
     stats = {"fillers": 0, "pauses": 0}
 
-    for s, e in silences:                       # pauses (trim middle of silence)
+    for s, e in silences:                       # long pauses (trim middle of silence)
         inner_s, inner_e = s + keep_pause, e - keep_pause
         if inner_e - inner_s > 0.01:
             remove.append((inner_s, inner_e))
             stats["pauses"] += 1
 
     for w in words:                             # filler words (exact span)
-        if normalize_word(w["text"]) in fillers:
+        if is_filler(w["text"]):
             remove.append((w["start"], w["end"]))
             stats["fillers"] += 1
 
@@ -325,9 +358,8 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
     out_path = (Path(out_path).expanduser().resolve() if out_path
                 else src.with_name(f"{src.stem}_cleaned.mp4"))
 
-    fillers = DEFAULT_FILLERS if remove_fillers else set()
     whisper_bin = None
-    if fillers:
+    if remove_fillers:
         if not model.exists():
             raise CleanError(f"Speech model not found: {model}\nRun setup.sh to download it.")
         whisper_bin = which_whisper()
@@ -357,13 +389,13 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
         on_progress(0.15, "Pauses detected")
 
         words = []
-        if fillers:
+        if remove_fillers:
             words = transcribe(whisper_bin, model, wav, tmp / "transcript",
                                on_log, stage(0.15, 0.58))
             on_log(f"Found {len(words)} spoken words.")
         on_progress(0.58, "Planning cuts…")
 
-        keep, stats = build_keep_segments(words, silences, duration, fillers, keep_pause)
+        keep, stats = build_keep_segments(words, silences, duration, keep_pause)
         if not keep:
             raise CleanError("Everything looked like silence — nothing to keep. "
                              "Try a larger pause value.")
