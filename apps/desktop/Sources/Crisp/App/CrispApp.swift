@@ -10,13 +10,14 @@ struct CrispApp: App {
     var body: some Scene {
         Window(Channel.current.displayName, id: "main") {
             ContentView(model: model, updater: updater, modelStore: modelStore, settings: settings)
-                .frame(minWidth: 520, minHeight: 460)
                 .task { updater.checkOnLaunch() }
                 .task { await modelStore.refresh() }
         }
-        .windowResizability(.contentMinSize)
+        // Content has a fixed width and natural height, so the window sizes itself
+        // to fit — it grows when a result appears and shrinks back, with no scroll
+        // and no dead space.
+        .windowResizability(.contentSize)
         .windowToolbarStyle(.unified)
-        .defaultSize(width: 600, height: 540)
         .commands {
             CommandGroup(after: .appInfo) {
                 Button("Check for Updates…") {
