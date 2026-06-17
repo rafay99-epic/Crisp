@@ -18,11 +18,30 @@ Library users can skip the CLI and import the package directly:
 
 import argparse
 import json
+import os
+import signal
 import sys
 from pathlib import Path
 
 # Ensure the sibling `crisp` package is importable however this script is invoked.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+
+def _enable_group_cancel():
+    """Put this run in its own process group and, on SIGTERM, take the whole group
+    (this process + the ffmpeg/whisper children it spawns) down with it. Without
+    this, the Swift app terminating us would orphan the encoder, which would keep
+    running. Only used in --ndjson (app) mode so a terminal user keeps normal
+    Ctrl-C job control."""
+    os.setpgrp()
+
+    def _handler(_signum, _frame):
+        try:
+            os.killpg(os.getpgrp(), signal.SIGKILL)
+        finally:
+            os._exit(1)
+
+    signal.signal(signal.SIGTERM, _handler)
 
 from crisp import CleanError, clean_video
 from crisp.config import (
@@ -61,6 +80,7 @@ def main():
     args = p.parse_args()
 
     if args.ndjson:
+        _enable_group_cancel()
         def emit(obj):
             print(json.dumps(obj), flush=True)
         on_log = lambda m: emit({"event": "log", "message": m})

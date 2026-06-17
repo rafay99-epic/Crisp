@@ -32,6 +32,11 @@ final class CleanModel {
     var results: [CleanResult] = []
     var errorMessage: String?
 
+    /// The engine subprocess for the file being cleaned, plus a cancel flag — so
+    /// `cancel()` can stop a run mid-flight.
+    private var currentProcess: Process?
+    private var cancelled = false
+
     private static let videoExtensions: Set<String> =
         ["mov", "mp4", "mkv", "m4v", "avi", "webm", "flv"]
 
@@ -63,6 +68,7 @@ final class CleanModel {
     func start(modelPath: String?, parameters: CleanParameters) async {
         guard !files.isEmpty, !isRunning else { return }
         isRunning = true
+        cancelled = false
         results = []
         errorMessage = nil
         logLines = []
@@ -70,6 +76,7 @@ final class CleanModel {
 
         let total = Double(files.count)
         for (idx, url) in files.enumerated() {
+            if cancelled { break }
             let base = Double(idx) / total
             let span = 1.0 / total
             if files.count > 1 {
@@ -78,6 +85,7 @@ final class CleanModel {
             do {
                 try await runOne(url, base: base, span: span, modelPath: modelPath, parameters: parameters)
             } catch {
+                if cancelled { break }
                 errorMessage = error.localizedDescription
                 status = "Something went wrong."
                 break
@@ -85,10 +93,23 @@ final class CleanModel {
         }
 
         isRunning = false
-        if errorMessage == nil {
+        currentProcess = nil
+        if cancelled {
+            status = "Canceled. Your original is untouched."
+            progress = 0
+        } else if errorMessage == nil {
             progress = 1
             status = "Done! Saved next to your original."
         }
+    }
+
+    /// Stop the in-progress clean. The original is never modified, so canceling is
+    /// always safe; a partially-rendered output may be left beside it.
+    func cancel() {
+        guard isRunning, !cancelled else { return }
+        cancelled = true
+        status = "Canceling\u{2026}"
+        currentProcess?.terminate()
     }
 
     private func runOne(_ url: URL, base: Double, span: Double,
@@ -126,9 +147,11 @@ final class CleanModel {
         proc.standardOutput = outPipe
         proc.standardError = Pipe()
         try proc.run()
+        currentProcess = proc
 
         let decoder = JSONDecoder()
         for try await line in outPipe.fileHandleForReading.bytes.lines {
+            if cancelled { break }
             guard let data = line.data(using: .utf8),
                   let ev = try? decoder.decode(Event.self, from: data) else { continue }
             switch ev.event {

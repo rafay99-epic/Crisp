@@ -71,27 +71,40 @@ struct ContentView: View {
         }
     }
 
-    private var actionButton: some View {
-        Button {
-            let params = model.strength.parameters(using: settings.config)
-            Task { await model.start(modelPath: modelStore.readyModelPath, parameters: params) }
-        } label: {
-            HStack {
-                if model.isRunning {
-                    ProgressView().controlSize(.small)
-                    Text("Cleaning\u{2026}")
-                } else {
+    @ViewBuilder private var actionButton: some View {
+        if model.isRunning {
+            Button(role: .cancel) {
+                model.cancel()
+            } label: {
+                HStack {
+                    Image(systemName: "xmark.circle.fill")
+                    Text("Cancel")
+                }
+                .frame(maxWidth: .infinity)
+                .font(.headline)
+                .padding(.vertical, 6)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+            .tint(.red)
+            .keyboardShortcut(.cancelAction)
+        } else {
+            Button {
+                let params = model.strength.parameters(using: settings.config)
+                Task { await model.start(modelPath: modelStore.readyModelPath, parameters: params) }
+            } label: {
+                HStack {
                     Image(systemName: "scissors")
                     Text("Clean Video")
                 }
+                .frame(maxWidth: .infinity)
+                .font(.headline)
+                .padding(.vertical, 6)
             }
-            .frame(maxWidth: .infinity)
-            .font(.headline)
-            .padding(.vertical, 6)
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .disabled(model.files.isEmpty || modelBlocks)
+            .keyboardShortcut(.return, modifiers: .command)
         }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.large)
-        .disabled(model.files.isEmpty || model.isRunning || modelBlocks)
-        .keyboardShortcut(.return, modifiers: .command)
     }
 }
