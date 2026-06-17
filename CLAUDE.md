@@ -33,9 +33,24 @@ subprocess. License: **GPL-3.0**. Conventions mirror the Vitals project.
   **Syntax Lab Technology / Abdul Rafay (rafay99.com)**.
 - **`nightly` is the integration branch; `main` is the default + protected Stable
   branch.** Every feature on its own branch **from `nightly`** → push → **draft PR
-  into `nightly`**. The user squash-merges. **Never** hand-commit to `main` (it
-  moves only via the user's weekly `nightly → main` squash promotion, which cuts
-  the Stable release) or directly to `nightly`.
+  into `nightly`**. The user squash-merges. **Never** hand-commit to `main` or
+  directly to `nightly`.
+- **Promotion `nightly → main` is automated and uses a script, never the merge
+  button.** Each promotion adds a squash commit to `main` that never lands on
+  `nightly`, so the branches don't share recent history — GitHub's merge button
+  (squash/merge/rebase, all of them) then does a 3-way merge against a stale base
+  and conflicts on every promotion. `.github/scripts/promote.sh` sidesteps that: it
+  sets `main`'s tree to exactly `origin/nightly` as one commit and pushes (no merge
+  → no conflict, no rewind → no force-push). `main` keeps one commit per release, so
+  the Stable version stays `0.<commit count on main>`. `promotion.yml` runs it
+  **every Thursday 14:00 PKT (09:00 UTC)** + on manual dispatch: it first
+  **verifies nightly** (Swift build + test + SwiftLint, and the Python engine
+  tests) and only if all pass opens the changelog PR and runs `promote.sh` (pushes
+  `main`, closes the PR); the push triggers `ci.yml`'s release. A red build/test
+  never reaches Stable (the promote job `needs` the verify job). **Needs the `PROMOTION_TOKEN` secret** — a PAT with
+  Contents + Pull requests + Workflows R/W (the push must be by a PAT to trigger
+  the release, and may touch workflow files). To cut a release off-schedule, run
+  `promote.sh` locally or dispatch the workflow.
 - **Test on the Dev build, never disturb Stable.** During development, build +
   install with **`./dev.sh`** (from `apps/desktop`) — it builds **`Crisp Dev.app`**
   (bundle id `…crisp.dev`) and installs+launches it side by side with the user's
