@@ -18,6 +18,7 @@ struct ContentView: View {
             UpdateBanner(updater: updater)
             DropCard(model: model, importing: $importing)
             OptionsCard(model: model)
+            BackupStatusView(backupOn: settings.backupOriginal)
             if modelBlocks || modelStore.state.isBusy {
                 ModelStatusView(store: modelStore)
             }
@@ -64,7 +65,7 @@ struct ContentView: View {
                             .foregroundStyle(.tint)
                     }
                 }
-                Text("Remove pauses & filler words. Your original is always kept safe.")
+                Text("Remove pauses & filler words from your recordings.")
                     .font(.callout).foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)

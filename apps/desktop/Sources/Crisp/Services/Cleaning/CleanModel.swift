@@ -40,14 +40,19 @@ final class CleanModel {
     private static let videoExtensions: Set<String> =
         ["mov", "mp4", "mkv", "m4v", "avi", "webm", "flv"]
 
+    /// The folder all backed-up originals live under (`~/.crisp*/Originals/`).
+    /// Each run drops into a dated subfolder beneath it; this is the stable parent
+    /// the UI shows and reveals in Finder.
+    nonisolated static var backupParentDirectory: URL {
+        Channel.current.dataDirectory.appendingPathComponent("Originals", isDirectory: true)
+    }
+
     /// Where backed-up originals are kept: a date-stamped folder under the
     /// channel's data home (`~/.crisp*/Originals/2026-06-18/`). Grouping by day
     /// keeps a session's originals together without cluttering the source folder.
     nonisolated static func backupDirectory(for date: Date = Date()) -> URL {
-        let day = Self.dayFormatter.string(from: date)
-        return Channel.current.dataDirectory
-            .appendingPathComponent("Originals", isDirectory: true)
-            .appendingPathComponent(day, isDirectory: true)
+        backupParentDirectory.appendingPathComponent(Self.dayFormatter.string(from: date),
+                                                     isDirectory: true)
     }
 
     /// Stable `2026-06-18` folder names — fixed locale/format so they sort and
