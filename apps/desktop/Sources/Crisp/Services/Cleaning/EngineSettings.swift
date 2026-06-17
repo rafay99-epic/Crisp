@@ -24,7 +24,7 @@ struct EngineConfig: Codable, Equatable {
     static let defaults = EngineConfig(
         version: 2,
         pauseThreshold: 0.35, silenceFloorDB: -30, breathingRoom: 0.10, minKeep: 0.05,
-        videoCodec: "h264", hardwareEncoding: false, videoQuality: "high",
+        videoCodec: "hevc", hardwareEncoding: true, videoQuality: "high",
         audioCodec: "aac", audioBitrateKbps: 192)
 
     enum CodingKeys: String, CodingKey {

@@ -45,10 +45,12 @@ DEFAULT_NOISE_DB = -30        # audio below this loudness (dB) counts as silence
 DEFAULT_KEEP_PAUSE = 0.15     # breathing room left around each cut (seconds)
 MIN_KEEP = 0.05               # drop kept fragments shorter than this (seconds)
 
-# Re-encode settings (see crisp.encode). Defaults reproduce the original
-# libx264 CRF 20 + AAC 192k render exactly.
-DEFAULT_VIDEO_CODEC = "h264"  # h264 | hevc
-DEFAULT_HARDWARE = False      # use Apple VideoToolbox (faster; sw is better per-size)
+# Re-encode settings (see crisp.encode). Default to Apple hardware HEVC: every
+# Apple-Silicon Mac (all Crisp runs on) has a HEVC media engine, so it's the fast
+# default. If a hardware encode fails (e.g. a macOS VM with no media engine) the
+# pipeline falls back to software automatically.
+DEFAULT_VIDEO_CODEC = "hevc"  # h264 | hevc
+DEFAULT_HARDWARE = True        # Apple VideoToolbox (faster; software is better per-size)
 DEFAULT_QUALITY = "high"      # maximum | high | balanced | smaller
 DEFAULT_AUDIO_CODEC = "aac"   # aac | opus
 DEFAULT_AUDIO_BITRATE = 192   # kbps

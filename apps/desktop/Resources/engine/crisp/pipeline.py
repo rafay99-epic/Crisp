@@ -85,9 +85,18 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
         on_log(f"Removing {stats['fillers']} filler words and {stats['pauses']} pauses.")
         on_log(f"{duration:.0f}s  →  {kept_dur:.0f}s  (saved {duration - kept_dur:.0f}s)")
 
-        render(src, keep, out_path, on_log, stage(0.60, 1.0),
-               video_args(video_codec, hardware, quality),
-               audio_args(audio_codec, audio_bitrate))
+        audio = audio_args(audio_codec, audio_bitrate)
+        try:
+            render(src, keep, out_path, on_log, stage(0.60, 1.0),
+                   video_args(video_codec, hardware, quality), audio)
+        except CleanError:
+            if not hardware:
+                raise
+            # Hardware encoding can be unavailable in odd setups (e.g. a macOS VM
+            # with no media engine). Fall back to software so a clean never fails.
+            on_log("Hardware encoding failed — falling back to software encoding…")
+            render(src, keep, out_path, on_log, stage(0.60, 1.0),
+                   video_args(video_codec, False, quality), audio)
 
     on_progress(1.0, "Done")
     on_log(f"✅ Done! Cleaned video: {out_path}")

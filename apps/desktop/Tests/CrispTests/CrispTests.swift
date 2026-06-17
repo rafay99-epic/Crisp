@@ -69,6 +69,14 @@ final class CrispTests: XCTestCase {
         XCTAssertEqual(p.minKeep, EngineConfig.defaults.minKeep)
     }
 
+    func testDefaultEncoderIsHardwareHEVC() {
+        // Every Apple-Silicon Mac has a HEVC media engine, so hardware HEVC is the
+        // fast default (the pipeline falls back to software if it ever fails).
+        XCTAssertEqual(EngineConfig.defaults.videoCodec, "hevc")
+        XCTAssertTrue(EngineConfig.defaults.hardwareEncoding)
+        XCTAssertEqual(EngineConfig.defaults.videoQuality, "high")
+    }
+
     func testEncoderChoicesCarryThroughRegardlessOfStrength() {
         // Encoder settings apply to every clean, independent of the cut strength.
         var cfg = EngineConfig.defaults

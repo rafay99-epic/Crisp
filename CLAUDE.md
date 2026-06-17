@@ -123,7 +123,9 @@ is a pure move):
   `--video-codec {h264,hevc}`, `--hardware` (Apple VideoToolbox), `--quality`
   (named levels → CRF for software / `-q:v` for hardware), `--audio-codec
   {aac,opus}`, `--audio-bitrate`. These apply to **every** clean (cuts always
-  re-encode). Defaults reproduce the original libx264 CRF 20 + AAC 192k exactly.
+  re-encode). **Default is hardware HEVC at High** — every Apple-Silicon Mac has a
+  HEVC media engine, so it's the fast default; if a hardware encode fails (e.g. a
+  macOS VM with no media engine) the pipeline **falls back to software automatically**.
   (Opus is muxed into the `.mp4`; plays in modern players/VLC, but QuickTime may
   not.)
 - Both sets live in a JSON config at **`~/.crisp*/config/settings.json`** (edited
