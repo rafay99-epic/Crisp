@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ProgressSection: View {
     @Bindable var model: CleanModel
+    @State private var showLog = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -19,7 +20,24 @@ struct ProgressSection: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             if !model.logLines.isEmpty {
-                DisclosureGroup("Details") {
+                Button {
+                    withAnimation(.snappy) { showLog.toggle() }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.bold))
+                            .rotationEffect(.degrees(showLog ? 90 : 0))
+                        Text("Details")
+                        Spacer(minLength: 0)
+                    }
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .contentShape(Rectangle())   // make the whole row clickable
+                    .padding(.vertical, 4)
+                }
+                .buttonStyle(.plain)
+
+                if showLog {
                     ScrollViewReader { proxy in
                         ScrollView {
                             VStack(alignment: .leading, spacing: 2) {
@@ -38,8 +56,8 @@ struct ProgressSection: View {
                             withAnimation { proxy.scrollTo(c - 1, anchor: .bottom) }
                         }
                     }
+                    .transition(.opacity.combined(with: .move(edge: .top)))
                 }
-                .font(.callout)
             }
         }
     }
