@@ -95,7 +95,7 @@ BODY_FILE=$(mktemp)
   echo
   echo "${TOTAL} PR$([ "$TOTAL" -eq 1 ] || echo s) queued from \`nightly\` since the last Stable cut."
   echo
-  echo "Squash-merging this PR cuts the next Stable release: \`ci.yml\`'s release job builds the DMG and publishes \`v0.<commit count on main>\` (the version never goes backwards — CLAUDE.md)."
+  echo "**Don't use the merge button** — main and nightly don't share recent history, so squash/merge/rebase all conflict here. Cut the release by running \`.github/scripts/promote.sh\` locally: it sets main to nightly's tree, pushes, and closes this PR. \`ci.yml\`'s release job then builds the DMG and publishes \`v0.<commit count on main>\` (the version never goes backwards — CLAUDE.md)."
   echo
 
   emit_section() {
