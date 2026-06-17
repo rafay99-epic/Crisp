@@ -24,6 +24,11 @@ on:
       - "apps/desktop/**"
       - ".github/workflows/ci.yml"
 
+# Read-only by default — only the release job below is granted contents: write.
+# Least privilege for the GITHUB_TOKEN; jobs that need more opt in explicitly.
+permissions:
+  contents: read
+
 # PRs cancel superseded runs; main never cancels, so pushes serialize and two
 # releases can't race to publish the same version.
 concurrency:
