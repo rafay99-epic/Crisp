@@ -1,54 +1,6 @@
 import Foundation
 import SwiftUI
 
-// MARK: - Options
-
-/// How aggressively to cut. Each preset maps to the engine's pause threshold and
-/// the breathing room kept around every cut.
-enum Strength: String, CaseIterable, Identifiable {
-    case gentle = "Gentle"
-    case balanced = "Balanced"
-    case aggressive = "Aggressive"
-    case veryAggressive = "Very aggressive"
-
-    var id: String { rawValue }
-
-    var detail: String {
-        switch self {
-        case .gentle:         return "Cuts only clearly long pauses. Most natural."
-        case .balanced:       return "A safe middle ground."
-        case .aggressive:     return "Cuts short \u{201C}thinking\u{201D} gaps too. Recommended."
-        case .veryAggressive: return "Tightest possible. Can feel fast-paced."
-        }
-    }
-    var pause: Double {
-        switch self {
-        case .gentle: return 0.80
-        case .balanced: return 0.60
-        case .aggressive: return 0.35
-        case .veryAggressive: return 0.25
-        }
-    }
-    var keepPause: Double {
-        switch self {
-        case .gentle: return 0.18
-        case .balanced: return 0.15
-        case .aggressive: return 0.10
-        case .veryAggressive: return 0.08
-        }
-    }
-}
-
-struct CleanResult: Identifiable {
-    let id = UUID()
-    let output: String
-    let origSeconds: Double
-    let newSeconds: Double
-    let savedSeconds: Double
-    let pauses: Int
-    let fillers: Int
-}
-
 /// One line of the engine's `--ndjson` output.
 private struct Event: Decodable {
     let event: String
@@ -63,56 +15,9 @@ private struct Event: Decodable {
     var fillers: Int?
 }
 
-func formatTime(_ seconds: Double) -> String {
-    let s = Int(seconds.rounded())
-    return String(format: "%d:%02d", s / 60, s % 60)
-}
-
-/// Locates the bundled Python engine + interpreter. The engine ships inside the
-/// app at `Contents/Resources/engine/` (build.sh copies it there).
-enum Engine {
-    struct NotFound: LocalizedError {
-        var errorDescription: String? {
-            "The cleaning engine wasn't found inside the app. Rebuild with ./build.sh."
-        }
-    }
-
-    /// `clean_video.py` inside the app bundle (or the source tree during dev).
-    static func scriptURL() throws -> URL {
-        if let res = Bundle.main.resourceURL {
-            let bundled = res.appendingPathComponent("engine/clean_video.py")
-            if FileManager.default.fileExists(atPath: bundled.path) { return bundled }
-        }
-        throw NotFound()
-    }
-
-    /// Directory of binaries vendored into the app by `build.sh`
-    /// (`engine/bin/ffmpeg`, `…/ffprobe`, `…/whisper-cli`, `…/python/…`). Absent
-    /// in a plain `swift run`, in which case the engine falls back to PATH.
-    static var binDir: URL? {
-        Bundle.main.resourceURL?.appendingPathComponent("engine/bin", isDirectory: true)
-    }
-
-    /// Absolute path to a bundled tool if it shipped and is executable, else nil
-    /// — nil lets the engine resolve the tool from PATH (a dev's Homebrew install).
-    static func bundledTool(_ name: String) -> String? {
-        guard let p = binDir?.appendingPathComponent(name).path,
-              FileManager.default.isExecutableFile(atPath: p) else { return nil }
-        return p
-    }
-
-    /// python3 — prefer the bundled standalone runtime, then Homebrew, then system.
-    static var python: String {
-        if let p = binDir?.appendingPathComponent("python/bin/python3").path,
-           FileManager.default.isExecutableFile(atPath: p) { return p }
-        for p in ["/opt/homebrew/bin/python3", "/usr/local/bin/python3", "/usr/bin/python3"]
-        where FileManager.default.isExecutableFile(atPath: p) { return p }
-        return "/usr/bin/python3"
-    }
-}
-
-// MARK: - View model
-
+/// Drives the Python engine as a subprocess and publishes its progress/results to
+/// the UI. Knows nothing about views — it spawns `clean_video.py … --ndjson` and
+/// decodes the event stream into observable state.
 @MainActor
 @Observable
 final class CleanModel {
@@ -186,9 +91,9 @@ final class CleanModel {
     }
 
     private func runOne(_ url: URL, base: Double, span: Double, modelPath: String?) async throws {
-        let script = try Engine.scriptURL()
+        let script = try CleanEngine.scriptURL()
         let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: Engine.python)
+        proc.executableURL = URL(fileURLWithPath: CleanEngine.python)
         var args = [
             script.path, url.path,
             "--pause", String(strength.pause),
@@ -202,9 +107,9 @@ final class CleanModel {
         var env = ProcessInfo.processInfo.environment
         // Point the engine at the binaries we ship; each falls back to PATH if it
         // wasn't bundled (e.g. a plain `swift run` on a dev machine).
-        if let f = Engine.bundledTool("ffmpeg") { env["CRISP_FFMPEG"] = f }
-        if let p = Engine.bundledTool("ffprobe") { env["CRISP_FFPROBE"] = p }
-        if let w = Engine.bundledTool("whisper-cli") { env["CRISP_WHISPER"] = w }
+        if let f = CleanEngine.bundledTool("ffmpeg") { env["CRISP_FFMPEG"] = f }
+        if let p = CleanEngine.bundledTool("ffprobe") { env["CRISP_FFPROBE"] = p }
+        if let w = CleanEngine.bundledTool("whisper-cli") { env["CRISP_WHISPER"] = w }
         env["PATH"] = "/opt/homebrew/bin:" + (env["PATH"] ?? "")
         proc.environment = env
 

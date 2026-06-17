@@ -80,20 +80,33 @@ swiftlint             # lint (CI uses --reporter github-actions-logging)
 
 ## Desktop architecture
 
-- `Sources/Crisp/App.swift` — `@main`, single `Window` scene, channel-titled,
-  "Check for Updates…" command.
-- `Sources/Crisp/CleanModel.swift` — `@MainActor @Observable` model that locates
-  the bundled engine (`Engine`), spawns `python3 clean_video.py … --ndjson`, and
-  decodes the NDJSON event stream (`log` / `progress` / `result` / `error`) into
-  published state.
-- `Sources/Crisp/ContentView.swift` — display only: header (+ channel badge),
-  update banner, drop card, options, progress, result card.
-- `Sources/Crisp/Channel.swift` — channel identity from `CrispChannel`.
-- `Sources/Crisp/Updater.swift` — GitHub-release updater, channel-aware, auths via
-  `gh auth token` (private repo). Self-contained (no notification/settings deps).
+`Sources/Crisp/` is organized by layer (SwiftPM recurses, so subfolders need no
+`Package.swift` change; one module = one namespace, so moving a type between files
+is a pure move):
 
-## The engine (`Resources/engine/clean_video.py`)
+- `App/CrispApp.swift` — `@main`, single `Window` scene, channel-titled,
+  "Check for Updates…" command; owns the `CleanModel`, `Updater`, `ModelStore`.
+- `Common/` — cross-cutting: `Channel` (identity from `CrispChannel`), `AppInfo`
+  (bundle-id base + the shared `Logger` subsystem), `Formatting` (`formatTime`).
+- `Models/` — plain value types: `Strength`, `CleanResult`.
+- `Services/` — the logic (knows nothing about views):
+  - `Cleaning/` — `CleanModel` (`@MainActor @Observable`; spawns
+    `python3 clean_video.py … --ndjson` and decodes the `log`/`progress`/`result`/
+    `error` stream) + `CleanEngine` (locates the bundled script/bins/python).
+  - `Model/` — `ModelStore` (speech-model lifecycle) + `ChunkedDownloader`.
+  - `Updates/` — `Updater`: GitHub-release updater, channel-aware, auths via
+    `gh auth token` (private repo). Self-contained.
+- `Views/` — display only: `ContentView` composes `DropCard`, `OptionsCard`,
+  `ProgressSection`, `ResultCard`, `UpdateBanner`, `ModelStatusView`;
+  `Components/Card.swift` is the shared `.cardBackground(…)` surface every card uses.
 
+## The engine (`Resources/engine/`)
+
+- `clean_video.py` is a thin CLI wrapper (argparse + NDJSON/human emit); the engine
+  lives in the `crisp/` package beside it — `config` (tunables + filler vocab),
+  `tools` (ffmpeg/ffprobe/whisper resolution), `text` (`is_filler`), `detect`
+  (pauses + transcription), `edit` (backup/cut/render), `pipeline` (`clean_video`).
+  Library users `from crisp import clean_video`; Swift drives the CLI.
 - Pure Python **stdlib** — no pip dependencies (the user's Python is bleeding-edge;
   ML wheels don't exist for it). It shells out to **ffmpeg** and **whisper.cpp**.
 - Pipeline: backup → `ffmpeg silencedetect` finds pauses from real audio energy
@@ -102,9 +115,10 @@ swiftlint             # lint (CI uses --reporter github-actions-logging)
   trim/concat re-render (same resolution/fps, H.264 CRF 20, AAC 192k).
 - `--ndjson` emits one JSON object per line for the Swift UI; the human CLI mode
   prints `→` lines. `--no-fillers` skips transcription (faster, pauses only).
-- **Self-contained packaging.** The shipped app bundles `clean_video.py` **plus
-  the binaries it drives** — `ffmpeg`, `ffprobe`, `whisper-cli`, and a
-  `python-build-standalone` runtime — under `Resources/engine/bin/`, signed with
+- **Self-contained packaging.** The shipped app bundles `clean_video.py` + the
+  `crisp/` package **plus the binaries it drives** — `ffmpeg`, `ffprobe`,
+  `whisper-cli`, and a `python-build-standalone` runtime — under
+  `Resources/engine/bin/`, signed with
   the app. `Scripts/vendor.sh` produces that tree (pinned + hash-checked downloads;
   whisper-cli built from a pinned `whisper.cpp` tag via **cmake** — a build-time
   dep, CI runners have it), and `build.sh` stages + signs it. The engine resolves
