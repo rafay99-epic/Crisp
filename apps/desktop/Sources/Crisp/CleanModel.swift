@@ -86,14 +86,25 @@ enum Engine {
         throw NotFound()
     }
 
-    static var modelURL: URL? {
-        guard let res = Bundle.main.resourceURL else { return nil }
-        let m = res.appendingPathComponent("engine/models/ggml-base.en.bin")
-        return FileManager.default.fileExists(atPath: m.path) ? m : nil
+    /// Directory of binaries vendored into the app by `build.sh`
+    /// (`engine/bin/ffmpeg`, `…/ffprobe`, `…/whisper-cli`, `…/python/…`). Absent
+    /// in a plain `swift run`, in which case the engine falls back to PATH.
+    static var binDir: URL? {
+        Bundle.main.resourceURL?.appendingPathComponent("engine/bin", isDirectory: true)
     }
 
-    /// python3 — prefer Homebrew, fall back to PATH.
+    /// Absolute path to a bundled tool if it shipped and is executable, else nil
+    /// — nil lets the engine resolve the tool from PATH (a dev's Homebrew install).
+    static func bundledTool(_ name: String) -> String? {
+        guard let p = binDir?.appendingPathComponent(name).path,
+              FileManager.default.isExecutableFile(atPath: p) else { return nil }
+        return p
+    }
+
+    /// python3 — prefer the bundled standalone runtime, then Homebrew, then system.
     static var python: String {
+        if let p = binDir?.appendingPathComponent("python/bin/python3").path,
+           FileManager.default.isExecutableFile(atPath: p) { return p }
         for p in ["/opt/homebrew/bin/python3", "/usr/local/bin/python3", "/usr/bin/python3"]
         where FileManager.default.isExecutableFile(atPath: p) { return p }
         return "/usr/bin/python3"
@@ -141,7 +152,9 @@ final class CleanModel {
         status = "Choose a video to begin."
     }
 
-    func start() async {
+    /// `modelPath` is the verified whisper model from `ModelStore` (nil when the
+    /// user turned fillers off — pauses-only needs no model).
+    func start(modelPath: String?) async {
         guard !files.isEmpty, !isRunning else { return }
         isRunning = true
         results = []
@@ -157,7 +170,7 @@ final class CleanModel {
                 logLines.append("\u{2014} Video \(idx + 1) of \(files.count): \(url.lastPathComponent)")
             }
             do {
-                try await runOne(url, base: base, span: span)
+                try await runOne(url, base: base, span: span, modelPath: modelPath)
             } catch {
                 errorMessage = error.localizedDescription
                 status = "Something went wrong."
@@ -172,7 +185,7 @@ final class CleanModel {
         }
     }
 
-    private func runOne(_ url: URL, base: Double, span: Double) async throws {
+    private func runOne(_ url: URL, base: Double, span: Double, modelPath: String?) async throws {
         let script = try Engine.scriptURL()
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: Engine.python)
@@ -182,11 +195,16 @@ final class CleanModel {
             "--keep-pause", String(strength.keepPause),
             "--ndjson"
         ]
-        if let model = Engine.modelURL { args += ["--model", model.path] }
+        if removeFillers, let model = modelPath { args += ["--model", model] }
         if !removeFillers { args.append("--no-fillers") }
         proc.arguments = args
 
         var env = ProcessInfo.processInfo.environment
+        // Point the engine at the binaries we ship; each falls back to PATH if it
+        // wasn't bundled (e.g. a plain `swift run` on a dev machine).
+        if let f = Engine.bundledTool("ffmpeg") { env["CRISP_FFMPEG"] = f }
+        if let p = Engine.bundledTool("ffprobe") { env["CRISP_FFPROBE"] = p }
+        if let w = Engine.bundledTool("whisper-cli") { env["CRISP_WHISPER"] = w }
         env["PATH"] = "/opt/homebrew/bin:" + (env["PATH"] ?? "")
         proc.environment = env
 

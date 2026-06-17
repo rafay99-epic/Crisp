@@ -102,9 +102,22 @@ swiftlint             # lint (CI uses --reporter github-actions-logging)
   trim/concat re-render (same resolution/fps, H.264 CRF 20, AAC 192k).
 - `--ndjson` emits one JSON object per line for the Swift UI; the human CLI mode
   prints `→` lines. `--no-fillers` skips transcription (faster, pauses only).
-- **Packaging caveat:** the shipped app bundles `clean_video.py` + the model, but
-  still relies on **ffmpeg / whisper-cli / python3 being installed** (Homebrew).
-  A future task is to vendor these so a downloaded DMG is fully self-contained.
+- **Self-contained packaging.** The shipped app bundles `clean_video.py` **plus
+  the binaries it drives** — `ffmpeg`, `ffprobe`, `whisper-cli`, and a
+  `python-build-standalone` runtime — under `Resources/engine/bin/`, signed with
+  the app. `Scripts/vendor.sh` produces that tree (pinned + hash-checked downloads;
+  whisper-cli built from a pinned `whisper.cpp` tag via **cmake** — a build-time
+  dep, CI runners have it), and `build.sh` stages + signs it. The engine resolves
+  each tool from `CRISP_FFMPEG`/`CRISP_FFPROBE`/`CRISP_WHISPER` (set by Swift to
+  the bundled paths), falling back to PATH so the bare CLI / a dev's Homebrew still
+  work. Everything is **arm64-only** — Crisp is Apple-Silicon only; Intel Macs are
+  not supported (`build.sh` compiles a single arm64 slice).
+- **The speech model is downloaded, not bundled.** `ggml-base.en.bin` (~148 MB)
+  would bloat every build + re-ship on each update, so `ModelStore` fetches it once
+  on first run into the channel data dir (`~/.crisp*/models/`), with HTTP-Range
+  resume + SHA-256 verify + atomic publish. State is derived from disk each launch,
+  so interrupted/corrupt/deleted downloads self-heal. The Clean action is gated
+  until the model is ready (only when "Remove filler words" is on).
 
 ## Design language
 

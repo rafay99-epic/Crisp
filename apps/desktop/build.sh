@@ -32,11 +32,11 @@ case "$CHANNEL" in
     ;;
 esac
 
-echo "Compiling universal (arm64 + x86_64)…  [channel: $CHANNEL]"
-# Universal so the app can launch on an Intel Mac far enough to show its
-# "Apple Silicon only" apology; the real features run on the arm64 slice.
-swift build -c release --arch arm64 --arch x86_64
-BINARY=".build/apple/Products/Release/Crisp"
+echo "Compiling (arm64)…  [channel: $CHANNEL]"
+# Apple Silicon only — Intel Macs are no longer supported, so we build a single
+# arm64 slice (the bundled engine binaries are arm64 too).
+swift build -c release --arch arm64
+BINARY="$(swift build -c release --arch arm64 --show-bin-path)/Crisp"
 
 APP="build/$APP_NAME.app"
 rm -rf "$APP"
@@ -44,17 +44,18 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BINARY" "$APP/Contents/MacOS/Crisp"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 
-# Bundle the Python cleaning engine (clean_video.py + the whisper model) into the
-# app's Resources so the shipped app is self-contained. The model is gitignored
-# (148 MB) — setup.sh / the build downloads it into Resources/engine/models.
-# Distribution still relies on ffmpeg + whisper-cli + python3 on the user's Mac
-# (Homebrew); see CLAUDE.md "packaging" note.
+# Bundle the cleaning engine so a downloaded DMG is self-contained: the Python
+# script plus the binaries it drives (ffmpeg/ffprobe/whisper-cli/python). They're
+# arm64 (Apple Silicon only), vendored (downloaded + whisper built from source)
+# into .vendor/bin by Scripts/vendor.sh, then signed with the app below.
+# The whisper *model* is NOT bundled — it's ~148 MB and would re-ship on every
+# update, so the app downloads it once on first run into the channel's data dir.
+echo "Vendoring engine binaries…"
+./Scripts/vendor.sh
 echo "Bundling cleaning engine…"
 mkdir -p "$APP/Contents/Resources/engine"
 cp Resources/engine/clean_video.py "$APP/Contents/Resources/engine/clean_video.py"
-if [ -d Resources/engine/models ]; then
-  cp -R Resources/engine/models "$APP/Contents/Resources/engine/models"
-fi
+cp -R .vendor/bin "$APP/Contents/Resources/engine/bin"
 
 PB=/usr/libexec/PlistBuddy
 # Version is 0.<total commit count> — 10 commits → 0.10. CI passes
@@ -101,5 +102,18 @@ if [ ! -f "$ICON_CACHE" ]; then
 fi
 cp "$ICON_CACHE" "$APP/Contents/Resources/AppIcon.icns"
 
-codesign --force --sign - "$APP"
+# Sign inside-out: every bundled Mach-O first, then the app. Defaults to ad-hoc
+# (`-`); set CODESIGN_IDENTITY to a Developer ID to add hardened runtime +
+# timestamp for notarization (the bundled binaries need the runtime too).
+SIGN_ID="${CODESIGN_IDENTITY:--}"
+SIGN_OPTS=(--force --sign "$SIGN_ID")
+[[ "$SIGN_ID" != "-" ]] && SIGN_OPTS+=(--options runtime --timestamp)
+
+echo "Signing bundled binaries…"
+find "$APP/Contents/Resources/engine/bin" -type f -print0 | while IFS= read -r -d '' f; do
+  if file "$f" | grep -q "Mach-O"; then
+    codesign "${SIGN_OPTS[@]}" "$f" 2>/dev/null || true
+  fi
+done
+codesign "${SIGN_OPTS[@]}" "$APP"
 echo "Done → $PWD/$APP"

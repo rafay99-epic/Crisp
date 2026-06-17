@@ -35,4 +35,13 @@ final class CrispTests: XCTestCase {
         XCTAssertEqual(formatTime(65), "1:05")
         XCTAssertEqual(formatTime(600), "10:00")
     }
+
+    func testChannelDataDirIsolatedPerChannel() {
+        // Each channel keeps its downloaded model in its own home dir, so the
+        // three installs never share (or clobber) one another's data.
+        XCTAssertTrue(Channel.stable.dataDirectory.path.hasSuffix("/.crisp"))
+        XCTAssertTrue(Channel.nightly.dataDirectory.path.hasSuffix("/.crisp-nightly"))
+        XCTAssertTrue(Channel.dev.dataDirectory.path.hasSuffix("/.crisp-dev"))
+        XCTAssertNotEqual(Channel.stable.dataDirectory, Channel.dev.dataDirectory)
+    }
 }

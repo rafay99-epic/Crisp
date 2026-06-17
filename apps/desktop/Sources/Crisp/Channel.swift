@@ -67,6 +67,14 @@ enum Channel: String {
         }
     }
 
+    /// Per-channel data home (`~/.crisp`, `~/.crisp-nightly`, …). Channels stay
+    /// isolated here — e.g. each keeps its own downloaded speech model — so they
+    /// can run side by side without stepping on each other.
+    var dataDirectory: URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(dataDirSuffix, isDirectory: true)
+    }
+
     /// Stable tracks the latest full release; Nightly tracks the newest
     /// pre-release. (Dev tracks nothing — see `updatesEnabled`.)
     var isPrerelease: Bool { self == .nightly }

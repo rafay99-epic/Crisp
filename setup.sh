@@ -24,6 +24,9 @@ command -v ffmpeg >/dev/null 2>&1 || brew install ffmpeg
 echo "→ Checking whisper.cpp ..."
 command -v whisper-cli >/dev/null 2>&1 || command -v whisper-cpp >/dev/null 2>&1 || brew install whisper-cpp
 
+echo "→ Checking cmake (builds the bundled whisper-cli in Scripts/vendor.sh) ..."
+command -v cmake >/dev/null 2>&1 || brew install cmake
+
 echo "→ Checking Swift toolchain ..."
 if ! xcrun --find swiftc >/dev/null 2>&1; then
   echo "ERROR: Xcode (with the macOS SDK) is required to build the app."

@@ -11,6 +11,10 @@ apps/desktop/Resources/AppIcon-Dev.icns
 # The whisper speech model (148 MB) — downloaded by setup.sh, never committed.
 apps/desktop/Resources/engine/models/
 
+# Vendored engine binaries (ffmpeg/ffprobe/whisper-cli/python) — fetched & built
+# by Scripts/vendor.sh at build time, never committed.
+apps/desktop/.vendor/
+
 # Python bytecode
 __pycache__/
 *.pyc

@@ -1,6 +1,7 @@
 excluded:
   - .build
   - build
+  - .vendor
   - Scripts
 
 disabled_rules:
