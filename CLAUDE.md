@@ -11,9 +11,12 @@ subprocess. License: **GPL-3.0**. Conventions mirror the Vitals project.
 
 1. **Don't stick out** — the app must look like Apple made it. System fonts, SF
    Symbols, native materials, standard controls.
-2. **Never lose the user's footage** — the original is **always** backed up to an
-   `_originals/` folder next to it before anything runs. The app only ever writes a
-   new `<name>_cleaned.mp4`; it never overwrites or deletes a source file.
+2. **Never lose the user's footage** — the app only ever writes a new
+   `<name>_cleaned.mp4`; it **never** overwrites or deletes a source file. By
+   default it also backs the original up first (an opt-out toggle in Settings):
+   the app copies it into a dated folder under the data home
+   (`~/.crisp*/Originals/<yyyy-MM-dd>/`); the bare CLI defaults to an `_originals/`
+   folder beside the input.
 3. **Honest about quality** — cuts re-encode (required for frame-accurate trims)
    but never downscale: same resolution, same fps, high-quality H.264 (CRF 20).
    Don't silently degrade. If a tradeoff exists, surface it.
