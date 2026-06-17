@@ -28,7 +28,7 @@ struct CrispApp: App {
         }
 
         Settings {
-            SettingsView(settings: settings)
+            SettingsView(settings: settings, updater: updater)
         }
     }
 }

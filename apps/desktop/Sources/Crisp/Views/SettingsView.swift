@@ -4,12 +4,71 @@ import SwiftUI
 /// "Custom" strength; values persist to `~/.crisp*/config/settings.json`.
 struct SettingsView: View {
     @Bindable var settings: EngineSettings
+    @Bindable var updater: Updater
 
     /// Whether the chosen container dictates its own codecs (WebM → VP9 + Opus),
     /// in which case the codec controls are disabled. Reads the rule off the enum
     /// so it stays in one place as containers are added.
     private var isWebM: Bool {
         OutputContainer(rawValue: settings.outputContainer)?.forcesOwnCodecs ?? false
+    }
+
+    /// The running build, e.g. "0.12" or "0.12 (build 34)" on Nightly.
+    private var versionString: String {
+        Updater.currentBuildNumber > 0
+            ? "\(Updater.currentVersion) (build \(Updater.currentBuildNumber))"
+            : Updater.currentVersion
+    }
+
+    /// The action row: a Check button (with inline result), the install prompt when
+    /// an update is found, or progress while it downloads/installs. All three drive
+    /// the same shared `Updater` the launch check and menu command use.
+    @ViewBuilder private var updateRow: some View {
+        switch updater.status {
+        case .available(let release):
+            LabeledContent {
+                Button("Install & Relaunch") { Task { await updater.downloadAndInstall() } }
+            } label: {
+                Label("Update available \u{2014} \(release.displayVersion)", systemImage: "arrow.down.circle.fill")
+                    .foregroundStyle(.tint)
+            }
+        case .downloading, .installing:
+            HStack(spacing: 8) {
+                ProgressView().controlSize(.small)
+                Text(updater.status == .downloading ? "Downloading update\u{2026}" : "Installing update\u{2026}")
+                    .foregroundStyle(.secondary)
+            }
+        default:
+            LabeledContent {
+                switch updater.status {
+                case .checking:
+                    ProgressView().controlSize(.small)
+                case .upToDate:
+                    Label("Up to date", systemImage: "checkmark.circle.fill").foregroundStyle(.secondary)
+                default:
+                    EmptyView()
+                }
+            } label: {
+                Button("Check for Updates\u{2026}") {
+                    Task { await updater.check(userInitiated: true) }
+                }
+                .disabled(!Channel.current.updatesEnabled || updater.isBusy)
+            }
+        }
+    }
+
+    /// Footer: a check error (if any), the disabled note for Dev, the last-checked
+    /// time, or the default "checks at launch" line.
+    @ViewBuilder private var updateFooter: some View {
+        if case .failed(let message) = updater.status {
+            Text(message).foregroundStyle(.red)
+        } else if !Channel.current.updatesEnabled {
+            Text("Automatic updates are off for this build.")
+        } else if let date = updater.lastChecked {
+            Text("Last checked \(date.formatted(date: .abbreviated, time: .shortened)).")
+        } else {
+            Text("Crisp also checks automatically each time it launches.")
+        }
     }
 
     /// Describes one slider row (keeps the row builder to a single argument).
@@ -86,6 +145,17 @@ struct SettingsView: View {
                      ? "Before each clean, your original is copied into a dated folder under \u{201C}Originals\u{201D} in Crisp\u{2019}s home folder. Crisp never edits or deletes your source file."
                      : "Crisp won\u{2019}t copy your original. It still never edits or deletes your source file \u{2014} only a new cleaned copy is written.")
                     .font(.caption).foregroundStyle(.secondary)
+            }
+
+            Section {
+                LabeledContent("Version") {
+                    Text(versionString).foregroundStyle(.secondary)
+                }
+                updateRow
+            } header: {
+                Text("Software Update")
+            } footer: {
+                updateFooter.font(.caption).foregroundStyle(.secondary)
             }
 
             Section {
