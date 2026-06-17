@@ -48,6 +48,7 @@ from crisp.config import (
     DEFAULT_AUDIO_BITRATE, DEFAULT_AUDIO_CODEC, DEFAULT_CONTAINER, DEFAULT_KEEP_PAUSE,
     DEFAULT_MAX_PAUSE, DEFAULT_MODEL, DEFAULT_NOISE_DB, DEFAULT_QUALITY, DEFAULT_VIDEO_CODEC, MIN_KEEP,
 )
+from crisp.encode import SUPPORTED_CONTAINERS
 
 
 def main():
@@ -72,7 +73,7 @@ def main():
                    help=f"audio encoder (default {DEFAULT_AUDIO_CODEC})")
     p.add_argument("--audio-bitrate", type=int, default=DEFAULT_AUDIO_BITRATE,
                    help=f"audio bitrate in kbps (default {DEFAULT_AUDIO_BITRATE})")
-    p.add_argument("--container", choices=["auto", "mp4", "mkv", "mov", "m4v", "ts", "webm"],
+    p.add_argument("--container", choices=["auto", *SUPPORTED_CONTAINERS],
                    default=DEFAULT_CONTAINER,
                    help=f"output container; 'auto' matches the input, 'webm' uses VP9+Opus "
                         f"(default {DEFAULT_CONTAINER})")
@@ -81,7 +82,8 @@ def main():
                    help="don't copy the original aside before cutting")
     p.add_argument("--backup-dir", default=None,
                    help="folder to copy the original into (default: an '_originals' folder beside it)")
-    p.add_argument("--out", default=None, help="output path (default: <name>_cleaned.mp4 beside input)")
+    p.add_argument("--out", default=None,
+                   help="output path (default: <name>_cleaned.<ext> beside input, ext per --container)")
     p.add_argument("--ndjson", action="store_true",
                    help="emit machine-readable progress as one JSON object per line "
                         "(used by the desktop app)")

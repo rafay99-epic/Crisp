@@ -20,7 +20,7 @@ struct EngineConfig: Codable, Equatable {
     var videoQuality: String      // "maximum" | "high" | "balanced" | "smaller"
     var audioCodec: String        // "aac" | "opus"
     var audioBitrateKbps: Int
-    var outputContainer: String   // "auto" | "mp4" | "mkv" | "mov" | "m4v" | "ts"
+    var outputContainer: String   // "auto" | "mp4" | "mkv" | "mov" | "m4v" | "ts" | "webm"
     // Backup
     var backupOriginal: Bool      // copy the source aside before cutting
 

@@ -5,9 +5,12 @@ import SwiftUI
 struct SettingsView: View {
     @Bindable var settings: EngineSettings
 
-    /// WebM forces its own codecs (VP9 + Opus), so the codec controls are disabled
-    /// while it's the chosen output format.
-    private var isWebM: Bool { settings.outputContainer == OutputContainer.webm.rawValue }
+    /// Whether the chosen container dictates its own codecs (WebM → VP9 + Opus),
+    /// in which case the codec controls are disabled. Reads the rule off the enum
+    /// so it stays in one place as containers are added.
+    private var isWebM: Bool {
+        OutputContainer(rawValue: settings.outputContainer)?.forcesOwnCodecs ?? false
+    }
 
     /// Describes one slider row (keeps the row builder to a single argument).
     private struct Knob {

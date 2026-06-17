@@ -29,8 +29,12 @@ def video_args(codec: str, hardware: bool, quality: str) -> list:
         # switches libvpx-vp9 into constant-quality mode (CRF as the target, not a
         # cap); `-row-mt 1` + `-cpu-used` claw back some of VP9's slowness.
         crf = SOFTWARE_CRF["vp9"][quality]
+        # `-tile-columns 2` is what lets `-row-mt 1` actually parallelize across
+        # cores; without it VP9 (already the slow, software-only path) barely
+        # threads. `-cpu-used 2` keeps a sane speed/quality operating point.
         return ["-c:v", "libvpx-vp9", "-crf", str(crf), "-b:v", "0",
-                "-row-mt", "1", "-deadline", "good", "-cpu-used", "2", "-pix_fmt", "yuv420p"]
+                "-row-mt", "1", "-tile-columns", "2", "-deadline", "good",
+                "-cpu-used", "2", "-pix_fmt", "yuv420p"]
 
     codec = codec if codec in ("h264", "hevc") else "h264"
     hevc_tag = ["-tag:v", "hvc1"] if codec == "hevc" else []  # QuickTime-friendly HEVC
