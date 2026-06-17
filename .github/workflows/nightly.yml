@@ -40,6 +40,8 @@ jobs:
           persist-credentials: false
       - name: Run tests
         run: swift test
+      - name: Run engine unit tests
+        run: python3 -m unittest discover -s Resources/engine/tests -t Resources/engine
       - name: Install SwiftLint
         run: brew install swiftlint
       - name: Lint

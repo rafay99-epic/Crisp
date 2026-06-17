@@ -55,6 +55,16 @@ jobs:
       - name: Lint
         run: swiftlint --reporter github-actions-logging
 
+  # The cleaning engine is stdlib-only Python, so its unit tests need no deps and
+  # no ffmpeg/whisper — they pin the pure cut-planning / filler / encoder logic.
+  engine-test:
+    name: Engine tests (Python)
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v6
+      - name: Run engine unit tests
+        run: python3 -m unittest discover -s Resources/engine/tests -t Resources/engine
+
   # PR only: build + package the DMG (this IS the release-config build check —
   # build.sh does a universal `swift build -c release`, so a separate build job
   # would just compile the same thing again on another runner) and upload it as
@@ -63,7 +73,7 @@ jobs:
     name: Build & package DMG
     if: github.event_name == 'pull_request'
     runs-on: macos-26
-    needs: [test, lint]
+    needs: [test, lint, engine-test]
     steps:
       - uses: actions/checkout@v6
       - name: Build app and installer
@@ -77,7 +87,7 @@ jobs:
           path: apps/desktop/build/Crisp.dmg
 
   # main only: build + publish the GitHub Release (version = commit count).
-  # `needs: [test, lint]` gates it, and build.sh below is the release-config
+  # `needs: [test, lint, engine-test]` gates it, and build.sh below is the release-config
   # build — if tests or lint fail, this job is skipped and nothing is built or
   # published, so users never auto-update onto a build that didn't pass. A red
   # build.sh here fails the job before `gh release create` runs, so a broken
@@ -86,7 +96,7 @@ jobs:
     name: Build and publish release
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: macos-26
-    needs: [test, lint]
+    needs: [test, lint, engine-test]
     permissions:
       contents: write
     steps:
