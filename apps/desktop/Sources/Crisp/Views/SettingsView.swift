@@ -34,11 +34,34 @@ struct SettingsView: View {
             }
 
             Section {
+                Picker("Video format", selection: $settings.videoCodec) {
+                    ForEach(VideoCodec.allCases) { Text($0.label).tag($0.rawValue) }
+                }
+                Toggle("Hardware acceleration", isOn: $settings.hardwareEncoding)
+                Text("Apple VideoToolbox \u{2014} faster, but software gives slightly better quality per file size.")
+                    .font(.caption).foregroundStyle(.secondary)
+                Picker("Quality", selection: $settings.videoQuality) {
+                    ForEach(VideoQuality.allCases) { Text($0.label).tag($0.rawValue) }
+                }
+                Picker("Audio format", selection: $settings.audioCodec) {
+                    ForEach(AudioCodec.allCases) { Text($0.label).tag($0.rawValue) }
+                }
+                Picker("Audio bitrate", selection: $settings.audioBitrateKbps) {
+                    ForEach([128, 160, 192, 256], id: \.self) { Text("\($0) kbps").tag($0) }
+                }
+            } header: {
+                Text("Encoding")
+            } footer: {
+                Text("Applied to every clean. Cuts are always re-encoded, so these set the output quality.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
+            Section {
                 Button("Restore Defaults") { settings.restoreDefaults() }
             }
         }
         .formStyle(.grouped)
-        .frame(width: 460, height: 380)
+        .frame(width: 460, height: 560)
     }
 
     private func row(_ knob: Knob, _ value: Binding<Double>) -> some View {

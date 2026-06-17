@@ -102,8 +102,13 @@ final class CleanModel {
             "--noise", String(parameters.noiseDB),
             "--keep-pause", String(parameters.keepPause),
             "--min-keep", String(parameters.minKeep),
+            "--video-codec", parameters.videoCodec,
+            "--quality", parameters.videoQuality,
+            "--audio-codec", parameters.audioCodec,
+            "--audio-bitrate", String(parameters.audioBitrateKbps),
             "--ndjson"
         ]
+        if parameters.hardwareEncoding { args.append("--hardware") }
         if removeFillers, let model = modelPath { args += ["--model", model] }
         if !removeFillers { args.append("--no-fillers") }
         proc.arguments = args

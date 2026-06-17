@@ -3,9 +3,13 @@
 import tempfile
 from pathlib import Path
 
-from .config import DEFAULT_KEEP_PAUSE, DEFAULT_MAX_PAUSE, DEFAULT_MODEL, DEFAULT_NOISE_DB, MIN_KEEP
+from .config import (
+    DEFAULT_AUDIO_BITRATE, DEFAULT_AUDIO_CODEC, DEFAULT_HARDWARE, DEFAULT_KEEP_PAUSE,
+    DEFAULT_MAX_PAUSE, DEFAULT_MODEL, DEFAULT_NOISE_DB, DEFAULT_QUALITY, DEFAULT_VIDEO_CODEC, MIN_KEEP,
+)
 from .detect import detect_silences, extract_audio, transcribe
 from .edit import build_keep_segments, make_backup, render
+from .encode import audio_args, video_args
 from .errors import CleanError
 from .tools import ffprobe_duration, which_whisper
 
@@ -15,8 +19,10 @@ def _noop(*_a, **_k):
 
 
 def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
-                noise=DEFAULT_NOISE_DB, keep_pause=DEFAULT_KEEP_PAUSE,
-                min_keep=MIN_KEEP, remove_fillers=True, on_log=None, on_progress=None):
+                noise=DEFAULT_NOISE_DB, keep_pause=DEFAULT_KEEP_PAUSE, min_keep=MIN_KEEP,
+                video_codec=DEFAULT_VIDEO_CODEC, hardware=DEFAULT_HARDWARE, quality=DEFAULT_QUALITY,
+                audio_codec=DEFAULT_AUDIO_CODEC, audio_bitrate=DEFAULT_AUDIO_BITRATE,
+                remove_fillers=True, on_log=None, on_progress=None):
     """
     Clean one video. Returns a dict with results.
       on_log(str)            — called with human-readable status lines.
@@ -79,7 +85,9 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
         on_log(f"Removing {stats['fillers']} filler words and {stats['pauses']} pauses.")
         on_log(f"{duration:.0f}s  →  {kept_dur:.0f}s  (saved {duration - kept_dur:.0f}s)")
 
-        render(src, keep, out_path, on_log, stage(0.60, 1.0))
+        render(src, keep, out_path, on_log, stage(0.60, 1.0),
+               video_args(video_codec, hardware, quality),
+               audio_args(audio_codec, audio_bitrate))
 
     on_progress(1.0, "Done")
     on_log(f"✅ Done! Cleaned video: {out_path}")

@@ -45,6 +45,14 @@ DEFAULT_NOISE_DB = -30        # audio below this loudness (dB) counts as silence
 DEFAULT_KEEP_PAUSE = 0.15     # breathing room left around each cut (seconds)
 MIN_KEEP = 0.05               # drop kept fragments shorter than this (seconds)
 
+# Re-encode settings (see crisp.encode). Defaults reproduce the original
+# libx264 CRF 20 + AAC 192k render exactly.
+DEFAULT_VIDEO_CODEC = "h264"  # h264 | hevc
+DEFAULT_HARDWARE = False      # use Apple VideoToolbox (faster; sw is better per-size)
+DEFAULT_QUALITY = "high"      # maximum | high | balanced | smaller
+DEFAULT_AUDIO_CODEC = "aac"   # aac | opus
+DEFAULT_AUDIO_BITRATE = 192   # kbps
+
 # The engine dir is the package's parent (…/engine/crisp → …/engine).
 HERE = Path(__file__).resolve().parent.parent
 DEFAULT_MODEL = HERE / "models" / "ggml-base.en.bin"

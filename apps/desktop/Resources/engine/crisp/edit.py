@@ -71,7 +71,7 @@ def build_keep_segments(words, silences, duration, keep_pause, min_keep=MIN_KEEP
     return keep, stats
 
 
-def render(src, keep, out_path, on_log, on_progress):
+def render(src, keep, out_path, on_log, on_progress, video_opts, audio_opts):
     on_log(f"Rendering cleaned video ({len(keep)} segments kept)...")
     total = sum(e - s for s, e in keep) or 1.0
 
@@ -92,8 +92,7 @@ def render(src, keep, out_path, on_log, on_progress):
             [ffmpeg_bin(), "-y", "-i", str(src),
              "-filter_complex_script", graph_path,
              "-map", "[outv]", "-map", "[outa]",
-             "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
-             "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k",
+             *video_opts, *audio_opts,
              "-movflags", "+faststart",
              "-progress", "pipe:1", "-nostats", str(out_path)],
             stdout=subprocess.PIPE, stderr=err_file, text=True,

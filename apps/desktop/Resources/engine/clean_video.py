@@ -26,7 +26,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from crisp import CleanError, clean_video
 from crisp.config import (
-    DEFAULT_KEEP_PAUSE, DEFAULT_MAX_PAUSE, DEFAULT_MODEL, DEFAULT_NOISE_DB, MIN_KEEP,
+    DEFAULT_AUDIO_BITRATE, DEFAULT_AUDIO_CODEC, DEFAULT_KEEP_PAUSE, DEFAULT_MAX_PAUSE,
+    DEFAULT_MODEL, DEFAULT_NOISE_DB, DEFAULT_QUALITY, DEFAULT_VIDEO_CODEC, MIN_KEEP,
 )
 
 
@@ -42,6 +43,16 @@ def main():
                    help=f"breathing room left around each cut, in seconds (default {DEFAULT_KEEP_PAUSE})")
     p.add_argument("--min-keep", type=float, default=MIN_KEEP,
                    help=f"drop kept fragments shorter than this many seconds (default {MIN_KEEP})")
+    p.add_argument("--video-codec", choices=["h264", "hevc"], default=DEFAULT_VIDEO_CODEC,
+                   help=f"video encoder (default {DEFAULT_VIDEO_CODEC})")
+    p.add_argument("--hardware", action="store_true",
+                   help="use Apple VideoToolbox hardware encoding (faster)")
+    p.add_argument("--quality", choices=["maximum", "high", "balanced", "smaller"],
+                   default=DEFAULT_QUALITY, help=f"encode quality level (default {DEFAULT_QUALITY})")
+    p.add_argument("--audio-codec", choices=["aac", "opus"], default=DEFAULT_AUDIO_CODEC,
+                   help=f"audio encoder (default {DEFAULT_AUDIO_CODEC})")
+    p.add_argument("--audio-bitrate", type=int, default=DEFAULT_AUDIO_BITRATE,
+                   help=f"audio bitrate in kbps (default {DEFAULT_AUDIO_BITRATE})")
     p.add_argument("--no-fillers", action="store_true", help="only remove pauses, keep um/uh")
     p.add_argument("--out", default=None, help="output path (default: <name>_cleaned.mp4 beside input)")
     p.add_argument("--ndjson", action="store_true",
@@ -62,6 +73,8 @@ def main():
     try:
         result = clean_video(args.video, out_path=args.out, model=args.model, pause=args.pause,
                              noise=args.noise, keep_pause=args.keep_pause, min_keep=args.min_keep,
+                             video_codec=args.video_codec, hardware=args.hardware, quality=args.quality,
+                             audio_codec=args.audio_codec, audio_bitrate=args.audio_bitrate,
                              remove_fillers=not args.no_fillers,
                              on_log=on_log, on_progress=on_progress)
         if args.ndjson:

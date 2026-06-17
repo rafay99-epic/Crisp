@@ -48,8 +48,8 @@ final class CrispTests: XCTestCase {
     // MARK: - Custom settings
 
     func testCustomStrengthUsesConfigValues() {
-        let cfg = EngineConfig(version: 1, pauseThreshold: 1.25, silenceFloorDB: -22,
-                               breathingRoom: 0.2, minKeep: 0.3)
+        var cfg = EngineConfig.defaults
+        cfg.pauseThreshold = 1.25; cfg.silenceFloorDB = -22; cfg.breathingRoom = 0.2; cfg.minKeep = 0.3
         let p = Strength.custom.parameters(using: cfg)
         XCTAssertEqual(p.pause, 1.25)
         XCTAssertEqual(p.noiseDB, -22)
@@ -60,8 +60,8 @@ final class CrispTests: XCTestCase {
     func testPresetStrengthIgnoresCustomConfig() {
         // A preset must use its own pause/keep + the engine defaults for the rest,
         // regardless of what the user saved for Custom.
-        let cfg = EngineConfig(version: 1, pauseThreshold: 9, silenceFloorDB: 0,
-                               breathingRoom: 9, minKeep: 9)
+        var cfg = EngineConfig.defaults
+        cfg.pauseThreshold = 9; cfg.silenceFloorDB = 0; cfg.breathingRoom = 9; cfg.minKeep = 9
         let p = Strength.aggressive.parameters(using: cfg)
         XCTAssertEqual(p.pause, Strength.aggressive.pause)
         XCTAssertEqual(p.keepPause, Strength.aggressive.keepPause)
@@ -69,17 +69,35 @@ final class CrispTests: XCTestCase {
         XCTAssertEqual(p.minKeep, EngineConfig.defaults.minKeep)
     }
 
+    func testEncoderChoicesCarryThroughRegardlessOfStrength() {
+        // Encoder settings apply to every clean, independent of the cut strength.
+        var cfg = EngineConfig.defaults
+        cfg.videoCodec = "hevc"; cfg.hardwareEncoding = true
+        cfg.videoQuality = "maximum"; cfg.audioCodec = "opus"; cfg.audioBitrateKbps = 256
+        for strength in [Strength.gentle, .aggressive, .custom] {
+            let p = strength.parameters(using: cfg)
+            XCTAssertEqual(p.videoCodec, "hevc")
+            XCTAssertTrue(p.hardwareEncoding)
+            XCTAssertEqual(p.videoQuality, "maximum")
+            XCTAssertEqual(p.audioCodec, "opus")
+            XCTAssertEqual(p.audioBitrateKbps, 256)
+        }
+    }
+
     func testEngineConfigForwardCompatFillsMissingKeys() throws {
-        // A file from an older version is missing `minKeep`: it should default,
-        // while every key that IS present is preserved (the update-safety guarantee).
+        // A file from an older version (only the v1 cutting keys, no encoder keys):
+        // present keys are preserved, every missing key defaults — so an update
+        // never disturbs the user's saved values.
         let json = Data("""
         { "version": 1, "pauseThreshold": 0.9, "silenceFloorDB": -25, "breathingRoom": 0.07 }
         """.utf8)
         let cfg = try JSONDecoder().decode(EngineConfig.self, from: json)
         XCTAssertEqual(cfg.pauseThreshold, 0.9)         // preserved
-        XCTAssertEqual(cfg.silenceFloorDB, -25)         // preserved
         XCTAssertEqual(cfg.breathingRoom, 0.07)         // preserved
-        XCTAssertEqual(cfg.minKeep, EngineConfig.defaults.minKeep)  // missing → default
+        XCTAssertEqual(cfg.minKeep, EngineConfig.defaults.minKeep)        // missing → default
+        XCTAssertEqual(cfg.videoCodec, EngineConfig.defaults.videoCodec)  // new key → default
+        XCTAssertEqual(cfg.audioCodec, EngineConfig.defaults.audioCodec)  // new key → default
+        XCTAssertEqual(cfg.audioBitrateKbps, EngineConfig.defaults.audioBitrateKbps)
 
         // An empty object decodes to all defaults (not a failure).
         let empty = try JSONDecoder().decode(EngineConfig.self, from: Data("{}".utf8))

@@ -1,28 +1,31 @@
-/// The four numeric knobs the engine takes for one clean. Derived from the
-/// chosen `Strength`: a preset supplies pause/keep-pause (with the engine
-/// defaults for the rest); `.custom` pulls all four from `EngineSettings`.
+/// Everything the engine needs for one clean: the four cut knobs plus the encoder
+/// choices. Cut knobs are strength-derived (`.custom` pulls them from the saved
+/// config; presets use their own values + engine defaults). Encoder choices are
+/// always taken from the config — they apply to every clean regardless of strength.
 struct CleanParameters: Equatable {
     let pause: Double
     let noiseDB: Double
     let keepPause: Double
     let minKeep: Double
+    let videoCodec: String
+    let hardwareEncoding: Bool
+    let videoQuality: String
+    let audioCodec: String
+    let audioBitrateKbps: Int
 }
 
 extension Strength {
-    /// `.custom` takes all four from the user's saved `config`; any preset takes
-    /// pause/keep-pause from itself and the engine defaults for the rest.
     func parameters(using config: EngineConfig) -> CleanParameters {
-        switch self {
-        case .custom:
-            return CleanParameters(pause: config.pauseThreshold,
-                                   noiseDB: config.silenceFloorDB,
-                                   keepPause: config.breathingRoom,
-                                   minKeep: config.minKeep)
-        default:
-            return CleanParameters(pause: pause,
-                                   noiseDB: EngineConfig.defaults.silenceFloorDB,
-                                   keepPause: keepPause,
-                                   minKeep: EngineConfig.defaults.minKeep)
-        }
+        let isCustom = self == .custom
+        return CleanParameters(
+            pause: isCustom ? config.pauseThreshold : pause,
+            noiseDB: isCustom ? config.silenceFloorDB : EngineConfig.defaults.silenceFloorDB,
+            keepPause: isCustom ? config.breathingRoom : keepPause,
+            minKeep: isCustom ? config.minKeep : EngineConfig.defaults.minKeep,
+            videoCodec: config.videoCodec,
+            hardwareEncoding: config.hardwareEncoding,
+            videoQuality: config.videoQuality,
+            audioCodec: config.audioCodec,
+            audioBitrateKbps: config.audioBitrateKbps)
     }
 }
