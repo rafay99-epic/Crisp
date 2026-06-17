@@ -4,12 +4,13 @@ import tempfile
 from pathlib import Path
 
 from .config import (
-    DEFAULT_AUDIO_BITRATE, DEFAULT_AUDIO_CODEC, DEFAULT_BACKUP, DEFAULT_HARDWARE, DEFAULT_KEEP_PAUSE,
-    DEFAULT_MAX_PAUSE, DEFAULT_MODEL, DEFAULT_NOISE_DB, DEFAULT_QUALITY, DEFAULT_VIDEO_CODEC, MIN_KEEP,
+    DEFAULT_AUDIO_BITRATE, DEFAULT_AUDIO_CODEC, DEFAULT_BACKUP, DEFAULT_CONTAINER, DEFAULT_HARDWARE,
+    DEFAULT_KEEP_PAUSE, DEFAULT_MAX_PAUSE, DEFAULT_MODEL, DEFAULT_NOISE_DB, DEFAULT_QUALITY,
+    DEFAULT_VIDEO_CODEC, MIN_KEEP,
 )
 from .detect import detect_silences, extract_audio, transcribe
 from .edit import build_keep_segments, make_backup, render
-from .encode import audio_args, video_args
+from .encode import audio_args, container_args, resolve_container, video_args
 from .errors import CleanError
 from .tools import ffprobe_duration, which_whisper
 
@@ -22,8 +23,8 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
                 noise=DEFAULT_NOISE_DB, keep_pause=DEFAULT_KEEP_PAUSE, min_keep=MIN_KEEP,
                 video_codec=DEFAULT_VIDEO_CODEC, hardware=DEFAULT_HARDWARE, quality=DEFAULT_QUALITY,
                 audio_codec=DEFAULT_AUDIO_CODEC, audio_bitrate=DEFAULT_AUDIO_BITRATE,
-                remove_fillers=True, backup=DEFAULT_BACKUP, backup_dir=None,
-                on_log=None, on_progress=None):
+                container=DEFAULT_CONTAINER, remove_fillers=True, backup=DEFAULT_BACKUP,
+                backup_dir=None, on_log=None, on_progress=None):
     """
     Clean one video. Returns a dict with results.
       on_log(str)            — called with human-readable status lines.
@@ -37,8 +38,14 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
         raise CleanError(f"File not found: {src}")
 
     model = Path(model).expanduser().resolve() if model else DEFAULT_MODEL
-    out_path = (Path(out_path).expanduser().resolve() if out_path
-                else src.with_name(f"{src.stem}_cleaned.mp4"))
+    if out_path:
+        # An explicit output path wins; its extension picks the container.
+        out_path = Path(out_path).expanduser().resolve()
+        container = out_path.suffix.lower().lstrip(".") or "mp4"
+    else:
+        # Otherwise: the chosen container, or "auto" = match the input's.
+        container = resolve_container(container, src.suffix)
+        out_path = src.with_name(f"{src.stem}_cleaned.{container}")
 
     whisper_bin = None
     if remove_fillers:
@@ -88,9 +95,10 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
         on_log(f"{duration:.0f}s  →  {kept_dur:.0f}s  (saved {duration - kept_dur:.0f}s)")
 
         audio = audio_args(audio_codec, audio_bitrate)
+        mux = container_args(container)
         try:
             render(src, keep, out_path, on_log, stage(0.60, 1.0),
-                   video_args(video_codec, hardware, quality), audio)
+                   video_args(video_codec, hardware, quality), audio, mux)
         except CleanError:
             if not hardware:
                 raise
@@ -98,7 +106,7 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
             # with no media engine). Fall back to software so a clean never fails.
             on_log("Hardware encoding failed — falling back to software encoding…")
             render(src, keep, out_path, on_log, stage(0.60, 1.0),
-                   video_args(video_codec, False, quality), audio)
+                   video_args(video_codec, False, quality), audio, mux)
 
     on_progress(1.0, "Done")
     on_log(f"✅ Done! Cleaned video: {out_path}")

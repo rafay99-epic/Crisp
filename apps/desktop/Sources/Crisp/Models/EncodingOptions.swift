@@ -36,3 +36,21 @@ enum AudioCodec: String, CaseIterable, Identifiable {
         }
     }
 }
+
+/// Output container. `auto` matches the input file (an .mkv stays .mkv, an .mp4
+/// stays .mp4); the rest force a specific wrapper. Each `rawValue` is exactly the
+/// string the engine's `--container` flag expects.
+enum OutputContainer: String, CaseIterable, Identifiable {
+    case auto, mp4, mkv, mov, m4v, ts
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .auto: return "Same as input"
+        case .mp4:  return "MP4 (.mp4)"
+        case .mkv:  return "Matroska (.mkv)"
+        case .mov:  return "QuickTime (.mov)"
+        case .m4v:  return "MPEG-4 (.m4v)"
+        case .ts:   return "MPEG-TS (.ts)"
+        }
+    }
+}

@@ -34,3 +34,27 @@ def audio_args(codec: str, bitrate_kbps: int) -> list:
     """ffmpeg `-c:a …` arguments for the chosen audio encoder + bitrate."""
     encoder = "libopus" if codec == "opus" else "aac"
     return ["-c:a", encoder, "-b:a", f"{int(bitrate_kbps)}k"]
+
+
+# Output containers Crisp can mux its H.264/HEVC + AAC/Opus streams into. They all
+# accept those codecs (mkv is the most permissive); webm/flv are intentionally
+# excluded because they'd require a different codec stack. "auto" (the default)
+# matches the input — an mkv recording stays mkv, an mp4 stays mp4.
+SUPPORTED_CONTAINERS = ("mp4", "mkv", "mov", "m4v", "ts")
+_FASTSTART_CONTAINERS = {"mp4", "mov", "m4v"}  # moov-atom relocation is mp4-family only
+
+
+def resolve_container(choice: str, src_suffix: str) -> str:
+    """Pick the output container. An explicit choice wins (validated against the
+    supported set); "auto" matches the input file's extension, falling back to mp4
+    when that isn't a container we mux into (e.g. an .avi / .webm / .flv source)."""
+    if choice and choice != "auto":
+        return choice if choice in SUPPORTED_CONTAINERS else "mp4"
+    ext = src_suffix.lower().lstrip(".")
+    return ext if ext in SUPPORTED_CONTAINERS else "mp4"
+
+
+def container_args(container: str) -> list:
+    """ffmpeg muxer flags specific to the chosen container — just the faststart
+    moov relocation, which only does anything for the mp4 family."""
+    return ["-movflags", "+faststart"] if container in _FASTSTART_CONTAINERS else []

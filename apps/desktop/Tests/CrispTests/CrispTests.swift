@@ -92,6 +92,24 @@ final class CrispTests: XCTestCase {
         }
     }
 
+    func testOutputContainerDefaultsToAutoAndCarriesThrough() {
+        // Default is "auto" (match the input's container); whatever's chosen reaches
+        // the engine parameters for every strength.
+        XCTAssertEqual(EngineConfig.defaults.outputContainer, "auto")
+        var cfg = EngineConfig.defaults
+        cfg.outputContainer = "mkv"
+        for strength in [Strength.gentle, .aggressive, .custom] {
+            XCTAssertEqual(strength.parameters(using: cfg).outputContainer, "mkv")
+        }
+    }
+
+    func testOutputContainerRawValuesMatchEngineFlag() {
+        // The enum rawValues must be exactly the strings the engine's --container
+        // flag accepts, since the picker tags feed straight into the CLI.
+        XCTAssertEqual(OutputContainer.allCases.map(\.rawValue),
+                       ["auto", "mp4", "mkv", "mov", "m4v", "ts"])
+    }
+
     func testBackupOriginalDefaultsOnAndCarriesThrough() {
         // Backing up the original is on by default (the safety net), and the choice
         // reaches the engine parameters for every strength.
@@ -127,6 +145,7 @@ final class CrispTests: XCTestCase {
         XCTAssertEqual(cfg.videoCodec, EngineConfig.defaults.videoCodec)  // new key → default
         XCTAssertEqual(cfg.audioCodec, EngineConfig.defaults.audioCodec)  // new key → default
         XCTAssertEqual(cfg.audioBitrateKbps, EngineConfig.defaults.audioBitrateKbps)
+        XCTAssertEqual(cfg.outputContainer, EngineConfig.defaults.outputContainer)  // new key → default
         XCTAssertEqual(cfg.backupOriginal, EngineConfig.defaults.backupOriginal)  // new key → default
 
         // An empty object decodes to all defaults (not a failure).

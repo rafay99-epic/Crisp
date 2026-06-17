@@ -34,6 +34,11 @@ struct SettingsView: View {
             }
 
             Section {
+                Picker("Output format", selection: $settings.outputContainer) {
+                    ForEach(OutputContainer.allCases) { Text($0.label).tag($0.rawValue) }
+                }
+                Text("\u{201C}Same as input\u{201D} keeps each video\u{2019}s original container \u{2014} an .mkv stays .mkv, an .mp4 stays .mp4.")
+                    .font(.caption).foregroundStyle(.secondary)
                 Picker("Video format", selection: $settings.videoCodec) {
                     ForEach(VideoCodec.allCases) { Text($0.label).tag($0.rawValue) }
                 }

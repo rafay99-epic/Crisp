@@ -151,6 +151,7 @@ final class CleanModel {
             "--quality", parameters.videoQuality,
             "--audio-codec", parameters.audioCodec,
             "--audio-bitrate", String(parameters.audioBitrateKbps),
+            "--container", parameters.outputContainer,
             "--ndjson"
         ]
         if parameters.hardwareEncoding { args.append("--hardware") }

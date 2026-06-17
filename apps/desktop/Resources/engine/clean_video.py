@@ -45,8 +45,8 @@ def _enable_group_cancel():
 
 from crisp import CleanError, clean_video
 from crisp.config import (
-    DEFAULT_AUDIO_BITRATE, DEFAULT_AUDIO_CODEC, DEFAULT_KEEP_PAUSE, DEFAULT_MAX_PAUSE,
-    DEFAULT_MODEL, DEFAULT_NOISE_DB, DEFAULT_QUALITY, DEFAULT_VIDEO_CODEC, MIN_KEEP,
+    DEFAULT_AUDIO_BITRATE, DEFAULT_AUDIO_CODEC, DEFAULT_CONTAINER, DEFAULT_KEEP_PAUSE,
+    DEFAULT_MAX_PAUSE, DEFAULT_MODEL, DEFAULT_NOISE_DB, DEFAULT_QUALITY, DEFAULT_VIDEO_CODEC, MIN_KEEP,
 )
 
 
@@ -72,6 +72,9 @@ def main():
                    help=f"audio encoder (default {DEFAULT_AUDIO_CODEC})")
     p.add_argument("--audio-bitrate", type=int, default=DEFAULT_AUDIO_BITRATE,
                    help=f"audio bitrate in kbps (default {DEFAULT_AUDIO_BITRATE})")
+    p.add_argument("--container", choices=["auto", "mp4", "mkv", "mov", "m4v", "ts"],
+                   default=DEFAULT_CONTAINER,
+                   help=f"output container; 'auto' matches the input (default {DEFAULT_CONTAINER})")
     p.add_argument("--no-fillers", action="store_true", help="only remove pauses, keep um/uh")
     p.add_argument("--no-backup", action="store_true",
                    help="don't copy the original aside before cutting")
@@ -99,7 +102,7 @@ def main():
                              noise=args.noise, keep_pause=args.keep_pause, min_keep=args.min_keep,
                              video_codec=args.video_codec, hardware=args.hardware, quality=args.quality,
                              audio_codec=args.audio_codec, audio_bitrate=args.audio_bitrate,
-                             remove_fillers=not args.no_fillers,
+                             container=args.container, remove_fillers=not args.no_fillers,
                              backup=not args.no_backup, backup_dir=args.backup_dir,
                              on_log=on_log, on_progress=on_progress)
         if args.ndjson:

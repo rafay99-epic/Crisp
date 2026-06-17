@@ -74,7 +74,9 @@ subprocess. License: **GPL-3.0**. Conventions mirror the Vitals project.
 ```sh
 # from apps/desktop:
 swift build           # debug compile
-swift test            # the suite CI gates on
+swift test            # the Swift suite CI gates on
+# engine core tests (stdlib-only, no ffmpeg/whisper); CI gates on these too:
+python3 -m unittest discover -s Resources/engine/tests -t Resources/engine
 ./build.sh            # universal release build → build/Crisp.app  (CRISP_CHANNEL selects channel)
 ./dev.sh              # build + install "Crisp Dev" next to Stable
 ./make-dmg.sh         # package the channel's DMG
@@ -131,6 +133,12 @@ is a pure move):
   macOS VM with no media engine) the pipeline **falls back to software automatically**.
   (Opus is muxed into the `.mp4`; plays in modern players/VLC, but QuickTime may
   not.)
+- **Output container** is `--container {auto,mp4,mkv,mov,m4v,ts}` (also in
+  `crisp/encode.py`: `resolve_container` + `container_args`). **Default `auto`
+  matches the input** — an `.mkv` recording stays `.mkv`, an `.mp4` stays `.mp4`;
+  an input we can't mux into (`.avi`/`.webm`/`.flv`) falls back to `.mp4`. The set
+  is limited to containers the H.264/HEVC + AAC/Opus streams fit (webm/flv need a
+  different codec stack). `faststart` is applied only to the mp4 family.
 - Both sets live in a JSON config at **`~/.crisp*/config/settings.json`** (edited
   in the Settings window, ⌘,). It's in the user's home — not the bundle — so updates
   never disturb it, and `EngineConfig` decodes each field with a default so new keys
