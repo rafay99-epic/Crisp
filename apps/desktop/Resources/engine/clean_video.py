@@ -62,8 +62,8 @@ def main():
                    help=f"breathing room left around each cut, in seconds (default {DEFAULT_KEEP_PAUSE})")
     p.add_argument("--min-keep", type=float, default=MIN_KEEP,
                    help=f"drop kept fragments shorter than this many seconds (default {MIN_KEEP})")
-    p.add_argument("--video-codec", choices=["h264", "hevc"], default=DEFAULT_VIDEO_CODEC,
-                   help=f"video encoder (default {DEFAULT_VIDEO_CODEC})")
+    p.add_argument("--video-codec", choices=["h264", "hevc", "vp9"], default=DEFAULT_VIDEO_CODEC,
+                   help=f"video encoder; vp9 is for WebM (default {DEFAULT_VIDEO_CODEC})")
     p.add_argument("--hardware", action="store_true",
                    help="use Apple VideoToolbox hardware encoding (faster)")
     p.add_argument("--quality", choices=["maximum", "high", "balanced", "smaller"],
@@ -72,9 +72,10 @@ def main():
                    help=f"audio encoder (default {DEFAULT_AUDIO_CODEC})")
     p.add_argument("--audio-bitrate", type=int, default=DEFAULT_AUDIO_BITRATE,
                    help=f"audio bitrate in kbps (default {DEFAULT_AUDIO_BITRATE})")
-    p.add_argument("--container", choices=["auto", "mp4", "mkv", "mov", "m4v", "ts"],
+    p.add_argument("--container", choices=["auto", "mp4", "mkv", "mov", "m4v", "ts", "webm"],
                    default=DEFAULT_CONTAINER,
-                   help=f"output container; 'auto' matches the input (default {DEFAULT_CONTAINER})")
+                   help=f"output container; 'auto' matches the input, 'webm' uses VP9+Opus "
+                        f"(default {DEFAULT_CONTAINER})")
     p.add_argument("--no-fillers", action="store_true", help="only remove pauses, keep um/uh")
     p.add_argument("--no-backup", action="store_true",
                    help="don't copy the original aside before cutting")

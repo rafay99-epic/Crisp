@@ -133,12 +133,17 @@ is a pure move):
   macOS VM with no media engine) the pipeline **falls back to software automatically**.
   (Opus is muxed into the `.mp4`; plays in modern players/VLC, but QuickTime may
   not.)
-- **Output container** is `--container {auto,mp4,mkv,mov,m4v,ts}` (also in
+- **Output container** is `--container {auto,mp4,mkv,mov,m4v,ts,webm}` (also in
   `crisp/encode.py`: `resolve_container` + `container_args`). **Default `auto`
   matches the input** — an `.mkv` recording stays `.mkv`, an `.mp4` stays `.mp4`;
-  an input we can't mux into (`.avi`/`.webm`/`.flv`) falls back to `.mp4`. The set
-  is limited to containers the H.264/HEVC + AAC/Opus streams fit (webm/flv need a
-  different codec stack). `faststart` is applied only to the mp4 family.
+  an input we can't mux into (`.avi`/`.flv`) falls back to `.mp4`. `faststart` is
+  applied only to the mp4 family. **`webm` is special** — it can only hold VP9/AV1
+  video + Opus/Vorbis audio, so `resolve_codecs` coerces the codec choice to
+  **VP9 + Opus** (software-only; no Apple HW VP9 encoder) and logs each swap.
+  VP9 is software-only and slower; the Settings UI disables the video/audio/HW
+  controls when WebM is selected (`OutputContainer.forcesOwnCodecs`) since they
+  don't apply. The other codec combos (H.264/HEVC, AAC/Opus) cover every other
+  container.
 - Both sets live in a JSON config at **`~/.crisp*/config/settings.json`** (edited
   in the Settings window, ⌘,). It's in the user's home — not the bundle — so updates
   never disturb it, and `EngineConfig` decodes each field with a default so new keys

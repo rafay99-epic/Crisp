@@ -10,7 +10,7 @@ from .config import (
 )
 from .detect import detect_silences, extract_audio, transcribe
 from .edit import build_keep_segments, make_backup, render
-from .encode import audio_args, container_args, resolve_container, video_args
+from .encode import audio_args, container_args, resolve_codecs, resolve_container, video_args
 from .errors import CleanError
 from .tools import ffprobe_duration, which_whisper
 
@@ -47,6 +47,11 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
         container = resolve_container(container, src.suffix)
         out_path = src.with_name(f"{src.stem}_cleaned.{container}")
 
+    # The container dictates which codecs are legal (e.g. WebM forces VP9 + Opus);
+    # coerce now and tell the user about any swap rather than letting ffmpeg fail.
+    video_codec, audio_codec, hardware, codec_notes = resolve_codecs(
+        container, video_codec, audio_codec, hardware)
+
     whisper_bin = None
     if remove_fillers:
         if not model.exists():
@@ -58,6 +63,8 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
         return lambda f, label="": on_progress(lo + (hi - lo) * f, label)
 
     on_log(f"=== Cleaning: {src.name} ===")
+    for note in codec_notes:
+        on_log(note)
     on_progress(0.0, "Starting…")
 
     backup_path = make_backup(src, on_log, backup_dir) if backup else None

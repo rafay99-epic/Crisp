@@ -41,7 +41,7 @@ enum AudioCodec: String, CaseIterable, Identifiable {
 /// stays .mp4); the rest force a specific wrapper. Each `rawValue` is exactly the
 /// string the engine's `--container` flag expects.
 enum OutputContainer: String, CaseIterable, Identifiable {
-    case auto, mp4, mkv, mov, m4v, ts
+    case auto, mp4, mkv, mov, m4v, ts, webm
     var id: String { rawValue }
     var label: String {
         switch self {
@@ -51,6 +51,11 @@ enum OutputContainer: String, CaseIterable, Identifiable {
         case .mov:  return "QuickTime (.mov)"
         case .m4v:  return "MPEG-4 (.m4v)"
         case .ts:   return "MPEG-TS (.ts)"
+        case .webm: return "WebM (VP9 · .webm)"
         }
     }
+
+    /// WebM is its own codec world (VP9 video + Opus audio), so the video/audio/
+    /// hardware choices don't apply when it's selected — the UI disables them.
+    var forcesOwnCodecs: Bool { self == .webm }
 }

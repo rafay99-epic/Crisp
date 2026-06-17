@@ -5,6 +5,10 @@ import SwiftUI
 struct SettingsView: View {
     @Bindable var settings: EngineSettings
 
+    /// WebM forces its own codecs (VP9 + Opus), so the codec controls are disabled
+    /// while it's the chosen output format.
+    private var isWebM: Bool { settings.outputContainer == OutputContainer.webm.rawValue }
+
     /// Describes one slider row (keeps the row builder to a single argument).
     private struct Knob {
         let title: String
@@ -37,19 +41,28 @@ struct SettingsView: View {
                 Picker("Output format", selection: $settings.outputContainer) {
                     ForEach(OutputContainer.allCases) { Text($0.label).tag($0.rawValue) }
                 }
-                Text("\u{201C}Same as input\u{201D} keeps each video\u{2019}s original container \u{2014} an .mkv stays .mkv, an .mp4 stays .mp4.")
+                Text(isWebM
+                     ? "WebM always uses VP9 video and Opus audio. It\u{2019}s the most web-friendly format, but slower to encode (no hardware VP9 encoder)."
+                     : "\u{201C}Same as input\u{201D} keeps each video\u{2019}s original container \u{2014} an .mkv stays .mkv, an .mp4 stays .mp4.")
                     .font(.caption).foregroundStyle(.secondary)
-                Picker("Video format", selection: $settings.videoCodec) {
-                    ForEach(VideoCodec.allCases) { Text($0.label).tag($0.rawValue) }
+
+                // WebM dictates its own codecs, so these don't apply when it's chosen.
+                Group {
+                    Picker("Video format", selection: $settings.videoCodec) {
+                        ForEach(VideoCodec.allCases) { Text($0.label).tag($0.rawValue) }
+                    }
+                    Toggle("Hardware acceleration", isOn: $settings.hardwareEncoding)
+                    Text("Apple VideoToolbox \u{2014} faster, but software gives slightly better quality per file size.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Picker("Audio format", selection: $settings.audioCodec) {
+                        ForEach(AudioCodec.allCases) { Text($0.label).tag($0.rawValue) }
+                    }
                 }
-                Toggle("Hardware acceleration", isOn: $settings.hardwareEncoding)
-                Text("Apple VideoToolbox \u{2014} faster, but software gives slightly better quality per file size.")
-                    .font(.caption).foregroundStyle(.secondary)
+                .disabled(isWebM)
+
+                // Quality (VP9's CRF too) and bitrate (Opus too) always apply.
                 Picker("Quality", selection: $settings.videoQuality) {
                     ForEach(VideoQuality.allCases) { Text($0.label).tag($0.rawValue) }
-                }
-                Picker("Audio format", selection: $settings.audioCodec) {
-                    ForEach(AudioCodec.allCases) { Text($0.label).tag($0.rawValue) }
                 }
                 Picker("Audio bitrate", selection: $settings.audioBitrateKbps) {
                     ForEach([128, 160, 192, 256], id: \.self) { Text("\($0) kbps").tag($0) }

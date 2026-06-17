@@ -103,11 +103,20 @@ final class CrispTests: XCTestCase {
         }
     }
 
+    func testWebMForcesItsOwnCodecs() {
+        // WebM's own codec rule drives the Settings UI (it disables the codec
+        // controls); the other containers leave them alone.
+        XCTAssertTrue(OutputContainer.webm.forcesOwnCodecs)
+        for c in [OutputContainer.auto, .mp4, .mkv, .mov, .m4v, .ts] {
+            XCTAssertFalse(c.forcesOwnCodecs, "\(c.rawValue) should not force codecs")
+        }
+    }
+
     func testOutputContainerRawValuesMatchEngineFlag() {
         // The enum rawValues must be exactly the strings the engine's --container
         // flag accepts, since the picker tags feed straight into the CLI.
         XCTAssertEqual(OutputContainer.allCases.map(\.rawValue),
-                       ["auto", "mp4", "mkv", "mov", "m4v", "ts"])
+                       ["auto", "mp4", "mkv", "mov", "m4v", "ts", "webm"])
     }
 
     func testBackupOriginalDefaultsOnAndCarriesThrough() {
