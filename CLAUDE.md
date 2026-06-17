@@ -43,9 +43,11 @@ subprocess. License: **GPL-3.0**. Conventions mirror the Vitals project.
   sets `main`'s tree to exactly `origin/nightly` as one commit and pushes (no merge
   → no conflict, no rewind → no force-push). `main` keeps one commit per release, so
   the Stable version stays `0.<commit count on main>`. `promotion.yml` runs it
-  **every Thursday 14:00 PKT (09:00 UTC)** + on manual dispatch: it opens the
-  changelog PR, runs `promote.sh` (pushes `main`, closes the PR), and the push
-  triggers `ci.yml`'s release. **Needs the `PROMOTION_TOKEN` secret** — a PAT with
+  **every Thursday 14:00 PKT (09:00 UTC)** + on manual dispatch: it first
+  **verifies nightly** (Swift build + test + SwiftLint, and the Python engine
+  tests) and only if all pass opens the changelog PR and runs `promote.sh` (pushes
+  `main`, closes the PR); the push triggers `ci.yml`'s release. A red build/test
+  never reaches Stable (the promote job `needs` the verify job). **Needs the `PROMOTION_TOKEN` secret** — a PAT with
   Contents + Pull requests + Workflows R/W (the push must be by a PAT to trigger
   the release, and may touch workflow files). To cut a release off-schedule, run
   `promote.sh` locally or dispatch the workflow.

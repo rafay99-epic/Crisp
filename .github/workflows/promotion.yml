@@ -1,10 +1,12 @@
 name: Promotion
 
-# Weekly automated Stable cut: every Thursday it (1) opens a `nightly → main` PR
-# summarizing the queued squash-merges grouped by `area:*` label, as the release's
-# changelog record, then (2) runs `.github/scripts/promote.sh`, which sets `main`
-# to nightly's tree, pushes, and closes that PR. The push to `main` triggers
-# ci.yml's release job (builds + publishes the Stable DMG). No human step.
+# Weekly automated Stable cut: every Thursday it (1) verifies nightly is green —
+# builds, lints, and tests both the Swift app and the Python engine — and only if
+# everything passes does it (2) open a `nightly → main` PR (the changelog record,
+# grouped by `area:*` label) and (3) run `.github/scripts/promote.sh`, which sets
+# `main` to nightly's tree, pushes, and closes that PR. The push to `main` triggers
+# ci.yml's release job (builds + publishes the Stable DMG). No human step — and a
+# red build/test never reaches Stable, because the promote job needs the verify job.
 #
 # Why a script and not the merge button: main and nightly don't share recent
 # history (each promotion adds a main-only squash commit), so the button's 3-way
@@ -39,20 +41,44 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  promote:
-    name: Promote nightly → main (cut Stable)
+  # Cheap gate: is there anything to promote, and is the release token present?
+  # Skips the expensive verify/promote jobs on idle weeks, and fails fast (before
+  # spending a macOS runner) if PROMOTION_TOKEN is missing when it's actually needed.
+  check:
+    name: Anything to promote?
     runs-on: ubuntu-latest
     # Forks have no `nightly`/`main` pair worth promoting and the auto token
     # can't write to the upstream repo anyway.
     if: github.repository == 'rafay99-epic/Crisp'
-    # Everything here uses PROMOTION_TOKEN (the PAT), not GITHUB_TOKEN, so the
-    # job's own token stays read-only.
     permissions:
       contents: read
+    outputs:
+      promote: ${{ steps.diff.outputs.promote }}
     steps:
-      # Fail loudly if the PAT is missing — without it the push can't trigger the
-      # release build, so a silent half-promotion would be worse than not running.
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: nightly
+      # Compare main's CONTENT to nightly's. (promotion.sh counts commits-ahead,
+      # which stays > 0 after a promotion even when the trees match, since nightly's
+      # commits never land on main — so a tree diff is the correct "is there a real
+      # change" signal and avoids opening an orphan PR on an idle week.)
+      - name: Diff main vs nightly
+        id: diff
+        run: |
+          git fetch --quiet origin \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/heads/nightly:refs/remotes/origin/nightly"
+          if git diff --quiet refs/remotes/origin/main refs/remotes/origin/nightly; then
+            echo "main already equals nightly — nothing to promote."
+            echo "promote=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "promote=true" >> "$GITHUB_OUTPUT"
+          fi
+      # Only matters when we're actually going to promote — don't redly fail an
+      # idle week for a missing secret.
       - name: Require PROMOTION_TOKEN
+        if: steps.diff.outputs.promote == 'true'
         env:
           TOK: ${{ secrets.PROMOTION_TOKEN }}
         run: |
@@ -60,6 +86,46 @@ jobs:
             echo "::error::Auto-promotion needs the PROMOTION_TOKEN secret — a fine-grained PAT with Contents: R/W, Pull requests: R/W, and Workflows: R/W. It must be a PAT (not GITHUB_TOKEN): a GITHUB_TOKEN push to main does NOT trigger ci.yml's release, and a promotion may change .github/workflows files."
             exit 1
           fi
+
+  # The gate that protects Stable: build + test + lint the Swift app AND the Python
+  # engine on nightly's tip. If any step fails, this job fails, `promote` (which
+  # needs it) is skipped, and nothing reaches main. Mirrors ci.yml's checks.
+  verify:
+    name: Verify nightly (build · test · lint)
+    needs: check
+    if: needs.check.outputs.promote == 'true'
+    runs-on: macos-26
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: apps/desktop
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: nightly
+      - name: Swift build (release config)
+        run: swift build -c release
+      - name: Swift tests
+        run: swift test
+      - name: SwiftLint
+        run: |
+          brew install swiftlint
+          swiftlint --reporter github-actions-logging
+      - name: Python engine tests
+        run: python3 -m unittest discover -s Resources/engine/tests -t Resources/engine
+
+  # Only runs if check said "promote" AND verify passed. Opens the changelog PR,
+  # then promotes (sets main to nightly, pushes → triggers the release, closes PR).
+  promote:
+    name: Promote nightly → main (cut Stable)
+    needs: [check, verify]
+    if: needs.check.outputs.promote == 'true'
+    runs-on: ubuntu-latest
+    # Uses PROMOTION_TOKEN (the PAT) for everything, so the job token stays read-only.
+    permissions:
+      contents: read
+    steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0 # full history — the scripts walk every commit in main..nightly
@@ -71,29 +137,11 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-      # Gate on whether main's CONTENT differs from nightly's. promotion.sh counts
-      # commits-ahead, which is always > 0 after a promotion (nightly's commits
-      # never land on main) even when the trees are identical — so without this an
-      # idle week would open a PR that promote.sh then skips, orphaning it.
-      - name: Anything to promote?
-        id: check
-        run: |
-          git fetch --quiet origin \
-            "+refs/heads/main:refs/remotes/origin/main" \
-            "+refs/heads/nightly:refs/remotes/origin/nightly"
-          if git diff --quiet refs/remotes/origin/main refs/remotes/origin/nightly; then
-            echo "main already equals nightly — nothing to promote."
-            echo "promote=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "promote=true" >> "$GITHUB_OUTPUT"
-          fi
       - name: Summarize the promotion as a PR (the release's changelog record)
-        if: steps.check.outputs.promote == 'true'
         env:
           GH_TOKEN: ${{ secrets.PROMOTION_TOKEN }}
         run: bash .github/scripts/promotion.sh
       - name: Promote (sets main to nightly, pushes → triggers the release, closes the PR)
-        if: steps.check.outputs.promote == 'true'
         env:
           GH_TOKEN: ${{ secrets.PROMOTION_TOKEN }}
         run: bash .github/scripts/promote.sh --yes
