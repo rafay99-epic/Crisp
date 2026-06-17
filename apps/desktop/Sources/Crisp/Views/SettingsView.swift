@@ -1,0 +1,182 @@
+import SwiftUI
+
+/// The ⌘, Settings window. Edits the four numeric cutting knobs used by the
+/// "Custom" strength; values persist to `~/.crisp*/config/settings.json`.
+struct SettingsView: View {
+    @Bindable var settings: EngineSettings
+    @Bindable var updater: Updater
+
+    /// Whether the chosen container dictates its own codecs (WebM → VP9 + Opus),
+    /// in which case the codec controls are disabled. Reads the rule off the enum
+    /// so it stays in one place as containers are added.
+    private var isWebM: Bool {
+        OutputContainer(rawValue: settings.outputContainer)?.forcesOwnCodecs ?? false
+    }
+
+    /// The running build, e.g. "0.12" or "0.12 (build 34)" on Nightly.
+    private var versionString: String {
+        Updater.currentBuildNumber > 0
+            ? "\(Updater.currentVersion) (build \(Updater.currentBuildNumber))"
+            : Updater.currentVersion
+    }
+
+    /// The action row: a Check button (with inline result), the install prompt when
+    /// an update is found, or progress while it downloads/installs. All three drive
+    /// the same shared `Updater` the launch check and menu command use.
+    @ViewBuilder private var updateRow: some View {
+        switch updater.status {
+        case .available(let release):
+            LabeledContent {
+                Button("Install & Relaunch") { Task { await updater.downloadAndInstall() } }
+            } label: {
+                Label("Update available \u{2014} \(release.displayVersion)", systemImage: "arrow.down.circle.fill")
+                    .foregroundStyle(.tint)
+            }
+        case .downloading, .installing:
+            HStack(spacing: 8) {
+                ProgressView().controlSize(.small)
+                Text(updater.status == .downloading ? "Downloading update\u{2026}" : "Installing update\u{2026}")
+                    .foregroundStyle(.secondary)
+            }
+        default:
+            LabeledContent {
+                switch updater.status {
+                case .checking:
+                    ProgressView().controlSize(.small)
+                case .upToDate:
+                    Label("Up to date", systemImage: "checkmark.circle.fill").foregroundStyle(.secondary)
+                default:
+                    EmptyView()
+                }
+            } label: {
+                Button("Check for Updates\u{2026}") {
+                    Task { await updater.check(userInitiated: true) }
+                }
+                .disabled(!Channel.current.updatesEnabled || updater.isBusy)
+            }
+        }
+    }
+
+    /// Footer: a check error (if any), the disabled note for Dev, the last-checked
+    /// time, or the default "checks at launch" line.
+    @ViewBuilder private var updateFooter: some View {
+        if case .failed(let message) = updater.status {
+            Text(message).foregroundStyle(.red)
+        } else if !Channel.current.updatesEnabled {
+            Text("Automatic updates are off for this build.")
+        } else if let date = updater.lastChecked {
+            Text("Last checked \(date.formatted(date: .abbreviated, time: .shortened)).")
+        } else {
+            Text("Crisp also checks automatically each time it launches.")
+        }
+    }
+
+    /// Describes one slider row (keeps the row builder to a single argument).
+    private struct Knob {
+        let title: String
+        let help: String
+        let unit: String
+        let range: ClosedRange<Double>
+        let step: Double
+        var decimals: Int = 2
+    }
+
+    var body: some View {
+        Form {
+            Section {
+                row(Knob(title: "Pause threshold", help: "Cut silences longer than this.",
+                         unit: "s", range: 0.1...2.0, step: 0.05), $settings.pauseThreshold)
+                row(Knob(title: "Silence floor", help: "Audio quieter than this counts as silence.",
+                         unit: "dB", range: -45...(-15), step: 1, decimals: 0), $settings.silenceFloorDB)
+                row(Knob(title: "Breathing room", help: "Padding kept on each side of a cut.",
+                         unit: "s", range: 0...0.5, step: 0.01), $settings.breathingRoom)
+                row(Knob(title: "Minimum keep", help: "Drop kept fragments shorter than this.",
+                         unit: "s", range: 0...0.5, step: 0.01), $settings.minKeep)
+            } header: {
+                Text("Custom cutting")
+            } footer: {
+                Text("Applied when \u{201C}How much to cut\u{201D} is set to Custom.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
+            Section {
+                Picker("Output format", selection: $settings.outputContainer) {
+                    ForEach(OutputContainer.allCases) { Text($0.label).tag($0.rawValue) }
+                }
+                Text(isWebM
+                     ? "WebM always uses VP9 video and Opus audio. It\u{2019}s the most web-friendly format, but slower to encode (no hardware VP9 encoder)."
+                     : "\u{201C}Same as input\u{201D} keeps each video\u{2019}s original container \u{2014} an .mkv stays .mkv, an .mp4 stays .mp4.")
+                    .font(.caption).foregroundStyle(.secondary)
+
+                // WebM dictates its own codecs, so these don't apply when it's chosen.
+                Group {
+                    Picker("Video format", selection: $settings.videoCodec) {
+                        ForEach(VideoCodec.allCases) { Text($0.label).tag($0.rawValue) }
+                    }
+                    Toggle("Hardware acceleration", isOn: $settings.hardwareEncoding)
+                    Text("Apple VideoToolbox \u{2014} faster, but software gives slightly better quality per file size.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Picker("Audio format", selection: $settings.audioCodec) {
+                        ForEach(AudioCodec.allCases) { Text($0.label).tag($0.rawValue) }
+                    }
+                }
+                .disabled(isWebM)
+
+                // Quality (VP9's CRF too) and bitrate (Opus too) always apply.
+                Picker("Quality", selection: $settings.videoQuality) {
+                    ForEach(VideoQuality.allCases) { Text($0.label).tag($0.rawValue) }
+                }
+                Picker("Audio bitrate", selection: $settings.audioBitrateKbps) {
+                    ForEach([128, 160, 192, 256], id: \.self) { Text("\($0) kbps").tag($0) }
+                }
+            } header: {
+                Text("Encoding")
+            } footer: {
+                Text("Applied to every clean. Cuts are always re-encoded, so these set the output quality.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
+            Section {
+                Toggle("Keep a backup of the original", isOn: $settings.backupOriginal)
+            } header: {
+                Text("Originals")
+            } footer: {
+                Text(settings.backupOriginal
+                     ? "Before each clean, your original is copied into a dated folder under \u{201C}Originals\u{201D} in Crisp\u{2019}s home folder. Crisp never edits or deletes your source file."
+                     : "Crisp won\u{2019}t copy your original. It still never edits or deletes your source file \u{2014} only a new cleaned copy is written.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
+            Section {
+                LabeledContent("Version") {
+                    Text(versionString).foregroundStyle(.secondary)
+                }
+                updateRow
+            } header: {
+                Text("Software Update")
+            } footer: {
+                updateFooter.font(.caption).foregroundStyle(.secondary)
+            }
+
+            Section {
+                Button("Restore Defaults") { settings.restoreDefaults() }
+            }
+        }
+        .formStyle(.grouped)
+        .frame(width: 460, height: 560)
+    }
+
+    private func row(_ knob: Knob, _ value: Binding<Double>) -> some View {
+        let readout = String(format: "%.\(knob.decimals)f", value.wrappedValue) + " " + knob.unit
+        return VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(knob.title)
+                Spacer()
+                Text(readout).foregroundStyle(.secondary).monospacedDigit()
+            }
+            Slider(value: value, in: knob.range, step: knob.step)
+            Text(knob.help).font(.caption).foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 2)
+    }
+}

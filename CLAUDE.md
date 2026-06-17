@@ -11,9 +11,12 @@ subprocess. License: **GPL-3.0**. Conventions mirror the Vitals project.
 
 1. **Don't stick out** — the app must look like Apple made it. System fonts, SF
    Symbols, native materials, standard controls.
-2. **Never lose the user's footage** — the original is **always** backed up to an
-   `_originals/` folder next to it before anything runs. The app only ever writes a
-   new `<name>_cleaned.mp4`; it never overwrites or deletes a source file.
+2. **Never lose the user's footage** — the app only ever writes a new
+   `<name>_cleaned.mp4`; it **never** overwrites or deletes a source file. By
+   default it also backs the original up first (an opt-out toggle in Settings):
+   the app copies it into a dated folder under the data home
+   (`~/.crisp*/Originals/<yyyy-MM-dd>/`); the bare CLI defaults to an `_originals/`
+   folder beside the input.
 3. **Honest about quality** — cuts re-encode (required for frame-accurate trims)
    but never downscale: same resolution, same fps, high-quality H.264 (CRF 20).
    Don't silently degrade. If a tradeoff exists, surface it.
@@ -71,7 +74,9 @@ subprocess. License: **GPL-3.0**. Conventions mirror the Vitals project.
 ```sh
 # from apps/desktop:
 swift build           # debug compile
-swift test            # the suite CI gates on
+swift test            # the Swift suite CI gates on
+# engine core tests (stdlib-only, no ffmpeg/whisper); CI gates on these too:
+python3 -m unittest discover -s Resources/engine/tests -t Resources/engine
 ./build.sh            # universal release build → build/Crisp.app  (CRISP_CHANNEL selects channel)
 ./dev.sh              # build + install "Crisp Dev" next to Stable
 ./make-dmg.sh         # package the channel's DMG
@@ -80,20 +85,34 @@ swiftlint             # lint (CI uses --reporter github-actions-logging)
 
 ## Desktop architecture
 
-- `Sources/Crisp/App.swift` — `@main`, single `Window` scene, channel-titled,
-  "Check for Updates…" command.
-- `Sources/Crisp/CleanModel.swift` — `@MainActor @Observable` model that locates
-  the bundled engine (`Engine`), spawns `python3 clean_video.py … --ndjson`, and
-  decodes the NDJSON event stream (`log` / `progress` / `result` / `error`) into
-  published state.
-- `Sources/Crisp/ContentView.swift` — display only: header (+ channel badge),
-  update banner, drop card, options, progress, result card.
-- `Sources/Crisp/Channel.swift` — channel identity from `CrispChannel`.
-- `Sources/Crisp/Updater.swift` — GitHub-release updater, channel-aware, auths via
-  `gh auth token` (private repo). Self-contained (no notification/settings deps).
+`Sources/Crisp/` is organized by layer (SwiftPM recurses, so subfolders need no
+`Package.swift` change; one module = one namespace, so moving a type between files
+is a pure move):
 
-## The engine (`Resources/engine/clean_video.py`)
+- `App/CrispApp.swift` — `@main`, single `Window` scene, channel-titled,
+  "Check for Updates…" command; owns the `CleanModel`, `Updater`, `ModelStore`.
+- `Common/` — cross-cutting: `Channel` (identity from `CrispChannel`), `AppInfo`
+  (bundle-id base + the shared `Logger` subsystem), `Formatting` (`formatTime`).
+- `Models/` — plain value types: `Strength`, `CleanResult`.
+- `Services/` — the logic (knows nothing about views):
+  - `Cleaning/` — `CleanModel` (`@MainActor @Observable`; spawns
+    `python3 clean_video.py … --ndjson` and decodes the `log`/`progress`/`result`/
+    `error` stream) + `CleanEngine` (locates the bundled script/bins/python).
+  - `Model/` — `ModelStore` (speech-model lifecycle) + `ChunkedDownloader`.
+  - `Updates/` — `Updater`: GitHub-release updater, channel-aware, auths via
+    `gh auth token` (private repo). Self-contained.
+- `Views/` — display only: `ContentView` composes `DropCard`, `OptionsCard`,
+  `ProgressSection`, `ResultCard`, `UpdateBanner`, `ModelStatusView`; `SettingsView`
+  is the ⌘, window for the Custom cutting knobs;
+  `Components/Card.swift` is the shared `.cardBackground(…)` surface every card uses.
 
+## The engine (`Resources/engine/`)
+
+- `clean_video.py` is a thin CLI wrapper (argparse + NDJSON/human emit); the engine
+  lives in the `crisp/` package beside it — `config` (tunables + filler vocab),
+  `tools` (ffmpeg/ffprobe/whisper resolution), `text` (`is_filler`), `detect`
+  (pauses + transcription), `edit` (backup/cut/render), `pipeline` (`clean_video`).
+  Library users `from crisp import clean_video`; Swift drives the CLI.
 - Pure Python **stdlib** — no pip dependencies (the user's Python is bleeding-edge;
   ML wheels don't exist for it). It shells out to **ffmpeg** and **whisper.cpp**.
 - Pipeline: backup → `ffmpeg silencedetect` finds pauses from real audio energy
@@ -102,9 +121,38 @@ swiftlint             # lint (CI uses --reporter github-actions-logging)
   trim/concat re-render (same resolution/fps, H.264 CRF 20, AAC 192k).
 - `--ndjson` emits one JSON object per line for the Swift UI; the human CLI mode
   prints `→` lines. `--no-fillers` skips transcription (faster, pauses only).
-- **Self-contained packaging.** The shipped app bundles `clean_video.py` **plus
-  the binaries it drives** — `ffmpeg`, `ffprobe`, `whisper-cli`, and a
-  `python-build-standalone` runtime — under `Resources/engine/bin/`, signed with
+- **Cutting knobs** are CLI flags — `--pause`, `--noise`, `--keep-pause`,
+  `--min-keep`. The `Strength` presets set them; a **Custom** strength uses the
+  user's saved values.
+- **Encoder choice** is also configurable (`crisp/encode.py` builds the args):
+  `--video-codec {h264,hevc}`, `--hardware` (Apple VideoToolbox), `--quality`
+  (named levels → CRF for software / `-q:v` for hardware), `--audio-codec
+  {aac,opus}`, `--audio-bitrate`. These apply to **every** clean (cuts always
+  re-encode). **Default is hardware HEVC at High** — every Apple-Silicon Mac has a
+  HEVC media engine, so it's the fast default; if a hardware encode fails (e.g. a
+  macOS VM with no media engine) the pipeline **falls back to software automatically**.
+  (Opus is muxed into the `.mp4`; plays in modern players/VLC, but QuickTime may
+  not.)
+- **Output container** is `--container {auto,mp4,mkv,mov,m4v,ts,webm}` (also in
+  `crisp/encode.py`: `resolve_container` + `container_args`). **Default `auto`
+  matches the input** — an `.mkv` recording stays `.mkv`, an `.mp4` stays `.mp4`;
+  an input we can't mux into (`.avi`/`.flv`) falls back to `.mp4`. `faststart` is
+  applied only to the mp4 family. **`webm` is special** — it can only hold VP9/AV1
+  video + Opus/Vorbis audio, so `resolve_codecs` coerces the codec choice to
+  **VP9 + Opus** (software-only; no Apple HW VP9 encoder) and logs each swap.
+  VP9 is software-only and slower; the Settings UI disables the video/audio/HW
+  controls when WebM is selected (`OutputContainer.forcesOwnCodecs`) since they
+  don't apply. The other codec combos (H.264/HEVC, AAC/Opus) cover every other
+  container.
+- Both sets live in a JSON config at **`~/.crisp*/config/settings.json`** (edited
+  in the Settings window, ⌘,). It's in the user's home — not the bundle — so updates
+  never disturb it, and `EngineConfig` decodes each field with a default so new keys
+  added later don't break an existing file (`Services/Cleaning/EngineSettings.swift`,
+  defaults mirror `crisp/config.py`).
+- **Self-contained packaging.** The shipped app bundles `clean_video.py` + the
+  `crisp/` package **plus the binaries it drives** — `ffmpeg`, `ffprobe`,
+  `whisper-cli`, and a `python-build-standalone` runtime — under
+  `Resources/engine/bin/`, signed with
   the app. `Scripts/vendor.sh` produces that tree (pinned + hash-checked downloads;
   whisper-cli built from a pinned `whisper.cpp` tag via **cmake** — a build-time
   dep, CI runners have it), and `build.sh` stages + signs it. The engine resolves

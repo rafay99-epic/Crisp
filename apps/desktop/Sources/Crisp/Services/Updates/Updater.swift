@@ -1,6 +1,5 @@
 import AppKit
 import Foundation
-import os
 
 /// Checks GitHub Releases for newer builds, downloads the channel's DMG, and
 /// swaps the installed app in place. The repository is private, so requests
@@ -35,7 +34,7 @@ final class Updater {
     private(set) var status: Status = .idle
     private(set) var lastChecked: Date?
 
-    private static let log = Logger(subsystem: "com.syntaxlabtechnology.crisp", category: "updater")
+    private static let log = AppInfo.logger("updater")
     nonisolated static let repository = "rafay99-epic/Crisp"
     nonisolated static let currentVersion =
         (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "0"
