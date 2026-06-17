@@ -26,7 +26,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from crisp import CleanError, clean_video
 from crisp.config import (
-    DEFAULT_KEEP_PAUSE, DEFAULT_MAX_PAUSE, DEFAULT_MODEL, DEFAULT_NOISE_DB,
+    DEFAULT_KEEP_PAUSE, DEFAULT_MAX_PAUSE, DEFAULT_MODEL, DEFAULT_NOISE_DB, MIN_KEEP,
 )
 
 
@@ -40,6 +40,8 @@ def main():
                    help=f"loudness (dB) below which audio counts as silence (default {DEFAULT_NOISE_DB})")
     p.add_argument("--keep-pause", type=float, default=DEFAULT_KEEP_PAUSE,
                    help=f"breathing room left around each cut, in seconds (default {DEFAULT_KEEP_PAUSE})")
+    p.add_argument("--min-keep", type=float, default=MIN_KEEP,
+                   help=f"drop kept fragments shorter than this many seconds (default {MIN_KEEP})")
     p.add_argument("--no-fillers", action="store_true", help="only remove pauses, keep um/uh")
     p.add_argument("--out", default=None, help="output path (default: <name>_cleaned.mp4 beside input)")
     p.add_argument("--ndjson", action="store_true",
@@ -59,7 +61,7 @@ def main():
 
     try:
         result = clean_video(args.video, out_path=args.out, model=args.model, pause=args.pause,
-                             noise=args.noise, keep_pause=args.keep_pause,
+                             noise=args.noise, keep_pause=args.keep_pause, min_keep=args.min_keep,
                              remove_fillers=not args.no_fillers,
                              on_log=on_log, on_progress=on_progress)
         if args.ndjson:

@@ -32,7 +32,7 @@ def make_backup(src: Path, on_log) -> Path:
     return dest
 
 
-def build_keep_segments(words, silences, duration, keep_pause):
+def build_keep_segments(words, silences, duration, keep_pause, min_keep=MIN_KEEP):
     """Return (keep, stats): list of (start, end) seconds to KEEP, plus counts."""
     remove = []
     stats = {"fillers": 0, "pauses": 0}
@@ -63,10 +63,10 @@ def build_keep_segments(words, silences, duration, keep_pause):
 
     keep, cursor = [], 0.0
     for s, e in merged:
-        if s - cursor >= MIN_KEEP:
+        if s - cursor >= min_keep:
             keep.append((cursor, s))
         cursor = max(cursor, e)
-    if duration - cursor >= MIN_KEEP:
+    if duration - cursor >= min_keep:
         keep.append((cursor, duration))
     return keep, stats
 

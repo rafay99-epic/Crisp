@@ -5,6 +5,7 @@ struct ContentView: View {
     @Bindable var model: CleanModel
     @Bindable var updater: Updater
     @Bindable var modelStore: ModelStore
+    @Bindable var settings: EngineSettings
     @State private var importing = false
 
     /// Filler-word removal needs the speech model; pauses-only doesn't.
@@ -63,7 +64,8 @@ struct ContentView: View {
 
     private var actionButton: some View {
         Button {
-            Task { await model.start(modelPath: modelStore.readyModelPath) }
+            let params = model.strength.parameters(using: settings.config)
+            Task { await model.start(modelPath: modelStore.readyModelPath, parameters: params) }
         } label: {
             HStack {
                 if model.isRunning {

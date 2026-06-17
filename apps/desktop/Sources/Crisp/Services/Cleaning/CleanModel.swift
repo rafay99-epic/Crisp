@@ -58,8 +58,9 @@ final class CleanModel {
     }
 
     /// `modelPath` is the verified whisper model from `ModelStore` (nil when the
-    /// user turned fillers off — pauses-only needs no model).
-    func start(modelPath: String?) async {
+    /// user turned fillers off — pauses-only needs no model). `parameters` are the
+    /// numeric cutting knobs derived from the chosen strength (or custom settings).
+    func start(modelPath: String?, parameters: CleanParameters) async {
         guard !files.isEmpty, !isRunning else { return }
         isRunning = true
         results = []
@@ -75,7 +76,7 @@ final class CleanModel {
                 logLines.append("\u{2014} Video \(idx + 1) of \(files.count): \(url.lastPathComponent)")
             }
             do {
-                try await runOne(url, base: base, span: span, modelPath: modelPath)
+                try await runOne(url, base: base, span: span, modelPath: modelPath, parameters: parameters)
             } catch {
                 errorMessage = error.localizedDescription
                 status = "Something went wrong."
@@ -90,14 +91,17 @@ final class CleanModel {
         }
     }
 
-    private func runOne(_ url: URL, base: Double, span: Double, modelPath: String?) async throws {
+    private func runOne(_ url: URL, base: Double, span: Double,
+                        modelPath: String?, parameters: CleanParameters) async throws {
         let script = try CleanEngine.scriptURL()
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: CleanEngine.python)
         var args = [
             script.path, url.path,
-            "--pause", String(strength.pause),
-            "--keep-pause", String(strength.keepPause),
+            "--pause", String(parameters.pause),
+            "--noise", String(parameters.noiseDB),
+            "--keep-pause", String(parameters.keepPause),
+            "--min-keep", String(parameters.minKeep),
             "--ndjson"
         ]
         if removeFillers, let model = modelPath { args += ["--model", model] }
