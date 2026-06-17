@@ -52,8 +52,9 @@ jobs:
           # General → Workflow permissions. If that toggle is on, the default
           # token is enough and no secret is needed. If it isn't (or org
           # policy forbids it), drop a fine-grained PAT scoped to this repo
-          # with Contents: Read + Pull requests: Read & Write into the
-          # PROMOTION_TOKEN secret and the script keeps working — PATs belong
-          # to a user, not Actions, so they bypass the create-PR block.
+          # with Pull requests: Read & Write into the PROMOTION_TOKEN secret and
+          # the script keeps working — PATs belong to a user, not Actions, so
+          # they bypass the create-PR block. (The script talks to the REST pulls
+          # endpoint, so Contents: Read is NOT required.)
           GH_TOKEN: ${{ secrets.PROMOTION_TOKEN || github.token }}
         run: bash .github/scripts/promotion.sh
