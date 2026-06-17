@@ -20,21 +20,24 @@ struct EngineConfig: Codable, Equatable {
     var videoQuality: String      // "maximum" | "high" | "balanced" | "smaller"
     var audioCodec: String        // "aac" | "opus"
     var audioBitrateKbps: Int
+    // Backup
+    var backupOriginal: Bool      // copy the source aside before cutting
 
     static let defaults = EngineConfig(
         version: 2,
         pauseThreshold: 0.35, silenceFloorDB: -30, breathingRoom: 0.10, minKeep: 0.05,
         videoCodec: "hevc", hardwareEncoding: true, videoQuality: "high",
-        audioCodec: "aac", audioBitrateKbps: 192)
+        audioCodec: "aac", audioBitrateKbps: 192, backupOriginal: true)
 
     enum CodingKeys: String, CodingKey {
         case version, pauseThreshold, silenceFloorDB, breathingRoom, minKeep
         case videoCodec, hardwareEncoding, videoQuality, audioCodec, audioBitrateKbps
+        case backupOriginal
     }
 
     init(version: Int, pauseThreshold: Double, silenceFloorDB: Double, breathingRoom: Double,
          minKeep: Double, videoCodec: String, hardwareEncoding: Bool, videoQuality: String,
-         audioCodec: String, audioBitrateKbps: Int) {
+         audioCodec: String, audioBitrateKbps: Int, backupOriginal: Bool) {
         self.version = version
         self.pauseThreshold = pauseThreshold
         self.silenceFloorDB = silenceFloorDB
@@ -45,6 +48,7 @@ struct EngineConfig: Codable, Equatable {
         self.videoQuality = videoQuality
         self.audioCodec = audioCodec
         self.audioBitrateKbps = audioBitrateKbps
+        self.backupOriginal = backupOriginal
     }
 
     init(from decoder: Decoder) throws {
@@ -60,6 +64,7 @@ struct EngineConfig: Codable, Equatable {
         videoQuality     = try c.decodeIfPresent(String.self, forKey: .videoQuality) ?? d.videoQuality
         audioCodec       = try c.decodeIfPresent(String.self, forKey: .audioCodec) ?? d.audioCodec
         audioBitrateKbps = try c.decodeIfPresent(Int.self, forKey: .audioBitrateKbps) ?? d.audioBitrateKbps
+        backupOriginal   = try c.decodeIfPresent(Bool.self, forKey: .backupOriginal) ?? d.backupOriginal
     }
 }
 
@@ -81,6 +86,8 @@ final class EngineSettings {
     var videoQuality: String { didSet { save() } }
     var audioCodec: String { didSet { save() } }
     var audioBitrateKbps: Int { didSet { save() } }
+    // Backup (applied to every clean)
+    var backupOriginal: Bool { didSet { save() } }
 
     /// A plain-value snapshot of the live settings.
     var config: EngineConfig {
@@ -89,7 +96,7 @@ final class EngineSettings {
                      breathingRoom: breathingRoom, minKeep: minKeep,
                      videoCodec: videoCodec, hardwareEncoding: hardwareEncoding,
                      videoQuality: videoQuality, audioCodec: audioCodec,
-                     audioBitrateKbps: audioBitrateKbps)
+                     audioBitrateKbps: audioBitrateKbps, backupOriginal: backupOriginal)
     }
 
     /// `~/.crisp*/config/settings.json` — beside the downloaded model.
@@ -113,6 +120,7 @@ final class EngineSettings {
         videoQuality = cfg.videoQuality
         audioCodec = cfg.audioCodec
         audioBitrateKbps = cfg.audioBitrateKbps
+        backupOriginal = cfg.backupOriginal
         if !existed { Self.write(config, to: url) }  // materialize the file on first launch
     }
 
@@ -127,6 +135,7 @@ final class EngineSettings {
         videoQuality = d.videoQuality
         audioCodec = d.audioCodec
         audioBitrateKbps = d.audioBitrateKbps
+        backupOriginal = d.backupOriginal
     }
 
     private func save() { Self.write(config, to: Self.fileURL) }

@@ -57,6 +57,17 @@ struct SettingsView: View {
             }
 
             Section {
+                Toggle("Keep a backup of the original", isOn: $settings.backupOriginal)
+            } header: {
+                Text("Originals")
+            } footer: {
+                Text(settings.backupOriginal
+                     ? "Before each clean, your original is copied into a dated folder under \u{201C}Originals\u{201D} in Crisp\u{2019}s home folder. Crisp never edits or deletes your source file."
+                     : "Crisp won\u{2019}t copy your original. It still never edits or deletes your source file \u{2014} only a new cleaned copy is written.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
+            Section {
                 Button("Restore Defaults") { settings.restoreDefaults() }
             }
         }

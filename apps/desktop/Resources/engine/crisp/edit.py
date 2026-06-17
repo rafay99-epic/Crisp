@@ -15,9 +15,11 @@ from .text import is_filler
 from .tools import ffmpeg_bin
 
 
-def make_backup(src: Path, on_log) -> Path:
-    backup_dir = src.parent / "_originals"
-    backup_dir.mkdir(exist_ok=True)
+def make_backup(src: Path, on_log, backup_dir: Path | None = None) -> Path:
+    # Default to an `_originals` folder beside the source (the bare-CLI behavior);
+    # the desktop app passes an explicit dir (a dated folder under its data home).
+    backup_dir = Path(backup_dir) if backup_dir else src.parent / "_originals"
+    backup_dir.mkdir(parents=True, exist_ok=True)
     dest = backup_dir / src.name
     if dest.exists():
         i = 1

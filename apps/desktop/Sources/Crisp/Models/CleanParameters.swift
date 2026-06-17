@@ -12,6 +12,7 @@ struct CleanParameters: Equatable {
     let videoQuality: String
     let audioCodec: String
     let audioBitrateKbps: Int
+    let backupOriginal: Bool
 }
 
 extension Strength {
@@ -26,6 +27,7 @@ extension Strength {
             hardwareEncoding: config.hardwareEncoding,
             videoQuality: config.videoQuality,
             audioCodec: config.audioCodec,
-            audioBitrateKbps: config.audioBitrateKbps)
+            audioBitrateKbps: config.audioBitrateKbps,
+            backupOriginal: config.backupOriginal)
     }
 }

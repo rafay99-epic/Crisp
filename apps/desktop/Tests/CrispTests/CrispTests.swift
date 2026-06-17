@@ -92,6 +92,27 @@ final class CrispTests: XCTestCase {
         }
     }
 
+    func testBackupOriginalDefaultsOnAndCarriesThrough() {
+        // Backing up the original is on by default (the safety net), and the choice
+        // reaches the engine parameters for every strength.
+        XCTAssertTrue(EngineConfig.defaults.backupOriginal)
+        var cfg = EngineConfig.defaults
+        cfg.backupOriginal = false
+        for strength in [Strength.gentle, .aggressive, .custom] {
+            XCTAssertFalse(strength.parameters(using: cfg).backupOriginal)
+        }
+    }
+
+    func testBackupDirectoryIsDatedUnderChannelHome() {
+        // Originals land in a date-stamped folder under the channel's data home.
+        let date = Date(timeIntervalSince1970: 1_750_000_000)  // 2025-06-15 UTC-ish
+        let dir = CleanModel.backupDirectory(for: date)
+        XCTAssertTrue(dir.deletingLastPathComponent().path.hasSuffix("/Originals"))
+        XCTAssertTrue(dir.path.hasPrefix(Channel.current.dataDirectory.path))
+        // The leaf is a yyyy-MM-dd day folder.
+        XCTAssertNotNil(dir.lastPathComponent.range(of: #"^\d{4}-\d{2}-\d{2}$"#, options: .regularExpression))
+    }
+
     func testEngineConfigForwardCompatFillsMissingKeys() throws {
         // A file from an older version (only the v1 cutting keys, no encoder keys):
         // present keys are preserved, every missing key defaults — so an update
@@ -106,6 +127,7 @@ final class CrispTests: XCTestCase {
         XCTAssertEqual(cfg.videoCodec, EngineConfig.defaults.videoCodec)  // new key → default
         XCTAssertEqual(cfg.audioCodec, EngineConfig.defaults.audioCodec)  // new key → default
         XCTAssertEqual(cfg.audioBitrateKbps, EngineConfig.defaults.audioBitrateKbps)
+        XCTAssertEqual(cfg.backupOriginal, EngineConfig.defaults.backupOriginal)  // new key → default
 
         // An empty object decodes to all defaults (not a failure).
         let empty = try JSONDecoder().decode(EngineConfig.self, from: Data("{}".utf8))

@@ -4,7 +4,7 @@ import tempfile
 from pathlib import Path
 
 from .config import (
-    DEFAULT_AUDIO_BITRATE, DEFAULT_AUDIO_CODEC, DEFAULT_HARDWARE, DEFAULT_KEEP_PAUSE,
+    DEFAULT_AUDIO_BITRATE, DEFAULT_AUDIO_CODEC, DEFAULT_BACKUP, DEFAULT_HARDWARE, DEFAULT_KEEP_PAUSE,
     DEFAULT_MAX_PAUSE, DEFAULT_MODEL, DEFAULT_NOISE_DB, DEFAULT_QUALITY, DEFAULT_VIDEO_CODEC, MIN_KEEP,
 )
 from .detect import detect_silences, extract_audio, transcribe
@@ -22,7 +22,8 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
                 noise=DEFAULT_NOISE_DB, keep_pause=DEFAULT_KEEP_PAUSE, min_keep=MIN_KEEP,
                 video_codec=DEFAULT_VIDEO_CODEC, hardware=DEFAULT_HARDWARE, quality=DEFAULT_QUALITY,
                 audio_codec=DEFAULT_AUDIO_CODEC, audio_bitrate=DEFAULT_AUDIO_BITRATE,
-                remove_fillers=True, on_log=None, on_progress=None):
+                remove_fillers=True, backup=DEFAULT_BACKUP, backup_dir=None,
+                on_log=None, on_progress=None):
     """
     Clean one video. Returns a dict with results.
       on_log(str)            — called with human-readable status lines.
@@ -52,8 +53,9 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
     on_log(f"=== Cleaning: {src.name} ===")
     on_progress(0.0, "Starting…")
 
-    backup = make_backup(src, on_log)
-    on_progress(0.03, "Backed up original")
+    backup_path = make_backup(src, on_log, backup_dir) if backup else None
+    if backup_path:
+        on_progress(0.03, "Backed up original")
 
     duration = ffprobe_duration(src)
     if duration <= 0:
@@ -103,7 +105,7 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
     return {
         "input": str(src),
         "output": str(out_path),
-        "backup": str(backup),
+        "backup": str(backup_path) if backup_path else "",
         "orig_seconds": duration,
         "new_seconds": kept_dur,
         "saved_seconds": duration - kept_dur,

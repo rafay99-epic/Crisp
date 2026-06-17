@@ -73,6 +73,10 @@ def main():
     p.add_argument("--audio-bitrate", type=int, default=DEFAULT_AUDIO_BITRATE,
                    help=f"audio bitrate in kbps (default {DEFAULT_AUDIO_BITRATE})")
     p.add_argument("--no-fillers", action="store_true", help="only remove pauses, keep um/uh")
+    p.add_argument("--no-backup", action="store_true",
+                   help="don't copy the original aside before cutting")
+    p.add_argument("--backup-dir", default=None,
+                   help="folder to copy the original into (default: an '_originals' folder beside it)")
     p.add_argument("--out", default=None, help="output path (default: <name>_cleaned.mp4 beside input)")
     p.add_argument("--ndjson", action="store_true",
                    help="emit machine-readable progress as one JSON object per line "
@@ -96,6 +100,7 @@ def main():
                              video_codec=args.video_codec, hardware=args.hardware, quality=args.quality,
                              audio_codec=args.audio_codec, audio_bitrate=args.audio_bitrate,
                              remove_fillers=not args.no_fillers,
+                             backup=not args.no_backup, backup_dir=args.backup_dir,
                              on_log=on_log, on_progress=on_progress)
         if args.ndjson:
             emit({"event": "result", **result})

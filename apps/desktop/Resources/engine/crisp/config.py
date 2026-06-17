@@ -40,6 +40,7 @@ FILLER_PATTERNS = tuple(re.compile(p) for p in (
     r"m+h?[-\s]?h+m+",    # mm-hmm, mhmm
 ))
 
+DEFAULT_BACKUP = True         # copy the original aside before cutting (safety net)
 DEFAULT_MAX_PAUSE = 0.6       # cut silences longer than this (seconds)
 DEFAULT_NOISE_DB = -30        # audio below this loudness (dB) counts as silence
 DEFAULT_KEEP_PAUSE = 0.15     # breathing room left around each cut (seconds)
