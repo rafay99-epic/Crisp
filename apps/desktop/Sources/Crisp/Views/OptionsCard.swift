@@ -8,12 +8,19 @@ struct OptionsCard: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("How much to cut").font(.headline)
                 Picker("", selection: $model.strength) {
-                    ForEach(Strength.allCases) { Text($0.rawValue).tag($0) }
+                    ForEach(Strength.allCases) { Text($0.pickerLabel).tag($0) }
                 }
                 .labelsHidden()
                 .pickerStyle(.segmented)
-                Text(model.strength.detail)
-                    .font(.callout).foregroundStyle(.secondary)
+                HStack(alignment: .firstTextBaseline) {
+                    Text(model.strength.detail)
+                        .font(.callout).foregroundStyle(.secondary)
+                    if model.strength == .custom {
+                        Spacer()
+                        SettingsLink { Text("Adjust\u{2026}") }
+                            .controlSize(.small)
+                    }
+                }
             }
             Divider()
             Toggle(isOn: $model.removeFillers) {

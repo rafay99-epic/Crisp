@@ -5,10 +5,11 @@ struct CrispApp: App {
     @State private var model = CleanModel()
     @State private var updater = Updater()
     @State private var modelStore = ModelStore()
+    @State private var settings = EngineSettings()
 
     var body: some Scene {
         Window(Channel.current.displayName, id: "main") {
-            ContentView(model: model, updater: updater, modelStore: modelStore)
+            ContentView(model: model, updater: updater, modelStore: modelStore, settings: settings)
                 .frame(minWidth: 540, minHeight: 600)
                 .task { updater.checkOnLaunch() }
                 .task { await modelStore.refresh() }
@@ -22,6 +23,10 @@ struct CrispApp: App {
                 }
                 .disabled(!Channel.current.updatesEnabled || updater.isBusy)
             }
+        }
+
+        Settings {
+            SettingsView(settings: settings)
         }
     }
 }

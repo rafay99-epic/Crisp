@@ -97,7 +97,8 @@ is a pure move):
   - `Updates/` — `Updater`: GitHub-release updater, channel-aware, auths via
     `gh auth token` (private repo). Self-contained.
 - `Views/` — display only: `ContentView` composes `DropCard`, `OptionsCard`,
-  `ProgressSection`, `ResultCard`, `UpdateBanner`, `ModelStatusView`;
+  `ProgressSection`, `ResultCard`, `UpdateBanner`, `ModelStatusView`; `SettingsView`
+  is the ⌘, window for the Custom cutting knobs;
   `Components/Card.swift` is the shared `.cardBackground(…)` surface every card uses.
 
 ## The engine (`Resources/engine/`)
@@ -115,6 +116,13 @@ is a pure move):
   trim/concat re-render (same resolution/fps, H.264 CRF 20, AAC 192k).
 - `--ndjson` emits one JSON object per line for the Swift UI; the human CLI mode
   prints `→` lines. `--no-fillers` skips transcription (faster, pauses only).
+- All four numeric knobs are CLI flags — `--pause`, `--noise`, `--keep-pause`,
+  `--min-keep` (defaults in `crisp/config.py`). The `Strength` presets set them in
+  Swift; a **Custom** strength uses the user's values from a JSON config file at
+  **`~/.crisp*/config/settings.json`** (edited in the Settings window, ⌘,). That
+  file lives in the user's home — not the bundle — so updates never disturb it, and
+  `EngineConfig` decodes each field with a default so new keys added later don't
+  break an existing file (`Services/Cleaning/EngineSettings.swift`).
 - **Self-contained packaging.** The shipped app bundles `clean_video.py` + the
   `crisp/` package **plus the binaries it drives** — `ffmpeg`, `ffprobe`,
   `whisper-cli`, and a `python-build-standalone` runtime — under

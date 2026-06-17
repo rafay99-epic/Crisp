@@ -1,0 +1,57 @@
+import SwiftUI
+
+/// The ⌘, Settings window. Edits the four numeric cutting knobs used by the
+/// "Custom" strength; values persist to `~/.crisp*/config/settings.json`.
+struct SettingsView: View {
+    @Bindable var settings: EngineSettings
+
+    /// Describes one slider row (keeps the row builder to a single argument).
+    private struct Knob {
+        let title: String
+        let help: String
+        let unit: String
+        let range: ClosedRange<Double>
+        let step: Double
+        var decimals: Int = 2
+    }
+
+    var body: some View {
+        Form {
+            Section {
+                row(Knob(title: "Pause threshold", help: "Cut silences longer than this.",
+                         unit: "s", range: 0.1...2.0, step: 0.05), $settings.pauseThreshold)
+                row(Knob(title: "Silence floor", help: "Audio quieter than this counts as silence.",
+                         unit: "dB", range: -45...(-15), step: 1, decimals: 0), $settings.silenceFloorDB)
+                row(Knob(title: "Breathing room", help: "Padding kept on each side of a cut.",
+                         unit: "s", range: 0...0.5, step: 0.01), $settings.breathingRoom)
+                row(Knob(title: "Minimum keep", help: "Drop kept fragments shorter than this.",
+                         unit: "s", range: 0...0.5, step: 0.01), $settings.minKeep)
+            } header: {
+                Text("Custom cutting")
+            } footer: {
+                Text("Applied when \u{201C}How much to cut\u{201D} is set to Custom.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
+            Section {
+                Button("Restore Defaults") { settings.restoreDefaults() }
+            }
+        }
+        .formStyle(.grouped)
+        .frame(width: 460, height: 380)
+    }
+
+    private func row(_ knob: Knob, _ value: Binding<Double>) -> some View {
+        let readout = String(format: "%.\(knob.decimals)f", value.wrappedValue) + " " + knob.unit
+        return VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(knob.title)
+                Spacer()
+                Text(readout).foregroundStyle(.secondary).monospacedDigit()
+            }
+            Slider(value: value, in: knob.range, step: knob.step)
+            Text(knob.help).font(.caption).foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 2)
+    }
+}

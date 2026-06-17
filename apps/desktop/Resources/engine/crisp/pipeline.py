@@ -3,7 +3,7 @@
 import tempfile
 from pathlib import Path
 
-from .config import DEFAULT_KEEP_PAUSE, DEFAULT_MAX_PAUSE, DEFAULT_MODEL, DEFAULT_NOISE_DB
+from .config import DEFAULT_KEEP_PAUSE, DEFAULT_MAX_PAUSE, DEFAULT_MODEL, DEFAULT_NOISE_DB, MIN_KEEP
 from .detect import detect_silences, extract_audio, transcribe
 from .edit import build_keep_segments, make_backup, render
 from .errors import CleanError
@@ -16,7 +16,7 @@ def _noop(*_a, **_k):
 
 def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
                 noise=DEFAULT_NOISE_DB, keep_pause=DEFAULT_KEEP_PAUSE,
-                remove_fillers=True, on_log=None, on_progress=None):
+                min_keep=MIN_KEEP, remove_fillers=True, on_log=None, on_progress=None):
     """
     Clean one video. Returns a dict with results.
       on_log(str)            — called with human-readable status lines.
@@ -70,7 +70,7 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
             on_log(f"Found {len(words)} spoken words.")
         on_progress(0.58, "Planning cuts…")
 
-        keep, stats = build_keep_segments(words, silences, duration, keep_pause)
+        keep, stats = build_keep_segments(words, silences, duration, keep_pause, min_keep)
         if not keep:
             raise CleanError("Everything looked like silence — nothing to keep. "
                              "Try a larger pause value.")
