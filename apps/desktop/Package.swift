@@ -1,9 +1,21 @@
 // swift-tools-version: 6.0
 import PackageDescription
+import Foundation
+
+// Absolute path to the App Intents protocols list the Swift frontend reads via
+// `-const-gather-protocols-file` to know which conformances to extract const
+// values for. The frontend resolves the path against its own working directory
+// (not the package root), so it must be absolute. It expects a plain JSON array
+// of bare protocol names (the names mirror Xcode's shipped SwiftConstantValues
+// list); build.sh then feeds the emitted `.swiftconstvalues` to
+// `appintentsmetadataprocessor`.
+let protocolsFile = URL(fileURLWithPath: #filePath)
+    .deletingLastPathComponent()
+    .appendingPathComponent("Resources/AppIntents.protocols.json").path
 
 let package = Package(
     name: "Crisp",
-    platforms: [.macOS(.v14)],
+    platforms: [.macOS(.v15)],
     targets: [
         // Engine-driving + config + model code shared by the app and the
         // background watch-folder agent (CrispWatcher). "One system, not two" —
@@ -15,7 +27,18 @@ let package = Package(
         .executableTarget(
             name: "Crisp",
             dependencies: ["CrispCore"],
-            swiftSettings: [.swiftLanguageMode(.v5)]
+            swiftSettings: [
+                .swiftLanguageMode(.v5),
+                // Emit `.swiftconstvalues` so build.sh can run
+                // `appintentsmetadataprocessor` to produce the Metadata.appintents
+                // bundle Shortcuts/Spotlight read (swift build doesn't do this step
+                // the way Xcode does). Harmless for a plain `swift build`.
+                .unsafeFlags([
+                    "-Xfrontend", "-const-gather-protocols-file",
+                    "-Xfrontend", protocolsFile,
+                    "-emit-const-values"
+                ])
+            ]
         ),
         .testTarget(
             name: "CrispTests",

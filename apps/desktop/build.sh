@@ -80,6 +80,10 @@ fi
 "$PB" -c "Add :CFBundleDisplayName string $APP_NAME" "$APP/Contents/Info.plist" 2>/dev/null \
   || "$PB" -c "Set :CFBundleDisplayName $APP_NAME" "$APP/Contents/Info.plist"
 "$PB" -c "Set :CrispChannel $CHANNEL" "$APP/Contents/Info.plist"
+# Per-channel Finder Service name + port so the three installs don't collide in
+# the right-click → Quick Actions menu (stable shows "Clean with Crisp").
+"$PB" -c "Set :NSServices:0:NSMenuItem:default Clean with $APP_NAME" "$APP/Contents/Info.plist"
+"$PB" -c "Set :NSServices:0:NSPortName $APP_NAME" "$APP/Contents/Info.plist"
 # Monotonic build number (CI run number) — orders Nightly pre-releases for the
 # updater. Absent/0 for local builds.
 if [ -n "${CRISP_BUILD:-}" ]; then
@@ -103,6 +107,37 @@ if [ ! -f "$ICON_CACHE" ]; then
   iconutil -c icns "$ICONSET" -o "$ICON_CACHE"
 fi
 cp "$ICON_CACHE" "$APP/Contents/Resources/AppIcon.icns"
+
+# App Intents metadata — Shortcuts/Spotlight read
+# Contents/Resources/Metadata.appintents. `swift build` emits Crisp.swiftconstvalues
+# (via the -emit-const-values flag wired into Package.swift);
+# appintentsmetadataprocessor (ships in the Xcode toolchain) compiles it into the
+# bundle. Needs Xcode — on a Command-Line-Tools-only machine it's skipped with a
+# warning (the Finder Service still works; only the Shortcuts action is affected).
+AIMP="$(xcrun --find appintentsmetadataprocessor 2>/dev/null || true)"
+CONSTVALS="$(swift build -c release --arch arm64 --show-bin-path)/Crisp.build/Crisp.swiftconstvalues"
+if [[ -n "$AIMP" && -f "$CONSTVALS" ]]; then
+  echo "Generating App Intents (Shortcuts) metadata…"
+  TOOLCHAIN_DIR="$(dirname "$(dirname "$(dirname "$AIMP")")")"   # …/XcodeDefault.xctoolchain
+  SRCL="$(mktemp)"; CVL="$(mktemp)"
+  find Sources/Crisp -name '*.swift' > "$SRCL"
+  echo "$CONSTVALS" > "$CVL"
+  "$AIMP" \
+    --output "$APP/Contents/Resources" \
+    --toolchain-dir "$TOOLCHAIN_DIR" \
+    --module-name Crisp \
+    --sdk-root "$(xcrun --sdk macosx --show-sdk-path)" \
+    --xcode-version "$(xcodebuild -version | awk '/Build version/{print $3}')" \
+    --platform-family macOS \
+    --deployment-target 15.0 \
+    --target-triple arm64-apple-macos15.0 \
+    --source-file-list "$SRCL" \
+    --swift-const-vals-list "$CVL" \
+    --force
+  rm -f "$SRCL" "$CVL"
+else
+  echo "⚠️  appintentsmetadataprocessor/const-values unavailable — skipping Shortcuts metadata."
+fi
 
 # Sign inside-out: every bundled Mach-O first, then the app. Defaults to ad-hoc
 # (`-`); set CODESIGN_IDENTITY to a Developer ID to add hardened runtime +

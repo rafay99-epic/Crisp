@@ -28,5 +28,27 @@
 	<string>© 2026 Syntax Lab Technology. Licensed under GPL-3.0.</string>
 	<key>CrispChannel</key>
 	<string>stable</string>
+	<!-- Finder right-click → Quick Actions / Services → "Clean with Crisp".
+	     build.sh rewrites the menu title + NSPortName per channel so the three
+	     installs don't collide. The handler lives in ServiceProvider.swift. -->
+	<key>NSServices</key>
+	<array>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict>
+				<key>default</key>
+				<string>Clean with Crisp</string>
+			</dict>
+			<key>NSMessage</key>
+			<string>cleanWithCrisp</string>
+			<key>NSPortName</key>
+			<string>Crisp</string>
+			<key>NSSendFileTypes</key>
+			<array>
+				<string>public.movie</string>
+				<string>public.audiovisual-content</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

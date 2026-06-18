@@ -33,7 +33,10 @@ final class ModelStore {
 
     private(set) var state: State = .checking
 
-    private let provisioner = ModelProvisioner()
+    /// The shared provisioner. Exposed so an external trigger (the Finder Service)
+    /// can auto-download through the *same* instance instead of racing a second
+    /// download onto the same `.part` file.
+    let provisioner = ModelProvisioner()
     private static let log = AppInfo.logger("model")
     private var task: Task<Void, Never>?
 
