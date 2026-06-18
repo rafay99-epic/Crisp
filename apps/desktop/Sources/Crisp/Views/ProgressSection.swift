@@ -6,12 +6,12 @@ struct ProgressSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            ProgressView(value: model.progress)
+            ProgressView(value: model.overallProgress)
                 .tint(model.errorMessage == nil ? .accentColor : .red)
             HStack {
                 Text(model.status).font(.callout).foregroundStyle(.secondary)
                 Spacer()
-                Text("\(Int(model.progress * 100))%")
+                Text("\(Int(model.overallProgress * 100))%")
                     .font(.callout.monospacedDigit()).foregroundStyle(.secondary)
             }
             if let err = model.errorMessage {

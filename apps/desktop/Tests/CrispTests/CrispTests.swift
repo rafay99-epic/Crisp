@@ -285,6 +285,114 @@ final class CrispTests: XCTestCase {
         XCTAssertEqual(CleanStrengthChoice.veryAggressive.strength, .veryAggressive)
     }
 
+    // MARK: - Presets
+
+    func testPresetDefaultsAndConcurrencyForwardCompat() throws {
+        // A v2 file (no preset/parallelism keys) fills the new keys with defaults —
+        // presets empty, no default preset, Automatic parallelism.
+        let legacy = Data(#"{ "version": 2, "pauseThreshold": 0.4, "backupOriginal": false }"#.utf8)
+        let cfg = try JSONDecoder().decode(EngineConfig.self, from: legacy)
+        XCTAssertEqual(cfg.pauseThreshold, 0.4)        // preserved
+        XCTAssertFalse(cfg.backupOriginal)             // preserved
+        XCTAssertEqual(cfg.presets, [])                // new → default
+        XCTAssertEqual(cfg.defaultPresetID, "")
+        XCTAssertEqual(cfg.concurrencyMode, "auto")
+        XCTAssertEqual(cfg.manualConcurrency, 2)
+        XCTAssertEqual(cfg.perJobMemoryBudgetMB, 2048)
+    }
+
+    func testPresetResolvesLikeGlobalPath() {
+        // A preset must resolve to exactly the same parameters as taking its
+        // strength through the global config it was built from.
+        var cfg = EngineConfig.defaults
+        cfg.pauseThreshold = 1.1; cfg.breathingRoom = 0.22; cfg.silenceFloorDB = -24; cfg.minKeep = 0.15
+        cfg.videoCodec = "h264"; cfg.audioCodec = "opus"; cfg.outputContainer = "mkv"
+        cfg.outputDirectory = "/Volumes/NAS"; cfg.backupOriginal = false
+        for strength in [Strength.gentle, .aggressive, .custom] {
+            let preset = Preset(name: "P", strength: strength, config: cfg)
+            XCTAssertEqual(preset.parameters(), strength.parameters(using: cfg),
+                           "\(strength.rawValue) preset should match the global path")
+        }
+    }
+
+    func testPresetRoundTripsThroughConfig() throws {
+        var cfg = EngineConfig.defaults
+        cfg.presets = [Preset(name: "YouTube", strength: .custom, config: cfg)]
+        cfg.defaultPresetID = cfg.presets[0].id.uuidString
+        let round = try JSONDecoder().decode(EngineConfig.self, from: JSONEncoder().encode(cfg))
+        XCTAssertEqual(round, cfg)
+    }
+
+    // MARK: - Resource governor
+
+    private func snap(physGB: Double, availGB: Double, pCores: Int,
+                      thermal: ProcessInfo.ThermalState = .nominal) -> SystemSnapshot {
+        let gb = { (v: Double) in UInt64(v * 1024 * 1024 * 1024) }
+        return SystemSnapshot(physicalMemory: gb(physGB), availableMemory: gb(availGB),
+                              performanceCoreCount: pCores, logicalCoreCount: pCores, thermalState: thermal)
+    }
+
+    func testGovernorNeverGoesBelowSerial() {
+        // Almost no free memory still allows one clean (serial is always safe).
+        let s = snap(physGB: 8, availGB: 0.5, pCores: 4)
+        XCTAssertEqual(ResourceGovernor.recommended(snapshot: s, config: .defaults), 1)
+    }
+
+    func testGovernorCappedByMediaEngineForHardware() {
+        // A big machine with hardware encoding is bounded by the shared media engine.
+        let s = snap(physGB: 64, availGB: 32, pCores: 10)
+        XCTAssertEqual(ResourceGovernor.recommended(snapshot: s, config: .defaults),
+                       ResourceGovernor.mediaEngineCap)
+    }
+
+    func testGovernorSoftwareEncodeLiftsMediaCap() {
+        // Software encoding has no media-engine contention, so the CPU cap governs.
+        var cfg = EngineConfig.defaults
+        cfg.hardwareEncoding = false
+        let s = snap(physGB: 64, availGB: 32, pCores: 10)   // cpuCap = 10/2 = 5
+        XCTAssertEqual(ResourceGovernor.recommended(snapshot: s, config: cfg), 5)
+    }
+
+    func testGovernorThermalPressureForcesSerial() {
+        let hot = snap(physGB: 64, availGB: 32, pCores: 10, thermal: .serious)
+        XCTAssertEqual(ResourceGovernor.recommended(snapshot: hot, config: .defaults), 1)
+    }
+
+    func testGovernorMemoryBoundsConcurrency() {
+        // ~6 GB free, 2 GB reserve, 2 GB per job ⇒ (6-2)/2 = 2 fit, even with cores
+        // to spare and software encoding (so the cap is purely memory).
+        var cfg = EngineConfig.defaults
+        cfg.hardwareEncoding = false
+        let s = snap(physGB: 16, availGB: 6, pCores: 10)
+        XCTAssertEqual(ResourceGovernor.recommended(snapshot: s, config: cfg), 2)
+    }
+
+    func testManualConcurrencyClampedToCeiling() {
+        var cfg = EngineConfig.defaults
+        cfg.manualConcurrency = 10
+        let s = snap(physGB: 64, availGB: 64, pCores: 10)   // ceiling = mediaEngineCap (3)
+        XCTAssertEqual(ResourceGovernor.plannedConcurrency(mode: .manual, snapshot: s, config: cfg),
+                       ResourceGovernor.mediaEngineCap)
+    }
+
+    func testUltraPreflightFitsAndFails() {
+        let cfg = EngineConfig.defaults                      // 2 GB/job + 2 GB reserve
+        // Requesting 3 needs 3*2 + 2 = 8 GB free.
+        let enough = snap(physGB: 64, availGB: 10, pCores: 10)
+        XCTAssertTrue(ResourceGovernor.preflight(requested: 3, snapshot: enough, config: cfg).fits)
+        let tooLittle = snap(physGB: 64, availGB: 6, pCores: 10)
+        let verdict = ResourceGovernor.preflight(requested: 3, snapshot: tooLittle, config: cfg)
+        XCTAssertFalse(verdict.fits)
+        XCTAssertFalse(verdict.thermalBlocked)
+    }
+
+    func testUltraPreflightBlocksWhenHot() {
+        let hot = snap(physGB: 64, availGB: 64, pCores: 10, thermal: .critical)
+        let verdict = ResourceGovernor.preflight(requested: 2, snapshot: hot, config: .defaults)
+        XCTAssertFalse(verdict.fits)
+        XCTAssertTrue(verdict.thermalBlocked)
+    }
+
     /// The argument value immediately following `flag`, or nil if absent.
     private func valueAfter(_ flag: String, in args: [String]) -> String? {
         guard let i = args.firstIndex(of: flag), i + 1 < args.count else { return nil }

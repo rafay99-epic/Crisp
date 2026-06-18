@@ -10,9 +10,65 @@ struct ContentView: View {
     @Bindable var watchAgent: WatchAgentController
     @Bindable var onboarding: OnboardingController
     @State private var importing = false
+    @State private var showUltraSheet = false
+    @State private var ultraTarget = 1
+    @State private var ultraVerdict: ResourceGovernor.Verdict?
 
     /// Filler-word removal needs the speech model; pauses-only doesn't.
     private var needsModel: Bool { model.removeFillers }
+
+    /// "Clean Video" for one queued file, "Clean N Videos" for a batch.
+    private var cleanButtonTitle: String {
+        let pending = model.queue.filter { $0.isWaiting }.count
+        return pending <= 1 ? "Clean Video" : "Clean \(pending) Videos"
+    }
+
+    /// Resolve a queued file's recipe: its own preset if set, else the window's
+    /// default preset, else the live global strength + settings.
+    private func resolveParameters(_ item: QueueItem) -> CleanParameters {
+        if let preset = settings.preset(withID: item.presetID) { return preset.parameters() }
+        if let preset = settings.defaultPreset { return preset.parameters() }
+        return model.strength.parameters(using: settings.config)
+    }
+
+    /// Decide the parallel count from the governor, and for Ultra gate on a
+    /// free-resource preflight before starting.
+    private func attemptStart() {
+        let snapshot = SystemProbe.snapshot()
+        let mode = ConcurrencyMode(storage: settings.concurrencyMode)
+        let plan = ResourceGovernor.plannedConcurrency(mode: mode, snapshot: snapshot, config: settings.config)
+        if mode == .ultra {
+            let verdict = ResourceGovernor.preflight(requested: plan, snapshot: snapshot, config: settings.config)
+            guard verdict.fits else {
+                ultraTarget = plan
+                ultraVerdict = verdict
+                showUltraSheet = true
+                return
+            }
+        }
+        launch(concurrency: plan)
+    }
+
+    /// Re-run the Ultra preflight (the sheet's "Check Again"): start if it now fits,
+    /// otherwise refresh the shortfall shown in the sheet.
+    private func recheckUltra() {
+        let snapshot = SystemProbe.snapshot()
+        let verdict = ResourceGovernor.preflight(requested: ultraTarget, snapshot: snapshot, config: settings.config)
+        if verdict.fits {
+            showUltraSheet = false
+            launch(concurrency: ultraTarget)
+        } else {
+            ultraVerdict = verdict
+        }
+    }
+
+    private func launch(concurrency: Int) {
+        Task {
+            await model.start(modelPath: modelStore.readyModelPath,
+                              concurrency: concurrency,
+                              resolveParameters: resolveParameters)
+        }
+    }
     private var modelBlocks: Bool { needsModel && !modelStore.state.isReady }
 
     var body: some View {
@@ -31,6 +87,9 @@ struct ContentView: View {
             header
             UpdateBanner(updater: updater)
             DropCard(model: model, importing: $importing)
+            if !model.queue.isEmpty {
+                QueueView(model: model, settings: settings)
+            }
             OptionsCard(model: model)
             BackupStatusView(backupOn: settings.backupOriginal)
             if modelBlocks || modelStore.state.isBusy {
@@ -59,6 +118,13 @@ struct ContentView: View {
                       allowedContentTypes: [.movie, .video, .audiovisualContent],
                       allowsMultipleSelection: true) { result in
             if case .success(let urls) = result { model.addFiles(urls) }
+        }
+        .sheet(isPresented: $showUltraSheet) {
+            if let verdict = ultraVerdict {
+                UltraPreflightSheet(target: ultraTarget, verdict: verdict,
+                                    onCheckAgain: recheckUltra,
+                                    onCancel: { showUltraSheet = false })
+            }
         }
     }
 
@@ -105,12 +171,11 @@ struct ContentView: View {
             .keyboardShortcut(.cancelAction)
         } else {
             Button {
-                let params = model.strength.parameters(using: settings.config)
-                Task { await model.start(modelPath: modelStore.readyModelPath, parameters: params) }
+                attemptStart()
             } label: {
                 HStack {
                     Image(systemName: "scissors")
-                    Text("Clean Video")
+                    Text(cleanButtonTitle)
                 }
                 .frame(maxWidth: .infinity)
                 .font(.headline)
@@ -118,7 +183,7 @@ struct ContentView: View {
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
-            .disabled(model.files.isEmpty || modelBlocks)
+            .disabled(!model.hasPendingWork || modelBlocks)
             .keyboardShortcut(.return, modifiers: .command)
         }
     }

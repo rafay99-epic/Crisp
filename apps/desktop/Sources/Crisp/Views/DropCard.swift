@@ -7,12 +7,12 @@ struct DropCard: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            Image(systemName: model.files.isEmpty ? "film.stack" : "checkmark.circle.fill")
+            Image(systemName: model.queue.isEmpty ? "film.stack" : "plus.circle.fill")
                 .font(.system(size: 30))
-                .foregroundStyle(model.files.isEmpty ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tint))
+                .foregroundStyle(model.queue.isEmpty ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tint))
             Text(title).font(.headline).multilineTextAlignment(.center)
-            Text("Drag a video here, or").font(.callout).foregroundStyle(.secondary)
-            Button("Choose video\u{2026}") { importing = true }
+            Text("Drag videos here, or").font(.callout).foregroundStyle(.secondary)
+            Button(model.queue.isEmpty ? "Choose videos\u{2026}" : "Add more\u{2026}") { importing = true }
                 .controlSize(.large)
         }
         .frame(maxWidth: .infinity)
@@ -31,8 +31,8 @@ struct DropCard: View {
     }
 
     private var title: String {
-        if model.files.isEmpty { return "No video selected" }
-        if model.files.count == 1 { return model.files[0].lastPathComponent }
-        return "\(model.files.count) videos selected"
+        if model.queue.isEmpty { return "No videos added" }
+        let count = model.queue.count
+        return count == 1 ? "1 video in the queue" : "\(count) videos in the queue"
     }
 }

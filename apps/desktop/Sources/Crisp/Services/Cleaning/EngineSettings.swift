@@ -29,6 +29,13 @@ final class EngineSettings {
     var watchEnabled: Bool { didSet { save() } }
     var watchFolderPath: String { didSet { save() } }
     var watchRemoveFillers: Bool { didSet { save() } }
+    // Presets (named recipes a queue row can pick) + which one new files default to
+    var presets: [Preset] { didSet { save() } }
+    var defaultPresetID: String { didSet { save() } }
+    // Parallelism (drives the resource governor)
+    var concurrencyMode: String { didSet { save() } }
+    var manualConcurrency: Int { didSet { save() } }
+    var perJobMemoryBudgetMB: Int { didSet { save() } }
 
     /// Whether the user arrived with a real saved configuration — a `settings.json`
     /// that differs from the defaults. Captured once at launch (so it stays stable
@@ -48,7 +55,10 @@ final class EngineSettings {
                      outputDirectory: outputDirectory,
                      backupOriginal: backupOriginal,
                      watchEnabled: watchEnabled, watchFolderPath: watchFolderPath,
-                     watchRemoveFillers: watchRemoveFillers)
+                     watchRemoveFillers: watchRemoveFillers,
+                     presets: presets, defaultPresetID: defaultPresetID,
+                     concurrencyMode: concurrencyMode, manualConcurrency: manualConcurrency,
+                     perJobMemoryBudgetMB: perJobMemoryBudgetMB)
     }
 
     init() {
@@ -74,6 +84,11 @@ final class EngineSettings {
         watchEnabled = cfg.watchEnabled
         watchFolderPath = cfg.watchFolderPath
         watchRemoveFillers = cfg.watchRemoveFillers
+        presets = cfg.presets
+        defaultPresetID = cfg.defaultPresetID
+        concurrencyMode = cfg.concurrencyMode
+        manualConcurrency = cfg.manualConcurrency
+        perJobMemoryBudgetMB = cfg.perJobMemoryBudgetMB
         if !existed { EngineConfigStore.save(config) }  // materialize the file on first launch
     }
 
@@ -94,6 +109,42 @@ final class EngineSettings {
         outputContainer = d.outputContainer
         outputDirectory = d.outputDirectory
         backupOriginal = d.backupOriginal
+    }
+
+    // MARK: - Presets
+
+    /// The preset newly added files should use, if a valid default is set.
+    var defaultPreset: Preset? {
+        guard let id = UUID(uuidString: defaultPresetID) else { return nil }
+        return presets.first { $0.id == id }
+    }
+
+    func preset(withID id: UUID?) -> Preset? {
+        guard let id else { return nil }
+        return presets.first { $0.id == id }
+    }
+
+    /// Snapshot the current global recipe (cut + encode + output + backup, plus the
+    /// given strength) into a new preset and return it.
+    @discardableResult
+    func addPreset(named name: String, strength: Strength) -> Preset {
+        let preset = Preset(name: name, strength: strength, config: config)
+        presets.append(preset)
+        return preset
+    }
+
+    func renamePreset(_ id: UUID, to name: String) {
+        guard let idx = presets.firstIndex(where: { $0.id == id }) else { return }
+        presets[idx].name = name
+    }
+
+    func deletePreset(_ id: UUID) {
+        presets.removeAll { $0.id == id }
+        if defaultPresetID == id.uuidString { defaultPresetID = "" }
+    }
+
+    func setDefaultPreset(_ id: UUID?) {
+        defaultPresetID = id?.uuidString ?? ""
     }
 
     private func save() { EngineConfigStore.save(config) }

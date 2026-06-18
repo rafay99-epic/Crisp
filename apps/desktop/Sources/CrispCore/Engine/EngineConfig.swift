@@ -31,27 +31,45 @@ public struct EngineConfig: Codable, Equatable, Sendable {
     public var watchEnabled: Bool        // background watcher active
     public var watchFolderPath: String   // folder to watch ("" ⇒ none chosen)
     public var watchRemoveFillers: Bool  // strip fillers on auto-clean (needs model)
+    // Presets — named, reusable clean recipes a queue row can pick instead of the
+    // global recipe. `defaultPresetID` (a Preset.id UUID string, "" ⇒ none) is the
+    // recipe newly added files use until the user picks another.
+    public var presets: [Preset]
+    public var defaultPresetID: String
+    // Parallelism — how many videos to clean at once. "auto" lets the resource
+    // governor pick a safe number; "manual" uses `manualConcurrency` (clamped to the
+    // machine's ceiling); "ultra" pushes to the ceiling with a free-resource
+    // preflight. `perJobMemoryBudgetMB` is the governor's per-clean RAM estimate.
+    public var concurrencyMode: String   // "auto" | "manual" | "ultra"
+    public var manualConcurrency: Int
+    public var perJobMemoryBudgetMB: Int
 
     public static let defaults = EngineConfig(
-        version: 2,
+        version: 3,
         pauseThreshold: 0.35, silenceFloorDB: -30, breathingRoom: 0.10, minKeep: 0.05,
         videoCodec: "hevc", hardwareEncoding: true, videoQuality: "high",
         audioCodec: "aac", audioBitrateKbps: 192, outputContainer: "auto", outputDirectory: "",
         backupOriginal: true,
-        watchEnabled: false, watchFolderPath: "", watchRemoveFillers: true)
+        watchEnabled: false, watchFolderPath: "", watchRemoveFillers: true,
+        presets: [], defaultPresetID: "",
+        concurrencyMode: "auto", manualConcurrency: 2, perJobMemoryBudgetMB: 2048)
 
     enum CodingKeys: String, CodingKey {
         case version, pauseThreshold, silenceFloorDB, breathingRoom, minKeep
         case videoCodec, hardwareEncoding, videoQuality, audioCodec, audioBitrateKbps
         case outputContainer, outputDirectory, backupOriginal
         case watchEnabled, watchFolderPath, watchRemoveFillers
+        case presets, defaultPresetID
+        case concurrencyMode, manualConcurrency, perJobMemoryBudgetMB
     }
 
     public init(version: Int, pauseThreshold: Double, silenceFloorDB: Double, breathingRoom: Double,
                 minKeep: Double, videoCodec: String, hardwareEncoding: Bool, videoQuality: String,
                 audioCodec: String, audioBitrateKbps: Int, outputContainer: String, outputDirectory: String,
                 backupOriginal: Bool,
-                watchEnabled: Bool, watchFolderPath: String, watchRemoveFillers: Bool) {
+                watchEnabled: Bool, watchFolderPath: String, watchRemoveFillers: Bool,
+                presets: [Preset], defaultPresetID: String,
+                concurrencyMode: String, manualConcurrency: Int, perJobMemoryBudgetMB: Int) {
         self.version = version
         self.pauseThreshold = pauseThreshold
         self.silenceFloorDB = silenceFloorDB
@@ -68,6 +86,11 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         self.watchEnabled = watchEnabled
         self.watchFolderPath = watchFolderPath
         self.watchRemoveFillers = watchRemoveFillers
+        self.presets = presets
+        self.defaultPresetID = defaultPresetID
+        self.concurrencyMode = concurrencyMode
+        self.manualConcurrency = manualConcurrency
+        self.perJobMemoryBudgetMB = perJobMemoryBudgetMB
     }
 
     public init(from decoder: Decoder) throws {
@@ -89,6 +112,11 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         watchEnabled       = try c.decodeIfPresent(Bool.self, forKey: .watchEnabled) ?? d.watchEnabled
         watchFolderPath    = try c.decodeIfPresent(String.self, forKey: .watchFolderPath) ?? d.watchFolderPath
         watchRemoveFillers = try c.decodeIfPresent(Bool.self, forKey: .watchRemoveFillers) ?? d.watchRemoveFillers
+        presets            = try c.decodeIfPresent([Preset].self, forKey: .presets) ?? d.presets
+        defaultPresetID    = try c.decodeIfPresent(String.self, forKey: .defaultPresetID) ?? d.defaultPresetID
+        concurrencyMode    = try c.decodeIfPresent(String.self, forKey: .concurrencyMode) ?? d.concurrencyMode
+        manualConcurrency  = try c.decodeIfPresent(Int.self, forKey: .manualConcurrency) ?? d.manualConcurrency
+        perJobMemoryBudgetMB = try c.decodeIfPresent(Int.self, forKey: .perJobMemoryBudgetMB) ?? d.perJobMemoryBudgetMB
     }
 }
 
