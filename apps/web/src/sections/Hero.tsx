@@ -1,15 +1,16 @@
 import { useRef } from "react";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion, useScroll, useTransform, useInView } from "framer-motion";
 import { LiveWave } from "../components/Wave";
 import { CopyCommand } from "../components/AppBits";
 import { Magnetic } from "../components/Motion";
 import { Apple } from "../components/Icons";
-import { RELEASES, REQUIREMENTS, BREW_INSTALL } from "../site";
+import { REQUIREMENTS, BREW_INSTALL } from "../site";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
 export function Hero() {
   const ref = useRef<HTMLElement>(null);
+  const inView = useInView(ref, { margin: "0px" }); // pause ambient motion off-screen
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
   const waveY = useTransform(scrollYProgress, [0, 1], [0, 160]);
   const waveScale = useTransform(scrollYProgress, [0, 1], [1, 1.15]);
@@ -21,14 +22,14 @@ export function Hero() {
       {/* drifting glow orbs */}
       <motion.span
         className="orb left-[10%] top-[12%] size-[460px]"
-        style={{ background: "radial-gradient(circle, rgba(10,132,255,0.30), transparent 70%)" }}
-        animate={{ x: [0, 60, 0], y: [0, 40, 0] }}
+        style={{ background: "radial-gradient(circle, rgba(10,132,255,0.30), transparent 70%)", willChange: "transform" }}
+        animate={inView ? { x: [0, 60, 0], y: [0, 40, 0] } : {}}
         transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
       />
       <motion.span
         className="orb right-[8%] bottom-[14%] size-[420px]"
-        style={{ background: "radial-gradient(circle, rgba(100,210,255,0.22), transparent 70%)" }}
-        animate={{ x: [0, -50, 0], y: [0, -30, 0] }}
+        style={{ background: "radial-gradient(circle, rgba(100,210,255,0.22), transparent 70%)", willChange: "transform" }}
+        animate={inView ? { x: [0, -50, 0], y: [0, -30, 0] } : {}}
         transition={{ duration: 22, repeat: Infinity, ease: "easeInOut" }}
       />
 
@@ -63,7 +64,7 @@ export function Hero() {
         style={{ y: waveY, scale: waveScale, opacity: fade }}
         className="relative z-0 mt-10 h-[200px] w-full max-w-5xl sm:h-[260px]"
       >
-        <LiveWave bars={110} />
+        <LiveWave bars={76} />
         {/* the cut line down the middle */}
         <motion.span
           className="absolute left-1/2 top-1/2 h-[70%] w-px -translate-x-1/2 -translate-y-1/2 bg-white/40"
@@ -88,11 +89,11 @@ export function Hero() {
         <div className="mt-9 flex flex-col items-center gap-3 sm:flex-row">
           <Magnetic strength={0.35}>
             <a
-              href={RELEASES}
+              href="#download"
               className="flex items-center gap-2 rounded-full bg-white px-8 py-4 text-[17px] font-semibold text-black shadow-[0_10px_40px_-8px_rgba(255,255,255,0.4)] transition-transform hover:scale-[1.02]"
             >
               <Apple className="size-[19px]" />
-              Download for Mac
+              Install for Mac
             </a>
           </Magnetic>
           <a href="#cut" className="rounded-full px-6 py-4 text-[17px] font-medium text-white/70 transition-colors hover:text-white">
@@ -101,6 +102,9 @@ export function Hero() {
         </div>
 
         <div className="mt-6 w-full max-w-sm">
+          <p className="mb-2 text-center text-[12px] uppercase tracking-[0.2em] text-white/35">
+            One line in Terminal
+          </p>
           <CopyCommand command={BREW_INSTALL} />
         </div>
         <p className="mt-4 text-[13px] text-white/40">Free · open source · {REQUIREMENTS}</p>

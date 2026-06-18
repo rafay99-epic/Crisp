@@ -1,9 +1,15 @@
 import { motion } from "framer-motion";
 import { AppIcon } from "../components/Logo";
 import { CopyCommand } from "../components/AppBits";
-import { Magnetic, Reveal, KineticText } from "../components/Motion";
-import { Apple } from "../components/Icons";
-import { RELEASES, REPO, REQUIREMENTS, BREW_INSTALL } from "../site";
+import { Reveal, KineticText } from "../components/Motion";
+import { CheckSeal } from "../components/Icons";
+import { REPO, REQUIREMENTS, BREW_INSTALL } from "../site";
+
+const PERKS = [
+  "Installs cleanly — no Gatekeeper warnings",
+  "Updates itself with your other casks",
+  "One command to remove it completely",
+];
 
 export function Download() {
   return (
@@ -24,13 +30,13 @@ export function Download() {
         </motion.div>
 
         <KineticText
-          text="Get Crisp."
+          text="Install Crisp."
           className="mt-8 text-[52px] font-semibold tracking-[-0.02em] sm:text-[80px]"
         />
         <Reveal delay={0.1}>
           <p className="mx-auto mt-5 max-w-lg text-[19px] leading-relaxed text-white/60">
-            Free and open source. Install with Homebrew and it keeps itself up to date — or
-            grab the DMG directly.
+            One line in Terminal with Homebrew. It handles everything — signing, install, and
+            updates — so you skip the “unidentified developer” song and dance.
           </p>
         </Reveal>
 
@@ -39,37 +45,39 @@ export function Download() {
             <CopyCommand command={BREW_INSTALL} />
           </div>
 
-          <div className="mt-6 flex items-center gap-4 text-[13px] text-white/35">
-            <span className="h-px flex-1 bg-white/10" />
-            or
-            <span className="h-px flex-1 bg-white/10" />
-          </div>
-
-          <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Magnetic strength={0.35}>
-              <a
-                href={RELEASES}
-                className="flex items-center gap-2 rounded-full bg-white px-8 py-4 text-[17px] font-semibold text-black shadow-[0_10px_40px_-8px_rgba(255,255,255,0.4)] transition-transform hover:scale-[1.02]"
-              >
-                <Apple className="size-[19px]" />
-                Download the DMG
-              </a>
-            </Magnetic>
-            <a href={REPO} className="rounded-full px-6 py-4 text-[17px] font-medium text-white/70 transition-colors hover:text-white">
-              View on GitHub ›
-            </a>
-          </div>
-          <p className="mt-5 text-[13px] text-white/40">{REQUIREMENTS}</p>
+          <ul className="mx-auto mt-7 flex max-w-md flex-col items-start gap-2.5 text-left">
+            {PERKS.map((p) => (
+              <li key={p} className="flex items-center gap-2.5 text-[15px] text-white/65">
+                <CheckSeal className="size-[18px] shrink-0 text-[var(--color-accent-bright)]" />
+                {p}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-7 text-[13px] text-white/40">{REQUIREMENTS}</p>
         </Reveal>
 
         <Reveal delay={0.2}>
-          <p className="mx-auto mt-12 max-w-md text-[14px] leading-relaxed text-white/40">
-            Want the newest builds? Install the Nightly channel beside your stable copy with{" "}
-            <code className="rounded bg-white/[0.07] px-1.5 py-0.5 font-mono text-[12px] text-white/70">
-              brew install --cask rafay99-epic/apps/crisp-nightly
-            </code>
-            .
-          </p>
+          <div className="mx-auto mt-12 max-w-md space-y-2 text-[14px] leading-relaxed text-white/40">
+            <p>
+              Don't have Homebrew yet? Install it from{" "}
+              <a href="https://brew.sh" className="text-[var(--color-accent-bright)] hover:underline">
+                brew.sh
+              </a>
+              , then run the line above.
+            </p>
+            <p>
+              Want the newest builds? Add the Nightly channel beside your stable copy:{" "}
+              <code className="rounded bg-white/[0.07] px-1.5 py-0.5 font-mono text-[12px] text-white/70">
+                brew install --cask rafay99-epic/apps/crisp-nightly
+              </code>
+            </p>
+            <p>
+              Prefer to read the source or build it yourself?{" "}
+              <a href={REPO} className="text-[var(--color-accent-bright)] hover:underline">
+                View on GitHub ›
+              </a>
+            </p>
+          </div>
         </Reveal>
       </div>
     </section>

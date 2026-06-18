@@ -23,32 +23,85 @@ const SEGMENTS: Array<{ keep: boolean; w: number }> = [
   { keep: false, w: 3.2 },
   { keep: true, w: 5.5 },
 ];
+const GAP = 0.7;
+
+/**
+ * Geometry in "unit" space, resolved to percentages of the container so the whole
+ * collapse animates with transforms only (translateX + scaleX) — no per-frame
+ * layout. `leftPct`/`widthPct` are set once (static); `deltaPctOfSelf` is how far
+ * the segment must slide, expressed as a % of its own width (CSS translateX %).
+ */
+function geometry() {
+  const beforeTotal = SEGMENTS.reduce((a, s, i) => a + s.w + (i ? GAP : 0), 0);
+  let c = 0;
+  const beforeLeft = SEGMENTS.map((s) => {
+    const l = c;
+    c += s.w + GAP;
+    return l;
+  });
+  let ac = 0;
+  let started = false;
+  const afterLeft = SEGMENTS.map((s) => {
+    if (s.keep) {
+      if (started) ac += GAP;
+      started = true;
+      const l = ac;
+      ac += s.w;
+      return l;
+    }
+    return ac; // cut segments collapse to the current seam
+  });
+  const offset = (beforeTotal - ac) / 2; // re-centre the tightened clip
+  return SEGMENTS.map((s, i) => ({
+    keep: s.keep,
+    w: s.w,
+    leftPct: (beforeLeft[i] / beforeTotal) * 100,
+    widthPct: (s.w / beforeTotal) * 100,
+    deltaPctOfSelf: ((afterLeft[i] + offset - beforeLeft[i]) / s.w) * 100,
+  }));
+}
+const GEO = geometry();
 
 function fmtTime(totalSec: number) {
   const s = Math.max(0, Math.round(totalSec));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
-function Segment({ seg, index, progress }: { seg: { keep: boolean; w: number }; index: number; progress: MotionValue<number> }) {
-  // cut segments collapse to nothing between 35%–60% scroll
-  const grow = useTransform(progress, [0.35, 0.6], [seg.w, seg.keep ? seg.w : 0.0001]);
-  const opacity = useTransform(progress, [0.4, 0.56], [1, seg.keep ? 1 : 0]);
-  const bars = seededHeights(Math.round(seg.w * 3), index + 2);
+function Segment({
+  g,
+  index,
+  progress,
+}: {
+  g: (typeof GEO)[number];
+  index: number;
+  progress: MotionValue<number>;
+}) {
+  const x = useTransform(progress, [0.35, 0.6], ["0%", `${g.deltaPctOfSelf}%`]);
+  const scaleX = useTransform(progress, [0.35, 0.6], [1, g.keep ? 1 : 0.001]);
+  const opacity = useTransform(progress, [0.4, 0.55], [1, g.keep ? 1 : 0]);
+  const bars = seededHeights(Math.max(3, Math.round(g.w * 3)), index + 2);
   return (
     <motion.div
-      style={{ flexGrow: grow, opacity }}
-      className="flex h-full min-w-0 items-center gap-[2px] overflow-hidden"
+      style={{
+        left: `${g.leftPct}%`,
+        width: `${g.widthPct}%`,
+        x,
+        scaleX,
+        opacity,
+        transformOrigin: "left center",
+        willChange: "transform",
+      }}
+      className="absolute inset-y-0 flex items-center gap-[2px]"
     >
       {bars.map((h, i) => (
         <span
           key={i}
           className="w-full rounded-full"
           style={{
-            height: `${seg.keep ? Math.round(h * 100) : 10}%`,
-            background: seg.keep
+            height: `${g.keep ? Math.round(h * 100) : 12}%`,
+            background: g.keep
               ? "linear-gradient(180deg,#7dc0ff,var(--color-accent))"
               : "var(--color-cut)",
-            boxShadow: seg.keep ? "0 0 10px rgba(10,132,255,0.3)" : "none",
           }}
         />
       ))}
@@ -63,16 +116,16 @@ export function CutStory() {
   const playheadX = useTransform(scrollYProgress, [0.33, 0.62], ["0%", "100%"]);
   const playheadOpacity = useTransform(scrollYProgress, [0.3, 0.36, 0.6, 0.66], [0, 1, 1, 0]);
 
-  // phase label crossfades
-  const p1 = useTransform(scrollYProgress, [0.05, 0.15, 0.32, 0.4], [0, 1, 1, 0]);
-  const p2 = useTransform(scrollYProgress, [0.36, 0.44, 0.58, 0.64], [0, 1, 1, 0]);
-  const p3 = useTransform(scrollYProgress, [0.64, 0.74, 0.95, 1], [0, 1, 1, 1]);
+  // phase labels — tight crossfades so two subtitles never overlap
+  const p1 = useTransform(scrollYProgress, [0.05, 0.14, 0.3, 0.34], [0, 1, 1, 0]);
+  const p2 = useTransform(scrollYProgress, [0.37, 0.44, 0.57, 0.61], [0, 1, 1, 0]);
+  const p3 = useTransform(scrollYProgress, [0.64, 0.73, 0.95, 1], [0, 1, 1, 1]);
 
   const time = useTransform(scrollYProgress, (v) => fmtTime(510 - Math.max(0, (v - 0.35) / 0.27) * 84));
-  const foundOpacity = useTransform(scrollYProgress, [0.08, 0.18, 0.34, 0.4], [0, 1, 1, 0]);
+  const foundOpacity = useTransform(scrollYProgress, [0.08, 0.18, 0.33, 0.38], [0, 1, 1, 0]);
 
   return (
-    <section id="cut" ref={ref} className="relative h-[340vh]">
+    <section id="cut" ref={ref} className="relative h-[320vh]">
       <div className="sticky top-0 flex h-screen flex-col items-center justify-center overflow-hidden px-5">
         <span
           className="orb left-1/2 top-1/2 size-[600px] -translate-x-1/2 -translate-y-1/2"
@@ -97,10 +150,12 @@ export function CutStory() {
             </span>
           </div>
 
-          <div className="relative flex h-[180px] items-center gap-[6px] rounded-2xl bg-white/[0.03] p-5 ring-1 ring-white/[0.07] sm:h-[220px]">
-            {SEGMENTS.map((seg, i) => (
-              <Segment key={i} seg={seg} index={i} progress={scrollYProgress} />
-            ))}
+          <div className="relative h-[180px] overflow-hidden rounded-2xl bg-white/[0.03] p-5 ring-1 ring-white/[0.07] sm:h-[220px]">
+            <div className="relative h-full w-full">
+              {GEO.map((g, i) => (
+                <Segment key={i} g={g} index={i} progress={scrollYProgress} />
+              ))}
+            </div>
 
             {/* sweeping cut playhead */}
             <motion.div

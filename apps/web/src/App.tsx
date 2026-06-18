@@ -11,7 +11,7 @@ import { Footer } from "./sections/Footer";
 
 export function App() {
   return (
-    <ReactLenis root options={{ lerp: 0.09, smoothWheel: true }}>
+    <ReactLenis root options={{ lerp: 0.1, smoothWheel: true, anchors: true }}>
       <div className="grain">
         <Nav />
         <main>

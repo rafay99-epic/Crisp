@@ -2,7 +2,6 @@ import { useState } from "react";
 import { motion, useScroll, useMotionValueEvent } from "framer-motion";
 import { Waveform } from "../components/Logo";
 import { Magnetic } from "../components/Motion";
-import { RELEASES } from "../site";
 
 const LINKS = [
   ["Overview", "#cut"],
@@ -44,10 +43,10 @@ export function Nav() {
         </div>
         <Magnetic strength={0.5}>
           <a
-            href={RELEASES}
+            href="#download"
             className="rounded-full bg-white px-4 py-1.5 text-[13px] font-semibold text-black transition-transform hover:scale-[1.03]"
           >
-            Download
+            Install
           </a>
         </Magnetic>
       </nav>
