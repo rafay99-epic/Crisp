@@ -96,7 +96,9 @@ struct ContentView: View {
                 ModelStatusView(store: modelStore)
             }
             actionButton
-            if model.isRunning || !model.results.isEmpty || model.errorMessage != nil {
+            // While running (or on error) show the overall progress bar; once a
+            // batch finishes the ResultCard summarizes it, so the bar steps aside.
+            if model.isRunning || model.errorMessage != nil {
                 ProgressSection(model: model)
             }
             if !model.results.isEmpty && !model.isRunning {

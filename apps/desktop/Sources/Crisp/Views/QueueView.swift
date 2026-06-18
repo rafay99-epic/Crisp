@@ -9,11 +9,15 @@ struct QueueView: View {
     @Bindable var model: CleanModel
     @Bindable var settings: EngineSettings
 
-    /// Cap the list height so a long queue scrolls instead of growing the window
-    /// unbounded (the window sizes itself to its content).
+    /// The queue is the one variable-height part of the window, so cap its list to
+    /// what the current screen can show (reserving room for the other cards + the
+    /// Clean button). A longer queue scrolls inside the list instead of pushing the
+    /// window off-screen.
     private var listHeight: CGFloat {
         let rows = CGFloat(model.queue.count)
-        return min(max(rows, 1) * 48 + 8, 320)
+        let screen = NSScreen.main?.visibleFrame.height ?? 1000
+        let maxList = max(160, screen - 800)   // ~800pt for the rest of the window
+        return min(max(rows, 1) * 48 + 8, maxList)
     }
 
     var body: some View {
