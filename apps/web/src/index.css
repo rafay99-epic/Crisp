@@ -1,0 +1,78 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Crisp marketing site — design tokens.
+   Native, Apple-like: SF Pro via the system stack (real SF Pro on a Mac),
+   macOS system colors, generous whitespace. Mirrors the app's design language.
+--------------------------------------------------------------------------- */
+@theme {
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+    "Helvetica Neue", "Inter", system-ui, sans-serif;
+  --font-mono:
+    "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+
+  /* Apple marketing palette */
+  --color-ink: #1d1d1f; /* primary text */
+  --color-ink-soft: #6e6e73; /* secondary text */
+  --color-canvas: #ffffff;
+  --color-fog: #fbfbfd; /* alternating section background */
+  --color-mist: #f5f5f7; /* card / panel background */
+
+  /* macOS system blue (accent) */
+  --color-accent: #0071e3; /* apple.com button blue */
+  --color-accent-hover: #0077ed;
+  --color-system-blue: #007aff; /* in-app accent (light mode) */
+
+  /* The brand window chrome (dark app, recreated in HTML/CSS) */
+  --color-app-bg: #1e1e1e;
+  --color-app-card: #2a2a2c;
+  --color-app-stroke: #3a3a3c;
+
+  --radius-card: 14px;
+
+  /* Apple's signature easing */
+  --ease-apple: cubic-bezier(0.28, 0.11, 0.32, 1);
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  letter-spacing: -0.01em;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+}
+
+/* Reveal-on-scroll utility (driven by IntersectionObserver in App.tsx) */
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition:
+    opacity 0.8s var(--ease-apple),
+    transform 0.8s var(--ease-apple);
+  will-change: opacity, transform;
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}

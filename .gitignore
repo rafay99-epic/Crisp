@@ -19,4 +19,12 @@ apps/desktop/.vendor/
 __pycache__/
 *.pyc
 
+# Node / Turborepo / Vite (apps/web)
+node_modules/
+dist/
+.turbo/
+*.local
+pnpm-debug.log*
+.vite/
+
 .DS_Store
