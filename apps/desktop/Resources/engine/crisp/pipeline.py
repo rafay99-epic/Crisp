@@ -9,7 +9,7 @@ from .config import (
     DEFAULT_VIDEO_CODEC, MIN_KEEP,
 )
 from .detect import detect_silences, extract_audio, transcribe
-from .edit import build_keep_segments, make_backup, render
+from .edit import build_keep_segments, make_backup, render, tag_output_source, unique_output_path
 from .encode import (
     audio_args, container_args, default_output_path, resolve_codecs, resolve_container, video_args,
 )
@@ -56,6 +56,8 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
             except OSError as e:
                 raise CleanError(f"Couldn't use the output folder \"{out_path.parent}\". "
                                  f"Is the drive connected and writable?\n{e}")
+            # In a shared folder, don't clobber a different source's cleaned file.
+            out_path = unique_output_path(out_path, src)
 
     # The container dictates which codecs are legal (e.g. WebM forces VP9 + Opus);
     # coerce now and tell the user about any swap rather than letting ffmpeg fail.
@@ -124,6 +126,11 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
             on_log("Hardware encoding failed — falling back to software encoding…")
             render(src, keep, out_path, on_log, stage(0.60, 1.0),
                    video_args(video_codec, False, quality), audio, mux)
+
+    if out_dir:
+        # Tag the output so a later re-clean of this same source overwrites it,
+        # while a different same-named source gets its own _N copy.
+        tag_output_source(out_path, src)
 
     on_progress(1.0, "Done")
     on_log(f"✅ Done! Cleaned video: {out_path}")

@@ -249,6 +249,22 @@ final class CrispTests: XCTestCase {
         XCTAssertFalse(withoutDir.contains("--out-dir"))
     }
 
+    func testOutputTagRoundTrips() throws {
+        // OutputTag must read back the same `user.crisp.source` xattr the engine
+        // writes (cross-language compatibility for the watch-folder dedup).
+        let dir = FileManager.default.temporaryDirectory
+        let file = dir.appendingPathComponent("crisp-tag-\(UUID().uuidString).mov")
+        try Data("x".utf8).write(to: file)
+        defer { try? FileManager.default.removeItem(at: file) }
+
+        let value = "/videos/talk.mov"
+        let set = value.withCString { setxattr(file.path, OutputTag.key, $0, strlen($0), 0, 0) }
+        try XCTSkipIf(set != 0, "filesystem doesn't support extended attributes")
+
+        XCTAssertEqual(OutputTag.source(ofFileAt: file.path), value)
+        XCTAssertNil(OutputTag.source(ofFileAt: dir.appendingPathComponent("nope").path))
+    }
+
     // MARK: - Video filtering (drop zone / Finder Service / watch folder)
 
     func testVideoExtensionsCoverContainersNotOthers() {

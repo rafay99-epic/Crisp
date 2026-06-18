@@ -181,15 +181,37 @@ final class WatchController: @unchecked Sendable {
     private func isCleanableInput(_ url: URL) -> Bool {
         let name = url.deletingPathExtension().lastPathComponent
         guard CleanRunner.videoExtensions.contains(url.pathExtension.lowercased()),
-              !name.hasSuffix("_cleaned") else { return false }
-        // Skip if a cleaned version already exists — in the configured output folder
-        // if one is set, otherwise beside the source. Without this, a custom output
-        // directory would make the startup scan re-clean every file each launch.
-        let outputFolder = config.outputDirectory.isEmpty
-            ? url.deletingLastPathComponent()
-            : URL(fileURLWithPath: config.outputDirectory, isDirectory: true)
-        let existing = (try? FileManager.default.contentsOfDirectory(atPath: outputFolder.path)) ?? []
-        return !existing.contains { $0.hasPrefix(name + "_cleaned.") }
+              !Self.isCleanedOutputName(name) else { return false }
+
+        if config.outputDirectory.isEmpty {
+            // Beside the source: a cleaned sibling means it's done. No cross-source
+            // collisions are possible here (each source has its own folder).
+            let folder = url.deletingLastPathComponent()
+            let siblings = (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
+            return !siblings.contains { $0.hasPrefix(name + "_cleaned.") }
+        }
+
+        // Shared output folder: only skip if one of *this* source's cleaned outputs
+        // (tagged with this exact source path) already exists. A different file that
+        // happens to share a name still gets cleaned — the engine writes it a _N
+        // copy rather than overwriting.
+        let folder = URL(fileURLWithPath: config.outputDirectory, isDirectory: true)
+        let entries = (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
+        let source = url.resolvingSymlinksInPath().path
+        return !entries.contains { entry in
+            entry.hasPrefix(name + "_cleaned.") || entry.hasPrefix(name + "_cleaned_")
+                ? OutputTag.source(ofFileAt: folder.appendingPathComponent(entry).path) == source
+                : false
+        }
+    }
+
+    /// True for the engine's own cleaned outputs — `<name>_cleaned` and the
+    /// `<name>_cleaned_<n>` copies a shared output folder can produce — so the
+    /// watcher never re-ingests them when the output folder is the watched one.
+    private static func isCleanedOutputName(_ name: String) -> Bool {
+        guard let range = name.range(of: "_cleaned", options: .backwards) else { return false }
+        let tail = name[range.upperBound...]                       // "" or "_3"
+        return tail.isEmpty || (tail.first == "_" && tail.dropFirst().allSatisfy(\.isNumber) && tail.count > 1)
     }
 
     private func fileSize(_ url: URL) -> Int64 {
