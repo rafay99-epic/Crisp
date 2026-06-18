@@ -1,10 +1,14 @@
 import SwiftUI
+import AppKit
+import ServiceManagement
+import CrispCore
 
 /// The ⌘, Settings window. Edits the four numeric cutting knobs used by the
 /// "Custom" strength; values persist to `~/.crisp*/config/settings.json`.
 struct SettingsView: View {
     @Bindable var settings: EngineSettings
     @Bindable var updater: Updater
+    @Bindable var watchAgent: WatchAgentController
 
     /// Whether the chosen container dictates its own codecs (WebM → VP9 + Opus),
     /// in which case the codec controls are disabled. Reads the rule off the enum
@@ -147,6 +151,8 @@ struct SettingsView: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
 
+            watchSection
+
             Section {
                 LabeledContent("Version") {
                     Text(versionString).foregroundStyle(.secondary)
@@ -163,7 +169,83 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 460, height: 560)
+        .frame(width: 460, height: 620)
+        .onAppear { watchAgent.refresh() }
+    }
+
+    // MARK: - Watch folder
+
+    /// Toggling this both saves the preference and registers/unregisters the
+    /// background LaunchAgent, so "on" really means "running in the background".
+    private var watchEnabledBinding: Binding<Bool> {
+        Binding(get: { settings.watchEnabled },
+                set: { on in
+                    settings.watchEnabled = on
+                    watchAgent.setEnabled(on)
+                })
+    }
+
+    private var watchFolderName: String {
+        settings.watchFolderPath.isEmpty
+            ? "No folder chosen"
+            : (settings.watchFolderPath as NSString).abbreviatingWithTildeInPath
+    }
+
+    @ViewBuilder private var watchSection: some View {
+        Section {
+            LabeledContent("Folder") {
+                HStack(spacing: 8) {
+                    Text(watchFolderName)
+                        .foregroundStyle(settings.watchFolderPath.isEmpty ? .secondary : .primary)
+                        .lineLimit(1).truncationMode(.middle)
+                    Button("Choose\u{2026}") { chooseWatchFolder() }
+                        .controlSize(.small)
+                }
+            }
+            Toggle("Auto-clean dropped recordings", isOn: watchEnabledBinding)
+                .disabled(settings.watchFolderPath.isEmpty)
+            Toggle("Remove filler words", isOn: $settings.watchRemoveFillers)
+                .disabled(!settings.watchEnabled)
+        } header: {
+            Text("Watch Folder")
+        } footer: {
+            watchFooter.font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder private var watchFooter: some View {
+        // The alarming states only make sense once the user has actually turned
+        // watching on; until then keep the neutral "how it works" hint.
+        if case .error(let message) = watchAgent.status {
+            Text(message).foregroundStyle(.red)
+        } else if settings.watchEnabled {
+            switch watchAgent.status {
+            case .requiresApproval:
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Allow Crisp in Login Items to start watching.")
+                    Button("Open Login Items\u{2026}") { SMAppService.openSystemSettingsLoginItems() }
+                        .controlSize(.small)
+                }
+            case .notFound:
+                Text("The background helper wasn\u{2019}t found. Reinstall Crisp to enable watching.")
+            default:
+                Text("Crisp watches this folder in the background \u{2014} even when this window is closed \u{2014} and cleans any recording dropped in.")
+            }
+        } else {
+            Text("Pick a folder, then turn on auto-clean. A cleaned copy is written beside each recording; your original is untouched.")
+        }
+    }
+
+    private func chooseWatchFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.prompt = "Choose"
+        panel.message = "Choose a folder to watch for new recordings."
+        if panel.runModal() == .OK, let url = panel.url {
+            settings.watchFolderPath = url.path
+        }
     }
 
     private func row(_ knob: Knob, _ value: Binding<Double>) -> some View {

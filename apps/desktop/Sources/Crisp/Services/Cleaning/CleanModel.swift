@@ -1,23 +1,11 @@
 import Foundation
 import SwiftUI
+import CrispCore
 
-/// One line of the engine's `--ndjson` output.
-private struct Event: Decodable {
-    let event: String
-    var message: String?
-    var fraction: Double?
-    var label: String?
-    var output: String?
-    var orig_seconds: Double?
-    var new_seconds: Double?
-    var saved_seconds: Double?
-    var pauses: Int?
-    var fillers: Int?
-}
-
-/// Drives the Python engine as a subprocess and publishes its progress/results to
-/// the UI. Knows nothing about views — it spawns `clean_video.py … --ndjson` and
-/// decodes the event stream into observable state.
+/// Drives the cleaning of the user's chosen files and publishes progress/results to
+/// the UI. The actual subprocess work lives in `CrispCore.CleanRunner` (shared with
+/// the Finder Service, the App Intent, and the watch-folder agent); this type owns
+/// the multi-file loop, the observable state the views bind to, and cancellation.
 @MainActor
 @Observable
 final class CleanModel {
@@ -32,40 +20,16 @@ final class CleanModel {
     var results: [CleanResult] = []
     var errorMessage: String?
 
-    /// The engine subprocess for the file being cleaned, plus a cancel flag — so
-    /// `cancel()` can stop a run mid-flight.
-    private var currentProcess: Process?
+    /// The in-flight clean, so `cancel()` can stop it mid-run (cancelling the task
+    /// terminates the engine subprocess via `CleanRunner`'s cancellation handler).
+    private var runTask: Task<Void, Never>?
     private var cancelled = false
-
-    private static let videoExtensions: Set<String> =
-        ["mov", "mp4", "mkv", "m4v", "avi", "webm", "flv"]
-
-    /// The folder all backed-up originals live under (`~/.crisp*/Originals/`).
-    /// Each run drops into a dated subfolder beneath it; this is the stable parent
-    /// the UI shows and reveals in Finder.
-    nonisolated static var backupParentDirectory: URL {
-        Channel.current.dataDirectory.appendingPathComponent("Originals", isDirectory: true)
-    }
-
-    /// Where backed-up originals are kept: a date-stamped folder under the
-    /// channel's data home (`~/.crisp*/Originals/2026-06-18/`). Grouping by day
-    /// keeps a session's originals together without cluttering the source folder.
-    nonisolated static func backupDirectory(for date: Date = Date()) -> URL {
-        backupParentDirectory.appendingPathComponent(Self.dayFormatter.string(from: date),
-                                                     isDirectory: true)
-    }
-
-    /// Stable `2026-06-18` folder names — fixed locale/format so they sort and
-    /// never shift with the user's region settings.
-    private static let dayFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.dateFormat = "yyyy-MM-dd"
-        return f
-    }()
+    /// A model download in flight (only during an auto-provisioning start), so
+    /// `cancel()` can stop it before the clean loop even begins.
+    private var activeProvisioner: ModelProvisioner?
 
     func addFiles(_ urls: [URL]) {
-        let videos = urls.filter { Self.videoExtensions.contains($0.pathExtension.lowercased()) }
+        let videos = urls.filter { CleanRunner.videoExtensions.contains($0.pathExtension.lowercased()) }
         guard !videos.isEmpty else { return }
         files = videos
         results = []
@@ -89,7 +53,14 @@ final class CleanModel {
     /// `modelPath` is the verified whisper model from `ModelStore` (nil when the
     /// user turned fillers off — pauses-only needs no model). `parameters` are the
     /// numeric cutting knobs derived from the chosen strength (or custom settings).
-    func start(modelPath: String?, parameters: CleanParameters) async {
+    ///
+    /// `provisioner` is used only by external triggers (the Finder Service) that
+    /// may run before the model is downloaded: when fillers are on and no
+    /// `modelPath` is given, the model is fetched first (progress shown in the
+    /// window). The normal in-app path passes a ready `modelPath` and no
+    /// provisioner, so this step is skipped.
+    func start(modelPath: String?, parameters: CleanParameters,
+               provisioner: ModelProvisioner? = nil) async {
         guard !files.isEmpty, !isRunning else { return }
         isRunning = true
         cancelled = false
@@ -98,26 +69,75 @@ final class CleanModel {
         logLines = []
         progress = 0
 
-        let total = Double(files.count)
-        for (idx, url) in files.enumerated() {
-            if cancelled { break }
-            let base = Double(idx) / total
-            let span = 1.0 / total
-            if files.count > 1 {
-                logLines.append("\u{2014} Video \(idx + 1) of \(files.count): \(url.lastPathComponent)")
-            }
+        var resolvedModel = modelPath
+        if removeFillers, resolvedModel == nil, let provisioner {
+            activeProvisioner = provisioner
+            status = "Getting the speech model ready\u{2026}"
             do {
-                try await runOne(url, base: base, span: span, modelPath: modelPath, parameters: parameters)
+                resolvedModel = try await provisioner.ensureModel { [weak self] event in
+                    Task { @MainActor in
+                        guard let self, self.isRunning else { return }
+                        switch event {
+                        case .downloading(let fraction):
+                            self.progress = max(0, fraction)
+                            self.status = "Downloading speech model\u{2026}"
+                        case .verifying:
+                            self.status = "Verifying speech model\u{2026}"
+                        }
+                    }
+                }
+            } catch is CancellationError {
+                activeProvisioner = nil
+                isRunning = false
+                status = "Canceled. Your original is untouched."
+                progress = 0
+                return
             } catch {
-                if cancelled { break }
-                errorMessage = error.localizedDescription
+                activeProvisioner = nil
+                isRunning = false
+                errorMessage = "Couldn\u{2019}t get the speech model ready. \(error.localizedDescription)"
                 status = "Something went wrong."
-                break
+                return
             }
+            activeProvisioner = nil
+            if cancelled {
+                isRunning = false
+                status = "Canceled. Your original is untouched."
+                progress = 0
+                return
+            }
+            progress = 0
         }
 
+        let fileList = files
+        let total = Double(fileList.count)
+        let work = Task { @MainActor in
+            for (idx, url) in fileList.enumerated() {
+                if Task.isCancelled { break }
+                let base = Double(idx) / total
+                let span = 1.0 / total
+                if fileList.count > 1 {
+                    logLines.append("\u{2014} Video \(idx + 1) of \(fileList.count): \(url.lastPathComponent)")
+                }
+                do {
+                    let result = try await cleanOne(url, base: base, span: span,
+                                                    modelPath: resolvedModel, parameters: parameters)
+                    results.append(result)
+                } catch is CancellationError {
+                    break
+                } catch {
+                    if cancelled { break }
+                    errorMessage = error.localizedDescription
+                    status = "Something went wrong."
+                    break
+                }
+            }
+        }
+        runTask = work
+        await work.value
+        runTask = nil
+
         isRunning = false
-        currentProcess = nil
         if cancelled {
             status = "Canceled. Your original is untouched."
             progress = 0
@@ -133,78 +153,29 @@ final class CleanModel {
         guard isRunning, !cancelled else { return }
         cancelled = true
         status = "Canceling\u{2026}"
-        currentProcess?.terminate()
+        runTask?.cancel()
+        if let activeProvisioner {           // stop a model download that hasn't finished yet
+            Task { await activeProvisioner.cancel() }
+        }
     }
 
-    private func runOne(_ url: URL, base: Double, span: Double,
-                        modelPath: String?, parameters: CleanParameters) async throws {
-        let script = try CleanEngine.scriptURL()
-        let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: CleanEngine.python)
-        var args = [
-            script.path, url.path,
-            "--pause", String(parameters.pause),
-            "--noise", String(parameters.noiseDB),
-            "--keep-pause", String(parameters.keepPause),
-            "--min-keep", String(parameters.minKeep),
-            "--video-codec", parameters.videoCodec,
-            "--quality", parameters.videoQuality,
-            "--audio-codec", parameters.audioCodec,
-            "--audio-bitrate", String(parameters.audioBitrateKbps),
-            "--container", parameters.outputContainer,
-            "--ndjson"
-        ]
-        if parameters.hardwareEncoding { args.append("--hardware") }
-        if removeFillers, let model = modelPath { args += ["--model", model] }
-        if !removeFillers { args.append("--no-fillers") }
-        if parameters.backupOriginal {
-            args += ["--backup-dir", Self.backupDirectory().path]
-        } else {
-            args.append("--no-backup")
-        }
-        proc.arguments = args
-
-        var env = ProcessInfo.processInfo.environment
-        // Point the engine at the binaries we ship; each falls back to PATH if it
-        // wasn't bundled (e.g. a plain `swift run` on a dev machine).
-        if let f = CleanEngine.bundledTool("ffmpeg") { env["CRISP_FFMPEG"] = f }
-        if let p = CleanEngine.bundledTool("ffprobe") { env["CRISP_FFPROBE"] = p }
-        if let w = CleanEngine.bundledTool("whisper-cli") { env["CRISP_WHISPER"] = w }
-        env["PATH"] = "/opt/homebrew/bin:" + (env["PATH"] ?? "")
-        proc.environment = env
-
-        let outPipe = Pipe()
-        proc.standardOutput = outPipe
-        proc.standardError = Pipe()
-        try proc.run()
-        currentProcess = proc
-
-        let decoder = JSONDecoder()
-        for try await line in outPipe.fileHandleForReading.bytes.lines {
-            if cancelled { break }
-            guard let data = line.data(using: .utf8),
-                  let ev = try? decoder.decode(Event.self, from: data) else { continue }
-            switch ev.event {
-            case "log":
-                if let m = ev.message { logLines.append(m) }
-            case "progress":
-                if let f = ev.fraction { progress = base + span * f }
-                if let l = ev.label, !l.isEmpty { status = l }
-            case "result":
-                results.append(CleanResult(
-                    output: ev.output ?? "",
-                    origSeconds: ev.orig_seconds ?? 0,
-                    newSeconds: ev.new_seconds ?? 0,
-                    savedSeconds: ev.saved_seconds ?? 0,
-                    pauses: ev.pauses ?? 0,
-                    fillers: ev.fillers ?? 0))
-            case "error":
-                throw NSError(domain: "Crisp", code: 1,
-                              userInfo: [NSLocalizedDescriptionKey: ev.message ?? "Unknown error"])
-            default:
-                break
+    private func cleanOne(_ url: URL, base: Double, span: Double,
+                          modelPath: String?, parameters: CleanParameters) async throws -> CleanResult {
+        let backupDir = parameters.backupOriginal ? CleanRunner.backupDirectory() : nil
+        let options = CleanRunner.Options(modelPath: modelPath,
+                                          removeFillers: removeFillers,
+                                          backupDirectory: backupDir)
+        return try await CleanRunner().run(input: url, parameters: parameters, options: options) { [weak self] event in
+            Task { @MainActor in
+                guard let self, self.isRunning else { return }
+                switch event {
+                case .log(let message):
+                    self.logLines.append(message)
+                case .progress(let fraction, let label):
+                    self.progress = base + span * fraction
+                    if !label.isEmpty { self.status = label }
+                }
             }
         }
-        proc.waitUntilExit()
     }
 }

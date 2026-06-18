@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import CrispCore
 
 /// A slim row that tells the user — at a glance, before they hit Clean — what
 /// happens to their original: where the safety copy is kept, or that backups are
@@ -49,13 +50,13 @@ struct BackupStatusView: View {
 
     /// `~`-abbreviated parent folder, e.g. `~/.crisp/Originals`.
     private var friendlyPath: String {
-        (CleanModel.backupParentDirectory.path as NSString).abbreviatingWithTildeInPath
+        (CleanRunner.backupParentDirectory.path as NSString).abbreviatingWithTildeInPath
     }
 
     /// Open the Originals folder in Finder, creating it first so the reveal works
     /// even before the first clean has written anything into it.
     private func reveal() {
-        let dir = CleanModel.backupParentDirectory
+        let dir = CleanRunner.backupParentDirectory
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         NSWorkspace.shared.activateFileViewerSelecting([dir])
     }

@@ -1,5 +1,6 @@
 import SwiftUI
 import UniformTypeIdentifiers
+import CrispCore
 
 struct ContentView: View {
     @Bindable var model: CleanModel

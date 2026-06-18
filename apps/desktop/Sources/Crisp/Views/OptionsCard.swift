@@ -1,4 +1,5 @@
 import SwiftUI
+import CrispCore
 
 struct OptionsCard: View {
     @Bindable var model: CleanModel

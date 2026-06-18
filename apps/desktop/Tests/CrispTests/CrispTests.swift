@@ -1,4 +1,5 @@
 import XCTest
+import CrispCore
 @testable import Crisp
 
 final class CrispTests: XCTestCase {
@@ -133,7 +134,7 @@ final class CrispTests: XCTestCase {
     func testBackupDirectoryIsDatedUnderChannelHome() {
         // Originals land in a date-stamped folder under the channel's data home.
         let date = Date(timeIntervalSince1970: 1_750_000_000)  // 2025-06-15 UTC-ish
-        let dir = CleanModel.backupDirectory(for: date)
+        let dir = CleanRunner.backupDirectory(for: date)
         XCTAssertTrue(dir.deletingLastPathComponent().path.hasSuffix("/Originals"))
         XCTAssertTrue(dir.path.hasPrefix(Channel.current.dataDirectory.path))
         // The leaf is a yyyy-MM-dd day folder.
@@ -160,5 +161,88 @@ final class CrispTests: XCTestCase {
         // An empty object decodes to all defaults (not a failure).
         let empty = try JSONDecoder().decode(EngineConfig.self, from: Data("{}".utf8))
         XCTAssertEqual(empty, EngineConfig.defaults)
+    }
+
+    // MARK: - Watch folder config
+
+    func testWatchFieldsDefaultOffAndRoundTrip() throws {
+        // Opt-in by default: watching is off, no folder, fillers on (matches the UI).
+        XCTAssertFalse(EngineConfig.defaults.watchEnabled)
+        XCTAssertEqual(EngineConfig.defaults.watchFolderPath, "")
+        XCTAssertTrue(EngineConfig.defaults.watchRemoveFillers)
+
+        var cfg = EngineConfig.defaults
+        cfg.watchEnabled = true
+        cfg.watchFolderPath = "/Users/me/Recordings"
+        cfg.watchRemoveFillers = false
+        let round = try JSONDecoder().decode(EngineConfig.self,
+                                             from: JSONEncoder().encode(cfg))
+        XCTAssertEqual(round, cfg)
+
+        // A file predating the watch keys fills them with defaults (forward-compat).
+        let legacy = Data(#"{ "version": 2, "pauseThreshold": 0.4 }"#.utf8)
+        let decoded = try JSONDecoder().decode(EngineConfig.self, from: legacy)
+        XCTAssertFalse(decoded.watchEnabled)
+        XCTAssertEqual(decoded.watchFolderPath, "")
+        XCTAssertTrue(decoded.watchRemoveFillers)
+    }
+
+    // MARK: - CleanRunner argument mapping
+
+    func testCleanRunnerArgumentsForFillerRun() {
+        let params = Strength.aggressive.parameters(using: .defaults)
+        let opts = CleanRunner.Options(modelPath: "/models/ggml.bin",
+                                       removeFillers: true,
+                                       backupDirectory: URL(fileURLWithPath: "/tmp/orig"))
+        let args = CleanRunner.arguments(scriptPath: "/eng/clean_video.py",
+                                         input: URL(fileURLWithPath: "/v/in.mp4"),
+                                         parameters: params, options: opts)
+        XCTAssertEqual(args.first, "/eng/clean_video.py")
+        XCTAssertEqual(args[1], "/v/in.mp4")
+        XCTAssertTrue(args.contains("--ndjson"))
+        XCTAssertTrue(args.contains("--hardware"))                 // defaults enable HW
+        XCTAssertEqual(valueAfter("--model", in: args), "/models/ggml.bin")
+        XCTAssertEqual(valueAfter("--backup-dir", in: args), "/tmp/orig")
+        XCTAssertFalse(args.contains("--no-fillers"))
+        XCTAssertFalse(args.contains("--no-backup"))
+        XCTAssertEqual(valueAfter("--pause", in: args), String(Strength.aggressive.pause))
+    }
+
+    func testCleanRunnerArgumentsForPausesOnlyNoBackup() {
+        let params = Strength.gentle.parameters(using: .defaults)
+        let opts = CleanRunner.Options(modelPath: nil, removeFillers: false, backupDirectory: nil)
+        let args = CleanRunner.arguments(scriptPath: "/eng/clean_video.py",
+                                         input: URL(fileURLWithPath: "/v/in.mov"),
+                                         parameters: params, options: opts)
+        XCTAssertTrue(args.contains("--no-fillers"))               // fillers off
+        XCTAssertFalse(args.contains("--model"))                   // ⇒ no model flag
+        XCTAssertTrue(args.contains("--no-backup"))                // no backup dir
+        XCTAssertFalse(args.contains("--backup-dir"))
+    }
+
+    // MARK: - Video filtering (drop zone / Finder Service / watch folder)
+
+    func testVideoExtensionsCoverContainersNotOthers() {
+        for ext in ["mov", "mp4", "mkv", "m4v", "avi", "webm", "flv"] {
+            XCTAssertTrue(CleanRunner.videoExtensions.contains(ext), "\(ext) should be cleanable")
+        }
+        for ext in ["txt", "png", "mp3", "pdf", ""] {
+            XCTAssertFalse(CleanRunner.videoExtensions.contains(ext), "\(ext) should be ignored")
+        }
+    }
+
+    // MARK: - Shortcuts intent strength mapping
+
+    func testIntentStrengthChoiceMapsToPreset() {
+        XCTAssertEqual(CleanStrengthChoice.gentle.strength, .gentle)
+        XCTAssertEqual(CleanStrengthChoice.balanced.strength, .balanced)
+        XCTAssertEqual(CleanStrengthChoice.aggressive.strength, .aggressive)
+        XCTAssertEqual(CleanStrengthChoice.veryAggressive.strength, .veryAggressive)
+    }
+
+    /// The argument value immediately following `flag`, or nil if absent.
+    private func valueAfter(_ flag: String, in args: [String]) -> String? {
+        guard let i = args.firstIndex(of: flag), i + 1 < args.count else { return nil }
+        return args[i + 1]
     }
 }
