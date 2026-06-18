@@ -205,14 +205,8 @@ struct SettingsView: View {
     }
 
     private func chooseOutputFolder() {
-        let panel = NSOpenPanel()
-        panel.canChooseDirectories = true
-        panel.canChooseFiles = false
-        panel.allowsMultipleSelection = false
-        panel.prompt = "Choose"
-        panel.message = "Choose where cleaned videos are saved."
-        if panel.runModal() == .OK, let url = panel.url {
-            settings.outputDirectory = url.path
+        if let path = FolderPicker.choosePath(message: "Choose where cleaned videos are saved.") {
+            settings.outputDirectory = path
         }
     }
 
@@ -280,14 +274,8 @@ struct SettingsView: View {
     }
 
     private func chooseWatchFolder() {
-        let panel = NSOpenPanel()
-        panel.canChooseDirectories = true
-        panel.canChooseFiles = false
-        panel.allowsMultipleSelection = false
-        panel.prompt = "Choose"
-        panel.message = "Choose a folder to watch for new recordings."
-        if panel.runModal() == .OK, let url = panel.url {
-            settings.watchFolderPath = url.path
+        if let path = FolderPicker.choosePath(message: "Choose a folder to watch for new recordings.") {
+            settings.watchFolderPath = path
         }
     }
 

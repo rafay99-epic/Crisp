@@ -51,7 +51,11 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
         container = resolve_container(container, src.suffix)
         out_path = default_output_path(src, container, out_dir).resolve()
         if out_dir:
-            out_path.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                out_path.parent.mkdir(parents=True, exist_ok=True)
+            except OSError as e:
+                raise CleanError(f"Couldn't use the output folder \"{out_path.parent}\". "
+                                 f"Is the drive connected and writable?\n{e}")
 
     # The container dictates which codecs are legal (e.g. WebM forces VP9 + Opus);
     # coerce now and tell the user about any swap rather than letting ffmpeg fail.
