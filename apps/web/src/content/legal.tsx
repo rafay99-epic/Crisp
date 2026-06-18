@@ -1,5 +1,19 @@
 import type { ReactNode } from "react";
-import { REPO, AUTHOR, AUTHOR_URL } from "../site";
+import { REPO, AUTHOR, AUTHOR_URL, CONTACT_EMAIL, JURISDICTION } from "../site";
+
+const Email = () => (
+  <a href={`mailto:${CONTACT_EMAIL}`} className="text-[var(--color-accent-bright)] underline-offset-2 hover:underline">
+    {CONTACT_EMAIL}
+  </a>
+);
+const contactLine = (
+  <>
+    email us at <Email /> or open an issue on{" "}
+    <a href={REPO} className="text-[var(--color-accent-bright)] underline-offset-2 hover:underline">
+      the GitHub repository
+    </a>
+  </>
+);
 
 export type LegalSection = { heading: string; body: ReactNode };
 export type LegalDoc = {
@@ -100,20 +114,57 @@ export const privacyDoc: LegalDoc = {
       body: (
         <p>
           <Caps>None.</Caps> Because we run no servers that receive your data and have no account
-          system, there is nothing for us to collect, profile, share, or sell. We have never sold
-          personal information and never will.
+          system, there is nothing for us to collect, profile, share, or sell. We have never sold or
+          “shared” personal information and never will. For the purposes of data-protection laws, the
+          data controller / business responsible for Crisp is {AUTHOR}, established in Pakistan; you can
+          reach us using the contact details at the end of this policy.
         </p>
       ),
     },
     {
-      heading: "5. Your rights (GDPR, CCPA & similar)",
+      heading: "5. Your privacy rights, worldwide",
       body: (
-        <p>
-          Privacy laws such as the GDPR and CCPA give you rights to access, correct, delete, or port
-          your personal data and to opt out of its sale. Because we hold no personal data about you,
-          there is nothing to access, delete, or sell. If you nonetheless believe we hold information
-          about you, contact us (below) and we will respond as required by applicable law.
-        </p>
+        <>
+          <p>
+            Crisp processes your recordings only on your device and we collect no personal data, so for
+            most people there is simply nothing for us to hold, disclose, or delete. Even so, we honor
+            the rights granted by privacy laws around the world. If you believe we hold any information
+            about you (for example, an email you sent us), you may ask us to access, correct, delete,
+            or port it, or to restrict or object to its processing — just contact us. We will not
+            discriminate against you for exercising any right.
+          </p>
+          <ul className="mt-3 list-disc space-y-2 pl-5">
+            <li>
+              <Caps>European Economic Area &amp; Switzerland (GDPR).</Caps> Where we process any
+              personal data, our legal basis is our legitimate interest in operating and improving
+              Crisp, or your consent. You have the rights of access, rectification, erasure,
+              restriction, portability, and objection, and the right to lodge a complaint with your
+              local data-protection authority. We do not engage in automated decision-making or sell
+              your data.
+            </li>
+            <li>
+              <Caps>United Kingdom (UK GDPR &amp; Data Protection Act 2018).</Caps> You have the same
+              rights as above and may complain to the UK Information Commissioner’s Office (ICO).
+            </li>
+            <li>
+              <Caps>United States (CCPA/CPRA &amp; other state laws).</Caps> The categories of personal
+              information we collect, sell, or share is: <Caps>none</Caps>. You have the rights to know,
+              access, delete, correct, and opt out of sale/sharing — though there is nothing to opt out
+              of, because we do neither.
+            </li>
+            <li>
+              <Caps>China (PIPL).</Caps> Crisp runs locally on your device; we do not collect your
+              personal information or transfer it outside of China (or anywhere). Any third-party
+              downloads in Section 3 are made directly between your device and those providers.
+            </li>
+            <li>
+              <Caps>Other regions (Canada PIPEDA, Australia, India, Japan, Korea, Brazil LGPD, and
+              elsewhere in Asia and beyond).</Caps> The same applies: we collect nothing through the
+              app, and we will honor any applicable right you assert under your local law. Contact us
+              and we will respond as that law requires.
+            </li>
+          </ul>
+        </>
       ),
     },
     {
@@ -172,9 +223,7 @@ export const privacyDoc: LegalDoc = {
       body: (
         <p>
           Crisp is open source under the GPL-3.0; you can verify everything above in{" "}
-          <A href={REPO}>the source code</A>. Questions or requests? Reach us via{" "}
-          <A href={REPO}>the GitHub repository</A> or{" "}
-          <A href={AUTHOR_URL}>{AUTHOR_URL.replace("https://", "")}</A>.
+          <A href={REPO}>the source code</A>. Questions, requests, or privacy concerns? {contactLine}.
         </p>
       ),
     },
@@ -339,11 +388,15 @@ export const termsDoc: LegalDoc = {
       heading: "13. Governing law & disputes",
       body: (
         <p>
-          These Terms are governed by the laws of the jurisdiction in which {AUTHOR} is established,
-          without regard to conflict-of-law rules, and you agree to the exclusive jurisdiction of its
-          courts. You agree to first attempt to resolve any dispute informally by contacting us. To the
-          extent permitted by law, any claim must be brought within one (1) year after it arises, or it
-          is permanently barred.
+          These Terms are governed by the laws of {JURISDICTION}, without regard to conflict-of-law
+          rules, and the courts of Pakistan have non-exclusive jurisdiction over any dispute. You agree
+          to first try to resolve any dispute informally by contacting us. To the extent permitted by
+          law, any claim must be brought within one (1) year after it arises, or it is permanently
+          barred. <Caps>However, if you use Crisp as a consumer, this section does not deprive you of
+          the protection of the mandatory laws of your country of residence</Caps> (for example, in the
+          EEA, the UK, or other regions), and you may also be able to bring proceedings in your local
+          courts; nothing in these Terms waives consumer rights that cannot be waived under your local
+          law.
         </p>
       ),
     },
@@ -362,12 +415,7 @@ export const termsDoc: LegalDoc = {
     },
     {
       heading: "15. Contact",
-      body: (
-        <p>
-          Questions about these Terms? Reach us via <A href={REPO}>the GitHub repository</A> or{" "}
-          <A href={AUTHOR_URL}>{AUTHOR_URL.replace("https://", "")}</A>.
-        </p>
-      ),
+      body: <p>Questions about these Terms? {contactLine}.</p>,
     },
   ],
 };
