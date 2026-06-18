@@ -1,33 +1,40 @@
 # @crisp/web — the Crisp marketing site
 
-The product website for Crisp, built with **Vite + React + TypeScript + Tailwind
-CSS v4**. Native, Apple-like design that mirrors the macOS app's language (SF Pro
-via the system stack, macOS system colors, the waveform-with-cut brand mark).
+The product website for Crisp. A **dark, cinematic** site built around the app's
+own identity — the blue waveform split by a cut — with heavy, premium motion.
+Apple *Pro*-page energy (Final Cut / Pro Display), not a generic light template.
 
-The product shot in the hero is **not a screenshot** — it's a faithful HTML/CSS
-recreation of the real app window (`components/AppWindow.tsx`, built from
-`apps/desktop/.../Views/ContentView.swift`), so it stays sharp at any resolution.
+**Stack:** Vite + React + TypeScript + Tailwind CSS v4, **Framer Motion** for
+animation and **Lenis** for smooth scroll. Package manager: **bun**.
+
+## Highlights
+
+- **Living waveform hero** — a continuously animating audio visualizer split by
+  the cut line (`components/Wave.tsx`).
+- **The cut, on scroll** — a pinned, scroll-driven section where the waveform
+  removes its own silent gaps and tightens in real time, with a live time counter
+  (`sections/CutStory.tsx`).
+- **Cinematic feature blocks** (no bento) — alternating text + faithful CSS/SVG
+  recreations of the real app UI: silence detection, a transcript with fillers
+  struck out, a film-strip cut, the strength control (`components/AppBits.tsx`).
+- **Premium primitives** — reveal-on-scroll, kinetic text, magnetic buttons, 3D
+  tilt, count-ups (`components/Motion.tsx`).
+- **The real app window**, recreated in dark-mode macOS markup so it's razor-sharp
+  at any size (`components/AppWindow.tsx`, from `ContentView.swift`).
+- **Install** via Homebrew (`brew install --cask rafay99-epic/apps/crisp`) or the
+  direct DMG.
 
 ## Develop
 
 From the repo root (Turborepo) or this folder:
 
 ```sh
-pnpm install         # once, from the repo root
-pnpm dev             # vite dev server (turbo: `pnpm dev` at root)
-pnpm build           # type-check + production build → dist/
-pnpm preview         # serve the production build
-pnpm lint            # tsc -b (type-check only)
+bun install          # once, from the repo root
+bun run dev          # vite dev server (turbo: `bun run dev` at root)
+bun run build        # type-check + production build → dist/
+bun run preview      # serve the production build
+bun run lint         # tsc -b (type-check only)
 ```
-
-## Layout
-
-- `src/components/` — `Logo` (SVG brand mark), `Icons` (SF Symbol-style),
-  `AppWindow` (the app recreation + `ResultPanel`).
-- `src/sections/` — `Nav`, `Hero`, `Features`, `HowItWorks`, `Privacy`,
-  `Download`, `Footer`.
-- `src/site.ts` — shared links/copy (repo URL, release link, requirements).
-- `src/index.css` — Tailwind import + the design tokens (`@theme`).
 
 The brand mark and favicons in `public/` are derived from the app's
 `Resources/AppIcon.icns`.
