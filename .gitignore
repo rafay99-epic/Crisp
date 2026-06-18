@@ -19,4 +19,14 @@ apps/desktop/.vendor/
 __pycache__/
 *.pyc
 
+# Node / Turborepo / Vite (apps/web). Package manager: bun (bun.lock is committed).
+node_modules/
+dist/
+.turbo/
+*.local
+.vite/
+
 .DS_Store
+
+# TypeScript incremental build info
+*.tsbuildinfo

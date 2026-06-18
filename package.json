@@ -1,0 +1,17 @@
+{
+  "name": "crisp",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Crisp monorepo — the macOS app (apps/desktop) and the marketing website (apps/web).",
+  "packageManager": "bun@1.3.11",
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "preview": "turbo run preview"
+  },
+  "devDependencies": {
+    "turbo": "^2.1.3"
+  }
+}

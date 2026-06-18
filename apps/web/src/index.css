@@ -1,0 +1,86 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Crisp — a dark, cinematic site built around the app's own identity: the blue
+   waveform split by a cut. Apple *Pro*-page energy (Final Cut / Pro Display),
+   not the white marketing pages. SF Pro via the system stack.
+--------------------------------------------------------------------------- */
+@theme {
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+    "Helvetica Neue", "Inter", system-ui, sans-serif;
+  --font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --color-bg: #07070a; /* near-black canvas */
+  --color-bg-elev: #0f0f15; /* raised panels */
+  --color-line: rgba(255, 255, 255, 0.09);
+
+  --color-text: #f5f5f7;
+  --color-dim: #86868b; /* Apple secondary gray */
+  --color-dim-2: #6e6e76;
+
+  --color-accent: #0a84ff; /* macOS system blue (dark) */
+  --color-accent-bright: #4aa3ff;
+  --color-cyan: #64d2ff;
+  --color-cut: #ff453a; /* what gets removed */
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html {
+  background: var(--color-bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  letter-spacing: -0.02em;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-accent) 35%, transparent);
+}
+
+/* Film-grain overlay — fixed, faint, premium texture over the whole page. */
+.grain::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* A blurred drifting glow orb. */
+.orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(80px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Gradient text for the brand word. */
+.grad-blue {
+  background: linear-gradient(180deg, #7dc0ff 0%, var(--color-accent) 70%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
