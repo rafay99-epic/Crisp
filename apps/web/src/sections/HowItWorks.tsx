@@ -1,5 +1,3 @@
-import { ResultPanel } from "../components/AppWindow";
-
 const STEPS = [
   {
     n: "1",
@@ -23,7 +21,7 @@ const STEPS = [
   },
 ];
 
-/** A little before/after timeline: red = removed pauses/fillers, blue = kept. */
+/** Before/after timeline: red = removed pauses/fillers, blue = kept. */
 function Timeline() {
   const segs = [
     ["keep", 14],
@@ -37,10 +35,10 @@ function Timeline() {
     ["keep", 17],
   ] as const;
   return (
-    <div className="rounded-2xl bg-[var(--color-app-bg)] p-5">
-      <div className="mb-3 flex items-center justify-between text-[12px] text-white/50">
+    <div className="rounded-[28px] bg-[#161617] p-8">
+      <div className="mb-4 flex items-center justify-between text-[13px] text-white/55">
         <span>Original — 8:30</span>
-        <span className="flex items-center gap-3">
+        <span className="flex items-center gap-4">
           <span className="flex items-center gap-1.5">
             <span className="size-2 rounded-full bg-[#ff5f57]" /> removed
           </span>
@@ -49,7 +47,7 @@ function Timeline() {
           </span>
         </span>
       </div>
-      <div className="flex h-3 gap-[2px] overflow-hidden rounded-full">
+      <div className="flex h-4 gap-[2px] overflow-hidden rounded-full">
         {segs.map(([kind, w], i) => (
           <span
             key={i}
@@ -58,42 +56,43 @@ function Timeline() {
           />
         ))}
       </div>
-      <div className="mt-3 flex h-3 gap-[2px] overflow-hidden rounded-full">
+      <div className="my-3 flex justify-center text-white/30">↓</div>
+      <div className="flex h-4 gap-[2px] overflow-hidden rounded-full">
         {segs
           .filter(([k]) => k === "keep")
           .map(([, w], i) => (
             <span key={i} style={{ flexGrow: w }} className="bg-[var(--color-system-blue)]" />
           ))}
       </div>
-      <p className="mt-3 text-[12px] text-white/50">Cleaned — 7:06</p>
+      <p className="mt-4 text-[13px] text-white/55">Cleaned — 7:06 · 42 pauses + 18 fillers removed</p>
     </div>
   );
 }
 
 export function HowItWorks() {
   return (
-    <section id="how" className="bg-[var(--color-fog)] py-24 sm:py-32">
-      <div className="mx-auto max-w-5xl px-5">
-        <div className="reveal mx-auto max-w-2xl text-center">
-          <h2 className="text-[34px] font-bold tracking-tight sm:text-[44px]">
+    <section id="how" className="bg-[var(--color-fog)] py-28 sm:py-36">
+      <div className="mx-auto max-w-6xl px-5">
+        <div className="reveal mx-auto max-w-3xl text-center">
+          <h2 className="text-[40px] font-semibold leading-[1.07] tracking-[-0.02em] sm:text-[56px]">
             Drop it in. Get it back tighter.
           </h2>
-          <p className="mt-4 text-[18px] leading-relaxed text-[var(--color-ink-soft)]">
+          <p className="mx-auto mt-5 max-w-xl text-[19px] leading-relaxed text-[var(--color-ink-soft)]">
             Four steps, fully automatic — and your original is never touched.
           </p>
         </div>
 
-        <div className="mt-16 grid items-start gap-12 lg:grid-cols-2">
-          <ol className="flex flex-col gap-8">
+        <div className="mt-16 grid items-center gap-14 lg:grid-cols-2">
+          <ol className="flex flex-col gap-9">
             {STEPS.map((s) => (
-              <li key={s.n} className="reveal flex gap-4">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[var(--color-system-blue)] text-[15px] font-semibold text-white">
+              <li key={s.n} className="reveal flex gap-5">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[var(--color-system-blue)] text-[16px] font-semibold text-white">
                   {s.n}
                 </span>
                 <div>
-                  <h3 className="text-[18px] font-semibold tracking-tight">{s.title}</h3>
+                  <h3 className="text-[21px] font-semibold tracking-tight">{s.title}</h3>
                   <p
-                    className="mt-1 text-[15px] leading-relaxed text-[var(--color-ink-soft)]"
+                    className="mt-1.5 text-[16px] leading-relaxed text-[var(--color-ink-soft)]"
                     dangerouslySetInnerHTML={{ __html: s.body }}
                   />
                 </div>
@@ -101,9 +100,8 @@ export function HowItWorks() {
             ))}
           </ol>
 
-          <div className="reveal flex flex-col gap-5">
+          <div className="reveal">
             <Timeline />
-            <ResultPanel />
           </div>
         </div>
       </div>

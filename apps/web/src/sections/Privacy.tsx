@@ -12,10 +12,10 @@ export function Privacy() {
         <span className="relative inline-flex size-14 items-center justify-center rounded-2xl bg-white/10 text-white ring-1 ring-white/15">
           <Lock className="size-7" />
         </span>
-        <h2 className="relative mx-auto mt-7 max-w-2xl text-[32px] font-bold leading-tight tracking-tight text-white sm:text-[46px]">
+        <h2 className="relative mx-auto mt-7 max-w-3xl text-[36px] font-semibold leading-[1.08] tracking-[-0.02em] text-white sm:text-[56px]">
           Your recordings never leave your Mac.
         </h2>
-        <p className="relative mx-auto mt-5 max-w-xl text-[18px] leading-relaxed text-white/65">
+        <p className="relative mx-auto mt-6 max-w-xl text-[19px] leading-relaxed text-white/65">
           There’s no account, no cloud, no upload. Every step — finding the silence,
           transcribing the fillers, rendering the cut — runs entirely on-device. And because
           Crisp is open source under the GPL-3.0, you can read exactly what it does.
