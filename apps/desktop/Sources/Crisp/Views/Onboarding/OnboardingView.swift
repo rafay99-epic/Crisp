@@ -49,8 +49,11 @@ struct OnboardingView: View {
     @ViewBuilder private var content: some View {
         switch step {
         case .welcome:
-            header(symbol: "", title: "Welcome to Crisp",
-                   subtitle: "Crisp tightens up your screen recordings and talking-head videos — automatically cutting out long pauses and filler words to leave clean, snappy jump-cuts.")
+            header(symbol: "",
+                   title: settings.hasExistingConfig ? "Welcome back to Crisp" : "Welcome to Crisp",
+                   subtitle: settings.hasExistingConfig
+                    ? "Your saved settings are preserved — nothing has changed. Here’s a quick tour of how everything works."
+                    : "Crisp tightens up your screen recordings and talking-head videos — automatically cutting out long pauses and filler words to leave clean, snappy jump-cuts.")
             featureRow("checkmark.shield.fill", "Your footage is safe",
                        "Crisp never edits or deletes your original. It only ever writes a new cleaned copy beside it.")
             featureRow("rectangle.on.rectangle", "No quality loss",
@@ -77,7 +80,10 @@ struct OnboardingView: View {
 
         case .preferences:
             header(symbol: "slider.horizontal.3", title: "Make it yours",
-                   subtitle: "Set your defaults now — you can change any of this later in Settings (⌘,).")
+                   subtitle: settings.hasExistingConfig
+                    ? "These are your saved settings — adjust anything, or leave them as they are."
+                    : "Set your defaults now — you can change any of this later in Settings (⌘,).")
+            if settings.hasExistingConfig { detectedConfigBanner }
             preferences
 
         case .automate:
@@ -93,6 +99,27 @@ struct OnboardingView: View {
             header(symbol: "checkmark.seal.fill", title: "You’re all set",
                    subtitle: "Everything’s ready. You can fine-tune cutting strength, the encoder, and more in Settings (⌘,), and reopen this guide any time from the Help menu.")
         }
+    }
+
+    // MARK: - Detected existing config
+
+    /// Shown only when the user arrived with a real saved configuration (see
+    /// `EngineSettings.hasExistingConfig`). Brand-new users and anyone on the
+    /// defaults never see this.
+    private var detectedConfigBanner: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "checkmark.seal.fill").foregroundStyle(.green)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Your existing settings were detected").font(.headline)
+                Text("Crisp kept your saved configuration — it’s already applied below. Nothing was reset.")
+                    .font(.callout).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardBackground(Color.green.opacity(0.12))
     }
 
     // MARK: - Configuration: preferences

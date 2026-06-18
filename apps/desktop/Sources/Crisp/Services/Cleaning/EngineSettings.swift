@@ -29,6 +29,13 @@ final class EngineSettings {
     var watchFolderPath: String { didSet { save() } }
     var watchRemoveFillers: Bool { didSet { save() } }
 
+    /// Whether the user arrived with a real saved configuration — a `settings.json`
+    /// that differs from the defaults. Captured once at launch (so it stays stable
+    /// while onboarding edits settings). Onboarding uses it to show a "we detected
+    /// your settings" note for returning/updating users, and to stay silent for
+    /// brand-new users or anyone still on the defaults.
+    let hasExistingConfig: Bool
+
     /// A plain-value snapshot of the live settings.
     var config: EngineConfig {
         EngineConfig(version: EngineConfig.defaults.version,
@@ -46,6 +53,9 @@ final class EngineSettings {
         let url = EngineConfigStore.fileURL
         let existed = FileManager.default.fileExists(atPath: url.path)
         let cfg = EngineConfigStore.load()
+        // "Has a real config" = the file existed at launch and holds non-default
+        // values. A freshly materialized defaults file (or no file) doesn't count.
+        hasExistingConfig = existed && cfg != .defaults
         // Property observers don't fire for assignments in init, so no save here.
         pauseThreshold = cfg.pauseThreshold
         silenceFloorDB = cfg.silenceFloorDB

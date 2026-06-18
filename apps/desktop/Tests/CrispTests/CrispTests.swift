@@ -187,6 +187,15 @@ final class CrispTests: XCTestCase {
         XCTAssertTrue(decoded.watchRemoveFillers)
     }
 
+    func testCustomConfigIsDistinguishableFromDefaults() {
+        // Onboarding's "your settings were detected" gate is config != defaults:
+        // a brand-new/default config must compare equal, a customized one must not.
+        XCTAssertEqual(EngineConfig.defaults, EngineConfig.defaults)
+        var custom = EngineConfig.defaults
+        custom.videoQuality = "maximum"
+        XCTAssertNotEqual(custom, EngineConfig.defaults)
+    }
+
     // MARK: - CleanRunner argument mapping
 
     func testCleanRunnerArgumentsForFillerRun() {
