@@ -48,6 +48,14 @@ let package = Package(
             dependencies: ["CrispCore"],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
+        // Headless CLI invoked by the Finder "Clean with Crisp" Quick Action
+        // (an Automator workflow installed into ~/Library/Services). Cleans each
+        // file path it's given via the shared QuickClean path.
+        .executableTarget(
+            name: "CrispClean",
+            dependencies: ["CrispCore"],
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
         .testTarget(
             name: "CrispTests",
             dependencies: ["Crisp", "CrispCore"],

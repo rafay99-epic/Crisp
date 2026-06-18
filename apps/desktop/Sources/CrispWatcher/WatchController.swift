@@ -80,6 +80,19 @@ final class WatchController: @unchecked Sendable {
         watcher.start()
         folderWatcher = watcher
         log.info("Watching \(folder.path, privacy: .public)")
+        scanExisting(folder)
+    }
+
+    /// Catch up on un-cleaned videos already sitting in the folder when we start —
+    /// FSEvents only reports changes since launch, so a file dropped while the agent
+    /// wasn't running (Mac off, a cloud sync) would otherwise be missed. Files that
+    /// already have a `_cleaned` sibling are skipped, so this never re-does work.
+    private func scanExisting(_ folder: URL) {
+        let entries = (try? FileManager.default.contentsOfDirectory(
+            at: folder, includingPropertiesForKeys: nil)) ?? []
+        for url in entries where isCleanableInput(url) {
+            enqueue(url.resolvingSymlinksInPath())
+        }
     }
 
     // MARK: - Change handling + stability

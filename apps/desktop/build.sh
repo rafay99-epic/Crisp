@@ -39,6 +39,7 @@ swift build -c release --arch arm64
 BIN_DIR="$(swift build -c release --arch arm64 --show-bin-path)"
 BINARY="$BIN_DIR/Crisp"
 WATCHER="$BIN_DIR/CrispWatcher"
+CLEANER="$BIN_DIR/CrispClean"
 
 APP="build/$APP_NAME.app"
 rm -rf "$APP"
@@ -48,6 +49,8 @@ cp "$BINARY" "$APP/Contents/MacOS/Crisp"
 # login-item LaunchAgent even when the main window is closed (see the LaunchAgent
 # plist staged below).
 cp "$WATCHER" "$APP/Contents/MacOS/CrispWatcher"
+# The Finder Quick Action's cleaner — invoked by the installed Automator workflow.
+cp "$CLEANER" "$APP/Contents/MacOS/CrispClean"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 
 # Bundle the cleaning engine so a downloaded DMG is self-contained: the Python
@@ -86,10 +89,6 @@ fi
 "$PB" -c "Add :CFBundleDisplayName string $APP_NAME" "$APP/Contents/Info.plist" 2>/dev/null \
   || "$PB" -c "Set :CFBundleDisplayName $APP_NAME" "$APP/Contents/Info.plist"
 "$PB" -c "Set :CrispChannel $CHANNEL" "$APP/Contents/Info.plist"
-# Per-channel Finder Service name + port so the three installs don't collide in
-# the right-click → Quick Actions menu (stable shows "Clean with Crisp").
-"$PB" -c "Set :NSServices:0:NSMenuItem:default Clean with $APP_NAME" "$APP/Contents/Info.plist"
-"$PB" -c "Set :NSServices:0:NSPortName $APP_NAME" "$APP/Contents/Info.plist"
 
 # Watch-folder LaunchAgent. Staged into Contents/Library/LaunchAgents/ with a
 # per-channel Label + AssociatedBundleIdentifiers so the three channels each get
@@ -167,8 +166,10 @@ find "$APP/Contents/Resources/engine/bin" -type f -print0 | while IFS= read -r -
     codesign "${SIGN_OPTS[@]}" "$f" 2>/dev/null || true
   fi
 done
-# The watch-folder agent is a second Mach-O in Contents/MacOS — sign it before the
-# outer app seal (codesign won't sign sibling executables on its own).
+# The watch-folder agent and Quick Action cleaner are additional Mach-Os in
+# Contents/MacOS — sign them before the outer app seal (codesign won't sign
+# sibling executables on its own).
 codesign "${SIGN_OPTS[@]}" "$APP/Contents/MacOS/CrispWatcher"
+codesign "${SIGN_OPTS[@]}" "$APP/Contents/MacOS/CrispClean"
 codesign "${SIGN_OPTS[@]}" "$APP"
 echo "Done → $PWD/$APP"

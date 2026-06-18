@@ -7,9 +7,6 @@ struct CrispApp: App {
     @State private var updater = Updater()
     @State private var modelStore = ModelStore()
     @State private var settings = EngineSettings()
-    /// Retains the Finder-Service provider for the app's lifetime — `NSApplication`
-    /// holds `servicesProvider` weakly.
-    @State private var serviceProvider = ServiceProvider()
     @State private var watchAgent = WatchAgentController()
 
     var body: some Scene {
@@ -17,7 +14,7 @@ struct CrispApp: App {
             ContentView(model: model, updater: updater, modelStore: modelStore, settings: settings)
                 .task { updater.checkOnLaunch() }
                 .task { await modelStore.refresh() }
-                .task { serviceProvider.register(model: model, modelStore: modelStore, settings: settings) }
+                .task { QuickActionInstaller.install() }
                 .task { reconcileWatchAgent() }
         }
         // Content has a fixed width and natural height, so the window sizes itself
