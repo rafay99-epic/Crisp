@@ -8,14 +8,17 @@ struct CrispApp: App {
     @State private var modelStore = ModelStore()
     @State private var settings = EngineSettings()
     @State private var watchAgent = WatchAgentController()
+    @State private var onboarding = OnboardingController()
 
     var body: some Scene {
         Window(Channel.current.displayName, id: "main") {
-            ContentView(model: model, updater: updater, modelStore: modelStore, settings: settings)
+            ContentView(model: model, updater: updater, modelStore: modelStore,
+                        settings: settings, onboarding: onboarding)
                 .task { updater.checkOnLaunch() }
                 .task { await modelStore.refresh() }
                 .task { QuickActionInstaller.install() }
                 .task { reconcileWatchAgent() }
+                .task { onboarding.presentIfFirstLaunch() }
         }
         // Content has a fixed width and natural height, so the window sizes itself
         // to fit — it grows when a result appears and shrinks back, with no scroll
@@ -28,6 +31,10 @@ struct CrispApp: App {
                     Task { await updater.check(userInitiated: true) }
                 }
                 .disabled(!Channel.current.updatesEnabled || updater.isBusy)
+            }
+            // Replace the (unused) default Help book with a way back into the tour.
+            CommandGroup(replacing: .help) {
+                Button("Welcome to \(Channel.current.displayName)") { onboarding.present() }
             }
         }
 

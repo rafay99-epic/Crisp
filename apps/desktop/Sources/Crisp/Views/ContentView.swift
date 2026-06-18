@@ -7,6 +7,7 @@ struct ContentView: View {
     @Bindable var updater: Updater
     @Bindable var modelStore: ModelStore
     @Bindable var settings: EngineSettings
+    @Bindable var onboarding: OnboardingController
     @State private var importing = false
 
     /// Filler-word removal needs the speech model; pauses-only doesn't.
@@ -46,6 +47,9 @@ struct ContentView: View {
                       allowedContentTypes: [.movie, .video, .audiovisualContent],
                       allowsMultipleSelection: true) { result in
             if case .success(let urls) = result { model.addFiles(urls) }
+        }
+        .sheet(isPresented: $onboarding.isPresented) {
+            OnboardingView(onboarding: onboarding, modelStore: modelStore)
         }
     }
 
