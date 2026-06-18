@@ -38,3 +38,18 @@ bun run lint         # tsc -b (type-check only)
 
 The brand mark and favicons in `public/` are derived from the app's
 `Resources/AppIcon.icns`.
+
+## Deploy (Vercel, web UI)
+
+This is a Turborepo, so the only thing to set is the project root:
+
+1. **Add New… → Project**, import the `Crisp` repo.
+2. Set **Root Directory** to **`apps/web`** (click *Edit* next to it). Leave
+   "Include files outside the root directory" on — Vercel enables it for monorepos
+   so `bun.lock` and the workspace resolve.
+3. Everything else comes from `apps/web/vercel.json` — framework (Vite),
+   `bun install`, `bun run build`, output `dist/`, the SPA rewrite (so `/privacy`
+   and `/terms` resolve), asset caching, and security headers. Just click **Deploy**.
+
+No env vars are required. Production deploys on every push to `main`; other branches
+and PRs get preview URLs automatically.
