@@ -9,15 +9,18 @@ struct CrispApp: App {
     @State private var settings = EngineSettings()
     @State private var watchAgent = WatchAgentController()
     @State private var onboarding = OnboardingController()
+    @State private var player = PreviewPlayer()
 
     var body: some Scene {
         Window(Channel.current.displayName, id: "main") {
             ContentView(model: model, updater: updater, modelStore: modelStore,
-                        settings: settings, watchAgent: watchAgent, onboarding: onboarding)
+                        settings: settings, watchAgent: watchAgent, onboarding: onboarding,
+                        player: player)
                 .task { updater.checkOnLaunch() }
                 .task { await modelStore.refresh() }
                 .task { QuickActionInstaller.install() }
                 .task { reconcileWatchAgent() }
+                .task { Notifier.requestAuthorization() }
         }
         // The queue is a list, so the window is resizable (macOS restores its size
         // and position between launches): the queue takes the slack while the

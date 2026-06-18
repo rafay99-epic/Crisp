@@ -70,9 +70,31 @@ final class CleanModel {
     }
 
     /// Remove a still-waiting item from the queue. Running/finished items stay put.
+    /// Drop a row from the queue — anything except the one currently being cleaned.
     func remove(_ id: QueueItem.ID) {
-        guard let idx = queue.firstIndex(where: { $0.id == id }), queue[idx].isWaiting else { return }
+        guard let idx = queue.firstIndex(where: { $0.id == id }), queue[idx].status != .running else { return }
         _ = withAnimation(.snappy) { queue.remove(at: idx) }
+        if !isRunning { updateIdleStatus() }
+    }
+
+    /// Put a failed/canceled file back to waiting so the next Clean picks it up.
+    func retry(_ id: QueueItem.ID) {
+        guard let idx = queue.firstIndex(where: { $0.id == id }),
+              queue[idx].status == .failed || queue[idx].status == .cancelled else { return }
+        withAnimation(.snappy) {
+            queue[idx].status = .waiting
+            queue[idx].error = nil
+            queue[idx].progress = 0
+            queue[idx].result = nil
+        }
+        if !isRunning { updateIdleStatus() }
+    }
+
+    /// Queue a fresh pass over an already-cleaned file's original — e.g. to redo it
+    /// with a different preset. The finished row stays; a new waiting row is added.
+    func reclean(_ id: QueueItem.ID) {
+        guard let item = queue.first(where: { $0.id == id }) else { return }
+        withAnimation(.snappy) { queue.append(QueueItem(url: item.url, presetID: item.presetID)) }
         if !isRunning { updateIdleStatus() }
     }
 
@@ -297,6 +319,12 @@ final class CleanModel {
         } else {
             status = done == 1 ? "Done! Saved next to your original."
                                : "Done! Cleaned \(done) videos."
+        }
+        // Ping the user if they've switched away — the whole point of a batch is
+        // walking off while it runs.
+        if done > 0 {
+            let saved = results.reduce(0) { $0 + $1.savedSeconds }
+            Notifier.batchFinished(cleaned: done, savedSeconds: saved, failed: failed)
         }
     }
 }

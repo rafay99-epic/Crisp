@@ -9,6 +9,7 @@ struct ContentView: View {
     @Bindable var settings: EngineSettings
     @Bindable var watchAgent: WatchAgentController
     @Bindable var onboarding: OnboardingController
+    @Bindable var player: PreviewPlayer
     @State private var importing = false
     @State private var showUltraSheet = false
     @State private var ultraTarget = 1
@@ -90,7 +91,7 @@ struct ContentView: View {
             if model.queue.isEmpty {
                 emptyHero
             } else {
-                QueueView(model: model, settings: settings)
+                QueueView(model: model, settings: settings, player: player)
                 Divider()
                 BottomBar(model: model, settings: settings,
                           modelBlocks: modelBlocks, onStart: attemptStart)

@@ -8,14 +8,15 @@ import CrispCore
 struct QueueView: View {
     @Bindable var model: CleanModel
     @Bindable var settings: EngineSettings
+    @Bindable var player: PreviewPlayer
 
     var body: some View {
         List {
             Section {
                 ForEach($model.queue) { $item in
-                    QueueRow(item: $item, presets: settings.presets,
-                             defaultName: settings.defaultPreset?.name,
-                             onRemove: { model.remove(item.id) })
+                    QueueRow(item: $item, model: model, player: player,
+                             presets: settings.presets,
+                             defaultName: settings.defaultPreset?.name)
                         .listRowSeparator(.hidden)
                 }
                 .onMove(perform: model.moveWaiting)
@@ -48,11 +49,35 @@ struct QueueView: View {
 /// control (remove while waiting, reveal once done).
 private struct QueueRow: View {
     @Binding var item: QueueItem
+    let model: CleanModel
+    let player: PreviewPlayer
     let presets: [Preset]
     let defaultName: String?
-    let onRemove: () -> Void
+
+    /// The cleaned file, once it exists — used for drag-out, reveal, preview, copy.
+    private var outputURL: URL? {
+        guard let path = item.result?.output, !path.isEmpty else { return nil }
+        return URL(fileURLWithPath: path)
+    }
 
     var body: some View {
+        Group {
+            if item.status == .done, let url = outputURL {
+                // Drag the finished file straight into Finder, an editor, or an
+                // upload box — the last step of the clean → publish flow.
+                rowContent.draggable(url) {
+                    Label(item.url.lastPathComponent, systemImage: "scissors")
+                }
+            } else {
+                rowContent
+            }
+        }
+        .padding(.vertical, 3)
+        .animation(.smooth, value: item.status)
+        .contextMenu { contextMenu }
+    }
+
+    private var rowContent: some View {
         HStack(spacing: 11) {
             statusIcon
                 .frame(width: 20, height: 20)
@@ -68,8 +93,6 @@ private struct QueueRow: View {
             Spacer(minLength: 8)
             trailing
         }
-        .padding(.vertical, 3)
-        .animation(.smooth, value: item.status)
     }
 
     @ViewBuilder private var statusIcon: some View {
@@ -118,7 +141,7 @@ private struct QueueRow: View {
     @ViewBuilder private var trailing: some View {
         switch item.status {
         case .waiting:
-            Button(role: .destructive, action: onRemove) {
+            Button(role: .destructive) { model.remove(item.id) } label: {
                 Image(systemName: "xmark.circle.fill")
             }
             .buttonStyle(.plain)
@@ -130,29 +153,93 @@ private struct QueueRow: View {
                 .foregroundStyle(.secondary)
                 .contentTransition(.numericText())
         case .done:
-            // Group the saving + the reveal button as one trailing cluster, so the
-            // folder sits with the time (vertically centered) instead of floating
-            // alone in the row's corner.
+            // The saving, a preview toggle, and the reveal button — one grouped,
+            // vertically-centered trailing cluster.
             HStack(spacing: 10) {
                 if let r = item.result {
                     Text("removed \(formatTime(r.savedSeconds))")
                         .font(.caption).foregroundStyle(.secondary).fixedSize()
                 }
-                Button {
-                    if let path = item.result?.output {
-                        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
+                if let url = outputURL {
+                    Button { player.toggle(url) } label: {
+                        Image(systemName: player.isPlaying(url) ? "stop.circle.fill" : "play.circle")
+                            .contentTransition(.symbolEffect(.replace))
                     }
-                } label: {
-                    Image(systemName: "folder")
+                    .buttonStyle(.plain).foregroundStyle(.tint)
+                    .help(player.isPlaying(url) ? "Stop preview" : "Play preview")
+                    Button { revealOutput() } label: { Image(systemName: "folder") }
+                        .buttonStyle(.plain).foregroundStyle(.tint)
+                        .help("Show in Finder")
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(.tint)
-                .help("Show in Finder")
             }
             .transition(.scale.combined(with: .opacity))
         case .failed, .cancelled:
+            Button { model.retry(item.id) } label: {
+                Image(systemName: "arrow.clockwise.circle")
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(item.status == .failed ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
+            .help("Try again")
+        }
+    }
+
+    // MARK: - Context menu + actions
+
+    @ViewBuilder private var contextMenu: some View {
+        switch item.status {
+        case .done:
+            if let summary = sizeSummary { Text(summary) }
+            if let url = outputURL {
+                Button { revealOutput() } label: { Label("Show in Finder", systemImage: "folder") }
+                Button { copyOutputPath() } label: { Label("Copy Output Path", systemImage: "doc.on.doc") }
+                Button { player.toggle(url) } label: {
+                    Label(player.isPlaying(url) ? "Stop Preview" : "Play Preview",
+                          systemImage: player.isPlaying(url) ? "stop.fill" : "play.fill")
+                }
+            }
+            Divider()
+            Button { model.reclean(item.id) } label: { Label("Re-clean", systemImage: "arrow.clockwise") }
+            Button(role: .destructive) { model.remove(item.id) } label: {
+                Label("Remove from Queue", systemImage: "trash")
+            }
+        case .failed, .cancelled:
+            Button { model.retry(item.id) } label: { Label("Try Again", systemImage: "arrow.clockwise") }
+            Button(role: .destructive) { model.remove(item.id) } label: {
+                Label("Remove from Queue", systemImage: "trash")
+            }
+        case .waiting:
+            Button(role: .destructive) { model.remove(item.id) } label: {
+                Label("Remove from Queue", systemImage: "trash")
+            }
+        case .running:
             EmptyView()
         }
+    }
+
+    private func revealOutput() {
+        if let url = outputURL { NSWorkspace.shared.activateFileViewerSelecting([url]) }
+    }
+
+    private func copyOutputPath() {
+        guard let url = outputURL else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(url.path, forType: .string)
+    }
+
+    /// Input → output file size with the percentage shrink, shown as an info line in
+    /// the menu. Computed on demand (only when the menu opens).
+    private var sizeSummary: String? {
+        guard let out = outputURL,
+              let outSize = (try? FileManager.default.attributesOfItem(atPath: out.path)[.size]) as? Int64
+        else { return nil }
+        let outStr = ByteCountFormatter.string(fromByteCount: outSize, countStyle: .file)
+        if let inSize = (try? FileManager.default.attributesOfItem(atPath: item.url.path)[.size]) as? Int64,
+           inSize > 0 {
+            let inStr = ByteCountFormatter.string(fromByteCount: inSize, countStyle: .file)
+            let pct = Int((1 - Double(outSize) / Double(inSize)) * 100)
+            return pct > 0 ? "\(inStr) → \(outStr) · \(pct)% smaller" : "\(inStr) → \(outStr)"
+        }
+        return outStr
     }
 
     private var glyph: String {
