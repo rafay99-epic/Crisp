@@ -90,11 +90,15 @@ private struct QueueRow: View {
         case .running:
             ProgressView(value: item.progress).controlSize(.small)
         case .done:
-            HStack(spacing: 8) {
-                if let r = item.result, r.origSeconds > 0 {
+            HStack(spacing: 10) {
+                if let r = item.result, !r.peaks.isEmpty {
+                    WaveformView(peaks: r.peaks, removed: r.removed)
+                        .frame(height: 22)
+                        .transition(.opacity)
+                } else if let r = item.result, r.origSeconds > 0 {
                     ReductionBar(kept: max(0, min(1, r.newSeconds / r.origSeconds)))
                 }
-                Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(1).fixedSize()
             }
         case .waiting where !presets.isEmpty:
             Picker("Preset", selection: $item.presetID) {
@@ -176,9 +180,40 @@ private struct QueueRow: View {
     }
 }
 
+/// The signature view: the file's actual audio as peak bars, with the slices Crisp
+/// cut drawn dim and the kept audio in green. Built from the engine's waveform
+/// summary, so it shows exactly what was removed — honest, and unmistakably Crisp.
+private struct WaveformView: View {
+    let peaks: [Double]
+    let removed: [Bool]
+
+    var body: some View {
+        Canvas { context, size in
+            let n = peaks.count
+            guard n > 0 else { return }
+            let gap: CGFloat = n > 90 ? 0.5 : 1
+            let barW = max(0.75, (size.width - gap * CGFloat(n - 1)) / CGFloat(n))
+            let mid = size.height / 2
+            for i in 0..<n {
+                let x = CGFloat(i) * (barW + gap)
+                let h = max(1.5, CGFloat(peaks[i]) * size.height)
+                let rect = CGRect(x: x, y: mid - h / 2, width: barW, height: h)
+                let isCut = i < removed.count && removed[i]
+                let style: GraphicsContext.Shading = isCut
+                    ? .color(.secondary.opacity(0.28))
+                    : .color(.green)
+                context.fill(Path(roundedRect: rect, cornerRadius: barW / 2), with: style)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityLabel("Audio waveform with removed sections dimmed")
+    }
+}
+
 /// A tiny honest "cut" bar: how much of the original survived (filled, in the row's
 /// accent) versus what was removed (the dim track behind it). Built straight from
-/// the result's durations — it shows exactly what Crisp took out.
+/// the result's durations — it shows exactly what Crisp took out. Fallback for when
+/// the waveform summary isn't available.
 private struct ReductionBar: View {
     let kept: Double   // 0…1 of the original duration that remains
 

@@ -19,6 +19,8 @@ public struct CleanRunner {
         var saved_seconds: Double?
         var pauses: Int?
         var fillers: Int?
+        var peaks: [Double]?
+        var removed: [Bool]?
     }
 
     /// A progress signal for the one file being cleaned. `fraction` is 0…1 for this
@@ -34,10 +36,15 @@ public struct CleanRunner {
         public var modelPath: String?
         public var removeFillers: Bool
         public var backupDirectory: URL?
-        public init(modelPath: String? = nil, removeFillers: Bool, backupDirectory: URL? = nil) {
+        /// >0 asks the engine to emit an N-bucket waveform for the UI (the bare
+        /// CLI / watcher leave it 0 so they don't pay for data nothing renders).
+        public var waveformBuckets: Int
+        public init(modelPath: String? = nil, removeFillers: Bool,
+                    backupDirectory: URL? = nil, waveformBuckets: Int = 0) {
             self.modelPath = modelPath
             self.removeFillers = removeFillers
             self.backupDirectory = backupDirectory
+            self.waveformBuckets = waveformBuckets
         }
     }
 
@@ -70,6 +77,7 @@ public struct CleanRunner {
         if !parameters.outputDirectory.isEmpty { args += ["--out-dir", parameters.outputDirectory] }
         if options.removeFillers, let model = options.modelPath { args += ["--model", model] }
         if !options.removeFillers { args.append("--no-fillers") }
+        if options.waveformBuckets > 0 { args += ["--waveform", String(options.waveformBuckets)] }
         if let dir = options.backupDirectory {
             args += ["--backup-dir", dir.path]
         } else {
@@ -122,7 +130,9 @@ public struct CleanRunner {
                         newSeconds: ev.new_seconds ?? 0,
                         savedSeconds: ev.saved_seconds ?? 0,
                         pauses: ev.pauses ?? 0,
-                        fillers: ev.fillers ?? 0)
+                        fillers: ev.fillers ?? 0,
+                        peaks: ev.peaks ?? [],
+                        removed: ev.removed ?? [])
                 case "error":
                     throw NSError(domain: "Crisp", code: 1,
                                   userInfo: [NSLocalizedDescriptionKey: ev.message ?? "Unknown error"])

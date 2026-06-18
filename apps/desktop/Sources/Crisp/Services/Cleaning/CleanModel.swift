@@ -212,7 +212,8 @@ final class CleanModel {
         let backupDir = parameters.backupOriginal ? CleanRunner.backupDirectory() : nil
         let options = CleanRunner.Options(modelPath: modelPath,
                                           removeFillers: removeFillers,
-                                          backupDirectory: backupDir)
+                                          backupDirectory: backupDir,
+                                          waveformBuckets: 120)
         return try await CleanRunner().run(input: url, parameters: parameters, options: options) { [weak self] event in
             Task { @MainActor in
                 guard let self, self.isRunning else { return }

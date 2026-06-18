@@ -230,6 +230,24 @@ final class CrispTests: XCTestCase {
         XCTAssertFalse(args.contains("--out-dir"))                 // default ⇒ beside source
     }
 
+    func testWaveformFlagOnlyWhenRequested() {
+        // The app asks for a waveform (N buckets); the bare CLI / watcher leave it
+        // off so they don't pay for data nothing renders.
+        let params = Strength.aggressive.parameters(using: .defaults)
+        let withWave = CleanRunner.Options(modelPath: nil, removeFillers: false,
+                                           backupDirectory: nil, waveformBuckets: 120)
+        let on = CleanRunner.arguments(scriptPath: "/eng/clean_video.py",
+                                       input: URL(fileURLWithPath: "/v/in.mp4"),
+                                       parameters: params, options: withWave)
+        XCTAssertEqual(valueAfter("--waveform", in: on), "120")
+
+        let off = CleanRunner.Options(modelPath: nil, removeFillers: false)
+        let none = CleanRunner.arguments(scriptPath: "/eng/clean_video.py",
+                                         input: URL(fileURLWithPath: "/v/in.mp4"),
+                                         parameters: params, options: off)
+        XCTAssertFalse(none.contains("--waveform"))
+    }
+
     func testCleanRunnerArgumentsCarryOutputDirectory() {
         // A chosen output folder (e.g. a NAS) reaches the engine as --out-dir;
         // the default empty value is omitted (engine writes beside the source).
