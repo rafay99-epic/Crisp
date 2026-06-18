@@ -121,7 +121,9 @@ export function CutStory() {
   const p2 = useTransform(scrollYProgress, [0.37, 0.44, 0.57, 0.61], [0, 1, 1, 0]);
   const p3 = useTransform(scrollYProgress, [0.64, 0.73, 0.95, 1], [0, 1, 1, 1]);
 
-  const time = useTransform(scrollYProgress, (v) => fmtTime(510 - Math.max(0, (v - 0.35) / 0.27) * 84));
+  const time = useTransform(scrollYProgress, (v) =>
+    fmtTime(510 - Math.max(0, (v - 0.35) / 0.27) * 84),
+  );
   const foundOpacity = useTransform(scrollYProgress, [0.08, 0.18, 0.33, 0.38], [0, 1, 1, 0]);
 
   return (
@@ -134,15 +136,30 @@ export function CutStory() {
 
         {/* phase labels (stacked, crossfading) */}
         <div className="relative z-10 mx-auto mb-14 h-[170px] w-full max-w-3xl text-center sm:h-[190px]">
-          <Phase op={p1} title="It listens first." sub="Crisp reads the real audio energy to find every pause and filler." />
-          <Phase op={p2} title="Then it cuts." sub="Dead air and hesitation words are removed — audio and video together." />
-          <Phase op={p3} title="Crisp." sub="What's left is tight, sharp, and the same quality you recorded." />
+          <Phase
+            op={p1}
+            title="It listens first."
+            sub="Crisp reads the real audio energy to find every pause and filler."
+          />
+          <Phase
+            op={p2}
+            title="Then it cuts."
+            sub="Dead air and hesitation words are removed — audio and video together."
+          />
+          <Phase
+            op={p3}
+            title="Crisp."
+            sub="What's left is tight, sharp, and the same quality you recorded."
+          />
         </div>
 
         {/* the timeline */}
         <div className="relative z-10 w-full max-w-5xl">
           <div className="mb-4 flex items-center justify-between text-[13px] font-medium">
-            <motion.span style={{ opacity: foundOpacity }} className="flex items-center gap-2 text-[var(--color-cut)]">
+            <motion.span
+              style={{ opacity: foundOpacity }}
+              className="flex items-center gap-2 text-[var(--color-cut)]"
+            >
               <Scissors className="size-4" /> 5 pauses · 3 fillers found
             </motion.span>
             <span className="ml-auto font-mono text-white/70">
@@ -189,7 +206,9 @@ function Phase({ op, title, sub }: { op: MotionValue<number>; title: string; sub
   return (
     <motion.div style={{ opacity: op }} className="absolute inset-0 flex flex-col items-center">
       <h2 className="text-[40px] font-semibold tracking-[-0.02em] sm:text-[64px]">{title}</h2>
-      <p className="mt-3 max-w-xl text-[17px] leading-relaxed text-white/55 sm:text-[19px]">{sub}</p>
+      <p className="mt-3 max-w-xl text-[17px] leading-relaxed text-white/55 sm:text-[19px]">
+        {sub}
+      </p>
     </motion.div>
   );
 }

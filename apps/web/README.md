@@ -2,7 +2,7 @@
 
 The product website for Crisp. A **dark, cinematic** site built around the app's
 own identity — the blue waveform split by a cut — with heavy, premium motion.
-Apple *Pro*-page energy (Final Cut / Pro Display), not a generic light template.
+Apple _Pro_-page energy (Final Cut / Pro Display), not a generic light template.
 
 **Stack:** Vite + React + TypeScript + Tailwind CSS v4, **Framer Motion** for
 animation and **Lenis** for smooth scroll. Package manager: **bun**.
@@ -44,7 +44,7 @@ The brand mark and favicons in `public/` are derived from the app's
 This is a Turborepo, so the only thing to set is the project root:
 
 1. **Add New… → Project**, import the `Crisp` repo.
-2. Set **Root Directory** to **`apps/web`** (click *Edit* next to it). Leave
+2. Set **Root Directory** to **`apps/web`** (click _Edit_ next to it). Leave
    "Include files outside the root directory" on — Vercel enables it for monorepos
    so `bun.lock` and the workspace resolve.
 3. Everything else comes from `apps/web/vercel.json` — framework (Vite),

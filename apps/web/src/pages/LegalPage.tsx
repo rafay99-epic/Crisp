@@ -16,7 +16,11 @@ export function LegalPage({ doc }: { doc: LegalDoc }) {
             <Waveform className="size-[18px]" />
             Crisp
           </Link>
-          <Link to="/" hash="download" className="text-[13px] font-medium text-white/60 transition-colors hover:text-white">
+          <Link
+            to="/"
+            hash="download"
+            className="text-[13px] font-medium text-white/60 transition-colors hover:text-white"
+          >
             Install ›
           </Link>
         </nav>

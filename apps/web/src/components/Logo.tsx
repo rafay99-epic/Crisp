@@ -65,8 +65,24 @@ export function AppIcon({ className = "" }: { className?: string }) {
       />
       <Bars />
       {/* the cut: two faint vertical guide lines down the middle */}
-      <line x1="47.6" y1="22" x2="47.6" y2="78" stroke="#ffffff" strokeOpacity="0.22" strokeWidth="0.7" />
-      <line x1="52.4" y1="22" x2="52.4" y2="78" stroke="#ffffff" strokeOpacity="0.22" strokeWidth="0.7" />
+      <line
+        x1="47.6"
+        y1="22"
+        x2="47.6"
+        y2="78"
+        stroke="#ffffff"
+        strokeOpacity="0.22"
+        strokeWidth="0.7"
+      />
+      <line
+        x1="52.4"
+        y1="22"
+        x2="52.4"
+        y2="78"
+        stroke="#ffffff"
+        strokeOpacity="0.22"
+        strokeWidth="0.7"
+      />
     </svg>
   );
 }
