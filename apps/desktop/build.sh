@@ -36,12 +36,21 @@ echo "Compiling (arm64)…  [channel: $CHANNEL]"
 # Apple Silicon only — Intel Macs are no longer supported, so we build a single
 # arm64 slice (the bundled engine binaries are arm64 too).
 swift build -c release --arch arm64
-BINARY="$(swift build -c release --arch arm64 --show-bin-path)/Crisp"
+BIN_DIR="$(swift build -c release --arch arm64 --show-bin-path)"
+BINARY="$BIN_DIR/Crisp"
+WATCHER="$BIN_DIR/CrispWatcher"
+CLEANER="$BIN_DIR/CrispClean"
 
 APP="build/$APP_NAME.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BINARY" "$APP/Contents/MacOS/Crisp"
+# The background watch-folder agent — a second executable so it can run as a
+# login-item LaunchAgent even when the main window is closed (see the LaunchAgent
+# plist staged below).
+cp "$WATCHER" "$APP/Contents/MacOS/CrispWatcher"
+# The Finder Quick Action's cleaner — invoked by the installed Automator workflow.
+cp "$CLEANER" "$APP/Contents/MacOS/CrispClean"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 
 # Bundle the cleaning engine so a downloaded DMG is self-contained: the Python
@@ -80,6 +89,15 @@ fi
 "$PB" -c "Add :CFBundleDisplayName string $APP_NAME" "$APP/Contents/Info.plist" 2>/dev/null \
   || "$PB" -c "Set :CFBundleDisplayName $APP_NAME" "$APP/Contents/Info.plist"
 "$PB" -c "Set :CrispChannel $CHANNEL" "$APP/Contents/Info.plist"
+
+# Watch-folder LaunchAgent. Staged into Contents/Library/LaunchAgents/ with a
+# per-channel Label + AssociatedBundleIdentifiers so the three channels each get
+# their own agent. SMAppService.agent(plistName:) registers it from the app.
+mkdir -p "$APP/Contents/Library/LaunchAgents"
+LAUNCH_AGENT="$APP/Contents/Library/LaunchAgents/$BUNDLE_ID.watcher.plist"
+cp Resources/LaunchAgent.plist "$LAUNCH_AGENT"
+"$PB" -c "Set :Label $BUNDLE_ID.watcher" "$LAUNCH_AGENT"
+"$PB" -c "Set :AssociatedBundleIdentifiers:0 $BUNDLE_ID" "$LAUNCH_AGENT"
 # Monotonic build number (CI run number) — orders Nightly pre-releases for the
 # updater. Absent/0 for local builds.
 if [ -n "${CRISP_BUILD:-}" ]; then
@@ -104,6 +122,37 @@ if [ ! -f "$ICON_CACHE" ]; then
 fi
 cp "$ICON_CACHE" "$APP/Contents/Resources/AppIcon.icns"
 
+# App Intents metadata — Shortcuts/Spotlight read
+# Contents/Resources/Metadata.appintents. `swift build` emits Crisp.swiftconstvalues
+# (via the -emit-const-values flag wired into Package.swift);
+# appintentsmetadataprocessor (ships in the Xcode toolchain) compiles it into the
+# bundle. Needs Xcode — on a Command-Line-Tools-only machine it's skipped with a
+# warning (the Finder Service still works; only the Shortcuts action is affected).
+AIMP="$(xcrun --find appintentsmetadataprocessor 2>/dev/null || true)"
+CONSTVALS="$BIN_DIR/Crisp.build/Crisp.swiftconstvalues"
+if [[ -n "$AIMP" && -f "$CONSTVALS" ]]; then
+  echo "Generating App Intents (Shortcuts) metadata…"
+  TOOLCHAIN_DIR="$(dirname "$(dirname "$(dirname "$AIMP")")")"   # …/XcodeDefault.xctoolchain
+  SRCL="$(mktemp)"; CVL="$(mktemp)"
+  find Sources/Crisp -name '*.swift' > "$SRCL"
+  echo "$CONSTVALS" > "$CVL"
+  "$AIMP" \
+    --output "$APP/Contents/Resources" \
+    --toolchain-dir "$TOOLCHAIN_DIR" \
+    --module-name Crisp \
+    --sdk-root "$(xcrun --sdk macosx --show-sdk-path)" \
+    --xcode-version "$(xcodebuild -version | awk '/Build version/{print $3}')" \
+    --platform-family macOS \
+    --deployment-target 15.0 \
+    --target-triple arm64-apple-macos15.0 \
+    --source-file-list "$SRCL" \
+    --swift-const-vals-list "$CVL" \
+    --force
+  rm -f "$SRCL" "$CVL"
+else
+  echo "⚠️  appintentsmetadataprocessor/const-values unavailable — skipping Shortcuts metadata."
+fi
+
 # Sign inside-out: every bundled Mach-O first, then the app. Defaults to ad-hoc
 # (`-`); set CODESIGN_IDENTITY to a Developer ID to add hardened runtime +
 # timestamp for notarization (the bundled binaries need the runtime too).
@@ -117,5 +166,10 @@ find "$APP/Contents/Resources/engine/bin" -type f -print0 | while IFS= read -r -
     codesign "${SIGN_OPTS[@]}" "$f" 2>/dev/null || true
   fi
 done
+# The watch-folder agent and Quick Action cleaner are additional Mach-Os in
+# Contents/MacOS — sign them before the outer app seal (codesign won't sign
+# sibling executables on its own).
+codesign "${SIGN_OPTS[@]}" "$APP/Contents/MacOS/CrispWatcher"
+codesign "${SIGN_OPTS[@]}" "$APP/Contents/MacOS/CrispClean"
 codesign "${SIGN_OPTS[@]}" "$APP"
 echo "Done → $PWD/$APP"

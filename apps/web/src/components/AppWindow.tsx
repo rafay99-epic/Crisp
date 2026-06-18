@@ -48,7 +48,9 @@ export function AppWindow({ className = "" }: { className?: string }) {
         <div className="flex items-center gap-3.5">
           <AppIcon className="size-[46px] drop-shadow-md" />
           <div className="flex flex-col gap-0.5">
-            <span className="text-[22px] font-bold leading-none tracking-tight text-white">Crisp</span>
+            <span className="text-[22px] font-bold leading-none tracking-tight text-white">
+              Crisp
+            </span>
             <span className="text-[13px] text-white/55">
               Remove pauses &amp; filler words from your recordings.
             </span>
@@ -81,7 +83,9 @@ export function AppWindow({ className = "" }: { className?: string }) {
                 </span>
               ))}
             </div>
-            <span className="text-[13px] text-white/50">Cuts short “thinking” gaps too. Recommended.</span>
+            <span className="text-[13px] text-white/50">
+              Cuts short “thinking” gaps too. Recommended.
+            </span>
           </div>
           <div className="h-px bg-white/[0.07]" />
           <div className="flex items-center justify-between">
@@ -100,7 +104,9 @@ export function AppWindow({ className = "" }: { className?: string }) {
             <span className="text-[13px] font-medium text-white">Originals are backed up</span>
             <span className="truncate text-[11px] text-white/45">~/.crisp/Originals</span>
           </div>
-          <span className="ml-auto text-[11px] text-[var(--color-accent-bright)]">Show in Finder</span>
+          <span className="ml-auto text-[11px] text-[var(--color-accent-bright)]">
+            Show in Finder
+          </span>
         </div>
 
         {/* Primary action */}
@@ -115,7 +121,16 @@ export function AppWindow({ className = "" }: { className?: string }) {
 
 function ShieldCheck({ className = "" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
       <path d="M12 3 5 6v5c0 4.2 2.9 7.6 7 9 4.1-1.4 7-4.8 7-9V6l-7-3Z" />
       <path d="m9 12 2 2 4-4" />
     </svg>

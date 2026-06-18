@@ -1,6 +1,7 @@
 import { CountUp, Reveal } from "../components/Motion";
 
-const fmtClock = (v: number) => `${Math.floor(v / 60)}:${String(Math.round(v % 60)).padStart(2, "0")}`;
+const fmtClock = (v: number) =>
+  `${Math.floor(v / 60)}:${String(Math.round(v % 60)).padStart(2, "0")}`;
 
 const STATS: Array<{ to: number; format?: (v: number) => string; label: string }> = [
   { to: 42, label: "pauses removed" },

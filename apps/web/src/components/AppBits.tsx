@@ -67,7 +67,12 @@ export function FillerTranscript() {
   return (
     <div className={`${panel} p-6 text-[17px] leading-[2.1] text-white`}>
       {tokens.map(([t, filler], i) => {
-        if (!filler) return <span key={i} className="text-white/85">{t} </span>;
+        if (!filler)
+          return (
+            <span key={i} className="text-white/85">
+              {t}{" "}
+            </span>
+          );
         const delay = 0.3 + fillerIdx++ * 0.5;
         return (
           <span key={i} className="relative mx-0.5 inline-block">
@@ -97,7 +102,9 @@ export function FillerTranscript() {
 
 /** A dark waveform strip with the silent gaps marked for the cut. */
 export function SilenceVisual() {
-  const pattern = [1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1];
+  const pattern = [
+    1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1,
+  ];
   const hs = seededHeights(pattern.length, 11);
   return (
     <div className={`${panel} p-6`}>
@@ -110,9 +117,7 @@ export function SilenceVisual() {
             key={i}
             className={`w-full rounded-full ${v ? "" : "bg-[var(--color-cut)]/60"}`}
             style={
-              v
-                ? { background: "linear-gradient(180deg,#7dc0ff,var(--color-accent))" }
-                : undefined
+              v ? { background: "linear-gradient(180deg,#7dc0ff,var(--color-accent))" } : undefined
             }
             initial={{ scaleY: 0.2, opacity: 0 }}
             whileInView={{ scaleY: 1, opacity: 1 }}
@@ -158,7 +163,10 @@ export function FilmStrip() {
             <span
               key={i}
               className="w-full rounded-full"
-              style={{ height: `${Math.round(h * 100)}%`, background: "linear-gradient(180deg,#7dc0ff,var(--color-accent))" }}
+              style={{
+                height: `${Math.round(h * 100)}%`,
+                background: "linear-gradient(180deg,#7dc0ff,var(--color-accent))",
+              }}
             />
           ))}
         </div>

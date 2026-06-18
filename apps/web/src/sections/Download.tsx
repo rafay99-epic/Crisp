@@ -60,7 +60,10 @@ export function Download() {
           <div className="mx-auto mt-12 max-w-md space-y-2 text-[14px] leading-relaxed text-white/40">
             <p>
               Don't have Homebrew yet? Install it from{" "}
-              <a href="https://brew.sh" className="text-[var(--color-accent-bright)] hover:underline">
+              <a
+                href="https://brew.sh"
+                className="text-[var(--color-accent-bright)] hover:underline"
+              >
                 brew.sh
               </a>
               , then run the line above.

@@ -23,13 +23,7 @@ export function seededHeights(n: number, seed = 1): number[] {
   return out;
 }
 
-export function LiveWave({
-  bars = 72,
-  className = "",
-}: {
-  bars?: number;
-  className?: string;
-}) {
+export function LiveWave({ bars = 72, className = "" }: { bars?: number; className?: string }) {
   const ref = useRef<HTMLDivElement>(null);
   // Only run the (many, infinite) bar animations while the hero is on screen —
   // off-screen they'd keep stealing frames from the scroll-linked CutStory.
@@ -41,8 +35,7 @@ export function LiveWave({
       <div
         className="pointer-events-none absolute inset-0"
         style={{
-          background:
-            "radial-gradient(60% 70% at 50% 50%, rgba(10,132,255,0.28), transparent 72%)",
+          background: "radial-gradient(60% 70% at 50% 50%, rgba(10,132,255,0.28), transparent 72%)",
           filter: "blur(24px)",
         }}
       />

@@ -18,22 +18,35 @@ export function Hero() {
   const fade = useTransform(scrollYProgress, [0, 0.7], [1, 0]);
 
   return (
-    <section id="top" ref={ref} className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-5 pt-24">
+    <section
+      id="top"
+      ref={ref}
+      className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-5 pt-24"
+    >
       {/* drifting glow orbs */}
       <motion.span
         className="orb left-[10%] top-[12%] size-[460px]"
-        style={{ background: "radial-gradient(circle, rgba(10,132,255,0.30), transparent 70%)", willChange: "transform" }}
+        style={{
+          background: "radial-gradient(circle, rgba(10,132,255,0.30), transparent 70%)",
+          willChange: "transform",
+        }}
         animate={inView ? { x: [0, 60, 0], y: [0, 40, 0] } : {}}
         transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
       />
       <motion.span
         className="orb right-[8%] bottom-[14%] size-[420px]"
-        style={{ background: "radial-gradient(circle, rgba(100,210,255,0.22), transparent 70%)", willChange: "transform" }}
+        style={{
+          background: "radial-gradient(circle, rgba(100,210,255,0.22), transparent 70%)",
+          willChange: "transform",
+        }}
         animate={inView ? { x: [0, -50, 0], y: [0, -30, 0] } : {}}
         transition={{ duration: 22, repeat: Infinity, ease: "easeInOut" }}
       />
 
-      <motion.div style={{ y: contentY, opacity: fade }} className="relative z-10 flex flex-col items-center text-center">
+      <motion.div
+        style={{ y: contentY, opacity: fade }}
+        className="relative z-10 flex flex-col items-center text-center"
+      >
         <motion.p
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
@@ -82,8 +95,8 @@ export function Hero() {
         className="relative z-10 mt-10 flex flex-col items-center"
       >
         <p className="max-w-2xl text-center text-[19px] leading-relaxed text-white/65 sm:text-[22px]">
-          Crisp finds the long pauses and filler words — the “um,” the “uh,” the dead air —
-          and cuts them out of your audio and video together. Tight jump-cuts, right on your Mac.
+          Crisp finds the long pauses and filler words — the “um,” the “uh,” the dead air — and cuts
+          them out of your audio and video together. Tight jump-cuts, right on your Mac.
         </p>
 
         <div className="mt-9 flex flex-col items-center gap-3 sm:flex-row">
@@ -96,7 +109,10 @@ export function Hero() {
               Install for Mac
             </a>
           </Magnetic>
-          <a href="#cut" className="rounded-full px-6 py-4 text-[17px] font-medium text-white/70 transition-colors hover:text-white">
+          <a
+            href="#cut"
+            className="rounded-full px-6 py-4 text-[17px] font-medium text-white/70 transition-colors hover:text-white"
+          >
             Watch it cut ›
           </a>
         </div>

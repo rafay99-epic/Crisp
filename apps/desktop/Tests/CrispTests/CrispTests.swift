@@ -1,4 +1,5 @@
 import XCTest
+import CrispCore
 @testable import Crisp
 
 final class CrispTests: XCTestCase {
@@ -133,7 +134,7 @@ final class CrispTests: XCTestCase {
     func testBackupDirectoryIsDatedUnderChannelHome() {
         // Originals land in a date-stamped folder under the channel's data home.
         let date = Date(timeIntervalSince1970: 1_750_000_000)  // 2025-06-15 UTC-ish
-        let dir = CleanModel.backupDirectory(for: date)
+        let dir = CleanRunner.backupDirectory(for: date)
         XCTAssertTrue(dir.deletingLastPathComponent().path.hasSuffix("/Originals"))
         XCTAssertTrue(dir.path.hasPrefix(Channel.current.dataDirectory.path))
         // The leaf is a yyyy-MM-dd day folder.
@@ -160,5 +161,304 @@ final class CrispTests: XCTestCase {
         // An empty object decodes to all defaults (not a failure).
         let empty = try JSONDecoder().decode(EngineConfig.self, from: Data("{}".utf8))
         XCTAssertEqual(empty, EngineConfig.defaults)
+    }
+
+    // MARK: - Watch folder config
+
+    func testWatchFieldsDefaultOffAndRoundTrip() throws {
+        // Opt-in by default: watching is off, no folder, fillers on (matches the UI).
+        XCTAssertFalse(EngineConfig.defaults.watchEnabled)
+        XCTAssertEqual(EngineConfig.defaults.watchFolderPath, "")
+        XCTAssertTrue(EngineConfig.defaults.watchRemoveFillers)
+
+        var cfg = EngineConfig.defaults
+        cfg.watchEnabled = true
+        cfg.watchFolderPath = "/Users/me/Recordings"
+        cfg.watchRemoveFillers = false
+        let round = try JSONDecoder().decode(EngineConfig.self,
+                                             from: JSONEncoder().encode(cfg))
+        XCTAssertEqual(round, cfg)
+
+        // A file predating the watch keys fills them with defaults (forward-compat).
+        let legacy = Data(#"{ "version": 2, "pauseThreshold": 0.4 }"#.utf8)
+        let decoded = try JSONDecoder().decode(EngineConfig.self, from: legacy)
+        XCTAssertFalse(decoded.watchEnabled)
+        XCTAssertEqual(decoded.watchFolderPath, "")
+        XCTAssertTrue(decoded.watchRemoveFillers)
+    }
+
+    func testCustomConfigIsDistinguishableFromDefaults() {
+        // Onboarding's "your settings were detected" gate is config != defaults:
+        // a brand-new/default config must compare equal, a customized one must not.
+        XCTAssertEqual(EngineConfig.defaults, EngineConfig.defaults)
+        var custom = EngineConfig.defaults
+        custom.videoQuality = "maximum"
+        XCTAssertNotEqual(custom, EngineConfig.defaults)
+    }
+
+    // MARK: - CleanRunner argument mapping
+
+    func testCleanRunnerArgumentsForFillerRun() {
+        let params = Strength.aggressive.parameters(using: .defaults)
+        let opts = CleanRunner.Options(modelPath: "/models/ggml.bin",
+                                       removeFillers: true,
+                                       backupDirectory: URL(fileURLWithPath: "/tmp/orig"))
+        let args = CleanRunner.arguments(scriptPath: "/eng/clean_video.py",
+                                         input: URL(fileURLWithPath: "/v/in.mp4"),
+                                         parameters: params, options: opts)
+        XCTAssertEqual(args.first, "/eng/clean_video.py")
+        XCTAssertEqual(args[1], "/v/in.mp4")
+        XCTAssertTrue(args.contains("--ndjson"))
+        XCTAssertTrue(args.contains("--hardware"))                 // defaults enable HW
+        XCTAssertEqual(valueAfter("--model", in: args), "/models/ggml.bin")
+        XCTAssertEqual(valueAfter("--backup-dir", in: args), "/tmp/orig")
+        XCTAssertFalse(args.contains("--no-fillers"))
+        XCTAssertFalse(args.contains("--no-backup"))
+        XCTAssertEqual(valueAfter("--pause", in: args), String(Strength.aggressive.pause))
+    }
+
+    func testCleanRunnerArgumentsForPausesOnlyNoBackup() {
+        let params = Strength.gentle.parameters(using: .defaults)
+        let opts = CleanRunner.Options(modelPath: nil, removeFillers: false, backupDirectory: nil)
+        let args = CleanRunner.arguments(scriptPath: "/eng/clean_video.py",
+                                         input: URL(fileURLWithPath: "/v/in.mov"),
+                                         parameters: params, options: opts)
+        XCTAssertTrue(args.contains("--no-fillers"))               // fillers off
+        XCTAssertFalse(args.contains("--model"))                   // ⇒ no model flag
+        XCTAssertTrue(args.contains("--no-backup"))                // no backup dir
+        XCTAssertFalse(args.contains("--backup-dir"))
+        XCTAssertFalse(args.contains("--out-dir"))                 // default ⇒ beside source
+    }
+
+    func testSplitFlagOnlyWhenEnabled() {
+        // Off by default → no --split; on → the flag is passed for every strength.
+        XCTAssertFalse(EngineConfig.defaults.splitTracks)
+        let opts = CleanRunner.Options(modelPath: nil, removeFillers: false)
+        let off = CleanRunner.arguments(scriptPath: "/eng/clean_video.py",
+                                        input: URL(fileURLWithPath: "/v/in.mp4"),
+                                        parameters: Strength.aggressive.parameters(using: .defaults),
+                                        options: opts)
+        XCTAssertFalse(off.contains("--split"))
+
+        var cfg = EngineConfig.defaults
+        cfg.splitTracks = true
+        let on = CleanRunner.arguments(scriptPath: "/eng/clean_video.py",
+                                       input: URL(fileURLWithPath: "/v/in.mp4"),
+                                       parameters: Strength.aggressive.parameters(using: cfg),
+                                       options: opts)
+        XCTAssertTrue(on.contains("--split"))
+        XCTAssertEqual(valueAfter("--split-audio", in: on), "match")   // default format
+    }
+
+    func testSplitAudioFormatCarriesThrough() {
+        // The chosen audio-stem format reaches the engine; off ⇒ no --split-audio.
+        var cfg = EngineConfig.defaults
+        cfg.splitTracks = true
+        cfg.splitAudioFormat = "wav"
+        let opts = CleanRunner.Options(modelPath: nil, removeFillers: false)
+        let on = CleanRunner.arguments(scriptPath: "/eng/clean_video.py",
+                                       input: URL(fileURLWithPath: "/v/in.mp4"),
+                                       parameters: Strength.aggressive.parameters(using: cfg), options: opts)
+        XCTAssertEqual(valueAfter("--split-audio", in: on), "wav")
+
+        let off = CleanRunner.arguments(scriptPath: "/eng/clean_video.py",
+                                        input: URL(fileURLWithPath: "/v/in.mp4"),
+                                        parameters: Strength.aggressive.parameters(using: .defaults),
+                                        options: opts)
+        XCTAssertFalse(off.contains("--split-audio"))
+    }
+
+    func testSplitTracksForwardCompatDefaultsOff() throws {
+        // A config predating the key decodes with split off.
+        let legacy = Data(#"{ "version": 3, "pauseThreshold": 0.4 }"#.utf8)
+        let cfg = try JSONDecoder().decode(EngineConfig.self, from: legacy)
+        XCTAssertFalse(cfg.splitTracks)
+    }
+
+    func testWaveformFlagOnlyWhenRequested() {
+        // The app asks for a waveform (N buckets); the bare CLI / watcher leave it
+        // off so they don't pay for data nothing renders.
+        let params = Strength.aggressive.parameters(using: .defaults)
+        let withWave = CleanRunner.Options(modelPath: nil, removeFillers: false,
+                                           backupDirectory: nil, waveformBuckets: 120)
+        let on = CleanRunner.arguments(scriptPath: "/eng/clean_video.py",
+                                       input: URL(fileURLWithPath: "/v/in.mp4"),
+                                       parameters: params, options: withWave)
+        XCTAssertEqual(valueAfter("--waveform", in: on), "120")
+
+        let off = CleanRunner.Options(modelPath: nil, removeFillers: false)
+        let none = CleanRunner.arguments(scriptPath: "/eng/clean_video.py",
+                                         input: URL(fileURLWithPath: "/v/in.mp4"),
+                                         parameters: params, options: off)
+        XCTAssertFalse(none.contains("--waveform"))
+    }
+
+    func testCleanRunnerArgumentsCarryOutputDirectory() {
+        // A chosen output folder (e.g. a NAS) reaches the engine as --out-dir;
+        // the default empty value is omitted (engine writes beside the source).
+        var cfg = EngineConfig.defaults
+        cfg.outputDirectory = "/Volumes/NAS/clean"
+        let opts = CleanRunner.Options(modelPath: nil, removeFillers: false, backupDirectory: nil)
+        let withDir = CleanRunner.arguments(scriptPath: "/eng/clean_video.py",
+                                            input: URL(fileURLWithPath: "/v/in.mp4"),
+                                            parameters: Strength.aggressive.parameters(using: cfg),
+                                            options: opts)
+        XCTAssertEqual(valueAfter("--out-dir", in: withDir), "/Volumes/NAS/clean")
+
+        let withoutDir = CleanRunner.arguments(scriptPath: "/eng/clean_video.py",
+                                               input: URL(fileURLWithPath: "/v/in.mp4"),
+                                               parameters: Strength.aggressive.parameters(using: .defaults),
+                                               options: opts)
+        XCTAssertFalse(withoutDir.contains("--out-dir"))
+    }
+
+    func testOutputTagRoundTrips() throws {
+        // OutputTag must read back the same `user.crisp.source` xattr the engine
+        // writes (cross-language compatibility for the watch-folder dedup).
+        let dir = FileManager.default.temporaryDirectory
+        let file = dir.appendingPathComponent("crisp-tag-\(UUID().uuidString).mov")
+        try Data("x".utf8).write(to: file)
+        defer { try? FileManager.default.removeItem(at: file) }
+
+        let value = "/videos/talk.mov"
+        let set = value.withCString { setxattr(file.path, OutputTag.key, $0, strlen($0), 0, 0) }
+        try XCTSkipIf(set != 0, "filesystem doesn't support extended attributes")
+
+        XCTAssertEqual(OutputTag.source(ofFileAt: file.path), value)
+        XCTAssertNil(OutputTag.source(ofFileAt: dir.appendingPathComponent("nope").path))
+    }
+
+    // MARK: - Video filtering (drop zone / Finder Service / watch folder)
+
+    func testVideoExtensionsCoverContainersNotOthers() {
+        for ext in ["mov", "mp4", "mkv", "m4v", "avi", "webm", "flv"] {
+            XCTAssertTrue(CleanRunner.videoExtensions.contains(ext), "\(ext) should be cleanable")
+        }
+        for ext in ["txt", "png", "mp3", "pdf", ""] {
+            XCTAssertFalse(CleanRunner.videoExtensions.contains(ext), "\(ext) should be ignored")
+        }
+    }
+
+    // MARK: - Shortcuts intent strength mapping
+
+    func testIntentStrengthChoiceMapsToPreset() {
+        XCTAssertEqual(CleanStrengthChoice.gentle.strength, .gentle)
+        XCTAssertEqual(CleanStrengthChoice.balanced.strength, .balanced)
+        XCTAssertEqual(CleanStrengthChoice.aggressive.strength, .aggressive)
+        XCTAssertEqual(CleanStrengthChoice.veryAggressive.strength, .veryAggressive)
+    }
+
+    // MARK: - Presets
+
+    func testPresetDefaultsAndConcurrencyForwardCompat() throws {
+        // A v2 file (no preset/parallelism keys) fills the new keys with defaults —
+        // presets empty, no default preset, Automatic parallelism.
+        let legacy = Data(#"{ "version": 2, "pauseThreshold": 0.4, "backupOriginal": false }"#.utf8)
+        let cfg = try JSONDecoder().decode(EngineConfig.self, from: legacy)
+        XCTAssertEqual(cfg.pauseThreshold, 0.4)        // preserved
+        XCTAssertFalse(cfg.backupOriginal)             // preserved
+        XCTAssertEqual(cfg.presets, [])                // new → default
+        XCTAssertEqual(cfg.defaultPresetID, "")
+        XCTAssertEqual(cfg.concurrencyMode, "auto")
+        XCTAssertEqual(cfg.manualConcurrency, 2)
+        XCTAssertEqual(cfg.perJobMemoryBudgetMB, 2048)
+    }
+
+    func testPresetResolvesLikeGlobalPath() {
+        // A preset must resolve to exactly the same parameters as taking its
+        // strength through the global config it was built from.
+        var cfg = EngineConfig.defaults
+        cfg.pauseThreshold = 1.1; cfg.breathingRoom = 0.22; cfg.silenceFloorDB = -24; cfg.minKeep = 0.15
+        cfg.videoCodec = "h264"; cfg.audioCodec = "opus"; cfg.outputContainer = "mkv"
+        cfg.outputDirectory = "/Volumes/NAS"; cfg.backupOriginal = false
+        for strength in [Strength.gentle, .aggressive, .custom] {
+            let preset = Preset(name: "P", strength: strength, config: cfg)
+            XCTAssertEqual(preset.parameters(), strength.parameters(using: cfg),
+                           "\(strength.rawValue) preset should match the global path")
+        }
+    }
+
+    func testPresetRoundTripsThroughConfig() throws {
+        var cfg = EngineConfig.defaults
+        cfg.presets = [Preset(name: "YouTube", strength: .custom, config: cfg)]
+        cfg.defaultPresetID = cfg.presets[0].id.uuidString
+        let round = try JSONDecoder().decode(EngineConfig.self, from: JSONEncoder().encode(cfg))
+        XCTAssertEqual(round, cfg)
+    }
+
+    // MARK: - Resource governor
+
+    private func snap(physGB: Double, availGB: Double, pCores: Int,
+                      thermal: ProcessInfo.ThermalState = .nominal) -> SystemSnapshot {
+        let gb = { (v: Double) in UInt64(v * 1024 * 1024 * 1024) }
+        return SystemSnapshot(physicalMemory: gb(physGB), availableMemory: gb(availGB),
+                              performanceCoreCount: pCores, thermalState: thermal)
+    }
+
+    func testGovernorNeverGoesBelowSerial() {
+        // Almost no free memory still allows one clean (serial is always safe).
+        let s = snap(physGB: 8, availGB: 0.5, pCores: 4)
+        XCTAssertEqual(ResourceGovernor.recommended(snapshot: s, config: .defaults), 1)
+    }
+
+    func testGovernorCappedByMediaEngineForHardware() {
+        // A big machine with hardware encoding is bounded by the shared media engine.
+        let s = snap(physGB: 64, availGB: 32, pCores: 10)
+        XCTAssertEqual(ResourceGovernor.recommended(snapshot: s, config: .defaults),
+                       ResourceGovernor.mediaEngineCap)
+    }
+
+    func testGovernorSoftwareEncodeLiftsMediaCap() {
+        // Software encoding has no media-engine contention, so the CPU cap governs.
+        var cfg = EngineConfig.defaults
+        cfg.hardwareEncoding = false
+        let s = snap(physGB: 64, availGB: 32, pCores: 10)   // cpuCap = 10/2 = 5
+        XCTAssertEqual(ResourceGovernor.recommended(snapshot: s, config: cfg), 5)
+    }
+
+    func testGovernorThermalPressureForcesSerial() {
+        let hot = snap(physGB: 64, availGB: 32, pCores: 10, thermal: .serious)
+        XCTAssertEqual(ResourceGovernor.recommended(snapshot: hot, config: .defaults), 1)
+    }
+
+    func testGovernorMemoryBoundsConcurrency() {
+        // ~6 GB free, 2 GB reserve, 2 GB per job ⇒ (6-2)/2 = 2 fit, even with cores
+        // to spare and software encoding (so the cap is purely memory).
+        var cfg = EngineConfig.defaults
+        cfg.hardwareEncoding = false
+        let s = snap(physGB: 16, availGB: 6, pCores: 10)
+        XCTAssertEqual(ResourceGovernor.recommended(snapshot: s, config: cfg), 2)
+    }
+
+    func testManualConcurrencyClampedToCeiling() {
+        var cfg = EngineConfig.defaults
+        cfg.manualConcurrency = 10
+        let s = snap(physGB: 64, availGB: 64, pCores: 10)   // ceiling = mediaEngineCap (3)
+        XCTAssertEqual(ResourceGovernor.plannedConcurrency(mode: .manual, snapshot: s, config: cfg),
+                       ResourceGovernor.mediaEngineCap)
+    }
+
+    func testUltraPreflightFitsAndFails() {
+        let cfg = EngineConfig.defaults                      // 2 GB/job + 2 GB reserve
+        // Requesting 3 needs 3*2 + 2 = 8 GB free.
+        let enough = snap(physGB: 64, availGB: 10, pCores: 10)
+        XCTAssertTrue(ResourceGovernor.preflight(requested: 3, snapshot: enough, config: cfg).fits)
+        let tooLittle = snap(physGB: 64, availGB: 6, pCores: 10)
+        let verdict = ResourceGovernor.preflight(requested: 3, snapshot: tooLittle, config: cfg)
+        XCTAssertFalse(verdict.fits)
+        XCTAssertFalse(verdict.thermalBlocked)
+    }
+
+    func testUltraPreflightBlocksWhenHot() {
+        let hot = snap(physGB: 64, availGB: 64, pCores: 10, thermal: .critical)
+        let verdict = ResourceGovernor.preflight(requested: 2, snapshot: hot, config: .defaults)
+        XCTAssertFalse(verdict.fits)
+        XCTAssertTrue(verdict.thermalBlocked)
+    }
+
+    /// The argument value immediately following `flag`, or nil if absent.
+    private func valueAfter(_ flag: String, in args: [String]) -> String? {
+        guard let i = args.firstIndex(of: flag), i + 1 < args.count else { return nil }
+        return args[i + 1]
     }
 }

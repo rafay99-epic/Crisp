@@ -16,8 +16,8 @@ export function TheApp() {
         />
         <Reveal delay={0.1}>
           <p className="mx-auto mt-5 max-w-xl text-[18px] leading-relaxed text-white/55">
-            No timeline to learn, no project to set up. It looks and behaves like an app Apple
-            would ship — because it's built to.
+            No timeline to learn, no project to set up. It looks and behaves like an app Apple would
+            ship — because it's built to.
           </p>
         </Reveal>
       </div>
@@ -26,9 +26,15 @@ export function TheApp() {
         <div className="relative">
           <span
             className="orb left-1/2 top-1/2 size-[560px] -translate-x-1/2 -translate-y-1/2"
-            style={{ background: "radial-gradient(circle, rgba(10,132,255,0.22), transparent 70%)" }}
+            style={{
+              background: "radial-gradient(circle, rgba(10,132,255,0.22), transparent 70%)",
+            }}
           />
-          <Tilt max={7} className="relative w-[min(92vw,560px)]" style={{ transformStyle: "preserve-3d" }}>
+          <Tilt
+            max={7}
+            className="relative w-[min(92vw,560px)]"
+            style={{ transformStyle: "preserve-3d" }}
+          >
             <AppWindow />
           </Tilt>
         </div>

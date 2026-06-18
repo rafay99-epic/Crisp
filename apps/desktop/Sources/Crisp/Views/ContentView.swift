@@ -1,44 +1,124 @@
 import SwiftUI
 import UniformTypeIdentifiers
+import CrispCore
 
 struct ContentView: View {
     @Bindable var model: CleanModel
     @Bindable var updater: Updater
     @Bindable var modelStore: ModelStore
     @Bindable var settings: EngineSettings
+    @Bindable var watchAgent: WatchAgentController
+    @Bindable var onboarding: OnboardingController
+    @Bindable var player: PreviewPlayer
     @State private var importing = false
+    @State private var showUltraSheet = false
+    @State private var ultraTarget = 1
+    @State private var ultraVerdict: ResourceGovernor.Verdict?
 
     /// Filler-word removal needs the speech model; pauses-only doesn't.
     private var needsModel: Bool { model.removeFillers }
+
+    /// Resolve a queued file's recipe: its own preset if it has one, otherwise the
+    /// live global strength + settings shown in the bottom bar. (A "default for new
+    /// files" preset is stamped onto rows when they're added, so a row with no
+    /// preset genuinely means "use the global controls" — no hidden override.)
+    private func resolveParameters(_ item: QueueItem) -> CleanParameters {
+        if let preset = settings.preset(withID: item.presetID) { return preset.parameters() }
+        return model.strength.parameters(using: settings.config)
+    }
+
+    /// Decide the parallel count from the governor, and for Ultra gate on a
+    /// free-resource preflight before starting.
+    private func attemptStart() {
+        let snapshot = SystemProbe.snapshot()
+        let mode = ConcurrencyMode(storage: settings.concurrencyMode)
+        let plan = ResourceGovernor.plannedConcurrency(mode: mode, snapshot: snapshot, config: settings.config)
+        if mode == .ultra {
+            let verdict = ResourceGovernor.preflight(requested: plan, snapshot: snapshot, config: settings.config)
+            guard verdict.fits else {
+                ultraTarget = plan
+                ultraVerdict = verdict
+                showUltraSheet = true
+                return
+            }
+        }
+        launch(concurrency: plan)
+    }
+
+    /// Re-run the Ultra preflight (the sheet's "Check Again"): start if it now fits,
+    /// otherwise refresh the shortfall shown in the sheet.
+    private func recheckUltra() {
+        let snapshot = SystemProbe.snapshot()
+        let verdict = ResourceGovernor.preflight(requested: ultraTarget, snapshot: snapshot, config: settings.config)
+        if verdict.fits {
+            showUltraSheet = false
+            launch(concurrency: ultraTarget)
+        } else {
+            ultraVerdict = verdict
+        }
+    }
+
+    private func launch(concurrency: Int) {
+        Task {
+            await model.start(modelPath: modelStore.readyModelPath,
+                              concurrency: concurrency,
+                              resolveParameters: resolveParameters)
+        }
+    }
     private var modelBlocks: Bool { needsModel && !modelStore.state.isReady }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            header
+        // The welcome flow owns the whole window on first launch — the main app
+        // stays hidden until onboarding is finished or skipped.
+        if onboarding.isPresented {
+            OnboardingView(onboarding: onboarding, modelStore: modelStore,
+                           settings: settings, watchAgent: watchAgent)
+        } else {
+            workspace
+        }
+    }
+
+    /// The working layout: transient banners on top, then either the empty-state
+    /// hero (no files yet) or the queue list filling the window above a pinned
+    /// bottom bar. The window is resizable, so the list — not the chrome — takes
+    /// the slack on any screen size.
+    private var workspace: some View {
+        VStack(spacing: 0) {
             UpdateBanner(updater: updater)
-            DropCard(model: model, importing: $importing)
-            OptionsCard(model: model)
-            BackupStatusView(backupOn: settings.backupOriginal)
             if modelBlocks || modelStore.state.isBusy {
                 ModelStatusView(store: modelStore)
+                    .padding(.horizontal, 16).padding(.top, 10)
             }
-            actionButton
-            if model.isRunning || !model.results.isEmpty || model.errorMessage != nil {
-                ProgressSection(model: model)
-            }
-            if !model.results.isEmpty && !model.isRunning {
-                ResultCard(model: model)
+            if model.queue.isEmpty {
+                emptyHero
+            } else {
+                QueueView(model: model, settings: settings, player: player)
+                Divider()
+                BottomBar(model: model, settings: settings,
+                          modelBlocks: modelBlocks, onStart: attemptStart)
             }
         }
-        .padding(24)
-        .frame(width: 560, alignment: .leading)
+        // Min width keeps the bottom bar's recipe + action on one line (no wrapping)
+        // at the smallest size; the queue takes any extra height/width.
+        .frame(minWidth: 600, minHeight: 460)
         .background(.background)
+        // Keep the "default for new files" preset the model stamps onto added rows
+        // in sync with Settings, in both directions and at first appearance.
+        .onChange(of: settings.defaultPresetID, initial: true) {
+            model.newItemPresetID = settings.defaultPreset?.id
+        }
+        .dropDestination(for: URL.self) { urls, _ in
+            model.addFiles(urls)
+            return true
+        }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                SettingsLink {
-                    Label("Settings", systemImage: "gearshape")
-                }
-                .help("Settings")
+                Button { importing = true } label: { Label("Add Videos", systemImage: "plus") }
+                    .help("Add videos")
+            }
+            ToolbarItem(placement: .primaryAction) {
+                SettingsLink { Label("Settings", systemImage: "gearshape") }
+                    .help("Settings")
             }
         }
         .fileImporter(isPresented: $importing,
@@ -46,6 +126,27 @@ struct ContentView: View {
                       allowsMultipleSelection: true) { result in
             if case .success(let urls) = result { model.addFiles(urls) }
         }
+        .sheet(isPresented: $showUltraSheet) {
+            if let verdict = ultraVerdict {
+                UltraPreflightSheet(target: ultraTarget, verdict: verdict,
+                                    onCheckAgain: recheckUltra,
+                                    onCancel: { showUltraSheet = false })
+            }
+        }
+    }
+
+    /// Empty state — app identity + the inviting drop zone, centered. This is the
+    /// focused single-purpose look the app opens with.
+    private var emptyHero: some View {
+        VStack(spacing: 18) {
+            Spacer(minLength: 0)
+            header
+            DropCard(model: model, importing: $importing)
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: 460)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(24)
     }
 
     /// App identity — the real app icon (per-channel) + wordmark + tagline.
@@ -69,43 +170,6 @@ struct ContentView: View {
                     .font(.callout).foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
-        }
-    }
-
-    @ViewBuilder private var actionButton: some View {
-        if model.isRunning {
-            Button(role: .cancel) {
-                model.cancel()
-            } label: {
-                HStack {
-                    Image(systemName: "xmark.circle.fill")
-                    Text("Cancel")
-                }
-                .frame(maxWidth: .infinity)
-                .font(.headline)
-                .padding(.vertical, 6)
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.large)
-            .tint(.red)
-            .keyboardShortcut(.cancelAction)
-        } else {
-            Button {
-                let params = model.strength.parameters(using: settings.config)
-                Task { await model.start(modelPath: modelStore.readyModelPath, parameters: params) }
-            } label: {
-                HStack {
-                    Image(systemName: "scissors")
-                    Text("Clean Video")
-                }
-                .frame(maxWidth: .infinity)
-                .font(.headline)
-                .padding(.vertical, 6)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .disabled(model.files.isEmpty || modelBlocks)
-            .keyboardShortcut(.return, modifiers: .command)
         }
     }
 }

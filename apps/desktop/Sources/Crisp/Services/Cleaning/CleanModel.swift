@@ -1,210 +1,331 @@
 import Foundation
 import SwiftUI
+import CrispCore
 
-/// One line of the engine's `--ndjson` output.
-private struct Event: Decodable {
-    let event: String
-    var message: String?
-    var fraction: Double?
-    var label: String?
-    var output: String?
-    var orig_seconds: Double?
-    var new_seconds: Double?
-    var saved_seconds: Double?
-    var pauses: Int?
-    var fillers: Int?
-}
-
-/// Drives the Python engine as a subprocess and publishes its progress/results to
-/// the UI. Knows nothing about views — it spawns `clean_video.py … --ndjson` and
-/// decodes the event stream into observable state.
+/// Drives the cleaning of the user's queued videos and publishes per-file progress
+/// and results to the UI. The actual subprocess work lives in `CrispCore.CleanRunner`
+/// (shared with the Finder Service, the App Intent, and the watch-folder agent);
+/// this type owns the queue, the multi-file loop, the observable state the views
+/// bind to, and cancellation.
 @MainActor
 @Observable
 final class CleanModel {
-    var files: [URL] = []
+    /// The clean queue, built one file at a time. Order is process order; the user
+    /// reorders the waiting tail to choose what runs first.
+    var queue: [QueueItem] = []
     var strength: Strength = .aggressive
     var removeFillers = true
+    /// The preset stamped onto newly added files (the user's "default for new
+    /// files"); kept in sync with settings by the view. `nil` ⇒ new files use the
+    /// live global strength.
+    var newItemPresetID: UUID?
 
     var isRunning = false
-    var progress: Double = 0
     var status = "Choose a video to begin."
-    var logLines: [String] = []
-    var results: [CleanResult] = []
+    /// A batch-level error (e.g. the speech model couldn't be fetched). Per-file
+    /// failures live on the individual `QueueItem`, not here.
     var errorMessage: String?
 
-    /// The engine subprocess for the file being cleaned, plus a cancel flag — so
-    /// `cancel()` can stop a run mid-flight.
-    private var currentProcess: Process?
+    /// The cleaned outputs so far — derived from the queue, so the result card and
+    /// callers see finished files without a parallel array to keep in sync.
+    var results: [CleanResult] { queue.compactMap(\.result) }
+
+    /// Status tallies, derived once here so the views don't each re-filter the queue.
+    var waitingCount: Int { queue.lazy.filter { $0.isWaiting }.count }
+    var doneCount: Int { queue.lazy.filter { $0.status == .done }.count }
+
+    /// Aggregate progress across the whole queue: terminal items count as done,
+    /// the running ones contribute their fraction, waiting ones contribute nothing.
+    var overallProgress: Double {
+        guard !queue.isEmpty else { return 0 }
+        let sum = queue.reduce(0.0) { acc, item in
+            switch item.status {
+            case .done, .failed, .cancelled: return acc + 1
+            case .running:                   return acc + item.progress
+            case .waiting:                   return acc
+            }
+        }
+        return sum / Double(queue.count)
+    }
+
+    /// The in-flight run, so `cancel()` can stop it mid-batch (cancelling the task
+    /// terminates the engine subprocess via `CleanRunner`'s cancellation handler).
+    private var runTask: Task<Void, Never>?
     private var cancelled = false
+    /// A model download in flight (only during an auto-provisioning start), so
+    /// `cancel()` can stop it before the clean loop even begins.
+    private var activeProvisioner: ModelProvisioner?
 
-    private static let videoExtensions: Set<String> =
-        ["mov", "mp4", "mkv", "m4v", "avi", "webm", "flv"]
+    // MARK: - Queue editing
 
-    /// The folder all backed-up originals live under (`~/.crisp*/Originals/`).
-    /// Each run drops into a dated subfolder beneath it; this is the stable parent
-    /// the UI shows and reveals in Finder.
-    nonisolated static var backupParentDirectory: URL {
-        Channel.current.dataDirectory.appendingPathComponent("Originals", isDirectory: true)
-    }
-
-    /// Where backed-up originals are kept: a date-stamped folder under the
-    /// channel's data home (`~/.crisp*/Originals/2026-06-18/`). Grouping by day
-    /// keeps a session's originals together without cluttering the source folder.
-    nonisolated static func backupDirectory(for date: Date = Date()) -> URL {
-        backupParentDirectory.appendingPathComponent(Self.dayFormatter.string(from: date),
-                                                     isDirectory: true)
-    }
-
-    /// Stable `2026-06-18` folder names — fixed locale/format so they sort and
-    /// never shift with the user's region settings.
-    private static let dayFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.dateFormat = "yyyy-MM-dd"
-        return f
-    }()
-
+    /// Append newly chosen videos to the queue (deduped against what's already
+    /// queued), so files accumulate one at a time instead of replacing the batch.
     func addFiles(_ urls: [URL]) {
-        let videos = urls.filter { Self.videoExtensions.contains($0.pathExtension.lowercased()) }
+        let videos = urls.filter { CleanRunner.videoExtensions.contains($0.pathExtension.lowercased()) }
         guard !videos.isEmpty else { return }
-        files = videos
-        results = []
+        var existing = Set(queue.map { $0.url.standardizedFileURL })
+        let fresh = videos.filter { existing.insert($0.standardizedFileURL).inserted }
+        guard !fresh.isEmpty else { return }
+        queue.append(contentsOf: fresh.map { QueueItem(url: $0, presetID: newItemPresetID) })
         errorMessage = nil
-        progress = 0
-        logLines = []
-        status = files.count == 1
-            ? "Ready: \(files[0].lastPathComponent)"
-            : "Ready: \(files.count) videos"
+        updateIdleStatus()
+    }
+
+    /// Drop a row from the queue — anything except the one currently being cleaned.
+    func remove(_ id: QueueItem.ID) {
+        guard let idx = queue.firstIndex(where: { $0.id == id }), queue[idx].status != .running else { return }
+        queue.remove(at: idx)
+        if !isRunning { updateIdleStatus() }
+    }
+
+    /// Put a failed/canceled file back to waiting so the next Clean picks it up.
+    func retry(_ id: QueueItem.ID) {
+        guard let idx = queue.firstIndex(where: { $0.id == id }),
+              queue[idx].status == .failed || queue[idx].status == .cancelled else { return }
+        queue[idx].status = .waiting
+        queue[idx].error = nil
+        queue[idx].progress = 0
+        queue[idx].result = nil
+        if !isRunning { updateIdleStatus() }
+    }
+
+    /// Queue a fresh pass over an already-cleaned file's original — e.g. to redo it
+    /// with a different preset. The finished row stays; a new waiting row is added.
+    func reclean(_ id: QueueItem.ID) {
+        guard let item = queue.first(where: { $0.id == id }) else { return }
+        queue.append(QueueItem(url: item.url, presetID: item.presetID))
+        if !isRunning { updateIdleStatus() }
+    }
+
+    /// Reorder among the waiting tail only — you can't reorder something that's
+    /// already running or finished. Destination is clamped into the waiting region.
+    func moveWaiting(fromOffsets: IndexSet, toOffset: Int) {
+        guard fromOffsets.allSatisfy({ queue[$0].isWaiting }) else { return }
+        let firstWaiting = queue.firstIndex(where: { $0.isWaiting }) ?? queue.count
+        queue.move(fromOffsets: fromOffsets, toOffset: max(toOffset, firstWaiting))
     }
 
     func reset() {
-        files = []
-        results = []
+        guard !isRunning else { return }
+        queue = []
         errorMessage = nil
-        progress = 0
-        logLines = []
         status = "Choose a video to begin."
     }
 
+    // MARK: - Running
+
     /// `modelPath` is the verified whisper model from `ModelStore` (nil when the
-    /// user turned fillers off — pauses-only needs no model). `parameters` are the
-    /// numeric cutting knobs derived from the chosen strength (or custom settings).
-    func start(modelPath: String?, parameters: CleanParameters) async {
-        guard !files.isEmpty, !isRunning else { return }
+    /// user turned fillers off — pauses-only needs no model). `resolveParameters`
+    /// maps each queued file to its recipe (a per-file preset, or the window's
+    /// default); it's called up front on the main actor so the run only carries
+    /// plain `Sendable` values. `concurrency` is how many files to clean at once
+    /// (1 = serial; the resource governor supplies a larger number).
+    ///
+    /// `provisioner` is used only by external triggers (the Finder Service) that
+    /// may run before the model is downloaded: when fillers are on and no
+    /// `modelPath` is given, the model is fetched first (progress shown in the
+    /// window). The normal in-app path passes a ready `modelPath` and no
+    /// provisioner, so this step is skipped.
+    func start(modelPath: String?,
+               concurrency: Int = 1,
+               resolveParameters: (QueueItem) -> CleanParameters,
+               provisioner: ModelProvisioner? = nil) async {
+        let waiting = queue.filter { $0.status == .waiting }
+        guard !waiting.isEmpty, !isRunning else { return }
         isRunning = true
         cancelled = false
-        results = []
         errorMessage = nil
-        logLines = []
-        progress = 0
 
-        let total = Double(files.count)
-        for (idx, url) in files.enumerated() {
-            if cancelled { break }
-            let base = Double(idx) / total
-            let span = 1.0 / total
-            if files.count > 1 {
-                logLines.append("\u{2014} Video \(idx + 1) of \(files.count): \(url.lastPathComponent)")
-            }
-            do {
-                try await runOne(url, base: base, span: span, modelPath: modelPath, parameters: parameters)
-            } catch {
-                if cancelled { break }
-                errorMessage = error.localizedDescription
-                status = "Something went wrong."
-                break
-            }
+        // Freeze the recipe for the whole run: the per-file parameters and the
+        // filler/model choice are all snapshotted now, so flipping a control
+        // afterward can't change files that are already in flight.
+        let fillers = removeFillers
+        var params: [QueueItem.ID: CleanParameters] = [:]
+        for item in waiting { params[item.id] = resolveParameters(item) }
+        let waitingIDs = waiting.map(\.id)
+
+        var resolvedModel = modelPath
+        if fillers, resolvedModel == nil, let provisioner {
+            guard let m = await provisionModel(provisioner) else { return }
+            resolvedModel = m
         }
 
+        let model = resolvedModel
+        let lanes = max(1, concurrency)
+        let work = Task { @MainActor in
+            await self.drain(waitingIDs: waitingIDs, params: params,
+                             modelPath: model, removeFillers: fillers, lanes: lanes)
+        }
+        runTask = work
+        await work.value
+        runTask = nil
+
         isRunning = false
-        currentProcess = nil
-        if cancelled {
-            status = "Canceled. Your original is untouched."
-            progress = 0
-        } else if errorMessage == nil {
-            progress = 1
-            status = "Done! Saved next to your original."
+        finishStatus()
+    }
+
+    /// Run the queued files through up to `lanes` concurrent cleans, refilling a
+    /// lane as soon as one finishes (so overflow files start automatically). With
+    /// `lanes == 1` this is a plain serial pass.
+    private func drain(waitingIDs: [QueueItem.ID], params: [QueueItem.ID: CleanParameters],
+                       modelPath: String?, removeFillers: Bool, lanes: Int) async {
+        await withTaskGroup(of: Void.self) { group in
+            var next = 0
+            func startNext() -> Bool {
+                while next < waitingIDs.count {
+                    let id = waitingIDs[next]
+                    next += 1
+                    guard let p = params[id] else { continue }
+                    group.addTask { @MainActor in
+                        await self.runOne(id: id, modelPath: modelPath,
+                                          removeFillers: removeFillers, parameters: p)
+                    }
+                    return true
+                }
+                return false
+            }
+            var active = 0
+            for _ in 0..<lanes where startNext() { active += 1 }
+            while active > 0 {
+                await group.next()
+                active -= 1
+                if !cancelled, startNext() { active += 1 }
+            }
         }
     }
 
-    /// Stop the in-progress clean. The original is never modified, so canceling is
-    /// always safe; a partially-rendered output may be left beside it.
+    /// Stop the in-progress batch. The originals are never modified, so canceling is
+    /// always safe; the running file's partial output may be left beside it, and the
+    /// still-waiting items stay queued so the user can resume with Clean.
     func cancel() {
         guard isRunning, !cancelled else { return }
         cancelled = true
         status = "Canceling\u{2026}"
-        currentProcess?.terminate()
+        runTask?.cancel()
+        if let activeProvisioner {           // stop a model download that hasn't finished yet
+            Task { await activeProvisioner.cancel() }
+        }
     }
 
-    private func runOne(_ url: URL, base: Double, span: Double,
-                        modelPath: String?, parameters: CleanParameters) async throws {
-        let script = try CleanEngine.scriptURL()
-        let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: CleanEngine.python)
-        var args = [
-            script.path, url.path,
-            "--pause", String(parameters.pause),
-            "--noise", String(parameters.noiseDB),
-            "--keep-pause", String(parameters.keepPause),
-            "--min-keep", String(parameters.minKeep),
-            "--video-codec", parameters.videoCodec,
-            "--quality", parameters.videoQuality,
-            "--audio-codec", parameters.audioCodec,
-            "--audio-bitrate", String(parameters.audioBitrateKbps),
-            "--container", parameters.outputContainer,
-            "--ndjson"
-        ]
-        if parameters.hardwareEncoding { args.append("--hardware") }
-        if removeFillers, let model = modelPath { args += ["--model", model] }
-        if !removeFillers { args.append("--no-fillers") }
-        if parameters.backupOriginal {
-            args += ["--backup-dir", Self.backupDirectory().path]
-        } else {
-            args.append("--no-backup")
-        }
-        proc.arguments = args
+    // MARK: - One file
 
-        var env = ProcessInfo.processInfo.environment
-        // Point the engine at the binaries we ship; each falls back to PATH if it
-        // wasn't bundled (e.g. a plain `swift run` on a dev machine).
-        if let f = CleanEngine.bundledTool("ffmpeg") { env["CRISP_FFMPEG"] = f }
-        if let p = CleanEngine.bundledTool("ffprobe") { env["CRISP_FFPROBE"] = p }
-        if let w = CleanEngine.bundledTool("whisper-cli") { env["CRISP_WHISPER"] = w }
-        env["PATH"] = "/opt/homebrew/bin:" + (env["PATH"] ?? "")
-        proc.environment = env
-
-        let outPipe = Pipe()
-        proc.standardOutput = outPipe
-        proc.standardError = Pipe()
-        try proc.run()
-        currentProcess = proc
-
-        let decoder = JSONDecoder()
-        for try await line in outPipe.fileHandleForReading.bytes.lines {
-            if cancelled { break }
-            guard let data = line.data(using: .utf8),
-                  let ev = try? decoder.decode(Event.self, from: data) else { continue }
-            switch ev.event {
-            case "log":
-                if let m = ev.message { logLines.append(m) }
-            case "progress":
-                if let f = ev.fraction { progress = base + span * f }
-                if let l = ev.label, !l.isEmpty { status = l }
-            case "result":
-                results.append(CleanResult(
-                    output: ev.output ?? "",
-                    origSeconds: ev.orig_seconds ?? 0,
-                    newSeconds: ev.new_seconds ?? 0,
-                    savedSeconds: ev.saved_seconds ?? 0,
-                    pauses: ev.pauses ?? 0,
-                    fillers: ev.fillers ?? 0))
-            case "error":
-                throw NSError(domain: "Crisp", code: 1,
-                              userInfo: [NSLocalizedDescriptionKey: ev.message ?? "Unknown error"])
-            default:
-                break
+    /// Clean a single queued file end to end, moving it through running →
+    /// done/failed/cancelled. A single file failing marks just that item and lets
+    /// the rest of the batch continue.
+    private func runOne(id: QueueItem.ID, modelPath: String?,
+                        removeFillers: Bool, parameters: CleanParameters) async {
+        update(id) { $0.status = .running; $0.progress = 0 }
+        updateRunningStatus()
+        do {
+            let result = try await cleanOne(id: id, modelPath: modelPath,
+                                            removeFillers: removeFillers, parameters: parameters)
+            update(id) { $0.result = result; $0.status = .done; $0.progress = 1 }
+        } catch is CancellationError {
+            update(id) { $0.status = .cancelled }
+        } catch {
+            if cancelled {
+                update(id) { $0.status = .cancelled }
+            } else {
+                update(id) { $0.error = error.localizedDescription; $0.status = .failed }
             }
         }
-        proc.waitUntilExit()
+        updateRunningStatus()
+    }
+
+    private func cleanOne(id: QueueItem.ID, modelPath: String?,
+                          removeFillers: Bool, parameters: CleanParameters) async throws -> CleanResult {
+        guard let url = queue.first(where: { $0.id == id })?.url else { throw CancellationError() }
+        let backupDir = parameters.backupOriginal ? CleanRunner.backupDirectory() : nil
+        let options = CleanRunner.Options(modelPath: modelPath,
+                                          removeFillers: removeFillers,
+                                          backupDirectory: backupDir,
+                                          waveformBuckets: 120)
+        return try await CleanRunner().run(input: url, parameters: parameters, options: options) { [weak self] event in
+            guard case .progress(let fraction, _) = event else { return }
+            Task { @MainActor in
+                // Ignore a late callback for a file that's already finished.
+                guard let self, self.isRunning,
+                      self.queue.first(where: { $0.id == id })?.status == .running else { return }
+                self.update(id) { $0.progress = max(0, fraction) }
+            }
+        }
+    }
+
+    // MARK: - Helpers
+
+    /// Fetch the speech model up front for an external trigger; returns nil (and
+    /// leaves the model stopped) if it was canceled or failed.
+    private func provisionModel(_ provisioner: ModelProvisioner) async -> String? {
+        activeProvisioner = provisioner
+        status = "Getting the speech model ready\u{2026}"
+        defer { activeProvisioner = nil }
+        do {
+            let path = try await provisioner.ensureModel { [weak self] event in
+                Task { @MainActor in
+                    guard let self, self.isRunning else { return }
+                    switch event {
+                    case .downloading(let fraction):
+                        self.status = "Downloading speech model\u{2026} \(Int(max(0, fraction) * 100))%"
+                    case .verifying:
+                        self.status = "Verifying speech model\u{2026}"
+                    }
+                }
+            }
+            if cancelled { isRunning = false; status = "Canceled. Your originals are untouched."; return nil }
+            return path
+        } catch is CancellationError {
+            isRunning = false
+            status = "Canceled. Your originals are untouched."
+            return nil
+        } catch {
+            isRunning = false
+            errorMessage = "Couldn\u{2019}t get the speech model ready. \(error.localizedDescription)"
+            status = "Something went wrong."
+            return nil
+        }
+    }
+
+    private func update(_ id: QueueItem.ID, _ mutate: (inout QueueItem) -> Void) {
+        guard let idx = queue.firstIndex(where: { $0.id == id }) else { return }
+        mutate(&queue[idx])
+    }
+
+    private func updateIdleStatus() {
+        guard !isRunning else { return }
+        let waiting = queue.filter { $0.isWaiting }
+        switch waiting.count {
+        case 0:  status = queue.isEmpty ? "Choose a video to begin." : status
+        case 1:  status = "Ready: \(waiting[0].url.lastPathComponent)"
+        default: status = "Ready: \(waiting.count) videos"
+        }
+    }
+
+    private func updateRunningStatus() {
+        guard isRunning else { return }
+        status = "Cleaning\u{2026} \(doneCount) of \(queue.count) done"
+    }
+
+    private func finishStatus() {
+        if cancelled {
+            status = "Canceled. Your originals are untouched."
+            return
+        }
+        let failed = queue.filter { $0.status == .failed }.count
+        let done = doneCount
+        if failed > 0 {
+            errorMessage = failed == 1
+                ? "1 video couldn\u{2019}t be cleaned \u{2014} see the queue for details."
+                : "\(failed) videos couldn\u{2019}t be cleaned \u{2014} see the queue for details."
+            status = "Finished with \(failed) error\(failed == 1 ? "" : "s")."
+        } else {
+            status = done == 1 ? "Done! Saved next to your original."
+                               : "Done! Cleaned \(done) videos."
+        }
+        // Ping the user if they've switched away — the whole point of a batch is
+        // walking off while it runs.
+        if done > 0 {
+            let saved = results.reduce(0) { $0 + $1.savedSeconds }
+            Notifier.batchFinished(cleaned: done, savedSeconds: saved, failed: failed)
+        }
     }
 }

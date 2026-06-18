@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import CrispCore
 
 /// Checks GitHub Releases for newer builds, downloads the channel's DMG, and
 /// swaps the installed app in place. The repository is private, so requests

@@ -80,13 +80,25 @@ def main():
     p.add_argument("--no-fillers", action="store_true", help="only remove pauses, keep um/uh")
     p.add_argument("--no-backup", action="store_true",
                    help="don't copy the original aside before cutting")
+    p.add_argument("--split", action="store_true",
+                   help="also write separate video-only and audio-only files beside "
+                        "the cleaned output (for editing the picture and audio apart)")
+    p.add_argument("--split-audio", choices=["match", "wav"], default="match",
+                   help="audio-only track format when --split is set: 'match' copies "
+                        "the cleaned audio (m4a/opus), 'wav' re-encodes to PCM WAV")
     p.add_argument("--backup-dir", default=None,
                    help="folder to copy the original into (default: an '_originals' folder beside it)")
     p.add_argument("--out", default=None,
                    help="output path (default: <name>_cleaned.<ext> beside input, ext per --container)")
+    p.add_argument("--out-dir", default=None,
+                   help="folder to write the cleaned file into, keeping the "
+                        "<name>_cleaned.<ext> name (default: beside the input)")
     p.add_argument("--ndjson", action="store_true",
                    help="emit machine-readable progress as one JSON object per line "
                         "(used by the desktop app)")
+    p.add_argument("--waveform", type=int, default=0, metavar="N",
+                   help="also emit an N-bucket audio waveform (peaks + which slices "
+                        "were cut) in the result, for the app to render (0 = off)")
     args = p.parse_args()
 
     if args.ndjson:
@@ -107,6 +119,8 @@ def main():
                              audio_codec=args.audio_codec, audio_bitrate=args.audio_bitrate,
                              container=args.container, remove_fillers=not args.no_fillers,
                              backup=not args.no_backup, backup_dir=args.backup_dir,
+                             out_dir=args.out_dir, split_tracks=args.split,
+                             split_audio=args.split_audio, waveform_buckets=args.waveform,
                              on_log=on_log, on_progress=on_progress)
         if args.ndjson:
             emit({"event": "result", **result})

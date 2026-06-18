@@ -48,15 +48,21 @@ function SafeFiles() {
       <div className="flex items-center gap-3 rounded-xl bg-white/[0.04] p-3.5 ring-1 ring-white/[0.06]">
         <Lock className="size-5 text-white/55" />
         <span className="text-[14px] text-white/80">talk.mov</span>
-        <span className="ml-auto rounded-full bg-white/10 px-2.5 py-1 text-[11px] text-white/55">untouched</span>
+        <span className="ml-auto rounded-full bg-white/10 px-2.5 py-1 text-[11px] text-white/55">
+          untouched
+        </span>
       </div>
       <div className="my-2 ml-6 h-5 w-px bg-white/10" />
       <div className="flex items-center gap-3 rounded-xl bg-[var(--color-accent)]/12 p-3.5 ring-1 ring-[var(--color-accent)]/30">
         <CheckSeal className="size-5 text-[var(--color-accent-bright)]" />
         <span className="text-[14px] text-white">talk_cleaned.mov</span>
-        <span className="ml-auto rounded-full bg-[var(--color-accent)]/20 px-2.5 py-1 text-[11px] text-[var(--color-accent-bright)]">new file</span>
+        <span className="ml-auto rounded-full bg-[var(--color-accent)]/20 px-2.5 py-1 text-[11px] text-[var(--color-accent-bright)]">
+          new file
+        </span>
       </div>
-      <p className="mt-4 text-center text-[12px] text-white/40">Originals are copied to a dated backup first.</p>
+      <p className="mt-4 text-center text-[12px] text-white/40">
+        Originals are copied to a dated backup first.
+      </p>
     </div>
   );
 }
@@ -71,8 +77,8 @@ export function Capabilities() {
         />
         <Reveal delay={0.1}>
           <p className="mx-auto mt-6 max-w-xl text-[19px] leading-relaxed text-white/55">
-            The tedious pass nobody wants to do — finding every pause and filler — happens
-            the moment you drop a file in.
+            The tedious pass nobody wants to do — finding every pause and filler — happens the
+            moment you drop a file in.
           </p>
         </Reveal>
       </div>

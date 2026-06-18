@@ -1,10 +1,17 @@
 import SwiftUI
+import AppKit
+import ServiceManagement
+import CrispCore
 
 /// The ⌘, Settings window. Edits the four numeric cutting knobs used by the
 /// "Custom" strength; values persist to `~/.crisp*/config/settings.json`.
 struct SettingsView: View {
     @Bindable var settings: EngineSettings
     @Bindable var updater: Updater
+    @Bindable var watchAgent: WatchAgentController
+
+    @State private var newPresetName = ""
+    @State private var snapshot = SystemProbe.snapshot()
 
     /// Whether the chosen container dictates its own codecs (WebM → VP9 + Opus),
     /// in which case the codec controls are disabled. Reads the rule off the enum
@@ -136,6 +143,44 @@ struct SettingsView: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
 
+            presetsSection
+
+            performanceSection
+
+            Section {
+                LabeledContent("Cleaned files") {
+                    HStack(spacing: 8) {
+                        Text(outputLocationName)
+                            .foregroundStyle(settings.outputDirectory.isEmpty ? .secondary : .primary)
+                            .lineLimit(1).truncationMode(.middle)
+                        Button("Choose\u{2026}") { chooseOutputFolder() }
+                            .controlSize(.small)
+                    }
+                }
+                if !settings.outputDirectory.isEmpty {
+                    Button("Use the source video\u{2019}s folder") { settings.outputDirectory = "" }
+                        .controlSize(.small)
+                }
+                Toggle("Also export separate video & audio", isOn: $settings.splitTracks)
+                if settings.splitTracks {
+                    Picker("Audio track format", selection: $settings.splitAudioFormat) {
+                        ForEach(SplitAudioFormat.allCases) { Text($0.label).tag($0.rawValue) }
+                    }
+                }
+            } header: {
+                Text("Output location")
+            } footer: {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(settings.outputDirectory.isEmpty
+                         ? "Cleaned videos are saved next to the original \u{2014} the same folder you picked the video from."
+                         : "Cleaned videos are saved into this folder (e.g. a NAS). The original stays where it is.")
+                    Text(settings.splitTracks
+                         ? "Alongside each cleaned file, Crisp also writes a video-only and an audio-only copy \u{2014} so you can animate the picture while keeping the cleaned voiceover."
+                         : "Turn on \u{201C}separate video & audio\u{201D} to also get the picture and sound as their own files for editing.")
+                }
+                .font(.caption).foregroundStyle(.secondary)
+            }
+
             Section {
                 Toggle("Keep a backup of the original", isOn: $settings.backupOriginal)
             } header: {
@@ -146,6 +191,8 @@ struct SettingsView: View {
                      : "Crisp won\u{2019}t copy your original. It still never edits or deletes your source file \u{2014} only a new cleaned copy is written.")
                     .font(.caption).foregroundStyle(.secondary)
             }
+
+            watchSection
 
             Section {
                 LabeledContent("Version") {
@@ -163,7 +210,181 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 460, height: 560)
+        .frame(width: 460, height: 620)
+        .onAppear { watchAgent.refresh(); snapshot = SystemProbe.snapshot() }
+    }
+
+    // MARK: - Performance
+
+    private var concurrencyMode: ConcurrencyMode { ConcurrencyMode(storage: settings.concurrencyMode) }
+    private var modeBinding: Binding<ConcurrencyMode> {
+        Binding(get: { concurrencyMode }, set: { settings.concurrencyMode = $0.rawValue })
+    }
+    private var ceiling: Int { ResourceGovernor.hardwareCeiling(snapshot: snapshot, config: settings.config) }
+    private var recommended: Int { ResourceGovernor.recommended(snapshot: snapshot, config: settings.config) }
+
+    /// Selectable per-clean RAM budgets, labelled in GB.
+    private let memoryBudgets = [1024, 1536, 2048, 3072, 4096]
+
+    @ViewBuilder private var performanceSection: some View {
+        Section {
+            Picker("Cleaning at once", selection: modeBinding) {
+                ForEach(ConcurrencyMode.allCases) { Text($0.label).tag($0) }
+            }
+            Text(concurrencyMode.detail)
+                .font(.caption).foregroundStyle(.secondary)
+
+            if concurrencyMode == .manual {
+                Stepper("Run \(settings.manualConcurrency) at once",
+                        value: $settings.manualConcurrency, in: 1...max(1, ceiling))
+            }
+
+            Picker("Memory per video", selection: $settings.perJobMemoryBudgetMB) {
+                ForEach(memoryBudgets, id: \.self) { Text(gbLabel($0)).tag($0) }
+            }
+        } header: {
+            Text("Performance")
+        } footer: {
+            Text("This Mac can clean about \(recommended) at once right now (up to \(ceiling) when memory is free). Parallel cleaning is limited by the shared media engine and heat \u{2014} more at once isn\u{2019}t always faster.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    private func gbLabel(_ mb: Int) -> String {
+        let gb = Double(mb) / 1024
+        return gb == gb.rounded() ? "\(Int(gb)) GB" : String(format: "%.1f GB", gb)
+    }
+
+    // MARK: - Presets
+
+    private var defaultPresetBinding: Binding<UUID?> {
+        Binding(get: { UUID(uuidString: settings.defaultPresetID) },
+                set: { settings.setDefaultPreset($0) })
+    }
+
+    private var trimmedNewPresetName: String {
+        newPresetName.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    @ViewBuilder private var presetsSection: some View {
+        Section {
+            ForEach($settings.presets) { $preset in
+                HStack {
+                    TextField("Name", text: $preset.name)
+                        .textFieldStyle(.plain)
+                    Spacer()
+                    Button(role: .destructive) {
+                        settings.deletePreset(preset.id)
+                    } label: {
+                        Image(systemName: "trash")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Delete preset")
+                }
+            }
+            HStack {
+                TextField("New preset name\u{2026}", text: $newPresetName)
+                Button("Add") {
+                    settings.addPreset(named: trimmedNewPresetName, strength: .custom)
+                    newPresetName = ""
+                }
+                .disabled(trimmedNewPresetName.isEmpty)
+            }
+            if !settings.presets.isEmpty {
+                Picker("New files use", selection: defaultPresetBinding) {
+                    Text("Current settings").tag(UUID?.none)
+                    ForEach(settings.presets) { Text($0.name).tag(UUID?.some($0.id)) }
+                }
+            }
+        } header: {
+            Text("Presets")
+        } footer: {
+            Text("A preset saves the current cutting, encoding, output, and backup settings under a name. In the queue, pick a preset per file \u{2014} so different videos can be cleaned differently in one batch.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    // MARK: - Output location
+
+    private var outputLocationName: String {
+        settings.outputDirectory.isEmpty
+            ? "Same as the source video"
+            : (settings.outputDirectory as NSString).abbreviatingWithTildeInPath
+    }
+
+    private func chooseOutputFolder() {
+        if let path = FolderPicker.choosePath(message: "Choose where cleaned videos are saved.") {
+            settings.outputDirectory = path
+        }
+    }
+
+    // MARK: - Watch folder
+
+    /// Toggling this both saves the preference and registers/unregisters the
+    /// background LaunchAgent, so "on" really means "running in the background".
+    private var watchEnabledBinding: Binding<Bool> {
+        Binding(get: { settings.watchEnabled },
+                set: { on in
+                    settings.watchEnabled = on
+                    watchAgent.setEnabled(on)
+                })
+    }
+
+    private var watchFolderName: String {
+        settings.watchFolderPath.isEmpty
+            ? "No folder chosen"
+            : (settings.watchFolderPath as NSString).abbreviatingWithTildeInPath
+    }
+
+    @ViewBuilder private var watchSection: some View {
+        Section {
+            LabeledContent("Folder") {
+                HStack(spacing: 8) {
+                    Text(watchFolderName)
+                        .foregroundStyle(settings.watchFolderPath.isEmpty ? .secondary : .primary)
+                        .lineLimit(1).truncationMode(.middle)
+                    Button("Choose\u{2026}") { chooseWatchFolder() }
+                        .controlSize(.small)
+                }
+            }
+            Toggle("Auto-clean dropped recordings", isOn: watchEnabledBinding)
+                .disabled(settings.watchFolderPath.isEmpty)
+            Toggle("Remove filler words", isOn: $settings.watchRemoveFillers)
+                .disabled(!settings.watchEnabled)
+        } header: {
+            Text("Watch Folder")
+        } footer: {
+            watchFooter.font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder private var watchFooter: some View {
+        // The alarming states only make sense once the user has actually turned
+        // watching on; until then keep the neutral "how it works" hint.
+        if case .error(let message) = watchAgent.status {
+            Text(message).foregroundStyle(.red)
+        } else if settings.watchEnabled {
+            switch watchAgent.status {
+            case .requiresApproval:
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Allow Crisp in Login Items to start watching.")
+                    Button("Open Login Items\u{2026}") { SMAppService.openSystemSettingsLoginItems() }
+                        .controlSize(.small)
+                }
+            case .notFound:
+                Text("The background helper wasn\u{2019}t found. Reinstall Crisp to enable watching.")
+            default:
+                Text("Crisp watches this folder in the background \u{2014} even when this window is closed \u{2014} and cleans any recording dropped in.")
+            }
+        } else {
+            Text("Pick a folder, then turn on auto-clean. A cleaned copy is written beside each recording; your original is untouched.")
+        }
+    }
+
+    private func chooseWatchFolder() {
+        if let path = FolderPicker.choosePath(message: "Choose a folder to watch for new recordings.") {
+            settings.watchFolderPath = path
+        }
     }
 
     private func row(_ knob: Knob, _ value: Binding<Double>) -> some View {

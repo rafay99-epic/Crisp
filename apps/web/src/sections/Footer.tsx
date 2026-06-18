@@ -12,11 +12,21 @@ export function Footer() {
           <span className="text-white/40">— make your recordings crisp.</span>
         </div>
         <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
-          <Link to="/privacy" className="transition-colors hover:text-white">Privacy</Link>
-          <Link to="/terms" className="transition-colors hover:text-white">Terms</Link>
-          <a href={REPO} className="transition-colors hover:text-white">GitHub</a>
-          <a href={`${REPO}/blob/main/LICENSE`} className="transition-colors hover:text-white">GPL-3.0</a>
-          <a href={AUTHOR_URL} className="transition-colors hover:text-white">{AUTHOR}</a>
+          <Link to="/privacy" className="transition-colors hover:text-white">
+            Privacy
+          </Link>
+          <Link to="/terms" className="transition-colors hover:text-white">
+            Terms
+          </Link>
+          <a href={REPO} className="transition-colors hover:text-white">
+            GitHub
+          </a>
+          <a href={`${REPO}/blob/main/LICENSE`} className="transition-colors hover:text-white">
+            GPL-3.0
+          </a>
+          <a href={AUTHOR_URL} className="transition-colors hover:text-white">
+            {AUTHOR}
+          </a>
         </div>
       </div>
       <p className="mt-7 text-center text-[12px] text-white/30">
