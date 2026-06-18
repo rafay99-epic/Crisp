@@ -7,7 +7,7 @@ import SwiftUI
 @MainActor
 @Observable
 final class OnboardingController {
-    var isPresented = false
+    var isPresented: Bool
 
     private let seenKey = "hasCompletedOnboarding"
 
@@ -16,9 +16,10 @@ final class OnboardingController {
         set { UserDefaults.standard.set(newValue, forKey: seenKey) }
     }
 
-    /// Present the welcome flow the very first time the app is opened.
-    func presentIfFirstLaunch() {
-        if !hasSeen { isPresented = true }
+    init() {
+        // Decide synchronously at startup so the main UI never flashes before the
+        // welcome flow takes over the window on first launch.
+        isPresented = !UserDefaults.standard.bool(forKey: seenKey)
     }
 
     /// Re-open it on demand (Help menu).

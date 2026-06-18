@@ -13,12 +13,11 @@ struct CrispApp: App {
     var body: some Scene {
         Window(Channel.current.displayName, id: "main") {
             ContentView(model: model, updater: updater, modelStore: modelStore,
-                        settings: settings, onboarding: onboarding)
+                        settings: settings, watchAgent: watchAgent, onboarding: onboarding)
                 .task { updater.checkOnLaunch() }
                 .task { await modelStore.refresh() }
                 .task { QuickActionInstaller.install() }
                 .task { reconcileWatchAgent() }
-                .task { onboarding.presentIfFirstLaunch() }
         }
         // Content has a fixed width and natural height, so the window sizes itself
         // to fit — it grows when a result appears and shrinks back, with no scroll
