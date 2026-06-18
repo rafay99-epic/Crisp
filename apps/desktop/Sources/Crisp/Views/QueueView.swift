@@ -90,15 +90,14 @@ private struct QueueRow: View {
         case .running:
             ProgressView(value: item.progress).controlSize(.small)
         case .done:
-            HStack(spacing: 10) {
-                if let r = item.result, !r.peaks.isEmpty {
-                    WaveformView(peaks: r.peaks, removed: r.removed)
-                        .frame(height: 22)
-                        .transition(.opacity)
-                } else if let r = item.result, r.origSeconds > 0 {
-                    ReductionBar(kept: max(0, min(1, r.newSeconds / r.origSeconds)))
-                }
-                Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(1).fixedSize()
+            if let r = item.result, !r.peaks.isEmpty {
+                WaveformView(peaks: r.peaks, removed: r.removed)
+                    .frame(height: 22)
+                    .transition(.opacity)
+            } else if let r = item.result, r.origSeconds > 0 {
+                ReductionBar(kept: max(0, min(1, r.newSeconds / r.origSeconds)))
+            } else {
+                Text("Cleaned").font(.caption).foregroundStyle(.secondary)
             }
         case .waiting where !presets.isEmpty:
             Picker("Preset", selection: $item.presetID) {
@@ -131,16 +130,25 @@ private struct QueueRow: View {
                 .foregroundStyle(.secondary)
                 .contentTransition(.numericText())
         case .done:
-            Button {
-                if let path = item.result?.output {
-                    NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
+            // Group the saving + the reveal button as one trailing cluster, so the
+            // folder sits with the time (vertically centered) instead of floating
+            // alone in the row's corner.
+            HStack(spacing: 10) {
+                if let r = item.result {
+                    Text("removed \(formatTime(r.savedSeconds))")
+                        .font(.caption).foregroundStyle(.secondary).fixedSize()
                 }
-            } label: {
-                Image(systemName: "folder")
+                Button {
+                    if let path = item.result?.output {
+                        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
+                    }
+                } label: {
+                    Image(systemName: "folder")
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.tint)
+                .help("Show in Finder")
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(.tint)
-            .help("Show in Finder")
             .transition(.scale.combined(with: .opacity))
         case .failed, .cancelled:
             EmptyView()
