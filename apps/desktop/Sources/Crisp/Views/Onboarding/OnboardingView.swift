@@ -138,12 +138,33 @@ struct OnboardingView: View {
                 }
                 .labelsHidden().frame(width: 150)
             }
+            settingRow("Save cleaned files to", outputLocationSubtitle) {
+                HStack(spacing: 6) {
+                    if !settings.outputDirectory.isEmpty {
+                        Button("Reset") { settings.outputDirectory = "" }.controlSize(.small)
+                    }
+                    Button(settings.outputDirectory.isEmpty ? "Choose…" : "Change…") { chooseOutputFolder() }
+                        .controlSize(.small)
+                }
+            }
             settingRow("Hardware acceleration", "Faster encoding using Apple’s media engine.") {
                 Toggle("", isOn: $settings.hardwareEncoding).labelsHidden().toggleStyle(.switch)
             }
             settingRow("Keep a backup of the original", "Copied aside before each clean — recommended.") {
                 Toggle("", isOn: $settings.backupOriginal).labelsHidden().toggleStyle(.switch)
             }
+        }
+    }
+
+    private var outputLocationSubtitle: String {
+        settings.outputDirectory.isEmpty
+            ? "Saved next to the source video (the default)."
+            : "Saved to " + (settings.outputDirectory as NSString).abbreviatingWithTildeInPath
+    }
+
+    private func chooseOutputFolder() {
+        if let path = FolderPicker.choosePath(message: "Choose where cleaned videos are saved (e.g. a NAS).") {
+            settings.outputDirectory = path
         }
     }
 
@@ -191,14 +212,8 @@ struct OnboardingView: View {
     }
 
     private func chooseWatchFolder() {
-        let panel = NSOpenPanel()
-        panel.canChooseDirectories = true
-        panel.canChooseFiles = false
-        panel.allowsMultipleSelection = false
-        panel.prompt = "Choose"
-        panel.message = "Choose a folder to watch for new recordings."
-        if panel.runModal() == .OK, let url = panel.url {
-            settings.watchFolderPath = url.path
+        if let path = FolderPicker.choosePath(message: "Choose a folder to watch for new recordings.") {
+            settings.watchFolderPath = path
         }
     }
 

@@ -9,8 +9,10 @@ from .config import (
     DEFAULT_VIDEO_CODEC, MIN_KEEP,
 )
 from .detect import detect_silences, extract_audio, transcribe
-from .edit import build_keep_segments, make_backup, render
-from .encode import audio_args, container_args, resolve_codecs, resolve_container, video_args
+from .edit import build_keep_segments, make_backup, render, tag_output_source, unique_output_path
+from .encode import (
+    audio_args, container_args, default_output_path, resolve_codecs, resolve_container, video_args,
+)
 from .errors import CleanError
 from .tools import ffprobe_duration, which_whisper
 
@@ -24,7 +26,7 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
                 video_codec=DEFAULT_VIDEO_CODEC, hardware=DEFAULT_HARDWARE, quality=DEFAULT_QUALITY,
                 audio_codec=DEFAULT_AUDIO_CODEC, audio_bitrate=DEFAULT_AUDIO_BITRATE,
                 container=DEFAULT_CONTAINER, remove_fillers=True, backup=DEFAULT_BACKUP,
-                backup_dir=None, on_log=None, on_progress=None):
+                backup_dir=None, out_dir=None, on_log=None, on_progress=None):
     """
     Clean one video. Returns a dict with results.
       on_log(str)            — called with human-readable status lines.
@@ -43,9 +45,19 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
         out_path = Path(out_path).expanduser().resolve()
         container = out_path.suffix.lower().lstrip(".") or "mp4"
     else:
-        # Otherwise: the chosen container, or "auto" = match the input's.
+        # Otherwise: the chosen container, or "auto" = match the input's. The
+        # cleaned file lands in out_dir if one was chosen (e.g. a NAS), else beside
+        # the source.
         container = resolve_container(container, src.suffix)
-        out_path = src.with_name(f"{src.stem}_cleaned.{container}")
+        out_path = default_output_path(src, container, out_dir).resolve()
+        if out_dir:
+            try:
+                out_path.parent.mkdir(parents=True, exist_ok=True)
+            except OSError as e:
+                raise CleanError(f"Couldn't use the output folder \"{out_path.parent}\". "
+                                 f"Is the drive connected and writable?\n{e}")
+            # In a shared folder, don't clobber a different source's cleaned file.
+            out_path = unique_output_path(out_path, src)
 
     # The container dictates which codecs are legal (e.g. WebM forces VP9 + Opus);
     # coerce now and tell the user about any swap rather than letting ffmpeg fail.
@@ -114,6 +126,11 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
             on_log("Hardware encoding failed — falling back to software encoding…")
             render(src, keep, out_path, on_log, stage(0.60, 1.0),
                    video_args(video_codec, False, quality), audio, mux)
+
+    if out_dir:
+        # Tag the output so a later re-clean of this same source overwrites it,
+        # while a different same-named source gets its own _N copy.
+        tag_output_source(out_path, src)
 
     on_progress(1.0, "Done")
     on_log(f"✅ Done! Cleaned video: {out_path}")

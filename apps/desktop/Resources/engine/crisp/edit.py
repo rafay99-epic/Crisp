@@ -34,6 +34,69 @@ def make_backup(src: Path, on_log, backup_dir: Path | None = None) -> Path:
     return dest
 
 
+# Extended attribute recording which source produced a cleaned file, so a shared
+# output folder can tell "re-clean of the same video" (overwrite) apart from "a
+# different video that happens to share a name" (write a _1 copy). The Swift
+# watcher reads the same key (see WatchController). Keep this string in sync.
+#
+# `os.getxattr`/`os.setxattr` are Linux-only, so on macOS we reach the libc
+# functions through ctypes. If that ever fails to load, the helpers degrade to
+# "no tag": `unique_output_path` then just dedups, so a cleaned file is never lost
+# (re-cleans get a _1 copy instead of overwriting — the safe way to fail).
+SOURCE_XATTR = "user.crisp.source"
+
+try:
+    import ctypes
+
+    _libc = ctypes.CDLL(None, use_errno=True)
+    _libc.getxattr.restype = ctypes.c_ssize_t
+    _libc.getxattr.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_void_p,
+                               ctypes.c_size_t, ctypes.c_uint32, ctypes.c_int]
+    _libc.setxattr.restype = ctypes.c_int
+    _libc.setxattr.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_void_p,
+                               ctypes.c_size_t, ctypes.c_uint32, ctypes.c_int]
+except (OSError, AttributeError):  # pragma: no cover - platform without these symbols
+    _libc = None
+
+
+def _output_owner(path: Path):
+    """The source path (bytes) recorded on `path`, or None if untagged / xattrs
+    aren't available."""
+    if _libc is None:
+        return None
+    name = SOURCE_XATTR.encode()
+    p = os.fsencode(path)
+    size = _libc.getxattr(p, name, None, 0, 0, 0)
+    if size < 0:
+        return None
+    buf = ctypes.create_string_buffer(size)
+    if _libc.getxattr(p, name, buf, size, 0, 0) < 0:
+        return None
+    return buf.raw[:size]
+
+
+def unique_output_path(out_path: Path, src: Path) -> Path:
+    """Choose a final output path that never overwrites a *different* source's
+    cleaned file. Re-cleaning the same source reuses (overwrites) its own previous
+    output; a different source mapping to the same name gets `_1`, `_2`, …. Where
+    xattrs aren't supported, this falls back to plain dedup — so a cleaned file is
+    never silently lost."""
+    marker = os.fsencode(str(src))
+    candidate, i = out_path, 0
+    while candidate.exists() and _output_owner(candidate) != marker:
+        i += 1
+        candidate = out_path.with_name(f"{out_path.stem}_{i}{out_path.suffix}")
+    return candidate
+
+
+def tag_output_source(out_path: Path, src: Path) -> None:
+    """Record which source produced this cleaned file (best-effort)."""
+    if _libc is None:
+        return
+    value = os.fsencode(str(src))
+    _libc.setxattr(os.fsencode(out_path), SOURCE_XATTR.encode(), value, len(value), 0, 0)
+
+
 def build_keep_segments(words, silences, duration, keep_pause, min_keep=MIN_KEEP):
     """Return (keep, stats): list of (start, end) seconds to KEEP, plus counts."""
     remove = []

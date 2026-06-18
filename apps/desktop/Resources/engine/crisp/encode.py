@@ -8,6 +8,8 @@ raw scales. Not every codec fits every container (VP9 is WebM-only; the mp4
 family can't hold it), so `resolve_codecs` coerces the choice to the container.
 """
 
+from pathlib import Path
+
 # Quality level → CRF for software encoders (lower = better). Each codec's CRF
 # scale is its own — x264/x265 are 0–51, VP9 is 0–63 — so the levels are tuned
 # per codec rather than shared.
@@ -75,6 +77,15 @@ def resolve_container(choice: str, src_suffix: str) -> str:
         return choice if choice in SUPPORTED_CONTAINERS else "mp4"
     ext = src_suffix.lower().lstrip(".")
     return ext if ext in SUPPORTED_CONTAINERS else "mp4"
+
+
+def default_output_path(src, container: str, out_dir=None) -> Path:
+    """Where the cleaned file lands when no explicit `--out` is given:
+    `<name>_cleaned.<container>` inside `out_dir` if one is set, otherwise right
+    beside the source. `container` is the already-resolved container, so it drives
+    the extension (an "auto" .mkv source keeps .mkv, etc.)."""
+    name = f"{Path(src).stem}_cleaned.{container}"
+    return (Path(out_dir).expanduser() / name) if out_dir else Path(src).with_name(name)
 
 
 def resolve_codecs(container: str, video_codec: str, audio_codec: str, hardware: bool):

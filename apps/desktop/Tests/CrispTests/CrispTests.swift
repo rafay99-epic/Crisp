@@ -227,6 +227,42 @@ final class CrispTests: XCTestCase {
         XCTAssertFalse(args.contains("--model"))                   // ⇒ no model flag
         XCTAssertTrue(args.contains("--no-backup"))                // no backup dir
         XCTAssertFalse(args.contains("--backup-dir"))
+        XCTAssertFalse(args.contains("--out-dir"))                 // default ⇒ beside source
+    }
+
+    func testCleanRunnerArgumentsCarryOutputDirectory() {
+        // A chosen output folder (e.g. a NAS) reaches the engine as --out-dir;
+        // the default empty value is omitted (engine writes beside the source).
+        var cfg = EngineConfig.defaults
+        cfg.outputDirectory = "/Volumes/NAS/clean"
+        let opts = CleanRunner.Options(modelPath: nil, removeFillers: false, backupDirectory: nil)
+        let withDir = CleanRunner.arguments(scriptPath: "/eng/clean_video.py",
+                                            input: URL(fileURLWithPath: "/v/in.mp4"),
+                                            parameters: Strength.aggressive.parameters(using: cfg),
+                                            options: opts)
+        XCTAssertEqual(valueAfter("--out-dir", in: withDir), "/Volumes/NAS/clean")
+
+        let withoutDir = CleanRunner.arguments(scriptPath: "/eng/clean_video.py",
+                                               input: URL(fileURLWithPath: "/v/in.mp4"),
+                                               parameters: Strength.aggressive.parameters(using: .defaults),
+                                               options: opts)
+        XCTAssertFalse(withoutDir.contains("--out-dir"))
+    }
+
+    func testOutputTagRoundTrips() throws {
+        // OutputTag must read back the same `user.crisp.source` xattr the engine
+        // writes (cross-language compatibility for the watch-folder dedup).
+        let dir = FileManager.default.temporaryDirectory
+        let file = dir.appendingPathComponent("crisp-tag-\(UUID().uuidString).mov")
+        try Data("x".utf8).write(to: file)
+        defer { try? FileManager.default.removeItem(at: file) }
+
+        let value = "/videos/talk.mov"
+        let set = value.withCString { setxattr(file.path, OutputTag.key, $0, strlen($0), 0, 0) }
+        try XCTSkipIf(set != 0, "filesystem doesn't support extended attributes")
+
+        XCTAssertEqual(OutputTag.source(ofFileAt: file.path), value)
+        XCTAssertNil(OutputTag.source(ofFileAt: dir.appendingPathComponent("nope").path))
     }
 
     // MARK: - Video filtering (drop zone / Finder Service / watch folder)

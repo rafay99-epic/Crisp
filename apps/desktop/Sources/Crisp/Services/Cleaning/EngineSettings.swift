@@ -22,6 +22,7 @@ final class EngineSettings {
     var audioCodec: String { didSet { save() } }
     var audioBitrateKbps: Int { didSet { save() } }
     var outputContainer: String { didSet { save() } }
+    var outputDirectory: String { didSet { save() } }   // "" ⇒ beside the source
     // Backup (applied to every clean)
     var backupOriginal: Bool { didSet { save() } }
     // Watch folder (drives the background agent)
@@ -44,6 +45,7 @@ final class EngineSettings {
                      videoCodec: videoCodec, hardwareEncoding: hardwareEncoding,
                      videoQuality: videoQuality, audioCodec: audioCodec,
                      audioBitrateKbps: audioBitrateKbps, outputContainer: outputContainer,
+                     outputDirectory: outputDirectory,
                      backupOriginal: backupOriginal,
                      watchEnabled: watchEnabled, watchFolderPath: watchFolderPath,
                      watchRemoveFillers: watchRemoveFillers)
@@ -67,6 +69,7 @@ final class EngineSettings {
         audioCodec = cfg.audioCodec
         audioBitrateKbps = cfg.audioBitrateKbps
         outputContainer = cfg.outputContainer
+        outputDirectory = cfg.outputDirectory
         backupOriginal = cfg.backupOriginal
         watchEnabled = cfg.watchEnabled
         watchFolderPath = cfg.watchFolderPath
@@ -89,6 +92,7 @@ final class EngineSettings {
         audioCodec = d.audioCodec
         audioBitrateKbps = d.audioBitrateKbps
         outputContainer = d.outputContainer
+        outputDirectory = d.outputDirectory
         backupOriginal = d.backupOriginal
     }
 

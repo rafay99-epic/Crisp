@@ -2,13 +2,54 @@
 words into the list of segments to KEEP. This is the heart of the engine, and
 it's pure arithmetic, so it's the most valuable thing to pin down with tests."""
 
+import os
+import tempfile
 import unittest
+from pathlib import Path
 
-from crisp.edit import build_keep_segments
+from crisp.edit import _output_owner, build_keep_segments, tag_output_source, unique_output_path
 
 
 def word(text, start, end):
     return {"text": text, "start": start, "end": end}
+
+
+class OutputCollisionTests(unittest.TestCase):
+    def test_free_name_used_as_is(self):
+        with tempfile.TemporaryDirectory() as d:
+            out = Path(d) / "talk_cleaned.mov"
+            self.assertEqual(unique_output_path(out, Path("/v/talk.mov")), out)
+
+    def test_different_source_gets_numbered_copy(self):
+        # An existing cleaned file from another (untagged) source must not be
+        # overwritten — a different source maps to _1.
+        with tempfile.TemporaryDirectory() as d:
+            out = Path(d) / "talk_cleaned.mov"
+            out.write_bytes(b"existing")
+            got = unique_output_path(out, Path("/v/talk.mov"))
+            self.assertEqual(got, Path(d) / "talk_cleaned_1.mov")
+
+    def test_same_source_reuses_its_output(self):
+        # Re-cleaning the same source overwrites its own previous output (no pile-up).
+        with tempfile.TemporaryDirectory() as d:
+            out = Path(d) / "talk_cleaned.mov"
+            out.write_bytes(b"existing")
+            src = Path("/v/talk.mov")
+            tag_output_source(out, src)
+            if _output_owner(out) != os.fsencode(str(src)):
+                self.skipTest("filesystem doesn't support extended attributes")
+            self.assertEqual(unique_output_path(out, src), out)
+
+    def test_tag_round_trips(self):
+        with tempfile.TemporaryDirectory() as d:
+            out = Path(d) / "talk_cleaned.mov"
+            out.write_bytes(b"x")
+            src = Path("/v/talk.mov")
+            tag_output_source(out, src)
+            owner = _output_owner(out)
+            if owner is None:
+                self.skipTest("filesystem doesn't support extended attributes")
+            self.assertEqual(owner, os.fsencode(str(src)))
 
 
 class BuildKeepSegmentsTests(unittest.TestCase):
