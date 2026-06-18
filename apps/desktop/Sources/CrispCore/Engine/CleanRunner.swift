@@ -21,6 +21,8 @@ public struct CleanRunner {
         var fillers: Int?
         var peaks: [Double]?
         var removed: [Bool]?
+        var video_output: String?
+        var audio_output: String?
     }
 
     /// A progress signal for the one file being cleaned. `fraction` is 0…1 for this
@@ -74,6 +76,7 @@ public struct CleanRunner {
             "--ndjson"
         ]
         if parameters.hardwareEncoding { args.append("--hardware") }
+        if parameters.splitTracks { args.append("--split") }
         if !parameters.outputDirectory.isEmpty { args += ["--out-dir", parameters.outputDirectory] }
         if options.removeFillers, let model = options.modelPath { args += ["--model", model] }
         if !options.removeFillers { args.append("--no-fillers") }
@@ -132,7 +135,9 @@ public struct CleanRunner {
                         pauses: ev.pauses ?? 0,
                         fillers: ev.fillers ?? 0,
                         peaks: ev.peaks ?? [],
-                        removed: ev.removed ?? [])
+                        removed: ev.removed ?? [],
+                        videoOutput: ev.video_output ?? "",
+                        audioOutput: ev.audio_output ?? "")
                 case "error":
                     throw NSError(domain: "Crisp", code: 1,
                                   userInfo: [NSLocalizedDescriptionKey: ev.message ?? "Unknown error"])

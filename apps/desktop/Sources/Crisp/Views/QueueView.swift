@@ -195,6 +195,13 @@ private struct QueueRow: View {
                           systemImage: player.isPlaying(url) ? "stop.fill" : "play.fill")
                 }
             }
+            // The split-track stems, when the clean produced them.
+            if let video = stemURL(item.result?.videoOutput) {
+                Button { reveal(video) } label: { Label("Show Video Track", systemImage: "film") }
+            }
+            if let audio = stemURL(item.result?.audioOutput) {
+                Button { reveal(audio) } label: { Label("Show Audio Track", systemImage: "waveform") }
+            }
             Divider()
             Button { model.reclean(item.id) } label: { Label("Re-clean", systemImage: "arrow.clockwise") }
             Button(role: .destructive) { model.remove(item.id) } label: {
@@ -214,8 +221,15 @@ private struct QueueRow: View {
         }
     }
 
+    private func stemURL(_ path: String?) -> URL? {
+        guard let path, !path.isEmpty else { return nil }
+        return URL(fileURLWithPath: path)
+    }
+
+    private func reveal(_ url: URL) { NSWorkspace.shared.activateFileViewerSelecting([url]) }
+
     private func revealOutput() {
-        if let url = outputURL { NSWorkspace.shared.activateFileViewerSelecting([url]) }
+        if let url = outputURL { reveal(url) }
     }
 
     private func copyOutputPath() {

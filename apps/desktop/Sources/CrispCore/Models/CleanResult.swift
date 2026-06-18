@@ -14,10 +14,14 @@ public struct CleanResult: Identifiable, Sendable {
     /// unless the engine was asked for it (`--waveform N`).
     public let peaks: [Double]
     public let removed: [Bool]
+    /// Separate video-only / audio-only files, when "split tracks" was on (else "").
+    public let videoOutput: String
+    public let audioOutput: String
 
     public init(output: String, origSeconds: Double, newSeconds: Double,
                 savedSeconds: Double, pauses: Int, fillers: Int,
-                peaks: [Double] = [], removed: [Bool] = []) {
+                peaks: [Double] = [], removed: [Bool] = [],
+                videoOutput: String = "", audioOutput: String = "") {
         self.output = output
         self.origSeconds = origSeconds
         self.newSeconds = newSeconds
@@ -26,5 +30,7 @@ public struct CleanResult: Identifiable, Sendable {
         self.fillers = fillers
         self.peaks = peaks
         self.removed = removed
+        self.videoOutput = videoOutput
+        self.audioOutput = audioOutput
     }
 }

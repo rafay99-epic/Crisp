@@ -230,6 +230,32 @@ final class CrispTests: XCTestCase {
         XCTAssertFalse(args.contains("--out-dir"))                 // default ⇒ beside source
     }
 
+    func testSplitFlagOnlyWhenEnabled() {
+        // Off by default → no --split; on → the flag is passed for every strength.
+        XCTAssertFalse(EngineConfig.defaults.splitTracks)
+        let opts = CleanRunner.Options(modelPath: nil, removeFillers: false)
+        let off = CleanRunner.arguments(scriptPath: "/eng/clean_video.py",
+                                        input: URL(fileURLWithPath: "/v/in.mp4"),
+                                        parameters: Strength.aggressive.parameters(using: .defaults),
+                                        options: opts)
+        XCTAssertFalse(off.contains("--split"))
+
+        var cfg = EngineConfig.defaults
+        cfg.splitTracks = true
+        let on = CleanRunner.arguments(scriptPath: "/eng/clean_video.py",
+                                       input: URL(fileURLWithPath: "/v/in.mp4"),
+                                       parameters: Strength.aggressive.parameters(using: cfg),
+                                       options: opts)
+        XCTAssertTrue(on.contains("--split"))
+    }
+
+    func testSplitTracksForwardCompatDefaultsOff() throws {
+        // A config predating the key decodes with split off.
+        let legacy = Data(#"{ "version": 3, "pauseThreshold": 0.4 }"#.utf8)
+        let cfg = try JSONDecoder().decode(EngineConfig.self, from: legacy)
+        XCTAssertFalse(cfg.splitTracks)
+    }
+
     func testWaveformFlagOnlyWhenRequested() {
         // The app asks for a waveform (N buckets); the bare CLI / watcher leave it
         // off so they don't pay for data nothing renders.

@@ -26,7 +26,8 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
                 video_codec=DEFAULT_VIDEO_CODEC, hardware=DEFAULT_HARDWARE, quality=DEFAULT_QUALITY,
                 audio_codec=DEFAULT_AUDIO_CODEC, audio_bitrate=DEFAULT_AUDIO_BITRATE,
                 container=DEFAULT_CONTAINER, remove_fillers=True, backup=DEFAULT_BACKUP,
-                backup_dir=None, out_dir=None, waveform_buckets=0, on_log=None, on_progress=None):
+                backup_dir=None, out_dir=None, split_tracks=False, waveform_buckets=0,
+                on_log=None, on_progress=None):
     """
     Clean one video. Returns a dict with results.
       on_log(str)            — called with human-readable status lines.
@@ -140,6 +141,13 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
         # while a different same-named source gets its own _N copy.
         tag_output_source(out_path, src)
 
+    # Optionally demux the cleaned file into separate video-only / audio-only stems
+    # (stream copy, fast) for editors that animate the picture over the voiceover.
+    video_out, audio_out = "", ""
+    if split_tracks:
+        from .split import split_av
+        video_out, audio_out = split_av(out_path, audio_codec, on_log)
+
     on_progress(1.0, "Done")
     on_log(f"✅ Done! Cleaned video: {out_path}")
     return {
@@ -153,4 +161,6 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
         "pauses": stats["pauses"],
         "peaks": wave_summary["peaks"],
         "removed": wave_summary["removed"],
+        "video_output": video_out,
+        "audio_output": audio_out,
     }

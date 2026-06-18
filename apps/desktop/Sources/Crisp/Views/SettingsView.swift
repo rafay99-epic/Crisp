@@ -161,13 +161,19 @@ struct SettingsView: View {
                     Button("Use the source video\u{2019}s folder") { settings.outputDirectory = "" }
                         .controlSize(.small)
                 }
+                Toggle("Also export separate video & audio", isOn: $settings.splitTracks)
             } header: {
                 Text("Output location")
             } footer: {
-                Text(settings.outputDirectory.isEmpty
-                     ? "Cleaned videos are saved next to the original \u{2014} the same folder you picked the video from."
-                     : "Cleaned videos are saved into this folder (e.g. a NAS). The original stays where it is.")
-                    .font(.caption).foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(settings.outputDirectory.isEmpty
+                         ? "Cleaned videos are saved next to the original \u{2014} the same folder you picked the video from."
+                         : "Cleaned videos are saved into this folder (e.g. a NAS). The original stays where it is.")
+                    Text(settings.splitTracks
+                         ? "Alongside each cleaned file, Crisp also writes a video-only and an audio-only copy \u{2014} so you can animate the picture while keeping the cleaned voiceover."
+                         : "Turn on \u{201C}separate video & audio\u{201D} to also get the picture and sound as their own files for editing.")
+                }
+                .font(.caption).foregroundStyle(.secondary)
             }
 
             Section {
