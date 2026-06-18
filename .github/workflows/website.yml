@@ -1,0 +1,64 @@
+name: Website
+
+# CI for the marketing site (apps/web). Checks formatting (Prettier), type-lint
+# (tsc), and that it builds (Vite) — in that order, in one job, since they share
+# an install. There is **no release cycle for the website**: this only verifies
+# the site is healthy; deploys are handled by Vercel from its own Git integration.
+#
+# Path-filtered to apps/web (plus the workspace manifests and this file), so a
+# change that doesn't touch the website skips this workflow entirely — the desktop
+# app has its own pipeline in ci.yml, scoped to apps/desktop.
+on:
+  push:
+    branches: [nightly, main]
+    paths:
+      - "apps/web/**"
+      - "package.json"
+      - "turbo.json"
+      - "bun.lock"
+      - ".github/workflows/website.yml"
+  pull_request:
+    paths:
+      - "apps/web/**"
+      - "package.json"
+      - "turbo.json"
+      - "bun.lock"
+      - ".github/workflows/website.yml"
+
+permissions:
+  contents: read
+
+# PRs cancel superseded runs; pushes don't, so they serialize.
+concurrency:
+  group: website-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  verify:
+    name: Format · lint · build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.11"
+
+      # Install the whole workspace from the repo root so bun resolves it against
+      # the committed bun.lock; --frozen-lockfile fails if the lockfile is stale.
+      - name: Install dependencies
+        working-directory: .
+        run: bun install --frozen-lockfile
+
+      - name: Check formatting (Prettier)
+        run: bun run format:check
+
+      - name: Type-check (tsc)
+        run: bun run lint
+
+      - name: Build (Vite)
+        run: bun run build
