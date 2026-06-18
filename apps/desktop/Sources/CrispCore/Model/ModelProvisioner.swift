@@ -41,6 +41,9 @@ public actor ModelProvisioner {
 
     private nonisolated let channel: Channel
     private var downloader: ChunkedDownloader?
+    /// Remembers a successful verification this process so back-to-back cleans (the
+    /// watcher, a multi-file Intent) don't re-hash 148 MB each time.
+    private var verifiedThisSession = false
 
     public init(channel: Channel = .current) {
         self.channel = channel
@@ -62,10 +65,17 @@ public actor ModelProvisioner {
     /// download starts clean.
     public func existingVerifiedPath() async -> String? {
         let url = fileURL
-        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            verifiedThisSession = false
+            return nil
+        }
+        if verifiedThisSession { return url.path }   // already hashed this session
         let expected = Self.expectedSHA256
         let ok = await Task.detached(priority: .utility) { Self.sha256(of: url) == expected }.value
-        if ok { return url.path }
+        if ok {
+            verifiedThisSession = true
+            return url.path
+        }
         Self.log.error("Model on disk failed hash check — removing")
         try? FileManager.default.removeItem(at: url)
         return nil
@@ -121,6 +131,7 @@ public actor ModelProvisioner {
         // Atomic publish: a reader only ever sees a fully-verified file.
         try? FileManager.default.removeItem(at: fileURL)
         try FileManager.default.moveItem(at: partURL, to: fileURL)
+        verifiedThisSession = true
     }
 
     /// Stream the file through SHA-256 in chunks so we never load 148 MB at once.

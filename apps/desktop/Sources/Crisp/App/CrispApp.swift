@@ -10,6 +10,7 @@ struct CrispApp: App {
     /// Retains the Finder-Service provider for the app's lifetime — `NSApplication`
     /// holds `servicesProvider` weakly.
     @State private var serviceProvider = ServiceProvider()
+    @State private var watchAgent = WatchAgentController()
 
     var body: some Scene {
         Window(Channel.current.displayName, id: "main") {
@@ -17,6 +18,7 @@ struct CrispApp: App {
                 .task { updater.checkOnLaunch() }
                 .task { await modelStore.refresh() }
                 .task { serviceProvider.register(model: model, modelStore: modelStore, settings: settings) }
+                .task { reconcileWatchAgent() }
         }
         // Content has a fixed width and natural height, so the window sizes itself
         // to fit — it grows when a result appears and shrinks back, with no scroll
@@ -33,7 +35,20 @@ struct CrispApp: App {
         }
 
         Settings {
-            SettingsView(settings: settings, updater: updater)
+            SettingsView(settings: settings, updater: updater, watchAgent: watchAgent)
+        }
+    }
+
+    /// Keep the registered background agent in sync with the saved preference, in
+    /// both directions: if watching is on, make sure the LaunchAgent is registered
+    /// (it can be dropped by the system, or the config can arrive already enabled);
+    /// if it's off, make sure no stale agent lingers.
+    private func reconcileWatchAgent() {
+        watchAgent.refresh()
+        if settings.watchEnabled {
+            if watchAgent.status != .enabled { watchAgent.setEnabled(true) }
+        } else if watchAgent.status != .notRegistered {
+            watchAgent.setEnabled(false)
         }
     }
 }

@@ -40,6 +40,14 @@ let package = Package(
                 ])
             ]
         ),
+        // The background watch-folder agent. A separate executable so it can run
+        // as a login-item LaunchAgent even when the main window is closed; reuses
+        // CrispCore for all engine/config/model work.
+        .executableTarget(
+            name: "CrispWatcher",
+            dependencies: ["CrispCore"],
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
         .testTarget(
             name: "CrispTests",
             dependencies: ["Crisp", "CrispCore"],

@@ -48,16 +48,13 @@ public struct CleanRunner {
 
     public init() {}
 
-    /// Spawn `clean_video.py … --ndjson`, stream events to `onEvent`, and return the
-    /// result. Throws on the engine's `error` event, a missing result, or a tool
-    /// that couldn't be found.
-    public func run(input: URL, parameters: CleanParameters, options: Options,
-                    onEvent: @escaping @Sendable (Progress) -> Void) async throws -> CleanResult {
-        let script = try CleanEngine.scriptURL()
-        let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: CleanEngine.python)
+    /// The exact argv passed to `clean_video.py` (excluding the python interpreter).
+    /// Pulled out as a pure function so the flag mapping can be unit-tested without
+    /// spawning a subprocess.
+    public static func arguments(scriptPath: String, input: URL,
+                                 parameters: CleanParameters, options: Options) -> [String] {
         var args = [
-            script.path, input.path,
+            scriptPath, input.path,
             "--pause", String(parameters.pause),
             "--noise", String(parameters.noiseDB),
             "--keep-pause", String(parameters.keepPause),
@@ -77,7 +74,19 @@ public struct CleanRunner {
         } else {
             args.append("--no-backup")
         }
-        proc.arguments = args
+        return args
+    }
+
+    /// Spawn `clean_video.py … --ndjson`, stream events to `onEvent`, and return the
+    /// result. Throws on the engine's `error` event, a missing result, or a tool
+    /// that couldn't be found.
+    public func run(input: URL, parameters: CleanParameters, options: Options,
+                    onEvent: @escaping @Sendable (Progress) -> Void) async throws -> CleanResult {
+        let script = try CleanEngine.scriptURL()
+        let proc = Process()
+        proc.executableURL = URL(fileURLWithPath: CleanEngine.python)
+        proc.arguments = Self.arguments(scriptPath: script.path, input: input,
+                                        parameters: parameters, options: options)
 
         var env = ProcessInfo.processInfo.environment
         // Point the engine at the binaries we ship; each falls back to PATH if it

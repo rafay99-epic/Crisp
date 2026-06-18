@@ -36,12 +36,18 @@ echo "Compiling (arm64)…  [channel: $CHANNEL]"
 # Apple Silicon only — Intel Macs are no longer supported, so we build a single
 # arm64 slice (the bundled engine binaries are arm64 too).
 swift build -c release --arch arm64
-BINARY="$(swift build -c release --arch arm64 --show-bin-path)/Crisp"
+BIN_DIR="$(swift build -c release --arch arm64 --show-bin-path)"
+BINARY="$BIN_DIR/Crisp"
+WATCHER="$BIN_DIR/CrispWatcher"
 
 APP="build/$APP_NAME.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BINARY" "$APP/Contents/MacOS/Crisp"
+# The background watch-folder agent — a second executable so it can run as a
+# login-item LaunchAgent even when the main window is closed (see the LaunchAgent
+# plist staged below).
+cp "$WATCHER" "$APP/Contents/MacOS/CrispWatcher"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 
 # Bundle the cleaning engine so a downloaded DMG is self-contained: the Python
@@ -84,6 +90,15 @@ fi
 # the right-click → Quick Actions menu (stable shows "Clean with Crisp").
 "$PB" -c "Set :NSServices:0:NSMenuItem:default Clean with $APP_NAME" "$APP/Contents/Info.plist"
 "$PB" -c "Set :NSServices:0:NSPortName $APP_NAME" "$APP/Contents/Info.plist"
+
+# Watch-folder LaunchAgent. Staged into Contents/Library/LaunchAgents/ with a
+# per-channel Label + AssociatedBundleIdentifiers so the three channels each get
+# their own agent. SMAppService.agent(plistName:) registers it from the app.
+mkdir -p "$APP/Contents/Library/LaunchAgents"
+LAUNCH_AGENT="$APP/Contents/Library/LaunchAgents/$BUNDLE_ID.watcher.plist"
+cp Resources/LaunchAgent.plist "$LAUNCH_AGENT"
+"$PB" -c "Set :Label $BUNDLE_ID.watcher" "$LAUNCH_AGENT"
+"$PB" -c "Set :AssociatedBundleIdentifiers:0 $BUNDLE_ID" "$LAUNCH_AGENT"
 # Monotonic build number (CI run number) — orders Nightly pre-releases for the
 # updater. Absent/0 for local builds.
 if [ -n "${CRISP_BUILD:-}" ]; then
@@ -115,7 +130,7 @@ cp "$ICON_CACHE" "$APP/Contents/Resources/AppIcon.icns"
 # bundle. Needs Xcode — on a Command-Line-Tools-only machine it's skipped with a
 # warning (the Finder Service still works; only the Shortcuts action is affected).
 AIMP="$(xcrun --find appintentsmetadataprocessor 2>/dev/null || true)"
-CONSTVALS="$(swift build -c release --arch arm64 --show-bin-path)/Crisp.build/Crisp.swiftconstvalues"
+CONSTVALS="$BIN_DIR/Crisp.build/Crisp.swiftconstvalues"
 if [[ -n "$AIMP" && -f "$CONSTVALS" ]]; then
   echo "Generating App Intents (Shortcuts) metadata…"
   TOOLCHAIN_DIR="$(dirname "$(dirname "$(dirname "$AIMP")")")"   # …/XcodeDefault.xctoolchain
@@ -152,5 +167,8 @@ find "$APP/Contents/Resources/engine/bin" -type f -print0 | while IFS= read -r -
     codesign "${SIGN_OPTS[@]}" "$f" 2>/dev/null || true
   fi
 done
+# The watch-folder agent is a second Mach-O in Contents/MacOS — sign it before the
+# outer app seal (codesign won't sign sibling executables on its own).
+codesign "${SIGN_OPTS[@]}" "$APP/Contents/MacOS/CrispWatcher"
 codesign "${SIGN_OPTS[@]}" "$APP"
 echo "Done → $PWD/$APP"
