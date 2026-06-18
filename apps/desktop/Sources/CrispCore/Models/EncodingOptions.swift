@@ -59,3 +59,19 @@ public enum OutputContainer: String, CaseIterable, Identifiable {
     /// hardware choices don't apply when it's selected — the UI disables them.
     public var forcesOwnCodecs: Bool { self == .webm }
 }
+
+/// Format for the separate audio track when "split tracks" is on. `match` copies
+/// the cleaned audio stream as-is (lossless, no re-encode — `.m4a` for AAC, Ogg
+/// `.opus` for Opus); `wav` re-encodes it to uncompressed PCM, the format most
+/// editors prefer. Each `rawValue` is the string the engine's `--split-audio`
+/// flag expects.
+public enum SplitAudioFormat: String, CaseIterable, Identifiable {
+    case match, wav
+    public var id: String { rawValue }
+    public var label: String {
+        switch self {
+        case .match: return "Same as the video"
+        case .wav:   return "WAV (uncompressed)"
+        }
+    }
+}

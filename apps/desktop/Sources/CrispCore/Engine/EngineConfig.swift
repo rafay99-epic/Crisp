@@ -27,6 +27,7 @@ public struct EngineConfig: Codable, Equatable, Sendable {
     // Also write separate video-only + audio-only files beside the cleaned output,
     // for editing the picture and the voiceover apart.
     public var splitTracks: Bool
+    public var splitAudioFormat: String  // "match" (copy) | "wav" (uncompressed)
     // Backup
     public var backupOriginal: Bool      // copy the source aside before cutting
     // Watch folder — auto-clean recordings dropped into a chosen folder. Driven by
@@ -52,7 +53,7 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         pauseThreshold: 0.35, silenceFloorDB: -30, breathingRoom: 0.10, minKeep: 0.05,
         videoCodec: "hevc", hardwareEncoding: true, videoQuality: "high",
         audioCodec: "aac", audioBitrateKbps: 192, outputContainer: "auto", outputDirectory: "",
-        splitTracks: false,
+        splitTracks: false, splitAudioFormat: "match",
         backupOriginal: true,
         watchEnabled: false, watchFolderPath: "", watchRemoveFillers: true,
         presets: [], defaultPresetID: "",
@@ -61,7 +62,7 @@ public struct EngineConfig: Codable, Equatable, Sendable {
     enum CodingKeys: String, CodingKey {
         case version, pauseThreshold, silenceFloorDB, breathingRoom, minKeep
         case videoCodec, hardwareEncoding, videoQuality, audioCodec, audioBitrateKbps
-        case outputContainer, outputDirectory, splitTracks, backupOriginal
+        case outputContainer, outputDirectory, splitTracks, splitAudioFormat, backupOriginal
         case watchEnabled, watchFolderPath, watchRemoveFillers
         case presets, defaultPresetID
         case concurrencyMode, manualConcurrency, perJobMemoryBudgetMB
@@ -70,7 +71,7 @@ public struct EngineConfig: Codable, Equatable, Sendable {
     public init(version: Int, pauseThreshold: Double, silenceFloorDB: Double, breathingRoom: Double,
                 minKeep: Double, videoCodec: String, hardwareEncoding: Bool, videoQuality: String,
                 audioCodec: String, audioBitrateKbps: Int, outputContainer: String, outputDirectory: String,
-                splitTracks: Bool,
+                splitTracks: Bool, splitAudioFormat: String,
                 backupOriginal: Bool,
                 watchEnabled: Bool, watchFolderPath: String, watchRemoveFillers: Bool,
                 presets: [Preset], defaultPresetID: String,
@@ -88,6 +89,7 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         self.outputContainer = outputContainer
         self.outputDirectory = outputDirectory
         self.splitTracks = splitTracks
+        self.splitAudioFormat = splitAudioFormat
         self.backupOriginal = backupOriginal
         self.watchEnabled = watchEnabled
         self.watchFolderPath = watchFolderPath
@@ -115,6 +117,7 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         outputContainer    = try c.decodeIfPresent(String.self, forKey: .outputContainer) ?? d.outputContainer
         outputDirectory    = try c.decodeIfPresent(String.self, forKey: .outputDirectory) ?? d.outputDirectory
         splitTracks        = try c.decodeIfPresent(Bool.self, forKey: .splitTracks) ?? d.splitTracks
+        splitAudioFormat   = try c.decodeIfPresent(String.self, forKey: .splitAudioFormat) ?? d.splitAudioFormat
         backupOriginal     = try c.decodeIfPresent(Bool.self, forKey: .backupOriginal) ?? d.backupOriginal
         watchEnabled       = try c.decodeIfPresent(Bool.self, forKey: .watchEnabled) ?? d.watchEnabled
         watchFolderPath    = try c.decodeIfPresent(String.self, forKey: .watchFolderPath) ?? d.watchFolderPath

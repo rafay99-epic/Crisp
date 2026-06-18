@@ -15,12 +15,14 @@ public struct CleanParameters: Equatable, Sendable {
     public let outputContainer: String
     public let outputDirectory: String   // "" ⇒ beside the source
     public let splitTracks: Bool         // also write separate video/audio files
+    public let splitAudioFormat: String  // "match" | "wav" — audio stem format
     public let backupOriginal: Bool
 
     public init(pause: Double, noiseDB: Double, keepPause: Double, minKeep: Double,
                 videoCodec: String, hardwareEncoding: Bool, videoQuality: String,
                 audioCodec: String, audioBitrateKbps: Int, outputContainer: String,
-                outputDirectory: String, splitTracks: Bool, backupOriginal: Bool) {
+                outputDirectory: String, splitTracks: Bool, splitAudioFormat: String,
+                backupOriginal: Bool) {
         self.pause = pause
         self.noiseDB = noiseDB
         self.keepPause = keepPause
@@ -33,6 +35,7 @@ public struct CleanParameters: Equatable, Sendable {
         self.outputContainer = outputContainer
         self.outputDirectory = outputDirectory
         self.splitTracks = splitTracks
+        self.splitAudioFormat = splitAudioFormat
         self.backupOriginal = backupOriginal
     }
 }
@@ -53,6 +56,7 @@ extension Strength {
             outputContainer: config.outputContainer,
             outputDirectory: config.outputDirectory,
             splitTracks: config.splitTracks,
+            splitAudioFormat: config.splitAudioFormat,
             backupOriginal: config.backupOriginal)
     }
 }

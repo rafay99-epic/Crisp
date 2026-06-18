@@ -26,6 +26,15 @@ class SplitPathsTests(unittest.TestCase):
         self.assertEqual(str(audio.parent), "/Users/me/out")
         self.assertEqual(video.name, "clip_cleaned_video.mov")
 
+    def test_wav_format_overrides_codec_extension(self):
+        # WAV is chosen regardless of the source audio codec; the video stem is
+        # unaffected (still a stream copy in the original container).
+        video, audio = split_paths("/x/clip_cleaned.mp4", "aac", "wav")
+        self.assertEqual(audio.name, "clip_cleaned_audio.wav")
+        self.assertEqual(video.name, "clip_cleaned_video.mp4")
+        _, opus_audio = split_paths("/x/clip_cleaned.webm", "opus", "wav")
+        self.assertEqual(opus_audio.name, "clip_cleaned_audio.wav")
+
 
 if __name__ == "__main__":
     unittest.main()

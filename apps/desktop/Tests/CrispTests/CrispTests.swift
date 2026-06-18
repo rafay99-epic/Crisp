@@ -247,6 +247,25 @@ final class CrispTests: XCTestCase {
                                        parameters: Strength.aggressive.parameters(using: cfg),
                                        options: opts)
         XCTAssertTrue(on.contains("--split"))
+        XCTAssertEqual(valueAfter("--split-audio", in: on), "match")   // default format
+    }
+
+    func testSplitAudioFormatCarriesThrough() {
+        // The chosen audio-stem format reaches the engine; off ⇒ no --split-audio.
+        var cfg = EngineConfig.defaults
+        cfg.splitTracks = true
+        cfg.splitAudioFormat = "wav"
+        let opts = CleanRunner.Options(modelPath: nil, removeFillers: false)
+        let on = CleanRunner.arguments(scriptPath: "/eng/clean_video.py",
+                                       input: URL(fileURLWithPath: "/v/in.mp4"),
+                                       parameters: Strength.aggressive.parameters(using: cfg), options: opts)
+        XCTAssertEqual(valueAfter("--split-audio", in: on), "wav")
+
+        let off = CleanRunner.arguments(scriptPath: "/eng/clean_video.py",
+                                        input: URL(fileURLWithPath: "/v/in.mp4"),
+                                        parameters: Strength.aggressive.parameters(using: .defaults),
+                                        options: opts)
+        XCTAssertFalse(off.contains("--split-audio"))
     }
 
     func testSplitTracksForwardCompatDefaultsOff() throws {

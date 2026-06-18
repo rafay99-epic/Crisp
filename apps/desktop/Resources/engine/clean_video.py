@@ -83,6 +83,9 @@ def main():
     p.add_argument("--split", action="store_true",
                    help="also write separate video-only and audio-only files beside "
                         "the cleaned output (for editing the picture and audio apart)")
+    p.add_argument("--split-audio", choices=["match", "wav"], default="match",
+                   help="audio-only track format when --split is set: 'match' copies "
+                        "the cleaned audio (m4a/opus), 'wav' re-encodes to PCM WAV")
     p.add_argument("--backup-dir", default=None,
                    help="folder to copy the original into (default: an '_originals' folder beside it)")
     p.add_argument("--out", default=None,
@@ -117,7 +120,7 @@ def main():
                              container=args.container, remove_fillers=not args.no_fillers,
                              backup=not args.no_backup, backup_dir=args.backup_dir,
                              out_dir=args.out_dir, split_tracks=args.split,
-                             waveform_buckets=args.waveform,
+                             split_audio=args.split_audio, waveform_buckets=args.waveform,
                              on_log=on_log, on_progress=on_progress)
         if args.ndjson:
             emit({"event": "result", **result})

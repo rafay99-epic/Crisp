@@ -162,6 +162,11 @@ struct SettingsView: View {
                         .controlSize(.small)
                 }
                 Toggle("Also export separate video & audio", isOn: $settings.splitTracks)
+                if settings.splitTracks {
+                    Picker("Audio track format", selection: $settings.splitAudioFormat) {
+                        ForEach(SplitAudioFormat.allCases) { Text($0.label).tag($0.rawValue) }
+                    }
+                }
             } header: {
                 Text("Output location")
             } footer: {
