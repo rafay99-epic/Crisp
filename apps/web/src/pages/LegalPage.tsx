@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import { Waveform } from "../components/Logo";
 import { Footer } from "../sections/Footer";
@@ -16,7 +16,7 @@ export function LegalPage({ doc }: { doc: LegalDoc }) {
             <Waveform className="size-[18px]" />
             Crisp
           </Link>
-          <Link to="/#download" className="text-[13px] font-medium text-white/60 transition-colors hover:text-white">
+          <Link to="/" hash="download" className="text-[13px] font-medium text-white/60 transition-colors hover:text-white">
             Install ›
           </Link>
         </nav>
@@ -41,6 +41,9 @@ export function LegalPage({ doc }: { doc: LegalDoc }) {
             </h1>
             <p className="mt-3 text-[14px] text-white/45">Last updated {doc.updated}</p>
             <p className="mt-7 text-[18px] leading-relaxed text-white/70">{doc.intro}</p>
+            <p className="mt-5 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-[13px] leading-relaxed text-white/45">
+              {doc.note}
+            </p>
           </motion.div>
 
           <div className="mt-14 space-y-12">

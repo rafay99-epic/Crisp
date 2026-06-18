@@ -1,4 +1,3 @@
-import { Nav } from "../sections/Nav";
 import { Hero } from "../sections/Hero";
 import { CutStory } from "../sections/CutStory";
 import { Capabilities } from "../sections/Capabilities";
@@ -8,10 +7,11 @@ import { Privacy } from "../sections/Privacy";
 import { Download } from "../sections/Download";
 import { Footer } from "../sections/Footer";
 
+// The fixed <Nav/> is rendered by the router shell (outside the page-transition
+// layer) so its `position: fixed` isn't trapped by the transition transform.
 export function Home() {
   return (
     <>
-      <Nav />
       <main>
         <Hero />
         <CutStory />
