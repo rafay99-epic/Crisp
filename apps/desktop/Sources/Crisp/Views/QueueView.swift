@@ -4,14 +4,11 @@ import CrispCore
 
 /// The clean queue — one row per video, with per-file status and progress. Waiting
 /// rows can be reordered (top runs first), removed, and assigned a preset; running
-/// and finished rows are fixed. Shown once at least one file has been added.
+/// and finished rows are fixed. Fills the window and scrolls on its own.
 struct QueueView: View {
     @Bindable var model: CleanModel
     @Bindable var settings: EngineSettings
 
-    /// The queue fills the window and scrolls on its own (the window is resizable,
-    /// so it shows more rows on a big display and fewer on a laptop — the rest of
-    /// the chrome stays pinned). A section header carries the count.
     var body: some View {
         List {
             Section {
@@ -27,6 +24,8 @@ struct QueueView: View {
                     Text("Queue")
                     Spacer()
                     Text(countLabel).foregroundStyle(.secondary)
+                        .contentTransition(.numericText())
+                        .animation(.snappy, value: countLabel)
                 }
             }
         }
@@ -43,9 +42,10 @@ struct QueueView: View {
     }
 }
 
-/// One queued video. Leading status glyph, filename, and a secondary line that's a
-/// preset picker while waiting (or status detail otherwise); trailing control fits
-/// the state (remove while waiting, reveal once done).
+/// One queued video. A status glyph that animates as the file moves through the
+/// pipeline, the filename, a state-appropriate secondary line (preset picker while
+/// waiting, progress while running, an honest "cut" bar once done), and a trailing
+/// control (remove while waiting, reveal once done).
 private struct QueueRow: View {
     @Binding var item: QueueItem
     let presets: [Preset]
@@ -53,11 +53,9 @@ private struct QueueRow: View {
     let onRemove: () -> Void
 
     var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: glyph)
-                .font(.body)
-                .foregroundStyle(glyphStyle)
-                .frame(width: 18)
+        HStack(spacing: 11) {
+            statusIcon
+                .frame(width: 20, height: 20)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(item.url.lastPathComponent)
@@ -70,24 +68,43 @@ private struct QueueRow: View {
             Spacer(minLength: 8)
             trailing
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 3)
+        .animation(.smooth, value: item.status)
+    }
+
+    @ViewBuilder private var statusIcon: some View {
+        switch item.status {
+        case .running:
+            ProgressView().controlSize(.small)
+        default:
+            Image(systemName: glyph)
+                .font(.body)
+                .foregroundStyle(glyphStyle)
+                .symbolEffect(.bounce, value: item.status == .done)
+                .contentTransition(.symbolEffect(.replace))
+        }
     }
 
     @ViewBuilder private var secondaryLine: some View {
-        if item.status == .running {
+        switch item.status {
+        case .running:
             ProgressView(value: item.progress).controlSize(.small)
-        } else if item.status == .waiting && !presets.isEmpty {
+        case .done:
+            HStack(spacing: 8) {
+                if let r = item.result, r.origSeconds > 0 {
+                    ReductionBar(kept: max(0, min(1, r.newSeconds / r.origSeconds)))
+                }
+                Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            }
+        case .waiting where !presets.isEmpty:
             Picker("Preset", selection: $item.presetID) {
                 Text(defaultName.map { "Default (\($0))" } ?? "Default").tag(UUID?.none)
                 ForEach(presets) { preset in
                     Text(preset.name).tag(UUID?.some(preset.id))
                 }
             }
-            .labelsHidden()
-            .pickerStyle(.menu)
-            .controlSize(.small)
-            .fixedSize()
-        } else {
+            .labelsHidden().pickerStyle(.menu).controlSize(.small).fixedSize()
+        default:
             Text(detail)
                 .font(.caption)
                 .foregroundStyle(item.status == .failed ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
@@ -108,6 +125,7 @@ private struct QueueRow: View {
             Text("\(Int(item.progress * 100))%")
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
+                .contentTransition(.numericText())
         case .done:
             Button {
                 if let path = item.result?.output {
@@ -119,6 +137,7 @@ private struct QueueRow: View {
             .buttonStyle(.plain)
             .foregroundStyle(.tint)
             .help("Show in Finder")
+            .transition(.scale.combined(with: .opacity))
         case .failed, .cancelled:
             EmptyView()
         }
@@ -127,7 +146,7 @@ private struct QueueRow: View {
     private var glyph: String {
         switch item.status {
         case .waiting:   return "circle.dotted"
-        case .running:   return "arrow.triangle.2.circlepath"
+        case .running:   return "circle.dotted"   // unused (spinner shown instead)
         case .done:      return "checkmark.circle.fill"
         case .failed:    return "exclamationmark.triangle.fill"
         case .cancelled: return "minus.circle"
@@ -138,7 +157,6 @@ private struct QueueRow: View {
         switch item.status {
         case .done:    return AnyShapeStyle(.green)
         case .failed:  return AnyShapeStyle(.red)
-        case .running: return AnyShapeStyle(.tint)
         default:       return AnyShapeStyle(.secondary)
         }
     }
@@ -151,9 +169,27 @@ private struct QueueRow: View {
         case .failed:    return item.error ?? "Couldn\u{2019}t be cleaned"
         case .done:
             if let r = item.result {
-                return "Cleaned \u{2014} removed \(formatTime(r.savedSeconds))"
+                return "removed \(formatTime(r.savedSeconds))"
             }
             return "Cleaned"
         }
+    }
+}
+
+/// A tiny honest "cut" bar: how much of the original survived (filled, in the row's
+/// accent) versus what was removed (the dim track behind it). Built straight from
+/// the result's durations — it shows exactly what Crisp took out.
+private struct ReductionBar: View {
+    let kept: Double   // 0…1 of the original duration that remains
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                Capsule().fill(.quaternary)
+                Capsule().fill(.green).frame(width: proxy.size.width * kept)
+            }
+        }
+        .frame(width: 64, height: 4)
+        .help("Kept \(Int(kept * 100))% of the original")
     }
 }

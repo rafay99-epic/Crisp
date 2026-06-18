@@ -25,6 +25,9 @@ struct BottomBar: View {
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
         .background(.bar)
+        .animation(.smooth, value: model.isRunning)
+        .animation(.smooth, value: pending)
+        .animation(.smooth, value: model.results.count)
     }
 
     // MARK: - Leading (recipe / progress / summary)
@@ -40,7 +43,7 @@ struct BottomBar: View {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 14) {
                     HStack(spacing: 6) {
-                        Text("Cut").font(.callout).foregroundStyle(.secondary)
+                        Text("Cut").font(.callout).foregroundStyle(.secondary).fixedSize()
                         Picker("Cut", selection: $model.strength) {
                             ForEach(Strength.allCases) { Text($0.pickerLabel).tag($0) }
                         }

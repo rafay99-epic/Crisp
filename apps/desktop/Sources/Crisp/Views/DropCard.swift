@@ -9,17 +9,22 @@ struct DropCard: View {
     @State private var targeted = false
 
     var body: some View {
-        VStack(spacing: 10) {
-            Image(systemName: "film.stack")
-                .font(.system(size: 34))
-                .foregroundStyle(.secondary)
-            Text("No videos added").font(.headline)
+        VStack(spacing: 12) {
+            // The app's own mark — a waveform — gently animating, so the empty
+            // state says "audio tool" at a glance instead of a generic file box.
+            Image(systemName: "waveform")
+                .font(.system(size: 40, weight: .semibold))
+                .foregroundStyle(targeted ? AnyShapeStyle(.tint) : AnyShapeStyle(.tint.opacity(0.75)))
+                .symbolEffect(.variableColor.iterative.dimInactiveLayers, options: .repeating)
+                .padding(.bottom, 2)
+            Text(targeted ? "Drop to add" : "No videos added").font(.headline)
             Text("Drag videos here, or").font(.callout).foregroundStyle(.secondary)
             Button("Choose videos\u{2026}") { importing = true }
                 .controlSize(.large)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 40)
+        .animation(.smooth, value: targeted)
         .cardBackground(.quaternary.opacity(targeted ? 0.6 : 0.25))
         .overlay(
             RoundedRectangle(cornerRadius: 14)

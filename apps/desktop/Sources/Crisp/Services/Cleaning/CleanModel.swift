@@ -62,7 +62,9 @@ final class CleanModel {
         var existing = Set(queue.map { $0.url.standardizedFileURL })
         let fresh = videos.filter { existing.insert($0.standardizedFileURL).inserted }
         guard !fresh.isEmpty else { return }
-        queue.append(contentsOf: fresh.map { QueueItem(url: $0) })
+        withAnimation(.snappy) {
+            queue.append(contentsOf: fresh.map { QueueItem(url: $0) })
+        }
         errorMessage = nil
         updateIdleStatus()
     }
@@ -70,7 +72,7 @@ final class CleanModel {
     /// Remove a still-waiting item from the queue. Running/finished items stay put.
     func remove(_ id: QueueItem.ID) {
         guard let idx = queue.firstIndex(where: { $0.id == id }), queue[idx].isWaiting else { return }
-        queue.remove(at: idx)
+        _ = withAnimation(.snappy) { queue.remove(at: idx) }
         if !isRunning { updateIdleStatus() }
     }
 
@@ -187,18 +189,18 @@ final class CleanModel {
     /// done/failed/cancelled. A single file failing marks just that item and lets
     /// the rest of the batch continue.
     private func runOne(id: QueueItem.ID, modelPath: String?, parameters: CleanParameters) async {
-        update(id) { $0.status = .running; $0.progress = 0 }
+        withAnimation(.smooth) { update(id) { $0.status = .running; $0.progress = 0 } }
         updateRunningStatus()
         do {
             let result = try await cleanOne(id: id, modelPath: modelPath, parameters: parameters)
-            update(id) { $0.result = result; $0.status = .done; $0.progress = 1 }
+            withAnimation(.smooth) { update(id) { $0.result = result; $0.status = .done; $0.progress = 1 } }
         } catch is CancellationError {
-            update(id) { $0.status = .cancelled }
+            withAnimation(.smooth) { update(id) { $0.status = .cancelled } }
         } catch {
             if cancelled {
-                update(id) { $0.status = .cancelled }
+                withAnimation(.smooth) { update(id) { $0.status = .cancelled } }
             } else {
-                update(id) { $0.error = error.localizedDescription; $0.status = .failed }
+                withAnimation(.smooth) { update(id) { $0.error = error.localizedDescription; $0.status = .failed } }
             }
         }
         updateRunningStatus()
