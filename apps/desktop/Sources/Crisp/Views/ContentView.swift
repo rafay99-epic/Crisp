@@ -96,7 +96,9 @@ struct ContentView: View {
                           modelBlocks: modelBlocks, onStart: attemptStart)
             }
         }
-        .frame(minWidth: 540, minHeight: 460)
+        // Min width keeps the bottom bar's recipe + action on one line (no wrapping)
+        // at the smallest size; the queue takes any extra height/width.
+        .frame(minWidth: 600, minHeight: 460)
         .background(.background)
         .dropDestination(for: URL.self) { urls, _ in
             model.addFiles(urls)

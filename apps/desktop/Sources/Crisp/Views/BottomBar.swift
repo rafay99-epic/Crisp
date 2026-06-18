@@ -49,6 +49,7 @@ struct BottomBar: View {
                     Toggle("Remove fillers", isOn: $model.removeFillers)
                         .toggleStyle(.checkbox)
                 }
+                .fixedSize()        // keep the whole recipe row on one line
                 caption
             }
         } else {
@@ -65,10 +66,10 @@ struct BottomBar: View {
         } else if !model.results.isEmpty {
             Label("Cleaned \(doneCount) \u{00B7} removed \(formatTime(totalSaved)) total",
                   systemImage: "checkmark.seal.fill")
-                .font(.caption).foregroundStyle(.green)
+                .font(.caption).foregroundStyle(.green).lineLimit(1).fixedSize()
         } else if settings.backupOriginal {
             Label("Originals are backed up", systemImage: "checkmark.shield")
-                .font(.caption).foregroundStyle(.secondary)
+                .font(.caption).foregroundStyle(.secondary).lineLimit(1).fixedSize()
         } else {
             Text("Crisp only writes a cleaned copy \u{2014} your originals are untouched.")
                 .font(.caption).foregroundStyle(.secondary).lineLimit(1)
