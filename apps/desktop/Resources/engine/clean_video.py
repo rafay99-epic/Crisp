@@ -84,6 +84,9 @@ def main():
                    help="folder to copy the original into (default: an '_originals' folder beside it)")
     p.add_argument("--out", default=None,
                    help="output path (default: <name>_cleaned.<ext> beside input, ext per --container)")
+    p.add_argument("--out-dir", default=None,
+                   help="folder to write the cleaned file into, keeping the "
+                        "<name>_cleaned.<ext> name (default: beside the input)")
     p.add_argument("--ndjson", action="store_true",
                    help="emit machine-readable progress as one JSON object per line "
                         "(used by the desktop app)")
@@ -107,7 +110,7 @@ def main():
                              audio_codec=args.audio_codec, audio_bitrate=args.audio_bitrate,
                              container=args.container, remove_fillers=not args.no_fillers,
                              backup=not args.no_backup, backup_dir=args.backup_dir,
-                             on_log=on_log, on_progress=on_progress)
+                             out_dir=args.out_dir, on_log=on_log, on_progress=on_progress)
         if args.ndjson:
             emit({"event": "result", **result})
     except CleanError as e:

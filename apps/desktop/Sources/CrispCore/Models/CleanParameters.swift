@@ -13,12 +13,13 @@ public struct CleanParameters: Equatable, Sendable {
     public let audioCodec: String
     public let audioBitrateKbps: Int
     public let outputContainer: String
+    public let outputDirectory: String   // "" ⇒ beside the source
     public let backupOriginal: Bool
 
     public init(pause: Double, noiseDB: Double, keepPause: Double, minKeep: Double,
                 videoCodec: String, hardwareEncoding: Bool, videoQuality: String,
                 audioCodec: String, audioBitrateKbps: Int, outputContainer: String,
-                backupOriginal: Bool) {
+                outputDirectory: String, backupOriginal: Bool) {
         self.pause = pause
         self.noiseDB = noiseDB
         self.keepPause = keepPause
@@ -29,6 +30,7 @@ public struct CleanParameters: Equatable, Sendable {
         self.audioCodec = audioCodec
         self.audioBitrateKbps = audioBitrateKbps
         self.outputContainer = outputContainer
+        self.outputDirectory = outputDirectory
         self.backupOriginal = backupOriginal
     }
 }
@@ -47,6 +49,7 @@ extension Strength {
             audioCodec: config.audioCodec,
             audioBitrateKbps: config.audioBitrateKbps,
             outputContainer: config.outputContainer,
+            outputDirectory: config.outputDirectory,
             backupOriginal: config.backupOriginal)
     }
 }

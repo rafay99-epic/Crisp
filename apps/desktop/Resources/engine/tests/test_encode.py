@@ -1,11 +1,29 @@
 """Encoder/container argument building — what gets handed to ffmpeg."""
 
 import unittest
+from pathlib import Path
 
 from crisp.encode import (
-    HARDWARE_QV, SOFTWARE_CRF, audio_args, container_args, resolve_codecs,
-    resolve_container, video_args,
+    HARDWARE_QV, SOFTWARE_CRF, audio_args, container_args, default_output_path,
+    resolve_codecs, resolve_container, video_args,
 )
+
+
+class OutputPathTests(unittest.TestCase):
+    def test_defaults_beside_source(self):
+        # No out_dir → "<name>_cleaned.<container>" right beside the input.
+        out = default_output_path("/videos/talk.mov", "mov")
+        self.assertEqual(out, Path("/videos/talk_cleaned.mov"))
+
+    def test_out_dir_keeps_cleaned_name(self):
+        # An out_dir (e.g. a NAS) → same name, different folder.
+        out = default_output_path("/videos/talk.mov", "mov", out_dir="/Volumes/NAS/clean")
+        self.assertEqual(out, Path("/Volumes/NAS/clean/talk_cleaned.mov"))
+
+    def test_container_drives_extension(self):
+        # The resolved container is the extension, independent of the source's.
+        out = default_output_path("/videos/talk.mkv", "mp4", out_dir="/out")
+        self.assertEqual(out, Path("/out/talk_cleaned.mp4"))
 
 
 class VideoArgsTests(unittest.TestCase):

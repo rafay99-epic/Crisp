@@ -182,10 +182,14 @@ final class WatchController: @unchecked Sendable {
         let name = url.deletingPathExtension().lastPathComponent
         guard CleanRunner.videoExtensions.contains(url.pathExtension.lowercased()),
               !name.hasSuffix("_cleaned") else { return false }
-        // Skip if we've already produced a cleaned version beside it.
-        let folder = url.deletingLastPathComponent()
-        let siblings = (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
-        return !siblings.contains { $0.hasPrefix(name + "_cleaned.") }
+        // Skip if a cleaned version already exists — in the configured output folder
+        // if one is set, otherwise beside the source. Without this, a custom output
+        // directory would make the startup scan re-clean every file each launch.
+        let outputFolder = config.outputDirectory.isEmpty
+            ? url.deletingLastPathComponent()
+            : URL(fileURLWithPath: config.outputDirectory, isDirectory: true)
+        let existing = (try? FileManager.default.contentsOfDirectory(atPath: outputFolder.path)) ?? []
+        return !existing.contains { $0.hasPrefix(name + "_cleaned.") }
     }
 
     private func fileSize(_ url: URL) -> Int64 {

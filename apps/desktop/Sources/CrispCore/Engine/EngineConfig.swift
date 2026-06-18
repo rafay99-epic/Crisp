@@ -21,6 +21,9 @@ public struct EngineConfig: Codable, Equatable, Sendable {
     public var audioCodec: String        // "aac" | "opus"
     public var audioBitrateKbps: Int
     public var outputContainer: String   // "auto" | "mp4" | "mkv" | "mov" | "m4v" | "ts" | "webm"
+    // Output location — folder to write the cleaned file into ("" ⇒ beside the
+    // source, the default). Lets users send cleaned files to e.g. a NAS.
+    public var outputDirectory: String
     // Backup
     public var backupOriginal: Bool      // copy the source aside before cutting
     // Watch folder — auto-clean recordings dropped into a chosen folder. Driven by
@@ -33,19 +36,21 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         version: 2,
         pauseThreshold: 0.35, silenceFloorDB: -30, breathingRoom: 0.10, minKeep: 0.05,
         videoCodec: "hevc", hardwareEncoding: true, videoQuality: "high",
-        audioCodec: "aac", audioBitrateKbps: 192, outputContainer: "auto", backupOriginal: true,
+        audioCodec: "aac", audioBitrateKbps: 192, outputContainer: "auto", outputDirectory: "",
+        backupOriginal: true,
         watchEnabled: false, watchFolderPath: "", watchRemoveFillers: true)
 
     enum CodingKeys: String, CodingKey {
         case version, pauseThreshold, silenceFloorDB, breathingRoom, minKeep
         case videoCodec, hardwareEncoding, videoQuality, audioCodec, audioBitrateKbps
-        case outputContainer, backupOriginal
+        case outputContainer, outputDirectory, backupOriginal
         case watchEnabled, watchFolderPath, watchRemoveFillers
     }
 
     public init(version: Int, pauseThreshold: Double, silenceFloorDB: Double, breathingRoom: Double,
                 minKeep: Double, videoCodec: String, hardwareEncoding: Bool, videoQuality: String,
-                audioCodec: String, audioBitrateKbps: Int, outputContainer: String, backupOriginal: Bool,
+                audioCodec: String, audioBitrateKbps: Int, outputContainer: String, outputDirectory: String,
+                backupOriginal: Bool,
                 watchEnabled: Bool, watchFolderPath: String, watchRemoveFillers: Bool) {
         self.version = version
         self.pauseThreshold = pauseThreshold
@@ -58,6 +63,7 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         self.audioCodec = audioCodec
         self.audioBitrateKbps = audioBitrateKbps
         self.outputContainer = outputContainer
+        self.outputDirectory = outputDirectory
         self.backupOriginal = backupOriginal
         self.watchEnabled = watchEnabled
         self.watchFolderPath = watchFolderPath
@@ -78,6 +84,7 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         audioCodec         = try c.decodeIfPresent(String.self, forKey: .audioCodec) ?? d.audioCodec
         audioBitrateKbps   = try c.decodeIfPresent(Int.self, forKey: .audioBitrateKbps) ?? d.audioBitrateKbps
         outputContainer    = try c.decodeIfPresent(String.self, forKey: .outputContainer) ?? d.outputContainer
+        outputDirectory    = try c.decodeIfPresent(String.self, forKey: .outputDirectory) ?? d.outputDirectory
         backupOriginal     = try c.decodeIfPresent(Bool.self, forKey: .backupOriginal) ?? d.backupOriginal
         watchEnabled       = try c.decodeIfPresent(Bool.self, forKey: .watchEnabled) ?? d.watchEnabled
         watchFolderPath    = try c.decodeIfPresent(String.self, forKey: .watchFolderPath) ?? d.watchFolderPath

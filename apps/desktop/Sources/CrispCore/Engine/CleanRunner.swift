@@ -67,6 +67,7 @@ public struct CleanRunner {
             "--ndjson"
         ]
         if parameters.hardwareEncoding { args.append("--hardware") }
+        if !parameters.outputDirectory.isEmpty { args += ["--out-dir", parameters.outputDirectory] }
         if options.removeFillers, let model = options.modelPath { args += ["--model", model] }
         if !options.removeFillers { args.append("--no-fillers") }
         if let dir = options.backupDirectory {

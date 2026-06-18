@@ -141,6 +141,29 @@ struct SettingsView: View {
             }
 
             Section {
+                LabeledContent("Cleaned files") {
+                    HStack(spacing: 8) {
+                        Text(outputLocationName)
+                            .foregroundStyle(settings.outputDirectory.isEmpty ? .secondary : .primary)
+                            .lineLimit(1).truncationMode(.middle)
+                        Button("Choose\u{2026}") { chooseOutputFolder() }
+                            .controlSize(.small)
+                    }
+                }
+                if !settings.outputDirectory.isEmpty {
+                    Button("Use the source video\u{2019}s folder") { settings.outputDirectory = "" }
+                        .controlSize(.small)
+                }
+            } header: {
+                Text("Output location")
+            } footer: {
+                Text(settings.outputDirectory.isEmpty
+                     ? "Cleaned videos are saved next to the original \u{2014} the same folder you picked the video from."
+                     : "Cleaned videos are saved into this folder (e.g. a NAS). The original stays where it is.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
+            Section {
                 Toggle("Keep a backup of the original", isOn: $settings.backupOriginal)
             } header: {
                 Text("Originals")
@@ -171,6 +194,26 @@ struct SettingsView: View {
         .formStyle(.grouped)
         .frame(width: 460, height: 620)
         .onAppear { watchAgent.refresh() }
+    }
+
+    // MARK: - Output location
+
+    private var outputLocationName: String {
+        settings.outputDirectory.isEmpty
+            ? "Same as the source video"
+            : (settings.outputDirectory as NSString).abbreviatingWithTildeInPath
+    }
+
+    private func chooseOutputFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.prompt = "Choose"
+        panel.message = "Choose where cleaned videos are saved."
+        if panel.runModal() == .OK, let url = panel.url {
+            settings.outputDirectory = url.path
+        }
     }
 
     // MARK: - Watch folder

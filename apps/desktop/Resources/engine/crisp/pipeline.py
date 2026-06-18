@@ -10,7 +10,9 @@ from .config import (
 )
 from .detect import detect_silences, extract_audio, transcribe
 from .edit import build_keep_segments, make_backup, render
-from .encode import audio_args, container_args, resolve_codecs, resolve_container, video_args
+from .encode import (
+    audio_args, container_args, default_output_path, resolve_codecs, resolve_container, video_args,
+)
 from .errors import CleanError
 from .tools import ffprobe_duration, which_whisper
 
@@ -24,7 +26,7 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
                 video_codec=DEFAULT_VIDEO_CODEC, hardware=DEFAULT_HARDWARE, quality=DEFAULT_QUALITY,
                 audio_codec=DEFAULT_AUDIO_CODEC, audio_bitrate=DEFAULT_AUDIO_BITRATE,
                 container=DEFAULT_CONTAINER, remove_fillers=True, backup=DEFAULT_BACKUP,
-                backup_dir=None, on_log=None, on_progress=None):
+                backup_dir=None, out_dir=None, on_log=None, on_progress=None):
     """
     Clean one video. Returns a dict with results.
       on_log(str)            — called with human-readable status lines.
@@ -43,9 +45,13 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
         out_path = Path(out_path).expanduser().resolve()
         container = out_path.suffix.lower().lstrip(".") or "mp4"
     else:
-        # Otherwise: the chosen container, or "auto" = match the input's.
+        # Otherwise: the chosen container, or "auto" = match the input's. The
+        # cleaned file lands in out_dir if one was chosen (e.g. a NAS), else beside
+        # the source.
         container = resolve_container(container, src.suffix)
-        out_path = src.with_name(f"{src.stem}_cleaned.{container}")
+        out_path = default_output_path(src, container, out_dir).resolve()
+        if out_dir:
+            out_path.parent.mkdir(parents=True, exist_ok=True)
 
     # The container dictates which codecs are legal (e.g. WebM forces VP9 + Opus);
     # coerce now and tell the user about any swap rather than letting ffmpeg fail.
