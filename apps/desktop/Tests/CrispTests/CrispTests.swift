@@ -1,4 +1,5 @@
 import XCTest
+import CrispCore
 @testable import Crisp
 
 final class CrispTests: XCTestCase {
@@ -133,7 +134,7 @@ final class CrispTests: XCTestCase {
     func testBackupDirectoryIsDatedUnderChannelHome() {
         // Originals land in a date-stamped folder under the channel's data home.
         let date = Date(timeIntervalSince1970: 1_750_000_000)  // 2025-06-15 UTC-ish
-        let dir = CleanModel.backupDirectory(for: date)
+        let dir = CleanRunner.backupDirectory(for: date)
         XCTAssertTrue(dir.deletingLastPathComponent().path.hasSuffix("/Originals"))
         XCTAssertTrue(dir.path.hasPrefix(Channel.current.dataDirectory.path))
         // The leaf is a yyyy-MM-dd day folder.

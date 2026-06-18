@@ -1,80 +1,12 @@
 import Foundation
-
-/// On-disk shape of the user's custom cutting + encoding settings.
-///
-/// Forward-compatible by design: every field decodes with `decodeIfPresent` and
-/// falls back to a default, so a file written by an older version (missing a key
-/// a newer version added) still loads — the user keeps every value they set, and
-/// new keys simply appear at their default. `version` is reserved for any future
-/// migration. Mirrors the engine defaults in `crisp/config.py`.
-struct EngineConfig: Codable, Equatable {
-    var version: Int
-    // Cutting
-    var pauseThreshold: Double
-    var silenceFloorDB: Double
-    var breathingRoom: Double
-    var minKeep: Double
-    // Encoding
-    var videoCodec: String        // "h264" | "hevc"
-    var hardwareEncoding: Bool    // Apple VideoToolbox
-    var videoQuality: String      // "maximum" | "high" | "balanced" | "smaller"
-    var audioCodec: String        // "aac" | "opus"
-    var audioBitrateKbps: Int
-    var outputContainer: String   // "auto" | "mp4" | "mkv" | "mov" | "m4v" | "ts" | "webm"
-    // Backup
-    var backupOriginal: Bool      // copy the source aside before cutting
-
-    static let defaults = EngineConfig(
-        version: 2,
-        pauseThreshold: 0.35, silenceFloorDB: -30, breathingRoom: 0.10, minKeep: 0.05,
-        videoCodec: "hevc", hardwareEncoding: true, videoQuality: "high",
-        audioCodec: "aac", audioBitrateKbps: 192, outputContainer: "auto", backupOriginal: true)
-
-    enum CodingKeys: String, CodingKey {
-        case version, pauseThreshold, silenceFloorDB, breathingRoom, minKeep
-        case videoCodec, hardwareEncoding, videoQuality, audioCodec, audioBitrateKbps
-        case outputContainer, backupOriginal
-    }
-
-    init(version: Int, pauseThreshold: Double, silenceFloorDB: Double, breathingRoom: Double,
-         minKeep: Double, videoCodec: String, hardwareEncoding: Bool, videoQuality: String,
-         audioCodec: String, audioBitrateKbps: Int, outputContainer: String, backupOriginal: Bool) {
-        self.version = version
-        self.pauseThreshold = pauseThreshold
-        self.silenceFloorDB = silenceFloorDB
-        self.breathingRoom = breathingRoom
-        self.minKeep = minKeep
-        self.videoCodec = videoCodec
-        self.hardwareEncoding = hardwareEncoding
-        self.videoQuality = videoQuality
-        self.audioCodec = audioCodec
-        self.audioBitrateKbps = audioBitrateKbps
-        self.outputContainer = outputContainer
-        self.backupOriginal = backupOriginal
-    }
-
-    init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        let d = EngineConfig.defaults
-        version          = try c.decodeIfPresent(Int.self, forKey: .version) ?? d.version
-        pauseThreshold   = try c.decodeIfPresent(Double.self, forKey: .pauseThreshold) ?? d.pauseThreshold
-        silenceFloorDB   = try c.decodeIfPresent(Double.self, forKey: .silenceFloorDB) ?? d.silenceFloorDB
-        breathingRoom    = try c.decodeIfPresent(Double.self, forKey: .breathingRoom) ?? d.breathingRoom
-        minKeep          = try c.decodeIfPresent(Double.self, forKey: .minKeep) ?? d.minKeep
-        videoCodec       = try c.decodeIfPresent(String.self, forKey: .videoCodec) ?? d.videoCodec
-        hardwareEncoding = try c.decodeIfPresent(Bool.self, forKey: .hardwareEncoding) ?? d.hardwareEncoding
-        videoQuality     = try c.decodeIfPresent(String.self, forKey: .videoQuality) ?? d.videoQuality
-        audioCodec       = try c.decodeIfPresent(String.self, forKey: .audioCodec) ?? d.audioCodec
-        audioBitrateKbps = try c.decodeIfPresent(Int.self, forKey: .audioBitrateKbps) ?? d.audioBitrateKbps
-        outputContainer  = try c.decodeIfPresent(String.self, forKey: .outputContainer) ?? d.outputContainer
-        backupOriginal   = try c.decodeIfPresent(Bool.self, forKey: .backupOriginal) ?? d.backupOriginal
-    }
-}
+import CrispCore
 
 /// The live, editable settings, persisted to a JSON file in the channel's data
 /// home (`~/.crisp*/config/settings.json`) — outside the app bundle, so an update
 /// never disturbs them. Loads on launch (defaults fill any missing keys); every
-/// change is written back atomically.
+/// change is written back atomically. The on-disk shape (`EngineConfig`) and the
+/// read/write (`EngineConfigStore`) live in CrispCore so the background agent and
+/// App Intents share the exact same file and format.
 @MainActor
 @Observable
 final class EngineSettings {
@@ -92,6 +24,10 @@ final class EngineSettings {
     var outputContainer: String { didSet { save() } }
     // Backup (applied to every clean)
     var backupOriginal: Bool { didSet { save() } }
+    // Watch folder (drives the background agent)
+    var watchEnabled: Bool { didSet { save() } }
+    var watchFolderPath: String { didSet { save() } }
+    var watchRemoveFillers: Bool { didSet { save() } }
 
     /// A plain-value snapshot of the live settings.
     var config: EngineConfig {
@@ -101,20 +37,15 @@ final class EngineSettings {
                      videoCodec: videoCodec, hardwareEncoding: hardwareEncoding,
                      videoQuality: videoQuality, audioCodec: audioCodec,
                      audioBitrateKbps: audioBitrateKbps, outputContainer: outputContainer,
-                     backupOriginal: backupOriginal)
-    }
-
-    /// `~/.crisp*/config/settings.json` — beside the downloaded model.
-    static var fileURL: URL {
-        Channel.current.dataDirectory
-            .appendingPathComponent("config", isDirectory: true)
-            .appendingPathComponent("settings.json")
+                     backupOriginal: backupOriginal,
+                     watchEnabled: watchEnabled, watchFolderPath: watchFolderPath,
+                     watchRemoveFillers: watchRemoveFillers)
     }
 
     init() {
-        let url = Self.fileURL
+        let url = EngineConfigStore.fileURL
         let existed = FileManager.default.fileExists(atPath: url.path)
-        let cfg = Self.read(from: url)
+        let cfg = EngineConfigStore.load()
         // Property observers don't fire for assignments in init, so no save here.
         pauseThreshold = cfg.pauseThreshold
         silenceFloorDB = cfg.silenceFloorDB
@@ -127,9 +58,15 @@ final class EngineSettings {
         audioBitrateKbps = cfg.audioBitrateKbps
         outputContainer = cfg.outputContainer
         backupOriginal = cfg.backupOriginal
-        if !existed { Self.write(config, to: url) }  // materialize the file on first launch
+        watchEnabled = cfg.watchEnabled
+        watchFolderPath = cfg.watchFolderPath
+        watchRemoveFillers = cfg.watchRemoveFillers
+        if !existed { EngineConfigStore.save(config) }  // materialize the file on first launch
     }
 
+    /// Resets the cutting + encoding + backup knobs to defaults. The watch-folder
+    /// settings are intentionally left alone — they have their own section and
+    /// resetting them would silently disable the user's watcher.
     func restoreDefaults() {
         let d = EngineConfig.defaults
         pauseThreshold = d.pauseThreshold
@@ -145,25 +82,5 @@ final class EngineSettings {
         backupOriginal = d.backupOriginal
     }
 
-    private func save() { Self.write(config, to: Self.fileURL) }
-
-    private static func read(from url: URL) -> EngineConfig {
-        guard let data = try? Data(contentsOf: url),
-              let cfg = try? JSONDecoder().decode(EngineConfig.self, from: data) else {
-            return .defaults
-        }
-        return cfg
-    }
-
-    private static func write(_ cfg: EngineConfig, to url: URL) {
-        do {
-            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(),
-                                                    withIntermediateDirectories: true)
-            let encoder = JSONEncoder()
-            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-            try encoder.encode(cfg).write(to: url, options: .atomic)
-        } catch {
-            AppInfo.logger("settings").error("Couldn't save settings: \(error.localizedDescription)")
-        }
-    }
+    private func save() { EngineConfigStore.save(config) }
 }

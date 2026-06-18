@@ -1,4 +1,5 @@
 import SwiftUI
+import CrispCore
 
 @main
 struct CrispApp: App {

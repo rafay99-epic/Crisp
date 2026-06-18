@@ -6,7 +6,7 @@ import Foundation
 /// total)` progress. `cancel()` stops the transfer, leaving the `.part` for a
 /// later resume. Delegate callbacks are serialized on the session's queue, so the
 /// mutable counters are touched from one place at a time.
-final class ChunkedDownloader: NSObject, URLSessionDataDelegate, @unchecked Sendable {
+public final class ChunkedDownloader: NSObject, URLSessionDataDelegate, @unchecked Sendable {
     private let partURL: URL
     private let resumeOffset: Int64
     private let onProgress: @Sendable (Int64, Int64) -> Void
@@ -20,8 +20,8 @@ final class ChunkedDownloader: NSObject, URLSessionDataDelegate, @unchecked Send
     private var session: URLSession?
     private var continuation: CheckedContinuation<Void, Error>?
 
-    init(partURL: URL, resumeOffset: Int64,
-         onProgress: @escaping @Sendable (Int64, Int64) -> Void) {
+    public init(partURL: URL, resumeOffset: Int64,
+                onProgress: @escaping @Sendable (Int64, Int64) -> Void) {
         self.partURL = partURL
         self.resumeOffset = resumeOffset
         self.onProgress = onProgress
@@ -36,7 +36,7 @@ final class ChunkedDownloader: NSObject, URLSessionDataDelegate, @unchecked Send
         }
     }
 
-    func run(request: URLRequest) async throws {
+    public func run(request: URLRequest) async throws {
         let session = URLSession(configuration: .default, delegate: self, delegateQueue: nil)
         self.session = session
         defer { session.finishTasksAndInvalidate() }
@@ -46,12 +46,12 @@ final class ChunkedDownloader: NSObject, URLSessionDataDelegate, @unchecked Send
         }
     }
 
-    func cancel() { session?.invalidateAndCancel() }
+    public func cancel() { session?.invalidateAndCancel() }
 
     // Validate status, choose append-vs-restart, and open the file handle.
-    func urlSession(_ session: URLSession, dataTask: URLSessionDataTask,
-                    didReceive response: URLResponse,
-                    completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
+    public func urlSession(_ session: URLSession, dataTask: URLSessionDataTask,
+                           didReceive response: URLResponse,
+                           completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
         guard let http = response as? HTTPURLResponse,
               (200..<300).contains(http.statusCode) else {
             responseError = Err.http((response as? HTTPURLResponse)?.statusCode ?? -1)
@@ -77,7 +77,7 @@ final class ChunkedDownloader: NSObject, URLSessionDataDelegate, @unchecked Send
         }
     }
 
-    func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
+    public func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
         do {
             try handle?.write(contentsOf: data)
             received += Int64(data.count)
@@ -92,7 +92,7 @@ final class ChunkedDownloader: NSObject, URLSessionDataDelegate, @unchecked Send
         }
     }
 
-    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+    public func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         try? handle?.close()
         handle = nil
         let cont = continuation

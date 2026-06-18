@@ -1,4 +1,5 @@
 import SwiftUI
+import CrispCore
 
 /// The ⌘, Settings window. Edits the four numeric cutting knobs used by the
 /// "Custom" strength; values persist to `~/.crisp*/config/settings.json`.
