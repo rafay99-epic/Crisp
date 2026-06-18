@@ -9,41 +9,29 @@ struct QueueView: View {
     @Bindable var model: CleanModel
     @Bindable var settings: EngineSettings
 
-    /// The queue is the one variable-height part of the window, so cap its list to
-    /// what the current screen can show (reserving room for the other cards + the
-    /// Clean button). A longer queue scrolls inside the list instead of pushing the
-    /// window off-screen.
-    private var listHeight: CGFloat {
-        let rows = CGFloat(model.queue.count)
-        let screen = NSScreen.main?.visibleFrame.height ?? 1000
-        let maxList = max(160, screen - 800)   // ~800pt for the rest of the window
-        return min(max(rows, 1) * 48 + 8, maxList)
-    }
-
+    /// The queue fills the window and scrolls on its own (the window is resizable,
+    /// so it shows more rows on a big display and fewer on a laptop — the rest of
+    /// the chrome stays pinned). A section header carries the count.
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("Queue").font(.headline)
-                Spacer()
-                Text(countLabel).font(.callout).foregroundStyle(.secondary)
-            }
-            List {
+        List {
+            Section {
                 ForEach($model.queue) { $item in
                     QueueRow(item: $item, presets: settings.presets,
                              defaultName: settings.defaultPreset?.name,
                              onRemove: { model.remove(item.id) })
-                        .listRowInsets(EdgeInsets(top: 4, leading: 6, bottom: 4, trailing: 6))
                         .listRowSeparator(.hidden)
                 }
                 .onMove(perform: model.moveWaiting)
+            } header: {
+                HStack {
+                    Text("Queue")
+                    Spacer()
+                    Text(countLabel).foregroundStyle(.secondary)
+                }
             }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
-            .frame(height: listHeight)
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .cardBackground()
+        .listStyle(.inset)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var countLabel: String {

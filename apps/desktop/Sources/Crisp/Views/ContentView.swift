@@ -17,12 +17,6 @@ struct ContentView: View {
     /// Filler-word removal needs the speech model; pauses-only doesn't.
     private var needsModel: Bool { model.removeFillers }
 
-    /// "Clean Video" for one queued file, "Clean N Videos" for a batch.
-    private var cleanButtonTitle: String {
-        let pending = model.queue.filter { $0.isWaiting }.count
-        return pending <= 1 ? "Clean Video" : "Clean \(pending) Videos"
-    }
-
     /// Resolve a queued file's recipe: its own preset if set, else the window's
     /// default preset, else the live global strength + settings.
     private func resolveParameters(_ item: QueueItem) -> CleanParameters {
@@ -78,42 +72,44 @@ struct ContentView: View {
             OnboardingView(onboarding: onboarding, modelStore: modelStore,
                            settings: settings, watchAgent: watchAgent)
         } else {
-            mainContent
+            workspace
         }
     }
 
-    private var mainContent: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            header
+    /// The working layout: transient banners on top, then either the empty-state
+    /// hero (no files yet) or the queue list filling the window above a pinned
+    /// bottom bar. The window is resizable, so the list — not the chrome — takes
+    /// the slack on any screen size.
+    private var workspace: some View {
+        VStack(spacing: 0) {
             UpdateBanner(updater: updater)
-            DropCard(model: model, importing: $importing)
-            if !model.queue.isEmpty {
-                QueueView(model: model, settings: settings)
-            }
-            OptionsCard(model: model)
-            BackupStatusView(backupOn: settings.backupOriginal)
             if modelBlocks || modelStore.state.isBusy {
                 ModelStatusView(store: modelStore)
+                    .padding(.horizontal, 16).padding(.top, 10)
             }
-            actionButton
-            // While running (or on error) show the overall progress bar; once a
-            // batch finishes the ResultCard summarizes it, so the bar steps aside.
-            if model.isRunning || model.errorMessage != nil {
-                ProgressSection(model: model)
-            }
-            if !model.results.isEmpty && !model.isRunning {
-                ResultCard(model: model)
+            if model.queue.isEmpty {
+                emptyHero
+            } else {
+                QueueView(model: model, settings: settings)
+                Divider()
+                BottomBar(model: model, settings: settings,
+                          modelBlocks: modelBlocks, onStart: attemptStart)
             }
         }
-        .padding(24)
-        .frame(width: 560, alignment: .leading)
+        .frame(minWidth: 540, minHeight: 460)
         .background(.background)
+        .dropDestination(for: URL.self) { urls, _ in
+            model.addFiles(urls)
+            return true
+        }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                SettingsLink {
-                    Label("Settings", systemImage: "gearshape")
-                }
-                .help("Settings")
+                Button { importing = true } label: { Label("Add Videos", systemImage: "plus") }
+                    .help("Add videos")
+            }
+            ToolbarItem(placement: .primaryAction) {
+                SettingsLink { Label("Settings", systemImage: "gearshape") }
+                    .help("Settings")
             }
         }
         .fileImporter(isPresented: $importing,
@@ -128,6 +124,20 @@ struct ContentView: View {
                                     onCancel: { showUltraSheet = false })
             }
         }
+    }
+
+    /// Empty state — app identity + the inviting drop zone, centered. This is the
+    /// focused single-purpose look the app opens with.
+    private var emptyHero: some View {
+        VStack(spacing: 18) {
+            Spacer(minLength: 0)
+            header
+            DropCard(model: model, importing: $importing)
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: 460)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(24)
     }
 
     /// App identity — the real app icon (per-channel) + wordmark + tagline.
@@ -151,42 +161,6 @@ struct ContentView: View {
                     .font(.callout).foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
-        }
-    }
-
-    @ViewBuilder private var actionButton: some View {
-        if model.isRunning {
-            Button(role: .cancel) {
-                model.cancel()
-            } label: {
-                HStack {
-                    Image(systemName: "xmark.circle.fill")
-                    Text("Cancel")
-                }
-                .frame(maxWidth: .infinity)
-                .font(.headline)
-                .padding(.vertical, 6)
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.large)
-            .tint(.red)
-            .keyboardShortcut(.cancelAction)
-        } else {
-            Button {
-                attemptStart()
-            } label: {
-                HStack {
-                    Image(systemName: "scissors")
-                    Text(cleanButtonTitle)
-                }
-                .frame(maxWidth: .infinity)
-                .font(.headline)
-                .padding(.vertical, 6)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .disabled(!model.hasPendingWork || modelBlocks)
-            .keyboardShortcut(.return, modifiers: .command)
         }
     }
 }

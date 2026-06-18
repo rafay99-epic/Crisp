@@ -19,10 +19,12 @@ struct CrispApp: App {
                 .task { QuickActionInstaller.install() }
                 .task { reconcileWatchAgent() }
         }
-        // Content has a fixed width and natural height, so the window sizes itself
-        // to fit — it grows when a result appears and shrinks back, with no scroll
-        // and no dead space.
-        .windowResizability(.contentSize)
+        // The queue is a list, so the window is resizable (macOS restores its size
+        // and position between launches): the queue takes the slack while the
+        // toolbar and the bottom action bar stay pinned. A default that's roomy on
+        // first run, with a sensible floor enforced by the content's min frame.
+        .defaultSize(width: 720, height: 640)
+        .windowResizability(.contentMinSize)
         .windowToolbarStyle(.unified)
         .commands {
             CommandGroup(after: .appInfo) {
