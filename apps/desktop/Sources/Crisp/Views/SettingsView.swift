@@ -10,6 +10,9 @@ struct SettingsView: View {
     @Bindable var updater: Updater
     @Bindable var watchAgent: WatchAgentController
 
+    @State private var newPresetName = ""
+    @State private var snapshot = SystemProbe.snapshot()
+
     /// Whether the chosen container dictates its own codecs (WebM → VP9 + Opus),
     /// in which case the codec controls are disabled. Reads the rule off the enum
     /// so it stays in one place as containers are added.
@@ -140,6 +143,10 @@ struct SettingsView: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
 
+            presetsSection
+
+            performanceSection
+
             Section {
                 LabeledContent("Cleaned files") {
                     HStack(spacing: 8) {
@@ -193,7 +200,97 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .frame(width: 460, height: 620)
-        .onAppear { watchAgent.refresh() }
+        .onAppear { watchAgent.refresh(); snapshot = SystemProbe.snapshot() }
+    }
+
+    // MARK: - Performance
+
+    private var concurrencyMode: ConcurrencyMode { ConcurrencyMode(storage: settings.concurrencyMode) }
+    private var modeBinding: Binding<ConcurrencyMode> {
+        Binding(get: { concurrencyMode }, set: { settings.concurrencyMode = $0.rawValue })
+    }
+    private var ceiling: Int { ResourceGovernor.hardwareCeiling(snapshot: snapshot, config: settings.config) }
+    private var recommended: Int { ResourceGovernor.recommended(snapshot: snapshot, config: settings.config) }
+
+    /// Selectable per-clean RAM budgets, labelled in GB.
+    private let memoryBudgets = [1024, 1536, 2048, 3072, 4096]
+
+    @ViewBuilder private var performanceSection: some View {
+        Section {
+            Picker("Cleaning at once", selection: modeBinding) {
+                ForEach(ConcurrencyMode.allCases) { Text($0.label).tag($0) }
+            }
+            Text(concurrencyMode.detail)
+                .font(.caption).foregroundStyle(.secondary)
+
+            if concurrencyMode == .manual {
+                Stepper("Run \(settings.manualConcurrency) at once",
+                        value: $settings.manualConcurrency, in: 1...max(1, ceiling))
+            }
+
+            Picker("Memory per video", selection: $settings.perJobMemoryBudgetMB) {
+                ForEach(memoryBudgets, id: \.self) { Text(gbLabel($0)).tag($0) }
+            }
+        } header: {
+            Text("Performance")
+        } footer: {
+            Text("This Mac can clean about \(recommended) at once right now (up to \(ceiling) when memory is free). Parallel cleaning is limited by the shared media engine and heat \u{2014} more at once isn\u{2019}t always faster.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    private func gbLabel(_ mb: Int) -> String {
+        let gb = Double(mb) / 1024
+        return gb == gb.rounded() ? "\(Int(gb)) GB" : String(format: "%.1f GB", gb)
+    }
+
+    // MARK: - Presets
+
+    private var defaultPresetBinding: Binding<UUID?> {
+        Binding(get: { UUID(uuidString: settings.defaultPresetID) },
+                set: { settings.setDefaultPreset($0) })
+    }
+
+    private var trimmedNewPresetName: String {
+        newPresetName.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    @ViewBuilder private var presetsSection: some View {
+        Section {
+            ForEach($settings.presets) { $preset in
+                HStack {
+                    TextField("Name", text: $preset.name)
+                        .textFieldStyle(.plain)
+                    Spacer()
+                    Button(role: .destructive) {
+                        settings.deletePreset(preset.id)
+                    } label: {
+                        Image(systemName: "trash")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Delete preset")
+                }
+            }
+            HStack {
+                TextField("New preset name\u{2026}", text: $newPresetName)
+                Button("Add") {
+                    settings.addPreset(named: trimmedNewPresetName, strength: .custom)
+                    newPresetName = ""
+                }
+                .disabled(trimmedNewPresetName.isEmpty)
+            }
+            if !settings.presets.isEmpty {
+                Picker("New files use", selection: defaultPresetBinding) {
+                    Text("Current settings").tag(UUID?.none)
+                    ForEach(settings.presets) { Text($0.name).tag(UUID?.some($0.id)) }
+                }
+            }
+        } header: {
+            Text("Presets")
+        } footer: {
+            Text("A preset saves the current cutting, encoding, output, and backup settings under a name. In the queue, pick a preset per file \u{2014} so different videos can be cleaned differently in one batch.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
     }
 
     // MARK: - Output location

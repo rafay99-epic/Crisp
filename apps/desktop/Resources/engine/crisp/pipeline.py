@@ -26,7 +26,7 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
                 video_codec=DEFAULT_VIDEO_CODEC, hardware=DEFAULT_HARDWARE, quality=DEFAULT_QUALITY,
                 audio_codec=DEFAULT_AUDIO_CODEC, audio_bitrate=DEFAULT_AUDIO_BITRATE,
                 container=DEFAULT_CONTAINER, remove_fillers=True, backup=DEFAULT_BACKUP,
-                backup_dir=None, out_dir=None, on_log=None, on_progress=None):
+                backup_dir=None, out_dir=None, waveform_buckets=0, on_log=None, on_progress=None):
     """
     Clean one video. Returns a dict with results.
       on_log(str)            — called with human-readable status lines.
@@ -113,6 +113,14 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
         on_log(f"Removing {stats['fillers']} filler words and {stats['pauses']} pauses.")
         on_log(f"{duration:.0f}s  →  {kept_dur:.0f}s  (saved {duration - kept_dur:.0f}s)")
 
+        # Build the UI waveform now, while the analysis WAV still exists (it's
+        # deleted when this temp dir closes). Opt-in via waveform_buckets so the
+        # bare CLI / watcher don't pay for data nothing renders.
+        wave_summary = {"peaks": [], "removed": []}
+        if waveform_buckets > 0:
+            from .waveform import waveform_summary
+            wave_summary = waveform_summary(wav, duration, keep, waveform_buckets)
+
         audio = audio_args(audio_codec, audio_bitrate)
         mux = container_args(container)
         try:
@@ -143,4 +151,6 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
         "saved_seconds": duration - kept_dur,
         "fillers": stats["fillers"],
         "pauses": stats["pauses"],
+        "peaks": wave_summary["peaks"],
+        "removed": wave_summary["removed"],
     }

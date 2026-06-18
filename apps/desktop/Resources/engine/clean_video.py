@@ -90,6 +90,9 @@ def main():
     p.add_argument("--ndjson", action="store_true",
                    help="emit machine-readable progress as one JSON object per line "
                         "(used by the desktop app)")
+    p.add_argument("--waveform", type=int, default=0, metavar="N",
+                   help="also emit an N-bucket audio waveform (peaks + which slices "
+                        "were cut) in the result, for the app to render (0 = off)")
     args = p.parse_args()
 
     if args.ndjson:
@@ -110,7 +113,8 @@ def main():
                              audio_codec=args.audio_codec, audio_bitrate=args.audio_bitrate,
                              container=args.container, remove_fillers=not args.no_fillers,
                              backup=not args.no_backup, backup_dir=args.backup_dir,
-                             out_dir=args.out_dir, on_log=on_log, on_progress=on_progress)
+                             out_dir=args.out_dir, waveform_buckets=args.waveform,
+                             on_log=on_log, on_progress=on_progress)
         if args.ndjson:
             emit({"event": "result", **result})
     except CleanError as e:
