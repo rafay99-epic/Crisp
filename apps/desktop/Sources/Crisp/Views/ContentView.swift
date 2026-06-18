@@ -18,11 +18,12 @@ struct ContentView: View {
     /// Filler-word removal needs the speech model; pauses-only doesn't.
     private var needsModel: Bool { model.removeFillers }
 
-    /// Resolve a queued file's recipe: its own preset if set, else the window's
-    /// default preset, else the live global strength + settings.
+    /// Resolve a queued file's recipe: its own preset if it has one, otherwise the
+    /// live global strength + settings shown in the bottom bar. (A "default for new
+    /// files" preset is stamped onto rows when they're added, so a row with no
+    /// preset genuinely means "use the global controls" — no hidden override.)
     private func resolveParameters(_ item: QueueItem) -> CleanParameters {
         if let preset = settings.preset(withID: item.presetID) { return preset.parameters() }
-        if let preset = settings.defaultPreset { return preset.parameters() }
         return model.strength.parameters(using: settings.config)
     }
 
@@ -101,6 +102,11 @@ struct ContentView: View {
         // at the smallest size; the queue takes any extra height/width.
         .frame(minWidth: 600, minHeight: 460)
         .background(.background)
+        // Keep the "default for new files" preset the model stamps onto added rows
+        // in sync with Settings, in both directions and at first appearance.
+        .onChange(of: settings.defaultPresetID, initial: true) {
+            model.newItemPresetID = settings.defaultPreset?.id
+        }
         .dropDestination(for: URL.self) { urls, _ in
             model.addFiles(urls)
             return true

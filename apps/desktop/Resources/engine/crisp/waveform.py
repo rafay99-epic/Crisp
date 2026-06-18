@@ -64,5 +64,7 @@ def waveform_summary(wav_path, duration, keep_segments, buckets=120):
             "peaks": _peaks_from_samples(samples, buckets),
             "removed": _removed_flags(buckets, duration, keep_segments),
         }
-    except (wave.Error, OSError, ValueError):
+    except Exception:
+        # The waveform is a nicety; whatever goes wrong (unreadable WAV, an odd
+        # format, even MemoryError on an hours-long file) must never fail the clean.
         return {"peaks": [], "removed": []}

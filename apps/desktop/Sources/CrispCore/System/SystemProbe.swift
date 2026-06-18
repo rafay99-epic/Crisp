@@ -12,18 +12,15 @@ public struct SystemSnapshot: Sendable, Equatable {
     public var availableMemory: UInt64
     /// Number of performance ("P") cores — the cores that matter for encode/whisper.
     public var performanceCoreCount: Int
-    /// Total logical cores.
-    public var logicalCoreCount: Int
     /// Current thermal pressure; `serious`/`critical` forces serial cleaning.
     public var thermalState: ProcessInfo.ThermalState
 
     public init(physicalMemory: UInt64, availableMemory: UInt64,
-                performanceCoreCount: Int, logicalCoreCount: Int,
+                performanceCoreCount: Int,
                 thermalState: ProcessInfo.ThermalState) {
         self.physicalMemory = physicalMemory
         self.availableMemory = availableMemory
         self.performanceCoreCount = performanceCoreCount
-        self.logicalCoreCount = logicalCoreCount
         self.thermalState = thermalState
     }
 }
@@ -35,17 +32,20 @@ public struct SystemSnapshot: Sendable, Equatable {
 public enum SystemProbe {
     public static func snapshot() -> SystemSnapshot {
         let info = ProcessInfo.processInfo
+        let physical = info.physicalMemory
+        // If the mach read fails, fall back to a conservative half of RAM rather
+        // than 0 — 0 would wedge Ultra's preflight (it could never pass).
+        let available = availableMemory() ?? (physical / 2)
         return SystemSnapshot(
-            physicalMemory: info.physicalMemory,
-            availableMemory: availableMemory(),
+            physicalMemory: physical,
+            availableMemory: available,
             performanceCoreCount: performanceCoreCount(),
-            logicalCoreCount: info.activeProcessorCount,
             thermalState: info.thermalState)
     }
 
     /// Free + inactive + purgeable + speculative pages — memory the OS can hand out
-    /// without pushing other apps to swap. Returns 0 if the mach call fails.
-    private static func availableMemory() -> UInt64 {
+    /// without pushing other apps to swap. `nil` if the mach call fails.
+    private static func availableMemory() -> UInt64? {
         var stats = vm_statistics64()
         var count = mach_msg_type_number_t(MemoryLayout<vm_statistics64_data_t>.stride / MemoryLayout<integer_t>.stride)
         let result = withUnsafeMutablePointer(to: &stats) { ptr in
@@ -53,7 +53,7 @@ public enum SystemProbe {
                 host_statistics64(mach_host_self(), HOST_VM_INFO64, intPtr, &count)
             }
         }
-        guard result == KERN_SUCCESS else { return 0 }
+        guard result == KERN_SUCCESS else { return nil }
         let pageSize = UInt64(vm_page_size)
         let pages = UInt64(stats.free_count) + UInt64(stats.inactive_count)
             + UInt64(stats.purgeable_count) + UInt64(stats.speculative_count)

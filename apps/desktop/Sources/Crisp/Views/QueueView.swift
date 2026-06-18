@@ -14,9 +14,7 @@ struct QueueView: View {
         List {
             Section {
                 ForEach($model.queue) { $item in
-                    QueueRow(item: $item, model: model, player: player,
-                             presets: settings.presets,
-                             defaultName: settings.defaultPreset?.name)
+                    QueueRow(item: $item, model: model, player: player, presets: settings.presets)
                         .listRowSeparator(.hidden)
                 }
                 .onMove(perform: model.moveWaiting)
@@ -32,11 +30,12 @@ struct QueueView: View {
         }
         .listStyle(.inset)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .animation(.snappy, value: model.queue.count)   // animate row insert/remove
     }
 
     private var countLabel: String {
-        let waiting = model.queue.filter { $0.isWaiting }.count
-        let done = model.queue.filter { $0.status == .done }.count
+        let waiting = model.waitingCount
+        let done = model.doneCount
         if model.isRunning { return "\(done) of \(model.queue.count) done" }
         if waiting == model.queue.count { return "\(waiting) video\(waiting == 1 ? "" : "s")" }
         return "\(done) done · \(waiting) waiting"
@@ -52,7 +51,6 @@ private struct QueueRow: View {
     let model: CleanModel
     let player: PreviewPlayer
     let presets: [Preset]
-    let defaultName: String?
 
     /// The cleaned file, once it exists — used for drag-out, reveal, preview, copy.
     private var outputURL: URL? {
@@ -124,7 +122,7 @@ private struct QueueRow: View {
             }
         case .waiting where !presets.isEmpty:
             Picker("Preset", selection: $item.presetID) {
-                Text(defaultName.map { "Default (\($0))" } ?? "Default").tag(UUID?.none)
+                Text("Default").tag(UUID?.none)
                 ForEach(presets) { preset in
                     Text(preset.name).tag(UUID?.some(preset.id))
                 }
@@ -242,13 +240,13 @@ private struct QueueRow: View {
         return outStr
     }
 
+    // `glyph` is only consulted for non-running rows (running shows a spinner).
     private var glyph: String {
         switch item.status {
-        case .waiting:   return "circle.dotted"
-        case .running:   return "circle.dotted"   // unused (spinner shown instead)
         case .done:      return "checkmark.circle.fill"
         case .failed:    return "exclamationmark.triangle.fill"
         case .cancelled: return "minus.circle"
+        default:         return "circle.dotted"   // waiting
         }
     }
 
@@ -260,17 +258,13 @@ private struct QueueRow: View {
         }
     }
 
+    // Only reached for the non-waveform secondary states (waiting w/o presets,
+    // canceled, failed); running/done render their own views.
     private var detail: String {
         switch item.status {
-        case .waiting:   return "Waiting"
-        case .running:   return "Cleaning\u{2026}"
         case .cancelled: return "Canceled"
         case .failed:    return item.error ?? "Couldn\u{2019}t be cleaned"
-        case .done:
-            if let r = item.result {
-                return "removed \(formatTime(r.savedSeconds))"
-            }
-            return "Cleaned"
+        default:         return "Waiting"
         }
     }
 }

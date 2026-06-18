@@ -15,10 +15,13 @@ final class CleanModel {
     var queue: [QueueItem] = []
     var strength: Strength = .aggressive
     var removeFillers = true
+    /// The preset stamped onto newly added files (the user's "default for new
+    /// files"); kept in sync with settings by the view. `nil` ⇒ new files use the
+    /// live global strength.
+    var newItemPresetID: UUID?
 
     var isRunning = false
     var status = "Choose a video to begin."
-    var logLines: [String] = []
     /// A batch-level error (e.g. the speech model couldn't be fetched). Per-file
     /// failures live on the individual `QueueItem`, not here.
     var errorMessage: String?
@@ -27,8 +30,9 @@ final class CleanModel {
     /// callers see finished files without a parallel array to keep in sync.
     var results: [CleanResult] { queue.compactMap(\.result) }
 
-    /// Whether there's anything left to clean (gates the Clean button).
-    var hasPendingWork: Bool { queue.contains { $0.isWaiting } }
+    /// Status tallies, derived once here so the views don't each re-filter the queue.
+    var waitingCount: Int { queue.lazy.filter { $0.isWaiting }.count }
+    var doneCount: Int { queue.lazy.filter { $0.status == .done }.count }
 
     /// Aggregate progress across the whole queue: terminal items count as done,
     /// the running ones contribute their fraction, waiting ones contribute nothing.
@@ -62,18 +66,15 @@ final class CleanModel {
         var existing = Set(queue.map { $0.url.standardizedFileURL })
         let fresh = videos.filter { existing.insert($0.standardizedFileURL).inserted }
         guard !fresh.isEmpty else { return }
-        withAnimation(.snappy) {
-            queue.append(contentsOf: fresh.map { QueueItem(url: $0) })
-        }
+        queue.append(contentsOf: fresh.map { QueueItem(url: $0, presetID: newItemPresetID) })
         errorMessage = nil
         updateIdleStatus()
     }
 
-    /// Remove a still-waiting item from the queue. Running/finished items stay put.
     /// Drop a row from the queue — anything except the one currently being cleaned.
     func remove(_ id: QueueItem.ID) {
         guard let idx = queue.firstIndex(where: { $0.id == id }), queue[idx].status != .running else { return }
-        _ = withAnimation(.snappy) { queue.remove(at: idx) }
+        queue.remove(at: idx)
         if !isRunning { updateIdleStatus() }
     }
 
@@ -81,12 +82,10 @@ final class CleanModel {
     func retry(_ id: QueueItem.ID) {
         guard let idx = queue.firstIndex(where: { $0.id == id }),
               queue[idx].status == .failed || queue[idx].status == .cancelled else { return }
-        withAnimation(.snappy) {
-            queue[idx].status = .waiting
-            queue[idx].error = nil
-            queue[idx].progress = 0
-            queue[idx].result = nil
-        }
+        queue[idx].status = .waiting
+        queue[idx].error = nil
+        queue[idx].progress = 0
+        queue[idx].result = nil
         if !isRunning { updateIdleStatus() }
     }
 
@@ -94,7 +93,7 @@ final class CleanModel {
     /// with a different preset. The finished row stays; a new waiting row is added.
     func reclean(_ id: QueueItem.ID) {
         guard let item = queue.first(where: { $0.id == id }) else { return }
-        withAnimation(.snappy) { queue.append(QueueItem(url: item.url, presetID: item.presetID)) }
+        queue.append(QueueItem(url: item.url, presetID: item.presetID))
         if !isRunning { updateIdleStatus() }
     }
 
@@ -110,7 +109,6 @@ final class CleanModel {
         guard !isRunning else { return }
         queue = []
         errorMessage = nil
-        logLines = []
         status = "Choose a video to begin."
     }
 
@@ -137,15 +135,17 @@ final class CleanModel {
         isRunning = true
         cancelled = false
         errorMessage = nil
-        logLines = []
 
-        // Resolve every file's recipe now, on the main actor.
+        // Freeze the recipe for the whole run: the per-file parameters and the
+        // filler/model choice are all snapshotted now, so flipping a control
+        // afterward can't change files that are already in flight.
+        let fillers = removeFillers
         var params: [QueueItem.ID: CleanParameters] = [:]
         for item in waiting { params[item.id] = resolveParameters(item) }
         let waitingIDs = waiting.map(\.id)
 
         var resolvedModel = modelPath
-        if removeFillers, resolvedModel == nil, let provisioner {
+        if fillers, resolvedModel == nil, let provisioner {
             guard let m = await provisionModel(provisioner) else { return }
             resolvedModel = m
         }
@@ -153,7 +153,8 @@ final class CleanModel {
         let model = resolvedModel
         let lanes = max(1, concurrency)
         let work = Task { @MainActor in
-            await self.drain(waitingIDs: waitingIDs, params: params, modelPath: model, lanes: lanes)
+            await self.drain(waitingIDs: waitingIDs, params: params,
+                             modelPath: model, removeFillers: fillers, lanes: lanes)
         }
         runTask = work
         await work.value
@@ -167,7 +168,7 @@ final class CleanModel {
     /// lane as soon as one finishes (so overflow files start automatically). With
     /// `lanes == 1` this is a plain serial pass.
     private func drain(waitingIDs: [QueueItem.ID], params: [QueueItem.ID: CleanParameters],
-                       modelPath: String?, lanes: Int) async {
+                       modelPath: String?, removeFillers: Bool, lanes: Int) async {
         await withTaskGroup(of: Void.self) { group in
             var next = 0
             func startNext() -> Bool {
@@ -176,7 +177,8 @@ final class CleanModel {
                     next += 1
                     guard let p = params[id] else { continue }
                     group.addTask { @MainActor in
-                        await self.runOne(id: id, modelPath: modelPath, parameters: p)
+                        await self.runOne(id: id, modelPath: modelPath,
+                                          removeFillers: removeFillers, parameters: p)
                     }
                     return true
                 }
@@ -210,26 +212,28 @@ final class CleanModel {
     /// Clean a single queued file end to end, moving it through running →
     /// done/failed/cancelled. A single file failing marks just that item and lets
     /// the rest of the batch continue.
-    private func runOne(id: QueueItem.ID, modelPath: String?, parameters: CleanParameters) async {
-        withAnimation(.smooth) { update(id) { $0.status = .running; $0.progress = 0 } }
+    private func runOne(id: QueueItem.ID, modelPath: String?,
+                        removeFillers: Bool, parameters: CleanParameters) async {
+        update(id) { $0.status = .running; $0.progress = 0 }
         updateRunningStatus()
         do {
-            let result = try await cleanOne(id: id, modelPath: modelPath, parameters: parameters)
-            withAnimation(.smooth) { update(id) { $0.result = result; $0.status = .done; $0.progress = 1 } }
+            let result = try await cleanOne(id: id, modelPath: modelPath,
+                                            removeFillers: removeFillers, parameters: parameters)
+            update(id) { $0.result = result; $0.status = .done; $0.progress = 1 }
         } catch is CancellationError {
-            withAnimation(.smooth) { update(id) { $0.status = .cancelled } }
+            update(id) { $0.status = .cancelled }
         } catch {
             if cancelled {
-                withAnimation(.smooth) { update(id) { $0.status = .cancelled } }
+                update(id) { $0.status = .cancelled }
             } else {
-                withAnimation(.smooth) { update(id) { $0.error = error.localizedDescription; $0.status = .failed } }
+                update(id) { $0.error = error.localizedDescription; $0.status = .failed }
             }
         }
         updateRunningStatus()
     }
 
     private func cleanOne(id: QueueItem.ID, modelPath: String?,
-                          parameters: CleanParameters) async throws -> CleanResult {
+                          removeFillers: Bool, parameters: CleanParameters) async throws -> CleanResult {
         guard let url = queue.first(where: { $0.id == id })?.url else { throw CancellationError() }
         let backupDir = parameters.backupOriginal ? CleanRunner.backupDirectory() : nil
         let options = CleanRunner.Options(modelPath: modelPath,
@@ -237,14 +241,12 @@ final class CleanModel {
                                           backupDirectory: backupDir,
                                           waveformBuckets: 120)
         return try await CleanRunner().run(input: url, parameters: parameters, options: options) { [weak self] event in
+            guard case .progress(let fraction, _) = event else { return }
             Task { @MainActor in
-                guard let self, self.isRunning else { return }
-                switch event {
-                case .log(let message):
-                    self.logLines.append(message)
-                case .progress(let fraction, _):
-                    self.update(id) { $0.progress = max(0, fraction) }
-                }
+                // Ignore a late callback for a file that's already finished.
+                guard let self, self.isRunning,
+                      self.queue.first(where: { $0.id == id })?.status == .running else { return }
+                self.update(id) { $0.progress = max(0, fraction) }
             }
         }
     }
@@ -300,8 +302,7 @@ final class CleanModel {
 
     private func updateRunningStatus() {
         guard isRunning else { return }
-        let done = queue.filter { $0.status == .done }.count
-        status = "Cleaning\u{2026} \(done) of \(queue.count) done"
+        status = "Cleaning\u{2026} \(doneCount) of \(queue.count) done"
     }
 
     private func finishStatus() {
@@ -310,7 +311,7 @@ final class CleanModel {
             return
         }
         let failed = queue.filter { $0.status == .failed }.count
-        let done = queue.filter { $0.status == .done }.count
+        let done = doneCount
         if failed > 0 {
             errorMessage = failed == 1
                 ? "1 video couldn\u{2019}t be cleaned \u{2014} see the queue for details."

@@ -13,8 +13,8 @@ struct BottomBar: View {
     let modelBlocks: Bool
     let onStart: () -> Void
 
-    private var pending: Int { model.queue.filter { $0.isWaiting }.count }
-    private var doneCount: Int { model.queue.filter { $0.status == .done }.count }
+    private var pending: Int { model.waitingCount }
+    private var doneCount: Int { model.doneCount }
 
     var body: some View {
         HStack(spacing: 14) {
@@ -102,9 +102,10 @@ struct BottomBar: View {
             Button { model.reset() } label: { Text("Clear") }
                 .controlSize(.large)
             Button {
-                if let path = model.results.last?.output {
-                    NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
-                }
+                // Reveal every cleaned file, not just one — they may span folders.
+                let urls = model.results.filter { !$0.output.isEmpty }
+                    .map { URL(fileURLWithPath: $0.output) }
+                if !urls.isEmpty { NSWorkspace.shared.activateFileViewerSelecting(urls) }
             } label: { Label("Show in Finder", systemImage: "folder") }
             .buttonStyle(.borderedProminent).controlSize(.large)
         }

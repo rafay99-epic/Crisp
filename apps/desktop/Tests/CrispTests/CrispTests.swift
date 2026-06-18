@@ -347,7 +347,7 @@ final class CrispTests: XCTestCase {
                       thermal: ProcessInfo.ThermalState = .nominal) -> SystemSnapshot {
         let gb = { (v: Double) in UInt64(v * 1024 * 1024 * 1024) }
         return SystemSnapshot(physicalMemory: gb(physGB), availableMemory: gb(availGB),
-                              performanceCoreCount: pCores, logicalCoreCount: pCores, thermalState: thermal)
+                              performanceCoreCount: pCores, thermalState: thermal)
     }
 
     func testGovernorNeverGoesBelowSerial() {
