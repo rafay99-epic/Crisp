@@ -102,8 +102,10 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: macos-26
     needs: [test, lint, engine-test]
+    # `models: read` lets highlights.sh call GitHub Models for the friendly notes.
     permissions:
       contents: write
+      models: read
     steps:
       - uses: actions/checkout@v6
         with:
@@ -135,6 +137,9 @@ jobs:
              && git rev-parse --verify --quiet "${CUR}^{commit}" >/dev/null \
              && git rev-parse --verify --quiet "${PREV}^{commit}" >/dev/null; then
             {
+              # Friendly, user-facing highlights via GitHub Models (best-effort),
+              # then the full grouped changelog beneath.
+              bash "$GITHUB_WORKSPACE/.github/scripts/highlights.sh" "${PREV}..${CUR}" || true
               echo "## What's changed"
               echo
               bash "$GITHUB_WORKSPACE/.github/scripts/gen-changelog.sh" "${PREV}..${CUR}" || true

@@ -78,17 +78,33 @@ final class WhatsNewController {
         UserDefaults.standard.set(releaseID, forKey: seenKey)
     }
 
-    /// Turn the grouped release-notes markdown (`### Area (N)` + `- #NN title — @user`)
-    /// into a flat, deduped list of clean, user-facing highlight titles: keep only
-    /// the user-facing areas, strip the PR number / author / count decoration, and
-    /// drop duplicates (a PR with two area labels appears once). Pure (nonisolated)
-    /// — unit-tested.
+    /// Extract the user-facing highlights from the release notes. Prefers the curated
+    /// `## Highlights` section (written by GitHub Models — already friendly prose); if
+    /// a release has none (the model step was skipped/failed), falls back to clean,
+    /// deduped titles from the user-facing changelog areas. Pure (nonisolated) —
+    /// unit-tested.
     nonisolated static func parse(_ raw: String) -> [String] {
+        let lines = raw.components(separatedBy: "\n")
+
+        // 1) Curated "## Highlights" section — already user-facing, use verbatim.
+        var inHighlights = false
+        var curated: [String] = []
+        for rawLine in lines {
+            let line = rawLine.trimmingCharacters(in: .whitespaces)
+            if line.hasPrefix("## ") {
+                inHighlights = line.dropFirst(3).trimmingCharacters(in: .whitespaces).lowercased() == "highlights"
+            } else if inHighlights, line.hasPrefix("- ") {
+                let title = String(line.dropFirst(2)).trimmingCharacters(in: .whitespaces)
+                if !title.isEmpty { curated.append(title) }
+            }
+        }
+        if !curated.isEmpty { return curated }
+
+        // 2) Fallback: clean, deduped titles from the user-facing changelog areas.
         var highlights: [String] = []
         var seen: Set<String> = []
         var include = false
-
-        for rawLine in raw.components(separatedBy: "\n") {
+        for rawLine in lines {
             let line = rawLine.trimmingCharacters(in: .whitespaces)
             if line.hasPrefix("### ") {
                 let area = line.dropFirst(4)
@@ -104,7 +120,6 @@ final class WhatsNewController {
                     highlights.append(title)
                 }
             }
-            // Ignore the top-level "## What's changed", blank lines, and code fences.
         }
         return highlights
     }

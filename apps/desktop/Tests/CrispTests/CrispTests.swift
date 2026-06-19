@@ -104,14 +104,35 @@ final class CrispTests: XCTestCase {
         XCTAssertEqual(mask, [false, false, false, true, true, true, false, false, false, false])
     }
 
-    func testWhatsNewParsesReleaseNotes() {
+    func testWhatsNewPrefersHighlightsSection() {
+        // When the LLM "## Highlights" section is present, it's used verbatim and the
+        // detailed "## What's changed" list is ignored.
+        let raw = """
+        ## Highlights
+
+        - Choose where your cleaned videos are saved.
+        - Preview the exact cuts before you clean.
+
+        ## What's changed
+
+        ### Desktop (1)
+
+        - #27 Split tracks: export separate video + audio files — @rafay99-epic
+        """
+        XCTAssertEqual(WhatsNewController.parse(raw), [
+            "Choose where your cleaned videos are saved.",
+            "Preview the exact cuts before you clean."
+        ])
+    }
+
+    func testWhatsNewFallsBackToCleanedTitles() {
+        // No Highlights section → clean, deduped titles from user-facing areas only.
         let raw = """
         ## What's changed
 
-        ### Desktop (3)
+        ### Desktop (2)
 
         - #27 Split tracks: export separate video + audio files — @rafay99-epic
-        - #29 Onboarding: match the redesigned queue UI — @someone
         - #37 Add a unified daily logging system — @rafay99-epic
 
         ### Backend (1)
@@ -126,11 +147,9 @@ final class CrispTests: XCTestCase {
 
         - #22 Add website CI — @rafay99-epic
         """
-        let highlights = WhatsNewController.parse(raw)
         // Desktop + Backend only (Docs/CI dropped), deduped (#37 once), decoration stripped.
-        XCTAssertEqual(highlights, [
+        XCTAssertEqual(WhatsNewController.parse(raw), [
             "Split tracks: export separate video + audio files",
-            "Onboarding: match the redesigned queue UI",
             "Add a unified daily logging system",
             "Speech engine: multi-model + accurate DTW timestamps"
         ])

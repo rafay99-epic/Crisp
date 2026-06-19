@@ -52,8 +52,10 @@ jobs:
     runs-on: macos-26
     needs: test
     # Only this job writes releases (least privilege; the test job stays read-only).
+    # `models: read` lets highlights.sh call GitHub Models for the friendly notes.
     permissions:
       contents: write
+      models: read
     # Only the canonical repo publishes — a fork building its own `nightly`
     # branch must not push to (or fail against) these releases.
     if: github.repository == 'rafay99-epic/Crisp'
@@ -95,6 +97,10 @@ jobs:
           NOTES_FILE="$(mktemp)"
           {
             if [ -n "$PREV" ] && git rev-parse --verify --quiet "${PREV}^{commit}" >/dev/null; then
+              # Friendly, user-facing highlights via GitHub Models (best-effort).
+              HIGHLIGHTS="$(bash "$GITHUB_WORKSPACE/.github/scripts/highlights.sh" "${PREV}..HEAD" || true)"
+              [ -n "$HIGHLIGHTS" ] && echo "$HIGHLIGHTS"
+              # Full grouped changelog underneath.
               CHANGES="$(bash "$GITHUB_WORKSPACE/.github/scripts/gen-changelog.sh" "${PREV}..HEAD" || true)"
               if [ -n "$CHANGES" ]; then
                 echo "## What's changed since the last nightly"
