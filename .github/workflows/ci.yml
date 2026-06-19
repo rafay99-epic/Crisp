@@ -122,9 +122,33 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "v$VERSION" build/Crisp.dmg \
-            --title "Crisp $VERSION" \
-            --generate-notes
+          # Stable notes = the PRs on `nightly` between the last promotion and this
+          # one. main itself carries only "Promote" squash commits, so GitHub's own
+          # --generate-notes finds nothing (hence the old empty release bodies).
+          # promote.sh stamps each promotion with the nightly SHA it shipped; diff
+          # this commit's trailer against the previous promotion's.
+          git fetch origin nightly --quiet || true
+          CUR=$(git log -1 --format='%(trailers:key=Promoted-nightly,valueonly)' | head -1)
+          PREV=$(git log -1 --format='%(trailers:key=Promoted-nightly,valueonly)' HEAD~1 2>/dev/null | head -1)
+          NOTES_FILE="$(mktemp)"
+          if [ -n "$CUR" ] && [ -n "$PREV" ] \
+             && git rev-parse --verify --quiet "${CUR}^{commit}" >/dev/null \
+             && git rev-parse --verify --quiet "${PREV}^{commit}" >/dev/null; then
+            {
+              echo "## What's changed"
+              echo
+              bash "$GITHUB_WORKSPACE/.github/scripts/gen-changelog.sh" "${PREV}..${CUR}" || true
+            } > "$NOTES_FILE"
+          fi
+          if [ -s "$NOTES_FILE" ]; then
+            gh release create "v$VERSION" build/Crisp.dmg \
+              --title "Crisp $VERSION" --notes-file "$NOTES_FILE"
+          else
+            # First release, missing trailers, or empty range — fall back to GitHub's
+            # auto notes rather than shipping no notes at all.
+            gh release create "v$VERSION" build/Crisp.dmg \
+              --title "Crisp $VERSION" --generate-notes
+          fi
 
       # Keep the Homebrew cask in sync automatically — the stable `crisp` cask is
       # version-pinned, so this pushes the new version + DMG sha256 to the tap so

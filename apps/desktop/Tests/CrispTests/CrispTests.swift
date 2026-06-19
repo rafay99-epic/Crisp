@@ -104,6 +104,30 @@ final class CrispTests: XCTestCase {
         XCTAssertEqual(mask, [false, false, false, true, true, true, false, false, false, false])
     }
 
+    func testWhatsNewParsesReleaseNotes() {
+        let raw = """
+        ## What's changed
+
+        ### Desktop (2)
+
+        - #27 Split tracks: export separate video + audio files — @rafay99-epic
+        - #29 Onboarding: match the redesigned queue UI — @someone
+
+        ### CI (1)
+
+        - #22 Add website CI — @rafay99-epic
+        """
+        let sections = WhatsNewController.parse(raw)
+        XCTAssertEqual(sections.count, 2)
+        XCTAssertEqual(sections[0].title, "Desktop")            // count stripped
+        XCTAssertEqual(sections[0].bullets, [
+            "Split tracks: export separate video + audio files",  // #NN and — @author stripped
+            "Onboarding: match the redesigned queue UI"
+        ])
+        XCTAssertEqual(sections[1].title, "CI")
+        XCTAssertEqual(sections[1].bullets, ["Add website CI"])
+    }
+
     func testCutsSummary() {
         // Both parts, pluralized.
         XCTAssertEqual(CleanResult.cutsSummary(fillers: 12, pauses: 47), "12 fillers \u{00B7} 47 pauses")

@@ -3,9 +3,11 @@ import AppKit
 import CrispCore
 
 /// The "What's New" sheet shown once after an update — the app icon, a title, and the
-/// release's highlights. Native: SF Symbols on tinted marks, a `.borderedProminent`
-/// dismiss, matching the onboarding tour's look.
+/// release's highlights. Prefers the running version's GitHub release notes (parsed
+/// into clean sections); falls back to a curated list when notes aren't available
+/// (offline / dev build). Native look, matching the onboarding tour.
 struct WhatsNewView: View {
+    @Bindable var whatsNew: WhatsNewController
     let onDismiss: () -> Void
 
     var body: some View {
@@ -18,21 +20,14 @@ struct WhatsNewView: View {
                     .font(.title2.bold()).multilineTextAlignment(.center)
             }
 
-            VStack(spacing: 12) {
-                ForEach(WhatsNewController.items) { item in
-                    HStack(alignment: .top, spacing: 14) {
-                        Image(systemName: item.symbol)
-                            .font(.title3).foregroundStyle(.tint).frame(width: 30, height: 30)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(item.title).font(.headline)
-                            Text(item.detail).font(.callout).foregroundStyle(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        Spacer(minLength: 0)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+            ScrollView {
+                if whatsNew.sections.isEmpty {
+                    fallback
+                } else {
+                    notes
                 }
             }
+            .frame(maxHeight: 320)
 
             Button("Continue") { onDismiss() }
                 .buttonStyle(.borderedProminent).controlSize(.large)
@@ -40,5 +35,47 @@ struct WhatsNewView: View {
         }
         .padding(28)
         .frame(width: 460)
+    }
+
+    /// Release-notes path: area headings + cleaned bullet titles.
+    private var notes: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            ForEach(whatsNew.sections) { section in
+                VStack(alignment: .leading, spacing: 6) {
+                    if let title = section.title {
+                        Text(title).font(.headline)
+                    }
+                    ForEach(section.bullets, id: \.self) { bullet in
+                        HStack(alignment: .top, spacing: 8) {
+                            Image(systemName: "sparkle").font(.caption2).foregroundStyle(.tint)
+                                .padding(.top, 3)
+                            Text(bullet).font(.callout)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Spacer(minLength: 0)
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
+    /// Fallback path: curated highlights when notes can't be fetched.
+    private var fallback: some View {
+        VStack(spacing: 12) {
+            ForEach(WhatsNewController.fallback) { item in
+                HStack(alignment: .top, spacing: 14) {
+                    Image(systemName: item.symbol)
+                        .font(.title3).foregroundStyle(.tint).frame(width: 30, height: 30)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(item.title).font(.headline)
+                        Text(item.detail).font(.callout).foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
     }
 }

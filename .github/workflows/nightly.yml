@@ -86,15 +86,33 @@ jobs:
           # Homebrew cask (rafay99-epic/apps/crisp-nightly) need this stable pointer.
           # The title MUST contain "build <n>" — the updater (Updater.buildNumber)
           # and the website's convex lib parse it to order builds.
+          #
+          # Notes: list the PRs merged since the previous nightly build. The rolling
+          # release stores the build's commit in target_commitish, so read it BEFORE
+          # deleting the release, then diff that SHA to HEAD with the shared changelog
+          # generator. First build (no prior release) → just the install boilerplate.
+          PREV=$(gh release view nightly --json targetCommitish -q .targetCommitish 2>/dev/null || true)
+          NOTES_FILE="$(mktemp)"
+          {
+            if [ -n "$PREV" ] && git rev-parse --verify --quiet "${PREV}^{commit}" >/dev/null; then
+              CHANGES="$(bash "$GITHUB_WORKSPACE/.github/scripts/gen-changelog.sh" "${PREV}..HEAD" || true)"
+              if [ -n "$CHANGES" ]; then
+                echo "## What's changed since the last nightly"
+                echo
+                echo "$CHANGES"
+              fi
+            fi
+            echo "Nightly build from the \`nightly\` branch @ \`$SHA\` (build $BUILD, version $VERSION-nightly)."
+            echo
+            echo "**Install:** \`brew install --cask rafay99-epic/apps/crisp-nightly\`, or download \`Crisp-Nightly.dmg\` below and drag to Applications."
+            echo
+            echo "Installs as **Crisp Nightly** — separate app, settings, and icon — so it sits next to a Stable install without touching it. Nightly auto-updates from this feed."
+            echo
+            echo "⚠️ Unsigned pre-release build for testing. Right-click → Open the first time to get past Gatekeeper."
+          } > "$NOTES_FILE"
           gh release delete nightly --yes --cleanup-tag 2>/dev/null || true
           gh release create nightly build/Crisp-Nightly.dmg \
             --prerelease \
             --target "$GITHUB_SHA" \
             --title "Crisp Nightly · build $BUILD" \
-            --notes "Nightly build from the \`nightly\` branch @ \`$SHA\` (build $BUILD, version $VERSION-nightly).
-
-          **Install:** \`brew install --cask rafay99-epic/apps/crisp-nightly\`, or download \`Crisp-Nightly.dmg\` below and drag to Applications.
-
-          Installs as **Crisp Nightly** — separate app, settings, and icon — so it sits next to a Stable install without touching it. Nightly auto-updates from this feed.
-
-          ⚠️ Unsigned pre-release build for testing. Right-click → Open the first time to get past Gatekeeper."
+            --notes-file "$NOTES_FILE"

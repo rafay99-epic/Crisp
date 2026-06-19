@@ -1,7 +1,8 @@
 import SwiftUI
 import CrispCore
 
-/// One highlight shown in the "What's New" sheet.
+/// One curated highlight — the fallback shown when the release notes can't be
+/// fetched (offline, or a dev build with no release).
 struct WhatsNewItem: Identifiable {
     let symbol: String
     let title: String
@@ -9,19 +10,38 @@ struct WhatsNewItem: Identifiable {
     var id: String { title }
 }
 
-/// Shows a one-time "What's New" sheet after the app updates to a release that added
-/// user-facing highlights — so people discover new features instead of them shipping
-/// silently. Remembers the last release announced (per channel, via that channel's
-/// `UserDefaults`, since each channel has its own bundle id).
+/// A parsed section of release notes: an optional area heading + its bullet titles,
+/// cleaned of the `#NN … — @author` decoration for a user-facing read.
+struct WhatsNewSection: Identifiable {
+    let id = UUID()
+    let title: String?
+    let bullets: [String]
+}
+
+/// Shows a one-time "What's New" sheet after the app updates — populated from the
+/// running version's GitHub release notes (the same PR-derived list the release page
+/// shows), so there's nothing to hand-maintain in the app. Remembers the last
+/// release announced per channel (each channel has its own bundle id, so
+/// `UserDefaults.standard` is already per-channel). Stays silent during onboarding
+/// and for brand-new users (the tour covered everything); appears on a real update.
 @MainActor
 @Observable
 final class WhatsNewController {
     var isPresented = false
 
-    /// Bump `version` and refresh `items` whenever a release adds something worth
-    /// announcing. The string is opaque — it just has to change when there's news.
-    static let version = "2026.06-ux"
-    static let items: [WhatsNewItem] = [
+    /// Sections parsed from the fetched release notes; empty → show the fallback.
+    private(set) var sections: [WhatsNewSection] = []
+
+    /// Identity of the running release — changes on every update. Nightly reuses one
+    /// rolling tag, so key on the monotonic build number there.
+    private var releaseID: String {
+        Updater.currentBuildNumber > 0 ? "build \(Updater.currentBuildNumber)" : Updater.currentVersion
+    }
+
+    private let seenKey = "lastWhatsNewRelease"
+
+    /// Curated fallback for when release notes aren't available (offline / dev build).
+    static let fallback: [WhatsNewItem] = [
         WhatsNewItem(symbol: "number",
                      title: "See what got cut",
                      detail: "Every cleaned video now shows how many filler words and pauses were removed."),
@@ -33,25 +53,58 @@ final class WhatsNewController {
                      detail: "Find every clean — from the queue, the menu bar, Shortcuts, or the watch folder — in History (⌘Y)."),
         WhatsNewItem(symbol: "menubar.rectangle",
                      title: "Menu-bar quick-drop",
-                     detail: "Drop a video on the menu bar to clean it with your default recipe without opening the window. Turn it on in Settings.")
+                     detail: "Drop a video on the menu bar to clean it with your default recipe without opening the window.")
     ]
 
-    private let seenKey = "lastWhatsNewVersion"
-
-    /// Show the sheet once per release with new highlights. No-op while onboarding is
-    /// up (it already introduces everything). A brand-new user who just finished the
-    /// welcome tour this launch gets the version recorded silently — they've seen it
-    /// all — but an existing user who *updated* (the tour didn't run this launch) sees
-    /// the sheet, including on the first release that ever shipped this feature.
     func presentIfNeeded(onboardingActive: Bool, onboardingAppearedOnLaunch: Bool) {
-        guard !onboardingActive, !Self.items.isEmpty else { return }
+        guard !onboardingActive else { return }
         let lastSeen = UserDefaults.standard.string(forKey: seenKey)
-        guard lastSeen != Self.version else { return }
+        guard lastSeen != releaseID else { return }
         markSeen()
-        if !onboardingAppearedOnLaunch { isPresented = true }
+        // Brand-new user (the welcome tour ran this launch) just saw everything —
+        // record silently. An existing user who updated sees the sheet.
+        guard !onboardingAppearedOnLaunch else { return }
+        Task {
+            if let raw = await Updater.currentReleaseNotes() {
+                sections = Self.parse(raw)
+            }
+            isPresented = true
+        }
     }
 
     func markSeen() {
-        UserDefaults.standard.set(Self.version, forKey: seenKey)
+        UserDefaults.standard.set(releaseID, forKey: seenKey)
+    }
+
+    /// Turn the release-notes markdown (grouped `### Area (N)` + `- #NN title — @user`)
+    /// into clean, user-facing sections: area headings without the count, bullet
+    /// titles without the PR number or author. Pure (nonisolated) — unit-tested.
+    nonisolated static func parse(_ raw: String) -> [WhatsNewSection] {
+        var sections: [WhatsNewSection] = []
+        var title: String?
+        var bullets: [String] = []
+
+        func flush() {
+            if !bullets.isEmpty { sections.append(WhatsNewSection(title: title, bullets: bullets)) }
+            bullets = []
+        }
+
+        for rawLine in raw.components(separatedBy: "\n") {
+            let line = rawLine.trimmingCharacters(in: .whitespaces)
+            if line.hasPrefix("### ") {
+                flush()
+                title = line.dropFirst(4)
+                    .replacingOccurrences(of: #"\s*\(\d+\)$"#, with: "", options: .regularExpression)
+            } else if line.hasPrefix("- ") {
+                var b = String(line.dropFirst(2))
+                b = b.replacingOccurrences(of: #"^#\d+\s+"#, with: "", options: .regularExpression)
+                b = b.replacingOccurrences(of: #"\s+[—-]\s+@\S+.*$"#, with: "", options: .regularExpression)
+                let trimmed = b.trimmingCharacters(in: .whitespaces)
+                if !trimmed.isEmpty { bullets.append(trimmed) }
+            }
+            // Ignore the top-level "## What's changed", blank lines, and code fences.
+        }
+        flush()
+        return sections
     }
 }

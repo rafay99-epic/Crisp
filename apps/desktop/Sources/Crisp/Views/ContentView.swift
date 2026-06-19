@@ -111,7 +111,7 @@ struct ContentView: View {
                                      onboardingAppearedOnLaunch: onboarding.appearedOnLaunch)
         }
         .sheet(isPresented: $whatsNew.isPresented) {
-            WhatsNewView(onDismiss: { whatsNew.isPresented = false })
+            WhatsNewView(whatsNew: whatsNew, onDismiss: { whatsNew.isPresented = false })
         }
         // Keep the "default for new files" preset the model stamps onto added rows
         // in sync with Settings, in both directions and at first appearance.
