@@ -35,6 +35,21 @@ subprocess. License: **GPL-3.0**. Conventions mirror the Vitals project.
   branch.** Every feature on its own branch **from `nightly`** → push → **draft PR
   into `nightly`**. The user squash-merges. **Never** hand-commit to `main` or
   directly to `nightly`.
+- **Use Graphite (`gt`) for the PR workflow — the user reviews every PR through
+  Graphite (the GitHub PR *view* is broken for them).** `gt` is installed + authed.
+  Use it for branch + stack management and pushing: `gt track --parent heads/nightly`
+  to put a branch on the stack, `gt submit --draft --no-interactive` to push, `gt
+  sync` to pull + restack, `gt ls`/`gt log` to see the stack. Then the user reviews
+  in the Graphite app. **Caveat — opening PRs:** this repo names *both* a branch and
+  the rolling-release tag `nightly`, so Graphite's trunk is stored as `heads/nightly`
+  to disambiguate locally — but `gt submit` then hands GitHub base `heads/nightly`,
+  which it rejects, and setting the trunk to plain `nightly` breaks `gt`'s local
+  resolution (no single value works for both). So **`gt submit` pushes the branch but
+  can't create the PR.** Open it with `gh pr create --base nightly --draft` once `gt`
+  has pushed the branch — the user still reviews it in Graphite. **Never** use `gh pr
+  view`/`gh pr edit` (the broken UI). `gh api` (read-only, e.g. CodeRabbit comments)
+  and `gh pr comment` (replies) are fine. Keep the no-AI-attribution rule above in
+  every PR.
 - **Promotion `nightly → main` is automated and uses a script, never the merge
   button.** Each promotion adds a squash commit to `main` that never lands on
   `nightly`, so the branches don't share recent history — GitHub's merge button
