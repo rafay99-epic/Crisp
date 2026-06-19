@@ -11,10 +11,12 @@ The log directory is handed to us by the app via the ``CRISP_LOG_DIR`` env var (
 none set, every method is a no-op — library users and the plain CLI keep their old
 behavior, nothing is written.
 
-Each line is a single ``os.write()`` of one whole line in ``O_APPEND`` mode, which
-POSIX makes atomic for line-sized writes. So several parallel cleans (and the Swift
-app) can append to the same daily file without a lock and without tearing lines.
-The line format mirrors the Swift `FileLog` so both sides read uniformly.
+Each record is a single ``os.write()`` in ``O_APPEND`` mode, which POSIX makes
+atomic for line-sized writes. So several parallel cleans (and the Swift app) can
+append to the same daily file without a lock and without tearing lines. The file
+descriptor is kept open across writes (a clean logs many lines) and only reopened
+when the day rolls over. The line format mirrors the Swift `FileLog` so both sides
+read uniformly.
 """
 
 import os
@@ -32,6 +34,8 @@ class EngineLogger:
         self.dir = None
         self.tag = tag
         self.pid = os.getpid()
+        self._fd = -1            # cached file descriptor, reopened on day rollover
+        self._fd_day = None      # the day (yyyy-MM-dd) `_fd` is open against
         if log_dir:
             try:
                 d = Path(log_dir).expanduser()
@@ -44,8 +48,8 @@ class EngineLogger:
     def enabled(self):
         return self.dir is not None
 
-    def _path(self):
-        return self.dir / f"{date.today().isoformat()}.log"
+    def _path(self, day=None):
+        return self.dir / f"{day or date.today().isoformat()}.log"
 
     def log(self, level, message):
         if self.dir is None:
@@ -62,16 +66,38 @@ class EngineLogger:
         # uniformly. The whole block is a single os.write() so it still appends
         # atomically against the other processes sharing this file.
         block = "".join(f"{prefix}{ln}\n" for ln in str(message).split("\n"))
+        self._write(block.encode("utf-8", "replace"), date.today().isoformat())
+
+    def _write(self, data, day):
         try:
-            # 0o600: the log holds filenames, command args, and tool stderr — keep
-            # it readable only by the user who owns it.
-            fd = os.open(str(self._path()), os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
-            try:
-                os.write(fd, block.encode("utf-8", "replace"))
-            finally:
-                os.close(fd)
+            if self._fd < 0 or self._fd_day != day:
+                self._reopen(day)
+            if self._fd >= 0:
+                os.write(self._fd, data)
         except OSError:
-            pass  # never let a logging failure surface as a clean failure
+            # Drop the (possibly broken) fd so the next call reopens; never raise —
+            # a logging failure must not surface as a clean failure.
+            self._close_fd()
+
+    def _reopen(self, day):
+        self._close_fd()
+        # 0o600: the log holds filenames, command args, and tool stderr — keep it
+        # readable only by the user who owns it.
+        self._fd = os.open(str(self._path(day)), os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
+        self._fd_day = day
+
+    def _close_fd(self):
+        if self._fd >= 0:
+            try:
+                os.close(self._fd)
+            except OSError:
+                pass
+        self._fd = -1
+        self._fd_day = None
+
+    def close(self):
+        """Release the cached descriptor. Optional — the OS closes it on exit."""
+        self._close_fd()
 
     def debug(self, message):
         self.log("DEBUG", message)

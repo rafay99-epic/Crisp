@@ -107,6 +107,29 @@ class FileWriteTests(unittest.TestCase):
             self.assertNotIn("noise we don't care about", text)
             self.assertNotIn("ERROR", text)
 
+    def test_reuses_one_descriptor_across_writes(self):
+        with TemporaryDirectory() as d:
+            log = EngineLogger(d)
+            log.info("first")
+            fd_after_first = log._fd
+            self.assertGreaterEqual(fd_after_first, 0)
+            log.info("second")
+            # Same cached descriptor — not reopened per line.
+            self.assertEqual(log._fd, fd_after_first)
+            self.assertEqual(len(self._today_file(d).read_text().splitlines()), 2)
+
+    def test_reopens_after_close(self):
+        with TemporaryDirectory() as d:
+            log = EngineLogger(d)
+            log.info("before close")
+            log.close()
+            self.assertEqual(log._fd, -1)
+            log.info("after close")  # must transparently reopen
+            lines = self._today_file(d).read_text().splitlines()
+            self.assertEqual(len(lines), 2)
+            self.assertIn("before close", lines[0])
+            self.assertIn("after close", lines[1])
+
     def test_command_is_shell_quoted(self):
         with TemporaryDirectory() as d:
             log = EngineLogger(d)

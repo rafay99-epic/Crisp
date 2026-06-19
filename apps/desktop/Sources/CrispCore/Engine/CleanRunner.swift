@@ -132,14 +132,24 @@ public struct CleanRunner {
         // so anything here means something went wrong unexpectedly. Uses the async
         // byte stream (not a blocking `readToEnd`) so it suspends rather than tying
         // up a cooperative-pool thread — important when several cleans run at once.
+        // Bounded to the most recent lines so a pathological spew can't grow memory
+        // without limit; for a traceback the root cause is at the end anyway.
+        let maxStderrLines = 500
         let stderrTask = Task<[String], Never> {
             var lines: [String] = []
             do {
                 for try await line in errPipe.fileHandleForReading.bytes.lines {
                     lines.append(line)
+                    // Trim in batches (drop oldest) so this stays amortized O(1).
+                    if lines.count > maxStderrLines * 2 {
+                        lines.removeFirst(lines.count - maxStderrLines)
+                    }
                 }
             } catch {
                 // Best-effort: the clean's own result/error is what actually matters.
+            }
+            if lines.count > maxStderrLines {
+                lines.removeFirst(lines.count - maxStderrLines)
             }
             return lines
         }
