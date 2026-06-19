@@ -9,6 +9,8 @@ struct SettingsView: View {
     @Bindable var settings: EngineSettings
     @Bindable var updater: Updater
     @Bindable var watchAgent: WatchAgentController
+    @Bindable var modelStore: ModelStore
+    @Bindable var model: CleanModel
 
     @State private var newPresetName = ""
     @State private var snapshot = SystemProbe.snapshot()
@@ -143,6 +145,8 @@ struct SettingsView: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
 
+            speechModelSection
+
             presetsSection
 
             performanceSection
@@ -212,6 +216,37 @@ struct SettingsView: View {
         .formStyle(.grouped)
         .frame(width: 460, height: 620)
         .onAppear { watchAgent.refresh(); snapshot = SystemProbe.snapshot() }
+    }
+
+    // MARK: - Speech model
+
+    /// Switching the active model persists the choice and retargets the store, which
+    /// rechecks disk (so picking an already-installed model is instantly ready).
+    private var activeModelBinding: Binding<String> {
+        Binding(get: { settings.selectedModelID },
+                set: { id in
+                    settings.selectedModelID = id
+                    modelStore.use(ModelCatalog.spec(id: id))
+                })
+    }
+
+    @ViewBuilder private var speechModelSection: some View {
+        Section {
+            Picker("Model", selection: activeModelBinding) {
+                ForEach(ModelCatalog.all) { Text($0.displayName).tag($0.id) }
+            }
+            // Don't switch mid-download, or mid-clean (the running clean already
+            // locked in its model — switching would only mislead).
+            .disabled(modelStore.state.isBusy || model.isRunning)
+            Text(modelStore.spec.summary)
+                .font(.caption).foregroundStyle(.secondary)
+            ModelInstallControl(store: modelStore, allowRemove: true, removeDisabled: model.isRunning)
+        } header: {
+            Text("Speech model")
+        } footer: {
+            Text("Used to find filler words. Larger models catch more fillers and place cuts more precisely, but download and run slower. Pauses are detected from the audio either way.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
     }
 
     // MARK: - Performance
@@ -349,7 +384,7 @@ struct SettingsView: View {
             }
             Toggle("Auto-clean dropped recordings", isOn: watchEnabledBinding)
                 .disabled(settings.watchFolderPath.isEmpty)
-            Toggle("Remove filler words", isOn: $settings.watchRemoveFillers)
+            Toggle("Remove fillers", isOn: $settings.watchRemoveFillers)
                 .disabled(!settings.watchEnabled)
         } header: {
             Text("Watch Folder")

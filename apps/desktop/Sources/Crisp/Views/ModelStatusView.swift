@@ -71,8 +71,8 @@ struct ModelStatusView: View {
         case .failed(let msg):
             return msg
         default:
-            return "A one-time ~148 MB download lets Crisp find filler words. "
-                 + "Turn off \u{201C}Remove filler words\u{201D} to skip it."
+            return "A one-time \(store.spec.approxSizeText) download lets Crisp find filler words. "
+                 + "Turn off \u{201C}Remove fillers\u{201D} to skip it."
         }
     }
 }

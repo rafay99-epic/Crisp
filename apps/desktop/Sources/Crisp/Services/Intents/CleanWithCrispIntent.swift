@@ -56,10 +56,14 @@ struct CleanWithCrispIntent: AppIntent {
             throw $files.needsValueError("Choose one or more video files to clean.")
         }
         let quick = QuickClean()
+        // One provisioner for the whole batch so the model is verified once, not
+        // re-hashed per file (Swift default args would re-create it each call).
+        let provisioner = ModelProvisioner.forSelectedModel()
         var outputs: [IntentFile] = []
         for url in inputs {
             let result = try await quick.clean(url, strength: strength.strength,
-                                               removeFillers: removeFillers)
+                                               removeFillers: removeFillers,
+                                               provisioner: provisioner)
             let outURL = URL(fileURLWithPath: result.output)
             outputs.append(IntentFile(fileURL: outURL))
         }

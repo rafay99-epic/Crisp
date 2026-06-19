@@ -24,29 +24,35 @@ public actor ModelProvisioner {
         }
     }
 
-    // MARK: Pinned model identity
+    // MARK: Model identity
 
-    /// `ggml-base.en.bin` from the whisper.cpp model repo. The hash pins the exact
+    /// The catalog model this provisioner manages. Its content hash pins the exact
     /// file — `resolve/main` could in principle move, and verifying by content is
     /// what makes "corrupt / truncated / tampered" a single check.
-    private static let fileName = "ggml-base.en.bin"
-    private static let url = URL(string:
-        "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin")!
-    private static let expectedSHA256 =
-        "a03779c86df3323075f5e796cb2ce5029f00ec8869eee3fdfb897afe36c6d002"
-    /// Used only to show a sensible progress bar before the server reports a size.
-    public static let approxBytes: Int64 = 147_964_211
+    private nonisolated let spec: ModelSpec
 
     private static let log = AppInfo.logger("model")
 
     private nonisolated let channel: Channel
     private var downloader: ChunkedDownloader?
     /// Remembers a successful verification this process so back-to-back cleans (the
-    /// watcher, a multi-file Intent) don't re-hash 148 MB each time.
+    /// watcher, a multi-file Intent) don't re-hash the whole model each time.
     private var verifiedThisSession = false
 
-    public init(channel: Channel = .current) {
+    public init(spec: ModelSpec = ModelCatalog.base, channel: Channel = .current) {
+        self.spec = spec
         self.channel = channel
+    }
+
+    /// The model the user selected in settings (or the default), read from the
+    /// on-disk config — so every headless surface provisions the same one.
+    public static func selectedSpec() -> ModelSpec {
+        ModelCatalog.spec(id: EngineConfigStore.load().selectedModelID)
+    }
+
+    /// A provisioner targeting the user's currently selected model.
+    public static func forSelectedModel(channel: Channel = .current) -> ModelProvisioner {
+        ModelProvisioner(spec: selectedSpec(), channel: channel)
     }
 
     // Paths derive from the (immutable, Sendable) channel, so they're safe to read
@@ -54,11 +60,11 @@ public actor ModelProvisioner {
     public nonisolated var modelsDir: URL {
         channel.dataDirectory.appendingPathComponent("models", isDirectory: true)
     }
-    public nonisolated var fileURL: URL { modelsDir.appendingPathComponent(Self.fileName) }
+    public nonisolated var fileURL: URL { modelsDir.appendingPathComponent(spec.fileName) }
     /// Absolute path the engine loads. Only trustworthy after `ensureModel`/
     /// `existingVerifiedPath` confirms the file.
     public nonisolated var path: String { fileURL.path }
-    private nonisolated var partURL: URL { modelsDir.appendingPathComponent(Self.fileName + ".part") }
+    private nonisolated var partURL: URL { modelsDir.appendingPathComponent(spec.fileName + ".part") }
 
     /// The verified model path if it's already on disk and intact, else nil. Hashes
     /// the file (off-actor); a complete-but-wrong file is removed so the next
@@ -70,7 +76,7 @@ public actor ModelProvisioner {
             return nil
         }
         if verifiedThisSession { return url.path }   // already hashed this session
-        let expected = Self.expectedSHA256
+        let expected = spec.sha256
         let ok = await Task.detached(priority: .utility) { Self.sha256(of: url) == expected }.value
         if ok {
             verifiedThisSession = true
@@ -94,6 +100,14 @@ public actor ModelProvisioner {
     /// Stop an in-flight download (the `.part` is kept for resume).
     public func cancel() { downloader?.cancel() }
 
+    /// Delete this model from disk (the verified file and any partial download), so
+    /// the user can free space or force a clean re-download.
+    public func removeFromDisk() {
+        try? FileManager.default.removeItem(at: fileURL)
+        try? FileManager.default.removeItem(at: partURL)
+        verifiedThisSession = false
+    }
+
     private func download(onProgress: (@Sendable (Progress) -> Void)?) async throws {
         try FileManager.default.createDirectory(at: modelsDir, withIntermediateDirectories: true)
 
@@ -104,10 +118,10 @@ public actor ModelProvisioner {
             existing = size
         }
 
-        var request = URLRequest(url: Self.url)
+        var request = URLRequest(url: spec.url)
         request.timeoutInterval = 60
         if existing > 0 { request.setValue("bytes=\(existing)-", forHTTPHeaderField: "Range") }
-        onProgress?(.downloading(existing > 0 ? Double(existing) / Double(Self.approxBytes) : 0))
+        onProgress?(.downloading(existing > 0 ? Double(existing) / Double(spec.approxBytes) : 0))
 
         // Stream to the .part file in chunks via a delegate — far cheaper than
         // iterating bytes, and it gives steady progress callbacks.
@@ -121,7 +135,7 @@ public actor ModelProvisioner {
         // Verify the completed download before trusting it.
         onProgress?(.verifying)
         let part = partURL
-        let expected = Self.expectedSHA256
+        let expected = spec.sha256
         let ok = await Task.detached(priority: .utility) { Self.sha256(of: part) == expected }.value
         guard ok else {
             try? FileManager.default.removeItem(at: partURL)   // corrupt → start fresh next time
@@ -134,7 +148,7 @@ public actor ModelProvisioner {
         verifiedThisSession = true
     }
 
-    /// Stream the file through SHA-256 in chunks so we never load 148 MB at once.
+    /// Stream the file through SHA-256 in chunks so we never load the whole model at once.
     nonisolated private static func sha256(of url: URL) -> String? {
         guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
         defer { try? handle.close() }

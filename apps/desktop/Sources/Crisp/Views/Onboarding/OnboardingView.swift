@@ -25,22 +25,32 @@ struct OnboardingView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ScrollView {
-                VStack(spacing: 18) {
-                    content
+            GeometryReader { geo in
+                ScrollView {
+                    VStack(spacing: 18) {
+                        content
+                    }
+                    .frame(maxWidth: 460)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 28)
+                    // Grow to fill the viewport so each step sits vertically centered
+                    // — short steps no longer leave a void beneath them — while the
+                    // tall steps (fillers, preferences) still scroll when they must.
+                    .frame(maxWidth: .infinity, minHeight: geo.size.height)
+                    .id(index)
+                    .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity),
+                                            removal: .move(edge: .leading).combined(with: .opacity)))
                 }
-                .padding(.horizontal, 44)
-                .padding(.top, 40)
-                .padding(.bottom, 24)
-                .frame(maxWidth: .infinity)
-                .id(index)
-                .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity),
-                                        removal: .move(edge: .leading).combined(with: .opacity)))
+                .scrollBounceBehavior(.basedOnSize)
             }
             Divider()
             footer
         }
-        .frame(width: 600, height: 600)
+        // Fill and center within the shared app window — resizable and content-
+        // centered, exactly like the main workspace — instead of a fixed box that
+        // floats with dead margins once the window is any larger than 600pt.
+        .frame(minWidth: 560, minHeight: 460)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(nsColor: .windowBackgroundColor))
     }
 
@@ -60,23 +70,19 @@ struct OnboardingView: View {
                        "Cuts re-encode at the same resolution and frame rate — never downscaled.")
 
         case .howItWorks:
-            header(symbol: "wand.and.stars", title: "Clean a video in seconds",
-                   subtitle: "Three steps, and you’re done.")
-            featureRow("film.stack", "Drop or choose a video",
-                       "Drag a recording onto the window, or click “Choose video…”.")
+            header(symbol: "wand.and.stars", title: "Clean your videos in seconds",
+                   subtitle: "Add as many as you like — Crisp cleans them as a queue.")
+            featureRow("film.stack", "Add your videos",
+                       "Drag recordings onto the window, or click “Choose videos…”. They line up in a queue you can reorder — the top one runs first.")
             featureRow("slider.horizontal.3", "Pick how much to cut",
-                       "Gentle through Very Aggressive — or Custom for full control.")
-            featureRow("scissors", "Hit Clean",
-                       "Crisp finds the silences and fillers and cuts them out, saving “name_cleaned.mp4”.")
+                       "Set the default for the queue — Gentle through Very Aggressive, or Custom — and give any single file its own preset.")
+            featureRow("scissors", "Clean the queue",
+                       "Crisp cuts the silences and fillers from each one — several at once when your Mac can — and saves a cleaned copy of every original.")
 
         case .fillers:
-            header(symbol: "waveform", title: "Pauses & filler words",
-                   subtitle: "Crisp removes dead air, and can also strip the “um”s and “uh”s.")
-            featureRow("waveform", "Pauses — always on",
-                       "Detected from the real audio. Works out of the box, no setup.")
-            featureRow("text.bubble.fill", "Filler words — optional",
-                       "Turn on “Remove filler words” and Crisp downloads a one-time speech model. Pauses-only needs no download.")
-            modelWidget
+            header(symbol: "waveform", title: "Choose a speech model",
+                   subtitle: "Crisp detects filler words with a speech model that runs entirely on your Mac. Install one to finish setup — pauses are always removed either way.")
+            modelChoice
 
         case .preferences:
             header(symbol: "slider.horizontal.3", title: "Make it yours",
@@ -217,55 +223,117 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: - Optional model download (filler step)
+    // MARK: - Speech model choice (mandatory — gates the model step)
 
-    @ViewBuilder private var modelWidget: some View {
-        HStack(spacing: 10) {
-            switch modelStore.state {
-            case .ready:
-                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-                Text("Speech model ready — filler removal is set up.").font(.callout)
-            case .downloading(let fraction):
-                ProgressView(value: fraction < 0 ? nil : fraction).frame(width: 130)
-                Text(fraction < 0 ? "Downloading…" : "Downloading… \(Int(fraction * 100))%")
-                    .font(.callout).foregroundStyle(.secondary)
-            case .verifying:
-                ProgressView().controlSize(.small)
-                Text("Verifying…").font(.callout).foregroundStyle(.secondary)
-            case .failed(let message):
-                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
-                Text(message).font(.callout).foregroundStyle(.secondary)
-            default:
-                Image(systemName: "arrow.down.circle").foregroundStyle(.tint)
-                Text("Set up filler removal now (optional):").font(.callout).foregroundStyle(.secondary)
-                Button("Download (~148 MB)") { modelStore.download() }.controlSize(.small)
+    /// True once the selected model is on disk and verified. Onboarding can't move
+    /// past the model step until this holds (a model is required for filler removal).
+    private var modelReady: Bool { modelStore.state.isReady }
+
+    @ViewBuilder private var modelChoice: some View {
+        VStack(spacing: 10) {
+            ForEach(ModelCatalog.all) { spec in
+                modelOption(spec)
             }
-            Spacer(minLength: 0)
+            ModelInstallControl(store: modelStore)
+                .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .cardBackground(.tint.opacity(0.08))
         }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .cardBackground(.tint.opacity(0.08))
+    }
+
+    private func modelOption(_ spec: ModelSpec) -> some View {
+        let selected = settings.selectedModelID == spec.id
+        return Button { selectModel(spec) } label: {
+            HStack(spacing: 12) {
+                Image(systemName: selected ? "largecircle.fill.circle" : "circle")
+                    .font(.title3)
+                    .foregroundStyle(selected ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(spec.displayName).font(.headline)
+                        if spec.recommended {
+                            Text("Recommended")
+                                .font(.caption2.bold())
+                                .padding(.horizontal, 6).padding(.vertical, 2)
+                                .background(Capsule().fill(.tint.opacity(0.18)))
+                                .foregroundStyle(.tint)
+                        }
+                    }
+                    Text(spec.summary).font(.callout).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 8)
+                Text(spec.approxSizeText).font(.caption).foregroundStyle(.secondary).fixedSize()
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .cardBackground(selected ? AnyShapeStyle(.tint.opacity(0.12))
+                                      : AnyShapeStyle(.quaternary.opacity(0.25)))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(.tint.opacity(selected ? 0.5 : 0), lineWidth: 1.5)
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(modelStore.state.isBusy)   // don't switch mid-download
+    }
+
+    /// Select a model: persist the choice and retarget the store (which rechecks
+    /// disk, so picking an already-installed model is instantly ready again).
+    private func selectModel(_ spec: ModelSpec) {
+        guard settings.selectedModelID != spec.id else { return }
+        settings.selectedModelID = spec.id
+        modelStore.use(spec)   // synchronous: closes the gate immediately, then rechecks disk
+    }
+
+    /// "Skip" still routes through the mandatory model step until one is installed —
+    /// a returning user who already has a model can leave immediately.
+    private func skip() {
+        if modelReady {
+            onboarding.finish()
+        } else {
+            withAnimation(.snappy) { index = steps.firstIndex(of: .fillers) ?? index }
+        }
     }
 
     // MARK: - Reusable pieces
 
     @ViewBuilder private func header(symbol: String, title: String, subtitle: String) -> some View {
         VStack(spacing: 14) {
-            if symbol.isEmpty {
-                Image(nsImage: NSApplication.shared.applicationIconImage)
-                    .resizable().frame(width: 84, height: 84)
-            } else {
-                Image(systemName: symbol)
-                    .font(.system(size: 38, weight: .semibold))
-                    .foregroundStyle(.tint)
-                    .frame(width: 84, height: 84)
-                    .background(.tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 20))
-            }
+            heroIcon(symbol)
             Text(title).font(.title.bold()).multilineTextAlignment(.center)
             Text(subtitle)
                 .font(.callout).foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.bottom, 6)
+    }
+
+    /// The step's mark. The welcome/done bookends show the real app icon — the app's
+    /// own identity — while topic steps use an accent SF Symbol on the same tinted,
+    /// rounded, continuous-corner surface the rest of the UI is built from. Sized to
+    /// sit a notch above the title, never a heavy dark tile.
+    @ViewBuilder private func heroIcon(_ symbol: String) -> some View {
+        if symbol.isEmpty {
+            Image(nsImage: NSApplication.shared.applicationIconImage)
+                .resizable().frame(width: 76, height: 76)
+                .accessibilityHidden(true)
+        } else {
+            Image(systemName: symbol)
+                .font(.system(size: 29, weight: .semibold))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(.tint)
+                .frame(width: 64, height: 64)
+                .background {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(.tint.opacity(0.16))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .strokeBorder(.tint.opacity(0.30), lineWidth: 1)
+                        )
+                }
+                .accessibilityHidden(true)
         }
     }
 
@@ -307,7 +375,7 @@ struct OnboardingView: View {
             if index > 0 {
                 Button("Back") { withAnimation(.snappy) { index -= 1 } }.buttonStyle(.link)
             } else {
-                Button("Skip") { onboarding.finish() }
+                Button("Skip") { skip() }
                     .buttonStyle(.link).keyboardShortcut(.cancelAction)
             }
             Spacer()
@@ -324,6 +392,9 @@ struct OnboardingView: View {
             }
             .buttonStyle(.borderedProminent).controlSize(.large)
             .keyboardShortcut(.defaultAction)
+            // A speech model is required — the model step can't be passed until one
+            // is installed (a returning user's model is already ready, so no friction).
+            .disabled(step == .fillers && !modelReady)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 14)

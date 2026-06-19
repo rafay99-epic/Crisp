@@ -1,0 +1,41 @@
+# CodeRabbit configuration — https://docs.coderabbit.ai/reference/configuration
+# Crisp: native macOS SwiftUI app (apps/desktop) driving a stdlib-only Python
+# engine. GPL-3.0. Credited to Syntax Lab Technology / Abdul Rafay.
+language: en-US
+
+reviews:
+  profile: assertive
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  auto_review:
+    enabled: true
+    drafts: true
+    base_branches:
+      - nightly
+      - main
+  path_instructions:
+    - path: "apps/desktop/Sources/**/*.swift"
+      instructions: >-
+        Native macOS SwiftUI. Enforce: `@State` is private; `@Bindable` for
+        injected `@Observable` objects; `ForEach` uses stable identity; Views
+        display only (logic belongs in Services, never in Views); one shared
+        component is never copy-pasted into two. The Python engine must stay
+        UI-agnostic. Never add AI/Claude attribution in code, comments, or docs.
+    - path: "apps/desktop/Resources/engine/**/*.py"
+      instructions: >-
+        Pure Python standard library ONLY — no pip / third-party imports (the
+        target Python is bleeding-edge and lacks ML wheels). The engine shells out
+        to ffmpeg and whisper.cpp, and speaks NDJSON on stdout when given
+        `--ndjson`; it must know nothing about the UI. Prefer pure, unit-testable
+        functions (the tests run with no ffmpeg/whisper present).
+  tools:
+    swiftlint:
+      enabled: true
+    ruff:
+      enabled: true
+
+chat:
+  auto_reply: true

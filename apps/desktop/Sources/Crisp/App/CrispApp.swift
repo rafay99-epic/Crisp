@@ -43,7 +43,8 @@ struct CrispApp: App {
         }
 
         Settings {
-            SettingsView(settings: settings, updater: updater, watchAgent: watchAgent)
+            SettingsView(settings: settings, updater: updater, watchAgent: watchAgent,
+                         modelStore: modelStore, model: model)
         }
     }
 

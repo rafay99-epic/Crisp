@@ -10,9 +10,12 @@ import UserNotifications
 final class WatchController: @unchecked Sendable {
     private let queue = DispatchQueue(label: "com.syntaxlabtechnology.crisp.watcher")
     private let log = AppInfo.logger("watcher")
-    private let provisioner = ModelProvisioner()
 
     private var config = EngineConfig.defaults
+    /// One provisioner reused across a batch so the session verification cache hits
+    /// (a 10-file drop doesn't re-hash the model 10×). Re-targeted when the selected
+    /// model changes in the config.
+    private var provisioner = ModelProvisioner.forSelectedModel()
     private var folderWatcher: FolderWatcher?
     private let configWatcher: FolderWatcher
 
@@ -59,6 +62,9 @@ final class WatchController: @unchecked Sendable {
         guard new != config else { return }
         let folderChanged = new.watchFolderPath != config.watchFolderPath
             || new.watchEnabled != config.watchEnabled
+        if new.selectedModelID != config.selectedModelID {
+            provisioner = ModelProvisioner(spec: ModelCatalog.spec(id: new.selectedModelID))
+        }
         config = new
         if folderChanged { reconfigureFolder() }
     }
@@ -150,13 +156,16 @@ final class WatchController: @unchecked Sendable {
         busy = true
         let url = jobs.removeFirst()
         let removeFillers = config.watchRemoveFillers
+        // Reuse the held provisioner (re-targeted on config change) so a batch
+        // shares one verification instead of re-hashing the model per file.
+        let provisioner = self.provisioner
         log.info("Cleaning \(url.lastPathComponent, privacy: .public)")
         Task { [weak self] in
             guard let self else { return }
             do {
                 let result = try await QuickClean().clean(url, strength: .aggressive,
                                                           removeFillers: removeFillers,
-                                                          provisioner: self.provisioner)
+                                                          provisioner: provisioner)
                 self.queue.async { self.finished(url, output: result.output, error: nil) }
             } catch {
                 self.queue.async { self.finished(url, output: nil, error: error) }

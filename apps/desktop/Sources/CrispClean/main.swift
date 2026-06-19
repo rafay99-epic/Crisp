@@ -37,7 +37,7 @@ func notify(_ title: String, _ body: String) {
 Task {
     // Use fillers only if the model is already downloaded — a right-click shouldn't
     // silently kick off a 148 MB download. Open the app once to get the model.
-    let provisioner = ModelProvisioner()
+    let provisioner = ModelProvisioner.forSelectedModel()
     let removeFillers = await provisioner.existingVerifiedPath() != nil
     let quick = QuickClean()
 

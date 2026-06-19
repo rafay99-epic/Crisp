@@ -47,6 +47,10 @@ public struct EngineConfig: Codable, Equatable, Sendable {
     public var concurrencyMode: String   // "auto" | "manual" | "ultra"
     public var manualConcurrency: Int
     public var perJobMemoryBudgetMB: Int
+    // Speech model — which catalog model (ModelCatalog) the engine loads for
+    // filler detection. App-side state: it picks the `--model <path>` the engine
+    // is run with; the Python engine never reads it.
+    public var selectedModelID: String
 
     public static let defaults = EngineConfig(
         version: 3,
@@ -57,7 +61,8 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         backupOriginal: true,
         watchEnabled: false, watchFolderPath: "", watchRemoveFillers: true,
         presets: [], defaultPresetID: "",
-        concurrencyMode: "auto", manualConcurrency: 2, perJobMemoryBudgetMB: 2048)
+        concurrencyMode: "auto", manualConcurrency: 2, perJobMemoryBudgetMB: 2048,
+        selectedModelID: ModelCatalog.defaultID)
 
     enum CodingKeys: String, CodingKey {
         case version, pauseThreshold, silenceFloorDB, breathingRoom, minKeep
@@ -66,6 +71,7 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         case watchEnabled, watchFolderPath, watchRemoveFillers
         case presets, defaultPresetID
         case concurrencyMode, manualConcurrency, perJobMemoryBudgetMB
+        case selectedModelID
     }
 
     public init(version: Int, pauseThreshold: Double, silenceFloorDB: Double, breathingRoom: Double,
@@ -75,7 +81,8 @@ public struct EngineConfig: Codable, Equatable, Sendable {
                 backupOriginal: Bool,
                 watchEnabled: Bool, watchFolderPath: String, watchRemoveFillers: Bool,
                 presets: [Preset], defaultPresetID: String,
-                concurrencyMode: String, manualConcurrency: Int, perJobMemoryBudgetMB: Int) {
+                concurrencyMode: String, manualConcurrency: Int, perJobMemoryBudgetMB: Int,
+                selectedModelID: String = ModelCatalog.defaultID) {
         self.version = version
         self.pauseThreshold = pauseThreshold
         self.silenceFloorDB = silenceFloorDB
@@ -99,6 +106,7 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         self.concurrencyMode = concurrencyMode
         self.manualConcurrency = manualConcurrency
         self.perJobMemoryBudgetMB = perJobMemoryBudgetMB
+        self.selectedModelID = selectedModelID
     }
 
     public init(from decoder: Decoder) throws {
@@ -127,6 +135,7 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         concurrencyMode    = try c.decodeIfPresent(String.self, forKey: .concurrencyMode) ?? d.concurrencyMode
         manualConcurrency  = try c.decodeIfPresent(Int.self, forKey: .manualConcurrency) ?? d.manualConcurrency
         perJobMemoryBudgetMB = try c.decodeIfPresent(Int.self, forKey: .perJobMemoryBudgetMB) ?? d.perJobMemoryBudgetMB
+        selectedModelID    = try c.decodeIfPresent(String.self, forKey: .selectedModelID) ?? d.selectedModelID
     }
 }
 

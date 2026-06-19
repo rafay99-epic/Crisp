@@ -38,6 +38,8 @@ final class EngineSettings {
     var concurrencyMode: String { didSet { save() } }
     var manualConcurrency: Int { didSet { save() } }
     var perJobMemoryBudgetMB: Int { didSet { save() } }
+    // Speech model — which catalog model the engine loads for filler detection
+    var selectedModelID: String { didSet { save() } }
 
     /// Whether the user arrived with a real saved configuration — a `settings.json`
     /// that differs from the defaults. Captured once at launch (so it stays stable
@@ -61,7 +63,8 @@ final class EngineSettings {
                      watchRemoveFillers: watchRemoveFillers,
                      presets: presets, defaultPresetID: defaultPresetID,
                      concurrencyMode: concurrencyMode, manualConcurrency: manualConcurrency,
-                     perJobMemoryBudgetMB: perJobMemoryBudgetMB)
+                     perJobMemoryBudgetMB: perJobMemoryBudgetMB,
+                     selectedModelID: selectedModelID)
     }
 
     init() {
@@ -94,6 +97,9 @@ final class EngineSettings {
         concurrencyMode = cfg.concurrencyMode
         manualConcurrency = cfg.manualConcurrency
         perJobMemoryBudgetMB = cfg.perJobMemoryBudgetMB
+        // Normalize a removed/unknown model id to the catalog fallback, so the
+        // Settings picker always has a valid selection (and the engine a real model).
+        selectedModelID = ModelCatalog.spec(id: cfg.selectedModelID).id
         if !existed { EngineConfigStore.save(config) }  // materialize the file on first launch
     }
 
