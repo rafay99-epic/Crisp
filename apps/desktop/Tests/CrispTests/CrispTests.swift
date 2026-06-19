@@ -37,6 +37,18 @@ final class CrispTests: XCTestCase {
         XCTAssertEqual(formatTime(600), "10:00")
     }
 
+    func testCutsSummary() {
+        // Both parts, pluralized.
+        XCTAssertEqual(CleanResult.cutsSummary(fillers: 12, pauses: 47), "12 fillers \u{00B7} 47 pauses")
+        // Singular forms.
+        XCTAssertEqual(CleanResult.cutsSummary(fillers: 1, pauses: 1), "1 filler \u{00B7} 1 pause")
+        // Only the non-zero part shows.
+        XCTAssertEqual(CleanResult.cutsSummary(fillers: 0, pauses: 3), "3 pauses")
+        XCTAssertEqual(CleanResult.cutsSummary(fillers: 5, pauses: 0), "5 fillers")
+        // Nothing cut → nil (caller hides the line).
+        XCTAssertNil(CleanResult.cutsSummary(fillers: 0, pauses: 0))
+    }
+
     func testChannelDataDirIsolatedPerChannel() {
         // Each channel keeps its downloaded model in its own home dir, so the
         // three installs never share (or clobber) one another's data.

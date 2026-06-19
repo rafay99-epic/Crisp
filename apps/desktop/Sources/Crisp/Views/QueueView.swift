@@ -111,14 +111,23 @@ private struct QueueRow: View {
         case .running:
             ProgressView(value: item.progress).controlSize(.small)
         case .done:
-            if let r = item.result, !r.peaks.isEmpty {
-                WaveformView(peaks: r.peaks, removed: r.removed)
-                    .frame(height: 22)
-                    .transition(.opacity)
-            } else if let r = item.result, r.origSeconds > 0 {
-                ReductionBar(kept: max(0, min(1, r.newSeconds / r.origSeconds)))
-            } else {
-                Text("Cleaned").font(.caption).foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 3) {
+                if let r = item.result, !r.peaks.isEmpty {
+                    WaveformView(peaks: r.peaks, removed: r.removed)
+                        .frame(height: 22)
+                        .transition(.opacity)
+                } else if let r = item.result, r.origSeconds > 0 {
+                    ReductionBar(kept: max(0, min(1, r.newSeconds / r.origSeconds)))
+                } else {
+                    Text("Cleaned").font(.caption).foregroundStyle(.secondary)
+                }
+                if let summary = item.result?.cutsSummary {
+                    Text(summary)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .contentTransition(.numericText())
+                        .transition(.opacity)
+                }
             }
         case .waiting where !presets.isEmpty:
             Picker("Preset", selection: $item.presetID) {
@@ -186,6 +195,7 @@ private struct QueueRow: View {
     @ViewBuilder private var contextMenu: some View {
         switch item.status {
         case .done:
+            if let cuts = item.result?.cutsSummary { Text("Removed \(cuts)") }
             if let summary = sizeSummary { Text(summary) }
             if let url = outputURL {
                 Button { revealOutput() } label: { Label("Show in Finder", systemImage: "folder") }
