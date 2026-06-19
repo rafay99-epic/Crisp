@@ -13,6 +13,8 @@ public struct VideoAnalysis: Sendable {
 }
 
 public struct AnalysisRunner {
+    private static let engineLog = AppInfo.logger("engine")
+
     public init() {}
 
     private struct AnalysisEvent: Decodable {
@@ -35,41 +37,76 @@ public struct AnalysisRunner {
         proc.environment = CleanEngine.environment()
 
         let outPipe = Pipe()
+        let errPipe = Pipe()
         proc.standardOutput = outPipe
-        proc.standardError = Pipe()   // detail goes to the engine log file
+        proc.standardError = errPipe
 
-        return try await withTaskCancellationHandler {
-            try proc.run()
-            var analysis: VideoAnalysis?
-            let decoder = JSONDecoder()
-            for try await line in outPipe.fileHandleForReading.bytes.lines {
-                if Task.isCancelled { break }
-                guard let data = line.data(using: .utf8),
-                      let ev = try? decoder.decode(AnalysisEvent.self, from: data) else { continue }
-                switch ev.event {
-                case "analysis":
-                    analysis = VideoAnalysis(
-                        duration: ev.duration ?? 0,
-                        peaks: ev.peaks ?? [],
-                        silences: (ev.silences ?? []).compactMap {
-                            $0.count == 2 ? ($0[0], $0[1]) : nil
-                        })
-                case "error":
-                    throw NSError(domain: "Crisp", code: 1,
-                                  userInfo: [NSLocalizedDescriptionKey: ev.message ?? "Analysis failed"])
-                default:
-                    break
+        // Drain stderr concurrently (bounded) so a flood can't deadlock the stdout
+        // reader by filling the pipe buffer — same safety net as CleanRunner. The
+        // engine routes its detail to the log file, so anything here is unexpected.
+        let stderrTask = Task<[String], Never> {
+            var lines: [String] = []
+            do {
+                for try await line in errPipe.fileHandleForReading.bytes.lines {
+                    lines.append(line)
+                    if lines.count > 400 { lines.removeFirst(lines.count - 200) }
                 }
+            } catch { /* best-effort */ }
+            return lines
+        }
+
+        do {
+            let analysis = try await withTaskCancellationHandler { () throws -> VideoAnalysis in
+                do {
+                    try proc.run()
+                } catch {
+                    // The child never started — close our write end so the drain task
+                    // hits EOF and returns instead of hanging.
+                    try? errPipe.fileHandleForWriting.close()
+                    throw error
+                }
+                var analysis: VideoAnalysis?
+                let decoder = JSONDecoder()
+                for try await line in outPipe.fileHandleForReading.bytes.lines {
+                    if Task.isCancelled { break }
+                    guard let data = line.data(using: .utf8),
+                          let ev = try? decoder.decode(AnalysisEvent.self, from: data) else { continue }
+                    switch ev.event {
+                    case "analysis":
+                        analysis = VideoAnalysis(
+                            duration: ev.duration ?? 0,
+                            peaks: ev.peaks ?? [],
+                            silences: (ev.silences ?? []).compactMap {
+                                $0.count == 2 ? ($0[0], $0[1]) : nil
+                            })
+                    case "error":
+                        throw NSError(domain: "Crisp", code: 1,
+                                      userInfo: [NSLocalizedDescriptionKey: ev.message ?? "Analysis failed"])
+                    default:
+                        break
+                    }
+                }
+                proc.waitUntilExit()
+                if Task.isCancelled { throw CancellationError() }
+                guard let analysis else {
+                    throw NSError(domain: "Crisp", code: 2, userInfo:
+                        [NSLocalizedDescriptionKey: "Couldn't analyze this video."])
+                }
+                return analysis
+            } onCancel: {
+                proc.terminate()
             }
-            proc.waitUntilExit()
-            if Task.isCancelled { throw CancellationError() }
-            guard let analysis else {
-                throw NSError(domain: "Crisp", code: 2, userInfo:
-                    [NSLocalizedDescriptionKey: "Couldn't analyze this video."])
-            }
+            Self.logStderr(await stderrTask.value)
             return analysis
-        } onCancel: {
-            proc.terminate()
+        } catch {
+            Self.logStderr(await stderrTask.value)
+            throw error
+        }
+    }
+
+    private static func logStderr(_ lines: [String]) {
+        for line in lines where !line.isEmpty {
+            engineLog.error("[analyze stderr] \(line)")
         }
     }
 }
