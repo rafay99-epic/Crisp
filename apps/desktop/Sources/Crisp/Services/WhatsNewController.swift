@@ -38,16 +38,17 @@ final class WhatsNewController {
 
     private let seenKey = "lastWhatsNewVersion"
 
-    /// Show the sheet once per new release. No-op while onboarding is up (that already
-    /// introduces everything). On the very first baseline — a fresh install, or the
-    /// first launch that ever had this feature — it records silently rather than
-    /// surprising the user, so the sheet only appears on a genuine *update* afterward.
-    func presentIfNeeded(onboardingActive: Bool) {
+    /// Show the sheet once per release with new highlights. No-op while onboarding is
+    /// up (it already introduces everything). A brand-new user who just finished the
+    /// welcome tour this launch gets the version recorded silently — they've seen it
+    /// all — but an existing user who *updated* (the tour didn't run this launch) sees
+    /// the sheet, including on the first release that ever shipped this feature.
+    func presentIfNeeded(onboardingActive: Bool, onboardingAppearedOnLaunch: Bool) {
         guard !onboardingActive, !Self.items.isEmpty else { return }
         let lastSeen = UserDefaults.standard.string(forKey: seenKey)
         guard lastSeen != Self.version else { return }
         markSeen()
-        if lastSeen != nil { isPresented = true }
+        if !onboardingAppearedOnLaunch { isPresented = true }
     }
 
     func markSeen() {

@@ -106,7 +106,10 @@ struct ContentView: View {
         .background(.background)
         // After an update, introduce the release's new features once. Runs only when
         // the workspace is showing (i.e. not during onboarding, which covers them).
-        .task { whatsNew.presentIfNeeded(onboardingActive: onboarding.isPresented) }
+        .task {
+            whatsNew.presentIfNeeded(onboardingActive: onboarding.isPresented,
+                                     onboardingAppearedOnLaunch: onboarding.appearedOnLaunch)
+        }
         .sheet(isPresented: $whatsNew.isPresented) {
             WhatsNewView(onDismiss: { whatsNew.isPresented = false })
         }
