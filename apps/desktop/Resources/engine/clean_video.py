@@ -19,6 +19,7 @@ Library users can skip the CLI and import the package directly:
 import argparse
 import json
 import os
+import shlex
 import signal
 import sys
 from pathlib import Path
@@ -49,6 +50,7 @@ from crisp.config import (
     DEFAULT_MAX_PAUSE, DEFAULT_MODEL, DEFAULT_NOISE_DB, DEFAULT_QUALITY, DEFAULT_VIDEO_CODEC, MIN_KEEP,
 )
 from crisp.encode import SUPPORTED_CONTAINERS
+from crisp.enginelog import logger_from_env
 
 
 def main():
@@ -99,18 +101,32 @@ def main():
     p.add_argument("--waveform", type=int, default=0, metavar="N",
                    help="also emit an N-bucket audio waveform (peaks + which slices "
                         "were cut) in the result, for the app to render (0 = off)")
+    p.add_argument("--log-dir", default=None,
+                   help="folder to write a detailed run log into (default: the "
+                        "CRISP_LOG_DIR env var the desktop app sets; off if neither)")
     args = p.parse_args()
 
     if args.ndjson:
         _enable_group_cancel()
         def emit(obj):
             print(json.dumps(obj), flush=True)
-        on_log = lambda m: emit({"event": "log", "message": m})
+        user_log = lambda m: emit({"event": "log", "message": m})
         on_progress = lambda f, l="": emit({"event": "progress", "fraction": f, "label": l})
     else:
-        def on_log(msg):
+        def user_log(msg):
             print(f"→ {msg}" if not msg.startswith(("=", "✅")) else f"\n{msg}", flush=True)
         on_progress = None
+
+    # Tee every human status line into the run log, and record the invocation so a
+    # log starts with exactly how the engine was called.
+    log = logger_from_env(args.log_dir, tag=os.path.basename(args.video))
+    # Quote each arg so the logged invocation is copy-paste replayable (paths with
+    # spaces stay intact).
+    log.info("clean_video invoked: " + " ".join(shlex.quote(a) for a in sys.argv[1:]))
+
+    def on_log(msg):
+        log.info(msg)
+        user_log(msg)
 
     try:
         result = clean_video(args.video, out_path=args.out, model=args.model, pause=args.pause,
@@ -121,15 +137,25 @@ def main():
                              backup=not args.no_backup, backup_dir=args.backup_dir,
                              out_dir=args.out_dir, split_tracks=args.split,
                              split_audio=args.split_audio, waveform_buckets=args.waveform,
-                             on_log=on_log, on_progress=on_progress)
+                             on_log=on_log, on_progress=on_progress, logger=log)
         if args.ndjson:
             emit({"event": "result", **result})
     except CleanError as e:
+        log.error(f"CleanError: {e}")
         if args.ndjson:
             emit({"event": "error", "message": str(e)})
         else:
             print(f"ERROR: {e}", flush=True)
         sys.exit(1)
+    except Exception as e:
+        # An unexpected (non-CleanError) failure used to escape as a raw traceback —
+        # never reaching the app as a structured error. Log the traceback and turn
+        # it into one, so the UI shows a real message and the log has the detail.
+        log.exception("Unexpected error")
+        if args.ndjson:
+            emit({"event": "error", "message": f"Unexpected error: {e}"})
+            sys.exit(1)
+        raise
 
 
 if __name__ == "__main__":

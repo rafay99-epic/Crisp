@@ -36,7 +36,7 @@ def which_whisper():
                          "Install it with:  brew install whisper-cpp")
 
 
-def ffprobe_duration(path: Path) -> float:
+def ffprobe_duration(path: Path, logger=None) -> float:
     out = subprocess.run(
         [ffprobe_bin(), "-v", "error", "-show_entries", "format=duration",
          "-of", "default=noprint_wrappers=1:nokey=1", str(path)],
@@ -45,4 +45,9 @@ def ffprobe_duration(path: Path) -> float:
     try:
         return float(out.stdout.strip())
     except ValueError:
+        # The caller turns 0.0 into a generic "couldn't read duration" error; log
+        # the real ffprobe stderr here so the cause isn't lost.
+        if logger is not None:
+            logger.error(f"ffprobe couldn't read duration of {path} (exit {out.returncode})\n"
+                         f"{(out.stderr or '').strip()[-800:]}")
         return 0.0

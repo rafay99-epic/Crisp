@@ -13,6 +13,7 @@ from .edit import build_keep_segments, make_backup, render, tag_output_source, u
 from .encode import (
     audio_args, container_args, default_output_path, resolve_codecs, resolve_container, video_args,
 )
+from .enginelog import EngineLogger
 from .errors import CleanError
 from .tools import ffprobe_duration, which_whisper
 
@@ -27,14 +28,17 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
                 audio_codec=DEFAULT_AUDIO_CODEC, audio_bitrate=DEFAULT_AUDIO_BITRATE,
                 container=DEFAULT_CONTAINER, remove_fillers=True, backup=DEFAULT_BACKUP,
                 backup_dir=None, out_dir=None, split_tracks=False, split_audio="match",
-                waveform_buckets=0, on_log=None, on_progress=None):
+                waveform_buckets=0, on_log=None, on_progress=None, logger=None):
     """
     Clean one video. Returns a dict with results.
       on_log(str)            — called with human-readable status lines.
       on_progress(frac, str) — called with 0.0..1.0 overall progress + label.
+      logger                 — optional EngineLogger for detailed file logging
+                               (commands, tool stderr); defaults to a no-op.
     """
     on_log = on_log or _noop
     on_progress = on_progress or _noop
+    logger = logger or EngineLogger(None)
 
     src = Path(src).expanduser().resolve()
     if not src.exists():
@@ -65,11 +69,17 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
     video_codec, audio_codec, hardware, codec_notes = resolve_codecs(
         container, video_codec, audio_codec, hardware)
 
+    logger.info(f"src={src}")
+    logger.info(f"out={out_path} container={container} video={video_codec} "
+                f"audio={audio_codec} hw={hardware} quality={quality} "
+                f"remove_fillers={remove_fillers} backup={backup}")
+
     whisper_bin = None
     if remove_fillers:
         if not model.exists():
             raise CleanError(f"Speech model not found: {model}\nRun setup.sh to download it.")
         whisper_bin = which_whisper()
+        logger.info(f"model={model} whisper={whisper_bin}")
 
     # Overall progress is split across stages so the bar moves sensibly.
     def stage(lo, hi):
@@ -80,28 +90,29 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
         on_log(note)
     on_progress(0.0, "Starting…")
 
-    backup_path = make_backup(src, on_log, backup_dir) if backup else None
+    backup_path = make_backup(src, on_log, backup_dir, logger=logger) if backup else None
     if backup_path:
         on_progress(0.03, "Backed up original")
 
-    duration = ffprobe_duration(src)
+    duration = ffprobe_duration(src, logger=logger)
     if duration <= 0:
         raise CleanError("Could not read the video's duration — is it a valid video file?")
+    logger.info(f"duration={duration:.2f}s")
 
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
         wav = tmp / "audio.wav"
 
-        extract_audio(src, wav, on_log)
+        extract_audio(src, wav, on_log, logger=logger)
         on_progress(0.08, "Audio extracted")
 
-        silences = detect_silences(wav, noise, pause, on_log)
+        silences = detect_silences(wav, noise, pause, on_log, logger=logger)
         on_progress(0.15, "Pauses detected")
 
         words = []
         if remove_fillers:
             words = transcribe(whisper_bin, model, wav, tmp / "transcript",
-                               on_log, stage(0.15, 0.58))
+                               on_log, stage(0.15, 0.58), logger=logger)
             on_log(f"Found {len(words)} spoken words.")
         on_progress(0.58, "Planning cuts…")
 
@@ -111,6 +122,8 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
                              "Try a larger pause value.")
 
         kept_dur = sum(e - s for s, e in keep)
+        logger.info(f"keep {len(keep)} segments, kept {kept_dur:.2f}s, "
+                    f"fillers={stats['fillers']} pauses={stats['pauses']}")
         on_log(f"Removing {stats['fillers']} filler words and {stats['pauses']} pauses.")
         on_log(f"{duration:.0f}s  →  {kept_dur:.0f}s  (saved {duration - kept_dur:.0f}s)")
 
@@ -126,15 +139,16 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
         mux = container_args(container)
         try:
             render(src, keep, out_path, on_log, stage(0.60, 1.0),
-                   video_args(video_codec, hardware, quality), audio, mux)
+                   video_args(video_codec, hardware, quality), audio, mux, logger=logger)
         except CleanError:
             if not hardware:
                 raise
             # Hardware encoding can be unavailable in odd setups (e.g. a macOS VM
             # with no media engine). Fall back to software so a clean never fails.
+            logger.notice("Hardware encoding failed — retrying in software")
             on_log("Hardware encoding failed — falling back to software encoding…")
             render(src, keep, out_path, on_log, stage(0.60, 1.0),
-                   video_args(video_codec, False, quality), audio, mux)
+                   video_args(video_codec, False, quality), audio, mux, logger=logger)
 
     if out_dir:
         # Tag the output so a later re-clean of this same source overwrites it,
@@ -146,7 +160,8 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
     video_out, audio_out = "", ""
     if split_tracks:
         from .split import split_av
-        video_out, audio_out = split_av(out_path, audio_codec, on_log, audio_format=split_audio)
+        video_out, audio_out = split_av(out_path, audio_codec, on_log,
+                                        audio_format=split_audio, logger=logger)
 
     on_progress(1.0, "Done")
     on_log(f"✅ Done! Cleaned video: {out_path}")

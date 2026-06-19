@@ -210,6 +210,18 @@ struct SettingsView: View {
             }
 
             Section {
+                LabeledContent("Logs") {
+                    Button("Reveal in Finder") { Diagnostics.revealLogs() }
+                        .controlSize(.small)
+                }
+            } header: {
+                Text("Diagnostics")
+            } footer: {
+                Text("Crisp keeps a daily log of each clean \u{2014} and anything that goes wrong \u{2014} in \(logsPathDisplay). If you hit a problem, share today\u{2019}s log.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
+            Section {
                 Button("Restore Defaults") { settings.restoreDefaults() }
             }
         }
@@ -351,6 +363,12 @@ struct SettingsView: View {
         if let path = FolderPicker.choosePath(message: "Choose where cleaned videos are saved.") {
             settings.outputDirectory = path
         }
+    }
+
+    // MARK: - Diagnostics
+
+    private var logsPathDisplay: String {
+        (Channel.current.logsDirectory.path as NSString).abbreviatingWithTildeInPath
     }
 
     // MARK: - Watch folder

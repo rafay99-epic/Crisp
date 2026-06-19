@@ -106,8 +106,9 @@ is a pure move):
 
 - `App/CrispApp.swift` — `@main`, single `Window` scene, channel-titled,
   "Check for Updates…" command; owns the `CleanModel`, `Updater`, `ModelStore`.
-- `Common/` — cross-cutting: `Channel` (identity from `CrispChannel`), `AppInfo`
-  (bundle-id base + the shared `Logger` subsystem), `Formatting` (`formatTime`).
+- `Common/` — cross-cutting: `Channel` (identity from `CrispChannel`; also owns
+  `logsDirectory`), `AppInfo` (bundle-id base + the `logger(_:)` factory),
+  `Formatting` (`formatTime`), and the logging system (`FileLog`).
 - `Models/` — plain value types: `Strength`, `CleanResult`.
 - `Services/` — the logic (knows nothing about views):
   - `Cleaning/` — `CleanModel` (`@MainActor @Observable`; spawns
@@ -120,6 +121,25 @@ is a pure move):
   `ProgressSection`, `ResultCard`, `UpdateBanner`, `ModelStatusView`; `SettingsView`
   is the ⌘, window for the Custom cutting knobs;
   `Components/Card.swift` is the shared `.cardBackground(…)` surface every card uses.
+
+## Logging
+
+Both layers write to one **per-channel, per-day** file:
+`~/.crisp*/logs/<yyyy-MM-dd>.log` (beside `Originals/`, `models/`, `config/`).
+- **Swift:** `AppInfo.logger(_:)` returns a `CrispLog` that tees every line to
+  Apple unified logging (Console.app, unchanged) **and** the file via `FileLog`
+  (a serial-queue, `O_APPEND`, daily-rotating writer — so the app, watcher, Finder
+  helper, and parallel cleans can all append safely). `CrispLog` accepts the same
+  `\(x, privacy: .public)` interpolation as `os.Logger`, so existing call sites
+  were untouched. `CrispApp` logs a launch line + prunes files >30 days old;
+  Settings has a "Reveal in Finder" row. `CleanRunner` sets `CRISP_LOG_DIR` for the
+  engine and captures its stderr (uncaught Python tracebacks).
+- **Python:** `crisp/enginelog.py` (`EngineLogger`) writes to the **same** daily
+  file (told the dir via `CRISP_LOG_DIR` / `--log-dir`; a no-op when unset, so the
+  bare CLI/library are unchanged). It's threaded through the pipeline to log every
+  ffmpeg/whisper **command + exit code + stderr-on-failure** (previously discarded)
+  and turns unexpected exceptions into a logged traceback + a clean NDJSON `error`.
+  Line format matches Swift's for one merged timeline.
 
 ## The engine (`Resources/engine/`)
 

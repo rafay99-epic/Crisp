@@ -10,12 +10,14 @@ import tempfile
 from pathlib import Path
 
 from .config import MIN_KEEP
+from .enginelog import EngineLogger
 from .errors import CleanError
 from .text import is_filler
 from .tools import ffmpeg_bin
 
 
-def make_backup(src: Path, on_log, backup_dir: Path | None = None) -> Path:
+def make_backup(src: Path, on_log, backup_dir: Path | None = None, logger=None) -> Path:
+    logger = logger or EngineLogger(None)
     # Default to an `_originals` folder beside the source (the bare-CLI behavior);
     # the desktop app passes an explicit dir (a dated folder under its data home).
     backup_dir = Path(backup_dir) if backup_dir else src.parent / "_originals"
@@ -30,6 +32,7 @@ def make_backup(src: Path, on_log, backup_dir: Path | None = None) -> Path:
                 break
             i += 1
     on_log(f"Backing up original to: {dest}")
+    logger.debug(f"backup {src} -> {dest}")
     shutil.copy2(src, dest)
     return dest
 
@@ -136,7 +139,8 @@ def build_keep_segments(words, silences, duration, keep_pause, min_keep=MIN_KEEP
     return keep, stats
 
 
-def render(src, keep, out_path, on_log, on_progress, video_opts, audio_opts, mux_opts=()):
+def render(src, keep, out_path, on_log, on_progress, video_opts, audio_opts, mux_opts=(), logger=None):
+    logger = logger or EngineLogger(None)
     on_log(f"Rendering cleaned video ({len(keep)} segments kept)...")
     total = sum(e - s for s, e in keep) or 1.0
 
@@ -153,14 +157,13 @@ def render(src, keep, out_path, on_log, on_progress, video_opts, audio_opts, mux
     err_file = tempfile.NamedTemporaryFile("w+", suffix=".log", delete=False)
 
     try:
-        proc = subprocess.Popen(
-            [ffmpeg_bin(), "-y", "-i", str(src),
-             "-filter_complex_script", graph_path,
-             "-map", "[outv]", "-map", "[outa]",
-             *video_opts, *audio_opts, *mux_opts,
-             "-progress", "pipe:1", "-nostats", str(out_path)],
-            stdout=subprocess.PIPE, stderr=err_file, text=True,
-        )
+        cmd = [ffmpeg_bin(), "-y", "-i", str(src),
+               "-filter_complex_script", graph_path,
+               "-map", "[outv]", "-map", "[outa]",
+               *video_opts, *audio_opts, *mux_opts,
+               "-progress", "pipe:1", "-nostats", str(out_path)]
+        logger.command("ffmpeg render", cmd)
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=err_file, text=True)
         for line in proc.stdout:
             line = line.strip()
             if line.startswith("out_time_us=") or line.startswith("out_time_ms="):
@@ -172,9 +175,12 @@ def render(src, keep, out_path, on_log, on_progress, video_opts, audio_opts, mux
                 except (IndexError, ValueError):
                     pass
         proc.wait()
+        err_file.seek(0)
+        err_text = err_file.read()
+        logger.tool_result("ffmpeg render", proc.returncode,
+                           err_text if (proc.returncode != 0 or not out_path.exists()) else "")
         if proc.returncode != 0 or not out_path.exists():
-            err_file.seek(0)
-            raise CleanError(f"Rendering failed.\n{err_file.read()[-1500:]}")
+            raise CleanError(f"Rendering failed.\n{err_text[-1500:]}")
     finally:
         os.unlink(graph_path)
         err_file.close()
