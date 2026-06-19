@@ -82,7 +82,7 @@ public final class FileLog: @unchecked Sendable {
 
     private let queue = DispatchQueue(label: "\(AppInfo.bundleIdentifier).filelog")
     private let fm = FileManager.default
-    private var handle: FileHandle?
+    private var fd: Int32 = -1
     private var openDay: String?
 
     private init() {}
@@ -90,9 +90,14 @@ public final class FileLog: @unchecked Sendable {
     /// `~/.crisp*/logs/` for the running channel.
     public var directory: URL { Channel.current.logsDirectory }
 
-    /// Today's log file (the one currently being appended to).
+    /// Today's log file (the one currently being appended to). Uses a throwaway
+    /// formatter rather than the write queue, so a UI caller (e.g. "Reveal in
+    /// Finder") never blocks behind a backlog of queued writes.
     public func currentLogFileURL() -> URL {
-        queue.sync { directory.appendingPathComponent("\(Self.dayFormatter.string(from: Date())).log") }
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd"
+        return directory.appendingPathComponent("\(f.string(from: Date())).log")
     }
 
     /// Append one line. The timestamp is captured now; the actual write is async on
@@ -126,21 +131,28 @@ public final class FileLog: @unchecked Sendable {
     private func append(_ line: String, on date: Date) {
         let day = Self.dayFormatter.string(from: date)
         if day != openDay { rotate(to: day) }
-        guard let handle, let data = line.data(using: .utf8) else { return }
-        try? handle.write(contentsOf: data)
+        guard fd >= 0 else { return }
+        // One `write()` syscall for the whole line: with O_APPEND that makes the
+        // append atomic against the other processes sharing this daily file (the
+        // engine, the watcher, parallel cleans), so lines never interleave. A
+        // `FileHandle.write` could split into several syscalls and break that.
+        let bytes = Array(line.utf8)
+        bytes.withUnsafeBytes { buf in
+            guard let base = buf.baseAddress else { return }
+            _ = Darwin.write(fd, base, buf.count)
+        }
     }
 
     private func rotate(to day: String) {
-        try? handle?.close()
-        handle = nil
+        if fd >= 0 { close(fd); fd = -1 }
         openDay = nil
         try? fm.createDirectory(at: directory, withIntermediateDirectories: true)
         let url = directory.appendingPathComponent("\(day).log")
         // O_APPEND so concurrent writers (parallel cleans, the watcher, the engine)
         // each land at end-of-file atomically rather than clobbering one another.
-        let fd = open(url.path, O_WRONLY | O_APPEND | O_CREAT, 0o644)
-        guard fd >= 0 else { return }
-        handle = FileHandle(fileDescriptor: fd, closeOnDealloc: true)
+        let newFd = open(url.path, O_WRONLY | O_APPEND | O_CREAT, 0o644)
+        guard newFd >= 0 else { return }
+        fd = newFd
         openDay = day
     }
 

@@ -129,16 +129,32 @@ public struct CleanRunner {
         // traceback) can't deadlock the stdout reader by filling the pipe buffer.
         // This is the safety net for failures that escape before the engine can emit
         // a structured error — the bundled engine routes its detail to the log file,
-        // so anything here means something went wrong unexpectedly.
-        let stderrTask = Task<String, Never> {
-            guard let data = try? errPipe.fileHandleForReading.readToEnd(),
-                  let text = String(data: data, encoding: .utf8) else { return "" }
-            return text
+        // so anything here means something went wrong unexpectedly. Uses the async
+        // byte stream (not a blocking `readToEnd`) so it suspends rather than tying
+        // up a cooperative-pool thread — important when several cleans run at once.
+        let stderrTask = Task<[String], Never> {
+            var lines: [String] = []
+            do {
+                for try await line in errPipe.fileHandleForReading.bytes.lines {
+                    lines.append(line)
+                }
+            } catch {
+                // Best-effort: the clean's own result/error is what actually matters.
+            }
+            return lines
         }
 
         do {
             let result = try await withTaskCancellationHandler {
-                try proc.run()
+                do {
+                    try proc.run()
+                } catch {
+                    // The child never started, so nothing will ever close the pipe's
+                    // write end — close our copy so the stderr drain task hits EOF
+                    // and returns instead of hanging this clean forever.
+                    try? errPipe.fileHandleForWriting.close()
+                    throw error
+                }
                 var result: CleanResult?
                 let decoder = JSONDecoder()
                 for try await line in outPipe.fileHandleForReading.bytes.lines {
@@ -196,9 +212,9 @@ public struct CleanRunner {
     /// Record whatever the engine wrote to stderr, line by line (so a multi-line
     /// Python traceback stays readable in the log). Empty in the normal case — the
     /// engine logs its own detail directly to the file.
-    private static func logEngineStderr(_ text: String) {
-        for line in text.split(separator: "\n", omittingEmptySubsequences: true) {
-            engineLog.error("[stderr] \(String(line))")
+    private static func logEngineStderr(_ lines: [String]) {
+        for line in lines where !line.isEmpty {
+            engineLog.error("[stderr] \(line)")
         }
     }
 
