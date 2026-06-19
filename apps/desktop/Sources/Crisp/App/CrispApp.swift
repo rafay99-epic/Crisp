@@ -11,12 +11,13 @@ struct CrispApp: App {
     @State private var onboarding = OnboardingController()
     @State private var player = PreviewPlayer()
     @State private var quickDrop = QuickDropModel()
+    @State private var whatsNew = WhatsNewController()
 
     var body: some Scene {
         Window(Channel.current.displayName, id: "main") {
             ContentView(model: model, updater: updater, modelStore: modelStore,
                         settings: settings, watchAgent: watchAgent, onboarding: onboarding,
-                        player: player)
+                        player: player, whatsNew: whatsNew)
                 .task { logLaunch() }
                 .task { updater.checkOnLaunch() }
                 .task { await modelStore.refresh() }

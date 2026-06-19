@@ -10,6 +10,7 @@ struct ContentView: View {
     @Bindable var watchAgent: WatchAgentController
     @Bindable var onboarding: OnboardingController
     @Bindable var player: PreviewPlayer
+    @Bindable var whatsNew: WhatsNewController
     @Environment(\.openWindow) private var openWindow
     @State private var importing = false
     @State private var showUltraSheet = false
@@ -103,6 +104,12 @@ struct ContentView: View {
         // at the smallest size; the queue takes any extra height/width.
         .frame(minWidth: 600, minHeight: 460)
         .background(.background)
+        // After an update, introduce the release's new features once. Runs only when
+        // the workspace is showing (i.e. not during onboarding, which covers them).
+        .task { whatsNew.presentIfNeeded(onboardingActive: onboarding.isPresented) }
+        .sheet(isPresented: $whatsNew.isPresented) {
+            WhatsNewView(onDismiss: { whatsNew.isPresented = false })
+        }
         // Keep the "default for new files" preset the model stamps onto added rows
         // in sync with Settings, in both directions and at first appearance.
         .onChange(of: settings.defaultPresetID, initial: true) {
