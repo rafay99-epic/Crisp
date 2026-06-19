@@ -148,6 +148,16 @@ def main():
             else:
                 print(f"ERROR: {e}", flush=True)
             sys.exit(1)
+        except Exception as e:
+            # Turn an unexpected failure into a structured error + logged traceback,
+            # so it never escapes as a raw traceback on stderr (which the app can't
+            # parse, and which could flood the pipe).
+            log.exception("Unexpected error (analyze)")
+            if args.ndjson:
+                emit({"event": "error", "message": f"Unexpected error: {e}"})
+            else:
+                print(f"ERROR: {e}", flush=True)
+            sys.exit(1)
         return
 
     try:

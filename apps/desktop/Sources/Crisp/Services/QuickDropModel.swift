@@ -10,6 +10,7 @@ import CrispCore
 final class QuickDropModel {
     enum State: Equatable {
         case idle
+        case preparing(name: String)
         case cleaning(name: String, remaining: Int)
         case done(output: URL, saved: Double)
         case failed(String)
@@ -29,12 +30,16 @@ final class QuickDropModel {
         let videos = urls.filter { CleanRunner.videoExtensions.contains($0.pathExtension.lowercased()) }
         guard !videos.isEmpty else { return false }
         pending.append(contentsOf: videos)
-        if !running { Task { await drain(settings: settings) } }
+        // Flip the guard synchronously (not inside the scheduled drain Task), so two
+        // enqueues in the same turn can't both spawn a drain and race on `pending`.
+        if !running {
+            running = true
+            Task { await drain(settings: settings) }
+        }
         return true
     }
 
     private func drain(settings: EngineSettings) async {
-        running = true
         defer { running = false }
 
         // "Default recipe": the default preset's strength if one is set, else Balanced;
@@ -47,9 +52,18 @@ final class QuickDropModel {
 
         while !pending.isEmpty {
             let url = pending.removeFirst()
-            state = .cleaning(name: url.lastPathComponent, remaining: pending.count)
+            // "Preparing" until the first engine event — covers the one-time speech
+            // model download, so a first-run drop doesn't look like it's hung.
+            state = .preparing(name: url.lastPathComponent)
             do {
-                let result = try await QuickClean().clean(url, strength: strength, removeFillers: true)
+                let result = try await QuickClean().clean(url, strength: strength, removeFillers: true) { [weak self] _ in
+                    Task { @MainActor in
+                        guard let self else { return }
+                        if case .preparing = self.state {
+                            self.state = .cleaning(name: url.lastPathComponent, remaining: self.pending.count)
+                        }
+                    }
+                }
                 cleaned += 1
                 totalSaved += result.savedSeconds
                 if !result.output.isEmpty { lastOutput = URL(fileURLWithPath: result.output) }

@@ -73,6 +73,11 @@ struct MenuBarPanel: View {
         case .idle:
             Text("Uses your default recipe.")
                 .font(.caption).foregroundStyle(.secondary)
+        case .preparing(let name):
+            HStack(spacing: 8) {
+                ProgressView().controlSize(.small)
+                Text("Preparing \(name)\u{2026}").font(.caption).lineLimit(1).truncationMode(.middle)
+            }
         case .cleaning(let name, let remaining):
             HStack(spacing: 8) {
                 ProgressView().controlSize(.small)

@@ -152,6 +152,10 @@ struct PreviewSheet: View {
         let noise = effNoise
         let key = Int(noise.rounded())
         if let cached = analysesByNoise[key] {
+            // Cancel any in-flight analyze for a different floor, or its late
+            // completion would clobber `current` with the wrong-floor result.
+            analysisTask?.cancel()
+            isAnalyzing = false
             current = cached
             return
         }
