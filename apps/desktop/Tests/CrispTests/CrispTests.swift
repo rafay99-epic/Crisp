@@ -69,6 +69,41 @@ final class CrispTests: XCTestCase {
         XCTAssertEqual(parsed.first?.inputPath, "/in/a.mp4")
     }
 
+    func testCutPreviewBasicPause() {
+        // One 3s silence in a 10s clip; cut its middle leaving 0.15s on each side.
+        let r = CutPreview.compute(silences: [(3, 6)], duration: 10,
+                                   pause: 0.6, keepPause: 0.15, minKeep: 0.05)
+        XCTAssertEqual(r.pauseCount, 1)
+        XCTAssertEqual(r.removedSeconds, 2.7, accuracy: 0.0001)   // (6-0.15) - (3+0.15)
+        XCTAssertEqual(r.keep.count, 2)
+    }
+
+    func testCutPreviewIgnoresShortSilences() {
+        // A 0.3s gap is shorter than the 0.6s threshold → nothing is cut.
+        let r = CutPreview.compute(silences: [(1, 1.3)], duration: 10,
+                                   pause: 0.6, keepPause: 0.15, minKeep: 0.05)
+        XCTAssertEqual(r.pauseCount, 0)
+        XCTAssertEqual(r.removedSeconds, 0, accuracy: 0.0001)
+        XCTAssertEqual(r.keep, [0...10])
+    }
+
+    func testCutPreviewMinKeepDropsTinyFragments() {
+        // Two pauses leave sub-minKeep fragments at the head/middle → folded into the cut.
+        let r = CutPreview.compute(silences: [(0, 2.9), (3.0, 6.0)], duration: 10,
+                                   pause: 0.6, keepPause: 0.15, minKeep: 0.5)
+        XCTAssertEqual(r.pauseCount, 2)
+        XCTAssertEqual(r.keep.count, 1)                          // only the final tail survives
+        XCTAssertEqual(r.removedSeconds, 5.85, accuracy: 0.0001) // 10 - (10 - 5.85)
+    }
+
+    func testCutPreviewRemovedMask() {
+        let r = CutPreview.compute(silences: [(3, 6)], duration: 10,
+                                   pause: 0.6, keepPause: 0.15, minKeep: 0.05)
+        let mask = CutPreview.removedMask(keep: r.keep, duration: 10, bucketCount: 10)
+        // Bucket centers 3.5/4.5/5.5 fall in the removed middle; the rest are kept.
+        XCTAssertEqual(mask, [false, false, false, true, true, true, false, false, false, false])
+    }
+
     func testCutsSummary() {
         // Both parts, pluralized.
         XCTAssertEqual(CleanResult.cutsSummary(fillers: 12, pauses: 47), "12 fillers \u{00B7} 47 pauses")

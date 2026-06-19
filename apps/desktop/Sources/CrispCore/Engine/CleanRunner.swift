@@ -106,17 +106,7 @@ public struct CleanRunner {
         proc.arguments = Self.arguments(scriptPath: script.path, input: input,
                                         parameters: parameters, options: options)
 
-        var env = ProcessInfo.processInfo.environment
-        // Point the engine at the binaries we ship; each falls back to PATH if it
-        // wasn't bundled (e.g. a plain `swift run` on a dev machine).
-        if let f = CleanEngine.bundledTool("ffmpeg") { env["CRISP_FFMPEG"] = f }
-        if let p = CleanEngine.bundledTool("ffprobe") { env["CRISP_FFPROBE"] = p }
-        if let w = CleanEngine.bundledTool("whisper-cli") { env["CRISP_WHISPER"] = w }
-        env["PATH"] = "/opt/homebrew/bin:" + (env["PATH"] ?? "")
-        // Tell the engine where to write its detailed log so the Python side of a
-        // clean lands in the same daily file as the app (`~/.crisp*/logs/`).
-        env["CRISP_LOG_DIR"] = Channel.current.logsDirectory.path
-        proc.environment = env
+        proc.environment = CleanEngine.environment()
 
         let outPipe = Pipe()
         let errPipe = Pipe()

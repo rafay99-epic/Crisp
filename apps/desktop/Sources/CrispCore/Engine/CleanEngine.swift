@@ -45,6 +45,19 @@ public enum CleanEngine {
         return p
     }
 
+    /// The environment for an engine subprocess: point it at the bundled tools
+    /// (each falls back to PATH if not bundled), prepend Homebrew, and tell it where
+    /// to write its log. Shared by every engine spawn so they're configured alike.
+    public static func environment() -> [String: String] {
+        var env = ProcessInfo.processInfo.environment
+        if let f = bundledTool("ffmpeg") { env["CRISP_FFMPEG"] = f }
+        if let p = bundledTool("ffprobe") { env["CRISP_FFPROBE"] = p }
+        if let w = bundledTool("whisper-cli") { env["CRISP_WHISPER"] = w }
+        env["PATH"] = "/opt/homebrew/bin:" + (env["PATH"] ?? "")
+        env["CRISP_LOG_DIR"] = Channel.current.logsDirectory.path
+        return env
+    }
+
     /// python3 — prefer the bundled standalone runtime, then Homebrew, then system.
     public static var python: String {
         if let p = binDir?.appendingPathComponent("python/bin/python3").path,
