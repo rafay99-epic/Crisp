@@ -25,22 +25,32 @@ struct OnboardingView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ScrollView {
-                VStack(spacing: 18) {
-                    content
+            GeometryReader { geo in
+                ScrollView {
+                    VStack(spacing: 18) {
+                        content
+                    }
+                    .frame(maxWidth: 460)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 28)
+                    // Grow to fill the viewport so each step sits vertically centered
+                    // — short steps no longer leave a void beneath them — while the
+                    // tall steps (fillers, preferences) still scroll when they must.
+                    .frame(maxWidth: .infinity, minHeight: geo.size.height)
+                    .id(index)
+                    .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity),
+                                            removal: .move(edge: .leading).combined(with: .opacity)))
                 }
-                .padding(.horizontal, 44)
-                .padding(.top, 40)
-                .padding(.bottom, 24)
-                .frame(maxWidth: .infinity)
-                .id(index)
-                .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity),
-                                        removal: .move(edge: .leading).combined(with: .opacity)))
+                .scrollBounceBehavior(.basedOnSize)
             }
             Divider()
             footer
         }
-        .frame(width: 600, height: 600)
+        // Fill and center within the shared app window — resizable and content-
+        // centered, exactly like the main workspace — instead of a fixed box that
+        // floats with dead margins once the window is any larger than 600pt.
+        .frame(minWidth: 560, minHeight: 460)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(nsColor: .windowBackgroundColor))
     }
 
@@ -60,14 +70,14 @@ struct OnboardingView: View {
                        "Cuts re-encode at the same resolution and frame rate — never downscaled.")
 
         case .howItWorks:
-            header(symbol: "wand.and.stars", title: "Clean a video in seconds",
-                   subtitle: "Three steps, and you’re done.")
-            featureRow("film.stack", "Drop or choose a video",
-                       "Drag a recording onto the window, or click “Choose video…”.")
+            header(symbol: "wand.and.stars", title: "Clean your videos in seconds",
+                   subtitle: "Add as many as you like — Crisp cleans them as a queue.")
+            featureRow("film.stack", "Add your videos",
+                       "Drag recordings onto the window, or click “Choose videos…”. They line up in a queue you can reorder — the top one runs first.")
             featureRow("slider.horizontal.3", "Pick how much to cut",
-                       "Gentle through Very Aggressive — or Custom for full control.")
-            featureRow("scissors", "Hit Clean",
-                       "Crisp finds the silences and fillers and cuts them out, saving “name_cleaned.mp4”.")
+                       "Set the default for the queue — Gentle through Very Aggressive, or Custom — and give any single file its own preset.")
+            featureRow("scissors", "Clean the queue",
+                       "Crisp cuts the silences and fillers from each one — several at once when your Mac can — and saves a cleaned copy of every original.")
 
         case .fillers:
             header(symbol: "waveform", title: "Pauses & filler words",
@@ -75,7 +85,7 @@ struct OnboardingView: View {
             featureRow("waveform", "Pauses — always on",
                        "Detected from the real audio. Works out of the box, no setup.")
             featureRow("text.bubble.fill", "Filler words — optional",
-                       "Turn on “Remove filler words” and Crisp downloads a one-time speech model. Pauses-only needs no download.")
+                       "Turn on “Remove fillers” and Crisp downloads a one-time speech model. Pauses-only needs no download.")
             modelWidget
 
         case .preferences:
@@ -251,21 +261,40 @@ struct OnboardingView: View {
 
     @ViewBuilder private func header(symbol: String, title: String, subtitle: String) -> some View {
         VStack(spacing: 14) {
-            if symbol.isEmpty {
-                Image(nsImage: NSApplication.shared.applicationIconImage)
-                    .resizable().frame(width: 84, height: 84)
-            } else {
-                Image(systemName: symbol)
-                    .font(.system(size: 38, weight: .semibold))
-                    .foregroundStyle(.tint)
-                    .frame(width: 84, height: 84)
-                    .background(.tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 20))
-            }
+            heroIcon(symbol)
             Text(title).font(.title.bold()).multilineTextAlignment(.center)
             Text(subtitle)
                 .font(.callout).foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.bottom, 6)
+    }
+
+    /// The step's mark. The welcome/done bookends show the real app icon — the app's
+    /// own identity — while topic steps use an accent SF Symbol on the same tinted,
+    /// rounded, continuous-corner surface the rest of the UI is built from. Sized to
+    /// sit a notch above the title, never a heavy dark tile.
+    @ViewBuilder private func heroIcon(_ symbol: String) -> some View {
+        if symbol.isEmpty {
+            Image(nsImage: NSApplication.shared.applicationIconImage)
+                .resizable().frame(width: 76, height: 76)
+                .accessibilityHidden(true)
+        } else {
+            Image(systemName: symbol)
+                .font(.system(size: 29, weight: .semibold))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(.tint)
+                .frame(width: 64, height: 64)
+                .background {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(.tint.opacity(0.16))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .strokeBorder(.tint.opacity(0.30), lineWidth: 1)
+                        )
+                }
+                .accessibilityHidden(true)
         }
     }
 
