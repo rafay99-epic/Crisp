@@ -10,14 +10,6 @@ struct WhatsNewItem: Identifiable {
     var id: String { title }
 }
 
-/// A parsed section of release notes: an optional area heading + its bullet titles,
-/// cleaned of the `#NN … — @author` decoration for a user-facing read.
-struct WhatsNewSection: Identifiable {
-    let id = UUID()
-    let title: String?
-    let bullets: [String]
-}
-
 /// Shows a one-time "What's New" sheet after the app updates — populated from the
 /// running version's GitHub release notes (the same PR-derived list the release page
 /// shows), so there's nothing to hand-maintain in the app. Remembers the last
@@ -29,8 +21,13 @@ struct WhatsNewSection: Identifiable {
 final class WhatsNewController {
     var isPresented = false
 
-    /// Sections parsed from the fetched release notes; empty → show the fallback.
-    private(set) var sections: [WhatsNewSection] = []
+    /// Clean, user-facing highlight titles parsed from the release notes; empty → the
+    /// view shows the curated fallback.
+    private(set) var highlights: [String] = []
+
+    /// Areas worth showing a user in a "What's New" splash: the app itself and the
+    /// engine. Website / CI / Docs changes belong on the release page, not here.
+    private static let userFacingAreas: Set<String> = ["desktop", "backend"]
 
     /// Identity of the running release — changes on every update. Nightly reuses one
     /// rolling tag, so key on the monotonic build number there.
@@ -66,9 +63,14 @@ final class WhatsNewController {
         guard !onboardingAppearedOnLaunch else { return }
         Task {
             if let raw = await Updater.currentReleaseNotes() {
-                sections = Self.parse(raw)
+                let parsed = Self.parse(raw)
+                guard !parsed.isEmpty else { return }   // notes fetched, nothing user-facing → don't pop
+                highlights = parsed
+                isPresented = true
+            } else {
+                // Offline / dev build (no release to fetch) → curated fallback.
+                isPresented = true
             }
-            isPresented = true
         }
     }
 
@@ -76,35 +78,34 @@ final class WhatsNewController {
         UserDefaults.standard.set(releaseID, forKey: seenKey)
     }
 
-    /// Turn the release-notes markdown (grouped `### Area (N)` + `- #NN title — @user`)
-    /// into clean, user-facing sections: area headings without the count, bullet
-    /// titles without the PR number or author. Pure (nonisolated) — unit-tested.
-    nonisolated static func parse(_ raw: String) -> [WhatsNewSection] {
-        var sections: [WhatsNewSection] = []
-        var title: String?
-        var bullets: [String] = []
-
-        func flush() {
-            if !bullets.isEmpty { sections.append(WhatsNewSection(title: title, bullets: bullets)) }
-            bullets = []
-        }
+    /// Turn the grouped release-notes markdown (`### Area (N)` + `- #NN title — @user`)
+    /// into a flat, deduped list of clean, user-facing highlight titles: keep only
+    /// the user-facing areas, strip the PR number / author / count decoration, and
+    /// drop duplicates (a PR with two area labels appears once). Pure (nonisolated)
+    /// — unit-tested.
+    nonisolated static func parse(_ raw: String) -> [String] {
+        var highlights: [String] = []
+        var seen: Set<String> = []
+        var include = false
 
         for rawLine in raw.components(separatedBy: "\n") {
             let line = rawLine.trimmingCharacters(in: .whitespaces)
             if line.hasPrefix("### ") {
-                flush()
-                title = line.dropFirst(4)
+                let area = line.dropFirst(4)
                     .replacingOccurrences(of: #"\s*\(\d+\)$"#, with: "", options: .regularExpression)
-            } else if line.hasPrefix("- ") {
+                    .trimmingCharacters(in: .whitespaces)
+                include = userFacingAreas.contains(area.lowercased())
+            } else if include, line.hasPrefix("- ") {
                 var b = String(line.dropFirst(2))
                 b = b.replacingOccurrences(of: #"^#\d+\s+"#, with: "", options: .regularExpression)
                 b = b.replacingOccurrences(of: #"\s+[—-]\s+@\S+.*$"#, with: "", options: .regularExpression)
-                let trimmed = b.trimmingCharacters(in: .whitespaces)
-                if !trimmed.isEmpty { bullets.append(trimmed) }
+                let title = b.trimmingCharacters(in: .whitespaces)
+                if !title.isEmpty, seen.insert(title.lowercased()).inserted {
+                    highlights.append(title)
+                }
             }
             // Ignore the top-level "## What's changed", blank lines, and code fences.
         }
-        flush()
-        return sections
+        return highlights
     }
 }

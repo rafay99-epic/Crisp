@@ -21,7 +21,7 @@ struct WhatsNewView: View {
             }
 
             ScrollView {
-                if whatsNew.sections.isEmpty {
+                if whatsNew.highlights.isEmpty {
                     fallback
                 } else {
                     notes
@@ -37,23 +37,16 @@ struct WhatsNewView: View {
         .frame(width: 460)
     }
 
-    /// Release-notes path: area headings + cleaned bullet titles.
+    /// Release-notes path: a clean, flat list of user-facing highlight titles.
     private var notes: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            ForEach(whatsNew.sections) { section in
-                VStack(alignment: .leading, spacing: 6) {
-                    if let title = section.title {
-                        Text(title).font(.headline)
-                    }
-                    ForEach(section.bullets, id: \.self) { bullet in
-                        HStack(alignment: .top, spacing: 8) {
-                            Image(systemName: "sparkle").font(.caption2).foregroundStyle(.tint)
-                                .padding(.top, 3)
-                            Text(bullet).font(.callout)
-                                .fixedSize(horizontal: false, vertical: true)
-                            Spacer(minLength: 0)
-                        }
-                    }
+        VStack(alignment: .leading, spacing: 10) {
+            ForEach(whatsNew.highlights, id: \.self) { highlight in
+                HStack(alignment: .top, spacing: 10) {
+                    Image(systemName: "sparkle").font(.callout).foregroundStyle(.tint)
+                        .padding(.top, 2)
+                    Text(highlight).font(.callout)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }

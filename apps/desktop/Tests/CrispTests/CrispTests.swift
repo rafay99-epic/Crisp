@@ -108,24 +108,32 @@ final class CrispTests: XCTestCase {
         let raw = """
         ## What's changed
 
-        ### Desktop (2)
+        ### Desktop (3)
 
         - #27 Split tracks: export separate video + audio files — @rafay99-epic
         - #29 Onboarding: match the redesigned queue UI — @someone
+        - #37 Add a unified daily logging system — @rafay99-epic
+
+        ### Backend (1)
+
+        - #35 Speech engine: multi-model + accurate DTW timestamps — @rafay99-epic
+
+        ### Docs (1)
+
+        - #37 Add a unified daily logging system — @rafay99-epic
 
         ### CI (1)
 
         - #22 Add website CI — @rafay99-epic
         """
-        let sections = WhatsNewController.parse(raw)
-        XCTAssertEqual(sections.count, 2)
-        XCTAssertEqual(sections[0].title, "Desktop")            // count stripped
-        XCTAssertEqual(sections[0].bullets, [
-            "Split tracks: export separate video + audio files",  // #NN and — @author stripped
-            "Onboarding: match the redesigned queue UI"
+        let highlights = WhatsNewController.parse(raw)
+        // Desktop + Backend only (Docs/CI dropped), deduped (#37 once), decoration stripped.
+        XCTAssertEqual(highlights, [
+            "Split tracks: export separate video + audio files",
+            "Onboarding: match the redesigned queue UI",
+            "Add a unified daily logging system",
+            "Speech engine: multi-model + accurate DTW timestamps"
         ])
-        XCTAssertEqual(sections[1].title, "CI")
-        XCTAssertEqual(sections[1].bullets, ["Add website CI"])
     }
 
     func testCutsSummary() {
