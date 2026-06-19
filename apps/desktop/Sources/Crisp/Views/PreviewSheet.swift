@@ -22,11 +22,8 @@ struct PreviewSheet: View {
     @State private var breathing = EngineConfig.defaults.breathingRoom
     @State private var minKeep = EngineConfig.defaults.minKeep
 
-    @State private var analysesByNoise: [Int: VideoAnalysis] = [:]
-    @State private var current: VideoAnalysis?
-    @State private var isAnalyzing = false
-    @State private var errorText: String?
-    @State private var analysisTask: Task<Void, Never>?
+    /// The analysis orchestration (run/cache/cancel) lives in the service.
+    @State private var analysis = PreviewModel()
 
     private var input: URL { item.url }
     private var isCustom: Bool { strength == .custom }
@@ -50,7 +47,7 @@ struct PreviewSheet: View {
     }
 
     private var computedPreview: CutPreview.Result? {
-        guard let a = current else { return nil }
+        guard let a = analysis.current else { return nil }
         let p = effectiveParams
         return CutPreview.compute(silences: a.silences, duration: a.duration,
                                   pause: p.pause, keepPause: p.keepPause, minKeep: p.minKeep)
@@ -70,7 +67,7 @@ struct PreviewSheet: View {
         .frame(width: 480)
         .onAppear(perform: seedAndLoad)
         .onChange(of: strength) { reload() }   // a preset↔custom switch may change the floor
-        .onDisappear { analysisTask?.cancel() }
+        .onDisappear { analysis.cancel() }
     }
 
     private var header: some View {
@@ -91,12 +88,12 @@ struct PreviewSheet: View {
     private func waveform(_ result: CutPreview.Result?) -> some View {
         ZStack {
             RoundedRectangle(cornerRadius: 10).fill(.quaternary.opacity(0.4))
-            if let a = current, !a.peaks.isEmpty {
+            if let a = analysis.current, !a.peaks.isEmpty {
                 WaveformView(peaks: a.peaks, removed: mask(a, result))
                     .padding(10)
-            } else if isAnalyzing {
+            } else if analysis.isAnalyzing {
                 ProgressView("Analyzing\u{2026}").controlSize(.small)
-            } else if let errorText {
+            } else if let errorText = analysis.errorText {
                 Label(errorText, systemImage: "exclamationmark.triangle")
                     .font(.caption).foregroundStyle(.red).padding(8)
             }
@@ -111,7 +108,7 @@ struct PreviewSheet: View {
     }
 
     @ViewBuilder private func stats(_ result: CutPreview.Result?) -> some View {
-        if let a = current, let p = result {
+        if let a = analysis.current, let p = result {
             let pct = a.duration > 0 ? Int((p.removedSeconds / a.duration) * 100) : 0
             HStack(spacing: 6) {
                 Image(systemName: "scissors")
@@ -183,35 +180,7 @@ struct PreviewSheet: View {
     }
 
     private func reload() {
-        let noise = effectiveParams.noiseDB
-        let key = Int(noise.rounded())
-        if let cached = analysesByNoise[key] {
-            // Cancel any in-flight analyze for a different floor, or its late
-            // completion would clobber `current` with the wrong-floor result.
-            analysisTask?.cancel()
-            isAnalyzing = false
-            current = cached
-            return
-        }
-        analysisTask?.cancel()
-        isAnalyzing = true
-        errorText = nil
-        current = nil
-        analysisTask = Task {
-            do {
-                let analysis = try await AnalysisRunner().analyze(input: input, noiseDB: noise)
-                if Task.isCancelled { return }
-                analysesByNoise[key] = analysis
-                current = analysis
-                isAnalyzing = false
-            } catch is CancellationError {
-                // Superseded or dismissed — leave state to the newer load.
-            } catch {
-                if Task.isCancelled { return }
-                errorText = "Couldn\u{2019}t analyze this video."
-                isAnalyzing = false
-            }
-        }
+        analysis.load(input: input, noiseDB: effectiveParams.noiseDB)
     }
 
     /// Apply the chosen recipe where it'll actually take effect: into the row's preset

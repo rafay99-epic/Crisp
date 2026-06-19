@@ -85,8 +85,10 @@ final class QuickDropModel {
         } else {
             state = .idle
         }
-        // Ping when the app isn't frontmost (the whole point of a background drop).
-        if cleaned > 0 || failed > 0 {
+        // Ping when something was actually cleaned and the app isn't frontmost (the
+        // point of a background drop). An all-failure run shows its error in the
+        // panel rather than a misleading "Cleaned 0" notification.
+        if cleaned > 0 {
             Notifier.batchFinished(cleaned: cleaned, savedSeconds: totalSaved, failed: failed)
         }
     }

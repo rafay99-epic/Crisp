@@ -10,17 +10,17 @@ struct HistoryView: View {
     @Bindable var quickDrop: QuickDropModel
     @Environment(\.openWindow) private var openWindow
 
-    @State private var entries: [HistoryEntry] = []
+    @State private var history = HistoryModel()
 
     var body: some View {
         Group {
-            if entries.isEmpty {
+            if history.entries.isEmpty {
                 emptyState
             } else {
-                List(entries) { entry in
+                List(history.entries) { entry in
                     HistoryRow(entry: entry,
-                               onReveal: { reveal(entry) },
-                               onCleanAgain: sourceExists(entry) ? { cleanAgain(entry) } : nil)
+                               onReveal: { history.reveal(entry) },
+                               onCleanAgain: history.sourceExists(entry) ? { cleanAgain(entry) } : nil)
                         .listRowSeparator(.hidden)
                 }
                 .listStyle(.inset)
@@ -30,25 +30,29 @@ struct HistoryView: View {
         .navigationTitle("History")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button { reload() } label: { Label("Refresh", systemImage: "arrow.clockwise") }
+                Button { history.reload() } label: { Label("Refresh", systemImage: "arrow.clockwise") }
                     .help("Refresh")
             }
             ToolbarItem(placement: .automatic) {
-                Button(role: .destructive) { clearHistory() } label: {
+                Button(role: .destructive) { history.clear() } label: {
                     Label("Clear", systemImage: "trash")
                 }
                 .help("Clear history")
-                .disabled(entries.isEmpty)
+                .disabled(history.entries.isEmpty)
             }
         }
-        .onAppear(perform: reload)
+        .onAppear { history.reload() }
         // Refresh when a clean finishes while the window is open — from the queue,
         // from a menu-bar drop (same process), and when returning to the app (which
         // catches the separate watch-folder agent's cleans).
-        .onChange(of: model.doneCount) { reload() }
-        .onChange(of: quickDrop.state) { reload() }
+        .onChange(of: model.doneCount) { history.reload() }
+        .onChange(of: quickDrop.state) { _, new in
+            // Only when a menu-bar drop actually finishes — not on every
+            // preparing/cleaning transition (each would re-read the whole file).
+            if case .done = new { history.reload() }
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            reload()
+            history.reload()
         }
     }
 
@@ -66,33 +70,10 @@ struct HistoryView: View {
         .padding(24)
     }
 
-    // MARK: - Actions
-
-    private func reload() {
-        // Read + decode off the main actor (it can be a large file, and this runs on
-        // every clean completion while the window is open).
-        Task { entries = await HistoryStore.shared.loadAsync() }
-    }
-
-    private func clearHistory() {
-        HistoryStore.shared.clear()
-        entries = []
-    }
-
-    private func sourceExists(_ entry: HistoryEntry) -> Bool {
-        FileManager.default.fileExists(atPath: entry.inputPath)
-    }
-
-    private func reveal(_ entry: HistoryEntry) {
-        if let out = entry.outputURL, FileManager.default.fileExists(atPath: out.path) {
-            NSWorkspace.shared.activateFileViewerSelecting([out])
-        } else if sourceExists(entry) {
-            NSWorkspace.shared.activateFileViewerSelecting([entry.inputURL])
-        }
-    }
-
+    /// Re-queue the original into the main window and bring it forward. Stays in the
+    /// view because it's navigation (needs `openWindow` and the window's `CleanModel`).
     private func cleanAgain(_ entry: HistoryEntry) {
-        guard sourceExists(entry) else { return }
+        guard history.sourceExists(entry) else { return }
         model.addFiles([entry.inputURL])
         openWindow(id: "main")
         NSApp.activate(ignoringOtherApps: true)

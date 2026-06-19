@@ -103,12 +103,16 @@ public final class HistoryStore: @unchecked Sendable {
     /// trim instant could drop one just-written entry — acceptable for a history
     /// log, and only possible when already over the cap.)
     public func prune(keeping: Int = 2000) {
+        guard keeping >= 0 else { return }   // suffix() traps on a negative count
         queue.async {
             guard let text = try? String(contentsOf: self.fileURL, encoding: .utf8) else { return }
             let lines = text.split(separator: "\n", omittingEmptySubsequences: true)
             guard lines.count > keeping else { return }
             let kept = lines.suffix(keeping).joined(separator: "\n") + "\n"
-            try? kept.data(using: .utf8)?.write(to: self.fileURL, options: .atomic)
+            guard (try? kept.data(using: .utf8)?.write(to: self.fileURL, options: .atomic)) != nil else { return }
+            // The atomic rewrite creates a fresh file at the default mode; restore
+            // the owner-only policy record() opens with.
+            try? self.fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: self.fileURL.path)
         }
     }
 

@@ -90,15 +90,23 @@ struct MenuBarPanel: View {
             }
         case .done(let output, let saved, let cleaned, let failed):
             VStack(alignment: .leading, spacing: 4) {
-                if let output {
-                    Button {
-                        NSWorkspace.shared.activateFileViewerSelecting([output])
-                    } label: {
-                        Label("Cleaned \(cleaned) \u{00B7} removed \(formatTime(saved)) \u{2014} show in Finder",
+                if cleaned > 0 {
+                    // Always confirm success; make it a reveal button only when there's
+                    // an output to show.
+                    if let output {
+                        Button {
+                            NSWorkspace.shared.activateFileViewerSelecting([output])
+                        } label: {
+                            Label("Cleaned \(cleaned) \u{00B7} removed \(formatTime(saved)) \u{2014} show in Finder",
+                                  systemImage: "checkmark.circle.fill")
+                                .font(.caption).foregroundStyle(.green).lineLimit(2)
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        Label("Cleaned \(cleaned) \u{00B7} removed \(formatTime(saved))",
                               systemImage: "checkmark.circle.fill")
                             .font(.caption).foregroundStyle(.green).lineLimit(2)
                     }
-                    .buttonStyle(.plain)
                 }
                 if failed > 0 {
                     Label(failed == 1 ? "1 couldn\u{2019}t be cleaned" : "\(failed) couldn\u{2019}t be cleaned",
