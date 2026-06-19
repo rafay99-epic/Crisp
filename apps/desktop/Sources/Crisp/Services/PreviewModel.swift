@@ -12,19 +12,21 @@ final class PreviewModel {
     private(set) var isAnalyzing = false
     private(set) var errorText: String?
 
-    /// Cache keyed by rounded silence floor (dB): switching strength presets reuses
-    /// the same analysis; only a different floor needs a re-run.
-    private var cache: [Int: VideoAnalysis] = [:]
+    /// Cache keyed by file + rounded silence floor (dB): switching strength presets
+    /// reuses the same analysis; only a different floor needs a re-run. The file is
+    /// part of the key so a later preview of a different video can't hit stale data.
+    private var cache: [String: VideoAnalysis] = [:]
     private var task: Task<Void, Never>?
 
     /// Load the analysis for `input` at `noiseDB`, from cache if present. Cancels any
     /// in-flight run first so a superseded, different-floor result can't land late
     /// and clobber `current`.
     func load(input: URL, noiseDB: Double) {
-        let key = Int(noiseDB.rounded())
+        let key = "\(input.path)#\(Int(noiseDB.rounded()))"
         if let cached = cache[key] {
             task?.cancel()
             isAnalyzing = false
+            errorText = nil      // a cache hit is a success — clear any prior error
             current = cached
             return
         }

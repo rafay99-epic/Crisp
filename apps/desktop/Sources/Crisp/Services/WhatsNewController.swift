@@ -69,6 +69,7 @@ final class WhatsNewController {
                 isPresented = true
             } else {
                 // Offline / dev build (no release to fetch) → curated fallback.
+                highlights = []   // never show a previous release's highlights
                 isPresented = true
             }
         }

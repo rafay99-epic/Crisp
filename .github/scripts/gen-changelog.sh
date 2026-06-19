@@ -42,21 +42,21 @@ while IFS= read -r subject; do
 
   line="- #${n} ${title} — @${author}"
 
-  if [ -z "$areas" ]; then
-    bucket_uncat="${bucket_uncat}${line}"$'\n'; count_uncat=$((count_uncat + 1))
-  else
-    while IFS= read -r area; do
-      [ -z "$area" ] && continue
-      case "$area" in
-        desktop) bucket_desktop="${bucket_desktop}${line}"$'\n'; count_desktop=$((count_desktop + 1)) ;;
-        website) bucket_website="${bucket_website}${line}"$'\n'; count_website=$((count_website + 1)) ;;
-        backend) bucket_backend="${bucket_backend}${line}"$'\n'; count_backend=$((count_backend + 1)) ;;
-        ci)      bucket_ci="${bucket_ci}${line}"$'\n';           count_ci=$((count_ci + 1)) ;;
-        docs)    bucket_docs="${bucket_docs}${line}"$'\n';       count_docs=$((count_docs + 1)) ;;
-        *)       bucket_uncat="${bucket_uncat}${line} _(area: ${area})_"$'\n'; count_uncat=$((count_uncat + 1)) ;;
-      esac
-    done <<< "$areas"
-  fi
+  # Assign each PR to exactly ONE bucket, by priority — a PR with several area:*
+  # labels (e.g. desktop + docs) must not be duplicated across sections or
+  # double-counted in the header counts.
+  bucket=""
+  for pri in desktop backend website ci docs; do
+    if printf '%s\n' "$areas" | grep -qx "$pri"; then bucket="$pri"; break; fi
+  done
+  case "$bucket" in
+    desktop) bucket_desktop="${bucket_desktop}${line}"$'\n'; count_desktop=$((count_desktop + 1)) ;;
+    website) bucket_website="${bucket_website}${line}"$'\n'; count_website=$((count_website + 1)) ;;
+    backend) bucket_backend="${bucket_backend}${line}"$'\n'; count_backend=$((count_backend + 1)) ;;
+    ci)      bucket_ci="${bucket_ci}${line}"$'\n';           count_ci=$((count_ci + 1)) ;;
+    docs)    bucket_docs="${bucket_docs}${line}"$'\n';       count_docs=$((count_docs + 1)) ;;
+    *)       bucket_uncat="${bucket_uncat}${line}"$'\n';     count_uncat=$((count_uncat + 1)) ;;
+  esac
 done <<< "$subjects"
 
 # Anything without a `(#NN)` suffix bypassed the PR flow — surface it as a safety net.
