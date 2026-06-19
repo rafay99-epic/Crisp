@@ -37,6 +37,38 @@ final class CrispTests: XCTestCase {
         XCTAssertEqual(formatTime(600), "10:00")
     }
 
+    func testHistoryRoundTripNewestFirstAndLimit() {
+        let base = Date(timeIntervalSince1970: 1_700_000_000)
+        let entries = (0..<5).map { i in
+            HistoryEntry(date: base.addingTimeInterval(Double(i)),
+                         inputPath: "/in/clip\(i).mp4", outputPath: "/out/clip\(i)_cleaned.mp4",
+                         origSeconds: 100, newSeconds: 70, savedSeconds: 30,
+                         fillers: i, pauses: i * 2)
+        }
+        // Lines are appended in chronological order.
+        let text = entries.compactMap { HistoryStore.encodeLine($0) }
+            .compactMap { String(data: $0, encoding: .utf8) }.joined()
+        let parsed = HistoryStore.parse(text, limit: 3)
+        // Newest first, capped at the limit.
+        XCTAssertEqual(parsed.count, 3)
+        XCTAssertEqual(parsed.map(\.inputPath), ["/in/clip4.mp4", "/in/clip3.mp4", "/in/clip2.mp4"])
+        // Fields survive the round trip (incl. the ISO-8601 date).
+        XCTAssertEqual(parsed.first?.fillers, 4)
+        XCTAssertEqual(parsed.first?.pauses, 8)
+        XCTAssertEqual(parsed.first?.date, base.addingTimeInterval(4))
+    }
+
+    func testHistoryParseSkipsMalformedLines() {
+        let good = HistoryEntry(date: Date(timeIntervalSince1970: 1_700_000_000),
+                                inputPath: "/in/a.mp4", outputPath: "/out/a.mp4",
+                                origSeconds: 10, newSeconds: 8, savedSeconds: 2, fillers: 1, pauses: 1)
+        let line = String(data: HistoryStore.encodeLine(good)!, encoding: .utf8)!
+        let text = "not json\n" + line + "{ partial\n"
+        let parsed = HistoryStore.parse(text)
+        XCTAssertEqual(parsed.count, 1)
+        XCTAssertEqual(parsed.first?.inputPath, "/in/a.mp4")
+    }
+
     func testCutsSummary() {
         // Both parts, pluralized.
         XCTAssertEqual(CleanResult.cutsSummary(fillers: 12, pauses: 47), "12 fillers \u{00B7} 47 pauses")

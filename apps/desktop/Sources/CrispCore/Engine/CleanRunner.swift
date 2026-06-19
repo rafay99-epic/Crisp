@@ -207,6 +207,11 @@ public struct CleanRunner {
             }
             Self.logEngineStderr(await stderrTask.value)
             Self.log.info("Clean done: \(input.lastPathComponent) → \(URL(fileURLWithPath: result.output).lastPathComponent) (saved \(Int(result.savedSeconds))s, \(result.fillers) fillers, \(result.pauses) pauses)")
+            // Record to History from this shared path, so the queue, watch-folder
+            // agent, App Intent, and menu-bar drop all land in one timeline.
+            if !result.output.isEmpty {
+                HistoryStore.shared.record(HistoryEntry(input: input, result: result, date: Date()))
+            }
             return result
         } catch {
             Self.logEngineStderr(await stderrTask.value)

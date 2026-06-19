@@ -10,6 +10,7 @@ struct ContentView: View {
     @Bindable var watchAgent: WatchAgentController
     @Bindable var onboarding: OnboardingController
     @Bindable var player: PreviewPlayer
+    @Environment(\.openWindow) private var openWindow
     @State private var importing = false
     @State private var showUltraSheet = false
     @State private var ultraTarget = 1
@@ -115,6 +116,10 @@ struct ContentView: View {
             ToolbarItem(placement: .primaryAction) {
                 Button { importing = true } label: { Label("Add Videos", systemImage: "plus") }
                     .help("Add videos")
+            }
+            ToolbarItem(placement: .primaryAction) {
+                Button { openWindow(id: "history") } label: { Label("History", systemImage: "clock.arrow.circlepath") }
+                    .help("History")
             }
             ToolbarItem(placement: .primaryAction) {
                 SettingsLink { Label("Settings", systemImage: "gearshape") }

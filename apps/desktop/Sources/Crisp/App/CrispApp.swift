@@ -49,6 +49,14 @@ struct CrispApp: App {
                          modelStore: modelStore, model: model)
         }
 
+        // A library of past cleans (every surface records to it). Opened from the
+        // main window's toolbar; a single reusable window.
+        Window("History", id: "history") {
+            HistoryView(model: model)
+        }
+        .defaultSize(width: 540, height: 480)
+        .keyboardShortcut("y", modifiers: .command)
+
         // Opt-in menu-bar item: a quick-drop zone to clean a video with the default
         // recipe without opening the main window. Hidden unless enabled in Settings.
         MenuBarExtra("Quick Clean", systemImage: "scissors", isInserted: menuBarBinding) {
@@ -66,6 +74,7 @@ struct CrispApp: App {
     /// clear "app started" boundary and the folder can't grow without bound.
     private func logLaunch() {
         FileLog.shared.pruneOldLogs()
+        HistoryStore.shared.prune()
         let version = Updater.currentBuildNumber > 0
             ? "\(Updater.currentVersion) (build \(Updater.currentBuildNumber))"
             : Updater.currentVersion
