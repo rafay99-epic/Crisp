@@ -9,6 +9,7 @@ struct SettingsView: View {
     @Bindable var settings: EngineSettings
     @Bindable var updater: Updater
     @Bindable var watchAgent: WatchAgentController
+    @Bindable var modelStore: ModelStore
 
     @State private var newPresetName = ""
     @State private var snapshot = SystemProbe.snapshot()
@@ -143,6 +144,8 @@ struct SettingsView: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
 
+            speechModelSection
+
             presetsSection
 
             performanceSection
@@ -212,6 +215,69 @@ struct SettingsView: View {
         .formStyle(.grouped)
         .frame(width: 460, height: 620)
         .onAppear { watchAgent.refresh(); snapshot = SystemProbe.snapshot() }
+    }
+
+    // MARK: - Speech model
+
+    /// Switching the active model persists the choice and retargets the store, which
+    /// rechecks disk (so picking an already-installed model is instantly ready).
+    private var activeModelBinding: Binding<String> {
+        Binding(get: { settings.selectedModelID },
+                set: { id in
+                    settings.selectedModelID = id
+                    Task { await modelStore.use(ModelCatalog.spec(id: id)) }
+                })
+    }
+
+    @ViewBuilder private var speechModelSection: some View {
+        Section {
+            Picker("Model", selection: activeModelBinding) {
+                ForEach(ModelCatalog.all) { Text($0.displayName).tag($0.id) }
+            }
+            .disabled(modelStore.state.isBusy)   // don't switch mid-download
+            Text(modelStore.spec.summary)
+                .font(.caption).foregroundStyle(.secondary)
+            modelStateRow
+        } header: {
+            Text("Speech model")
+        } footer: {
+            Text("Used to find filler words. Larger models catch more fillers and place cuts more precisely, but download and run slower. Pauses are detected from the audio either way.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder private var modelStateRow: some View {
+        switch modelStore.state {
+        case .ready:
+            LabeledContent("Installed \u{00B7} \(modelStore.spec.approxSizeText)") {
+                Button("Remove", role: .destructive) {
+                    Task { await modelStore.deleteSelected() }
+                }
+                .controlSize(.small)
+            }
+        case .downloading(let fraction):
+            HStack(spacing: 8) {
+                ProgressView(value: fraction < 0 ? nil : fraction)
+                Text(fraction < 0 ? "Downloading\u{2026}" : "\(Int(fraction * 100))%")
+                    .foregroundStyle(.secondary).monospacedDigit()
+                Button("Cancel") { modelStore.cancel() }.controlSize(.small)
+            }
+        case .verifying:
+            HStack(spacing: 8) {
+                ProgressView().controlSize(.small)
+                Text("Verifying\u{2026}").foregroundStyle(.secondary)
+            }
+        case .failed(let message):
+            LabeledContent {
+                Button("Try Again") { modelStore.download() }.controlSize(.small)
+            } label: {
+                Label(message, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red)
+            }
+        default:   // absent / checking
+            LabeledContent("Not installed \u{00B7} \(modelStore.spec.approxSizeText)") {
+                Button("Install") { modelStore.download() }.controlSize(.small)
+            }
+        }
     }
 
     // MARK: - Performance

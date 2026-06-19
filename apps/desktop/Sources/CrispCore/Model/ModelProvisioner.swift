@@ -100,6 +100,14 @@ public actor ModelProvisioner {
     /// Stop an in-flight download (the `.part` is kept for resume).
     public func cancel() { downloader?.cancel() }
 
+    /// Delete this model from disk (the verified file and any partial download), so
+    /// the user can free space or force a clean re-download.
+    public func removeFromDisk() {
+        try? FileManager.default.removeItem(at: fileURL)
+        try? FileManager.default.removeItem(at: partURL)
+        verifiedThisSession = false
+    }
+
     private func download(onProgress: (@Sendable (Progress) -> Void)?) async throws {
         try FileManager.default.createDirectory(at: modelsDir, withIntermediateDirectories: true)
 

@@ -86,6 +86,14 @@ final class ModelStore {
         state = .absent
     }
 
+    /// Delete the currently tracked model from disk and recheck state. No-op while a
+    /// download is in flight.
+    func deleteSelected() async {
+        guard task == nil else { return }
+        await provisioner.removeFromDisk()
+        await refresh()
+    }
+
     private func runDownload() async {
         state = .downloading(0)
         do {
