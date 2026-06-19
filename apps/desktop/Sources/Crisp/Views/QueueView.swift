@@ -227,12 +227,7 @@ private struct QueueRow: View {
             // The backed-up pristine original, when one was kept.
             if let backup = item.result?.backup, !backup.isEmpty {
                 Divider()
-                Button { Restore.revealBackup(backup) } label: {
-                    Label("Reveal Backed-up Original", systemImage: "clock.arrow.circlepath")
-                }
-                Button { Restore.restoreOriginal(backupPath: backup, sourcePath: item.url.path) } label: {
-                    Label("Restore Original\u{2026}", systemImage: "arrow.uturn.backward")
-                }
+                BackupMenuItems(backupPath: backup, sourcePath: item.url.path)
             }
             Divider()
             Button { model.reclean(item.id) } label: { Label("Re-clean", systemImage: "arrow.clockwise") }
