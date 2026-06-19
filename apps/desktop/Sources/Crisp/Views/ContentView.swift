@@ -21,6 +21,19 @@ struct ContentView: View {
     /// Filler-word removal needs the speech model; pauses-only doesn't.
     private var needsModel: Bool { model.removeFillers }
 
+    /// Everything a pre-flight estimate depends on — the global recipe (strength +
+    /// custom cut knobs) and the waiting files with their per-row presets. Order is
+    /// sorted so reordering the queue (which doesn't change the total) doesn't
+    /// needlessly clear a valid estimate.
+    private var estimateSignature: String {
+        let waiting = model.queue.filter { $0.status == .waiting }
+            .map { "\($0.id)|\($0.presetID?.uuidString ?? "")" }
+            .sorted()
+            .joined(separator: ",")
+        return "\(model.strength.rawValue)|\(settings.pauseThreshold)|\(settings.breathingRoom)"
+            + "|\(settings.minKeep)|\(settings.silenceFloorDB)|\(waiting)"
+    }
+
     /// Pre-flight estimate of how much the waiting files would shrink (pauses only).
     private func runEstimate() {
         let items = model.queue.filter { $0.status == .waiting }
@@ -126,9 +139,10 @@ struct ContentView: View {
         .onChange(of: settings.defaultPresetID, initial: true) {
             model.newItemPresetID = settings.defaultPreset?.id
         }
-        // A prior estimate goes stale when the recipe or the queue changes.
-        .onChange(of: model.strength) { estimate.reset() }
-        .onChange(of: model.queue.count) { estimate.reset() }
+        // A prior estimate goes stale when anything it depends on changes — the
+        // global strength + custom knobs, or which files are waiting and their
+        // per-row presets. (Sorted, so a harmless reorder doesn't clear it.)
+        .onChange(of: estimateSignature) { estimate.reset() }
         .dropDestination(for: URL.self) { urls, _ in
             model.addFiles(urls)
             return true
