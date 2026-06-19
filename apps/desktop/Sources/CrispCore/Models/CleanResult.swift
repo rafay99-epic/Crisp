@@ -33,4 +33,18 @@ public struct CleanResult: Identifiable, Sendable {
         self.videoOutput = videoOutput
         self.audioOutput = audioOutput
     }
+
+    /// What was cut, as "12 fillers · 47 pauses" — only the non-zero parts, properly
+    /// pluralized, or `nil` when nothing was removed. Used in the queue row, its
+    /// context menu, and (summed) the bottom bar so the phrasing stays in one place.
+    public var cutsSummary: String? {
+        Self.cutsSummary(fillers: fillers, pauses: pauses)
+    }
+
+    public static func cutsSummary(fillers: Int, pauses: Int) -> String? {
+        var parts: [String] = []
+        if fillers > 0 { parts.append("\(fillers) filler\(fillers == 1 ? "" : "s")") }
+        if pauses > 0 { parts.append("\(pauses) pause\(pauses == 1 ? "" : "s")") }
+        return parts.isEmpty ? nil : parts.joined(separator: " \u{00B7} ")
+    }
 }

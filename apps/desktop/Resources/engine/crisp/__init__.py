@@ -8,6 +8,6 @@ this package); library users can import directly:
 """
 
 from .errors import CleanError
-from .pipeline import clean_video
+from .pipeline import analyze, clean_video
 
-__all__ = ["clean_video", "CleanError"]
+__all__ = ["analyze", "clean_video", "CleanError"]

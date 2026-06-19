@@ -67,9 +67,8 @@ struct BottomBar: View {
             Label(model.errorMessage ?? "Something went wrong.", systemImage: "exclamationmark.triangle.fill")
                 .font(.caption).foregroundStyle(.red).lineLimit(1)
         } else if !model.results.isEmpty {
-            Label("Cleaned \(doneCount) \u{00B7} removed \(formatTime(totalSaved)) total",
-                  systemImage: "checkmark.seal.fill")
-                .font(.caption).foregroundStyle(.green).lineLimit(1).fixedSize()
+            Label(summaryText, systemImage: "checkmark.seal.fill")
+                .font(.caption).foregroundStyle(.green).lineLimit(1)
         } else if settings.backupOriginal {
             Label("Originals are backed up", systemImage: "checkmark.shield")
                 .font(.caption).foregroundStyle(.secondary).lineLimit(1).fixedSize()
@@ -80,6 +79,19 @@ struct BottomBar: View {
     }
 
     private var totalSaved: Double { model.results.reduce(0) { $0 + $1.savedSeconds } }
+
+    /// "Cleaned 3 · saved 3:21 · 12 fillers · 47 pauses" — count and time-saved come
+    /// first so the cut totals (added last) are what truncates in a narrow window,
+    /// not the headline figure.
+    private var summaryText: String {
+        let fillers = model.results.reduce(0) { $0 + $1.fillers }
+        let pauses = model.results.reduce(0) { $0 + $1.pauses }
+        var line = "Cleaned \(doneCount) \u{00B7} saved \(formatTime(totalSaved))"
+        if let cuts = CleanResult.cutsSummary(fillers: fillers, pauses: pauses) {
+            line += " \u{00B7} \(cuts)"
+        }
+        return line
+    }
 
     // MARK: - Trailing action
 

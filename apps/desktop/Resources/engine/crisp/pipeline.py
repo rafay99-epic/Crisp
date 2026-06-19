@@ -22,6 +22,39 @@ def _noop(*_a, **_k):
     pass
 
 
+# Analyze-only captures every candidate gap down to this floor; the app applies the
+# real (larger) pause threshold itself, so changing it needs no re-analysis.
+ANALYZE_MIN_PAUSE = 0.05
+
+
+def analyze(src, noise=DEFAULT_NOISE_DB, buckets=240, on_log=None, logger=None):
+    """Analyze-only: extract audio, find candidate silences at `noise`, and summarize
+    the waveform — no transcription, no render. Returns {duration, peaks, silences}.
+    The desktop app drives this for the live cut preview and recomputes the cut
+    regions itself as the user drags the knobs."""
+    on_log = on_log or _noop
+    logger = logger or EngineLogger(None)
+
+    src = Path(src).expanduser().resolve()
+    if not src.exists():
+        raise CleanError(f"File not found: {src}")
+
+    logger.info(f"analyze src={src} noise={noise} buckets={buckets}")
+    duration = ffprobe_duration(src, logger=logger)
+    if duration <= 0:
+        raise CleanError("Could not read the video's duration — is it a valid video file?")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        wav = Path(tmp) / "audio.wav"
+        extract_audio(src, wav, on_log, logger=logger)
+        silences = detect_silences(wav, noise, ANALYZE_MIN_PAUSE, on_log, logger=logger)
+        from .waveform import waveform_summary
+        peaks = waveform_summary(wav, duration, [(0.0, duration)], buckets)["peaks"]
+
+    return {"duration": duration, "peaks": peaks,
+            "silences": [[s, e] for s, e in silences]}
+
+
 def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
                 noise=DEFAULT_NOISE_DB, keep_pause=DEFAULT_KEEP_PAUSE, min_keep=MIN_KEEP,
                 video_codec=DEFAULT_VIDEO_CODEC, hardware=DEFAULT_HARDWARE, quality=DEFAULT_QUALITY,

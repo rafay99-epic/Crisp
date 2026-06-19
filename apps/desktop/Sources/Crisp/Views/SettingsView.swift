@@ -210,6 +210,15 @@ struct SettingsView: View {
             }
 
             Section {
+                Toggle("Show Crisp in the menu bar", isOn: $settings.menuBarEnabled)
+            } header: {
+                Text("Menu Bar")
+            } footer: {
+                Text("Adds a menu-bar item with a drop zone \u{2014} drop a video to clean it with your default recipe without opening this window.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
+            Section {
                 LabeledContent("Logs") {
                     Button("Reveal in Finder") { Diagnostics.revealLogs() }
                         .controlSize(.small)

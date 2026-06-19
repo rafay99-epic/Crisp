@@ -104,6 +104,9 @@ def main():
     p.add_argument("--log-dir", default=None,
                    help="folder to write a detailed run log into (default: the "
                         "CRISP_LOG_DIR env var the desktop app sets; off if neither)")
+    p.add_argument("--analyze", action="store_true",
+                   help="analyze only: emit {duration, peaks, silences} for the app's "
+                        "live cut preview — no transcription, no render")
     args = p.parse_args()
 
     if args.ndjson:
@@ -127,6 +130,35 @@ def main():
     def on_log(msg):
         log.info(msg)
         user_log(msg)
+
+    # Analyze-only path for the app's live cut preview: no transcription, no render.
+    if args.analyze:
+        from crisp import analyze
+        try:
+            buckets = args.waveform if args.waveform > 0 else 240
+            data = analyze(args.video, noise=args.noise, buckets=buckets, on_log=on_log, logger=log)
+            if args.ndjson:
+                emit({"event": "analysis", **data})
+            else:
+                print(f"duration={data['duration']:.2f}s silences={len(data['silences'])}", flush=True)
+        except CleanError as e:
+            log.error(f"CleanError (analyze): {e}")
+            if args.ndjson:
+                emit({"event": "error", "message": str(e)})
+            else:
+                print(f"ERROR: {e}", flush=True)
+            sys.exit(1)
+        except Exception as e:
+            # Turn an unexpected failure into a structured error + logged traceback,
+            # so it never escapes as a raw traceback on stderr (which the app can't
+            # parse, and which could flood the pipe).
+            log.exception("Unexpected error (analyze)")
+            if args.ndjson:
+                emit({"event": "error", "message": f"Unexpected error: {e}"})
+            else:
+                print(f"ERROR: {e}", flush=True)
+            sys.exit(1)
+        return
 
     try:
         result = clean_video(args.video, out_path=args.out, model=args.model, pause=args.pause,
