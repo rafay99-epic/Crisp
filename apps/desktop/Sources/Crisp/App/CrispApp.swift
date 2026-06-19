@@ -10,6 +10,7 @@ struct CrispApp: App {
     @State private var watchAgent = WatchAgentController()
     @State private var onboarding = OnboardingController()
     @State private var player = PreviewPlayer()
+    @State private var quickDrop = QuickDropModel()
 
     var body: some Scene {
         Window(Channel.current.displayName, id: "main") {
@@ -47,6 +48,18 @@ struct CrispApp: App {
             SettingsView(settings: settings, updater: updater, watchAgent: watchAgent,
                          modelStore: modelStore, model: model)
         }
+
+        // Opt-in menu-bar item: a quick-drop zone to clean a video with the default
+        // recipe without opening the main window. Hidden unless enabled in Settings.
+        MenuBarExtra("Quick Clean", systemImage: "scissors", isInserted: menuBarBinding) {
+            MenuBarPanel(quickDrop: quickDrop, settings: settings)
+        }
+        .menuBarExtraStyle(.window)
+    }
+
+    /// Drives `MenuBarExtra`'s visibility from the saved preference.
+    private var menuBarBinding: Binding<Bool> {
+        Binding(get: { settings.menuBarEnabled }, set: { settings.menuBarEnabled = $0 })
     }
 
     /// Open the day's log with a launch marker and trim old files, so the log has a
