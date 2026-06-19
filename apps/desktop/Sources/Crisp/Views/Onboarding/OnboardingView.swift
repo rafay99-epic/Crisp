@@ -234,7 +234,10 @@ struct OnboardingView: View {
             ForEach(ModelCatalog.all) { spec in
                 modelOption(spec)
             }
-            modelInstallStatus
+            ModelInstallControl(store: modelStore)
+                .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .cardBackground(.tint.opacity(0.08))
         }
     }
 
@@ -273,41 +276,6 @@ struct OnboardingView: View {
         }
         .buttonStyle(.plain)
         .disabled(modelStore.state.isBusy)   // don't switch mid-download
-    }
-
-    /// Install / progress / ready state for whichever model is selected.
-    @ViewBuilder private var modelInstallStatus: some View {
-        HStack(spacing: 10) {
-            switch modelStore.state {
-            case .ready:
-                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-                Text("\(modelStore.spec.displayName) is installed — you’re ready for filler removal.")
-                    .font(.callout)
-            case .downloading(let fraction):
-                ProgressView(value: fraction < 0 ? nil : fraction).frame(width: 130)
-                Text(fraction < 0 ? "Downloading…" : "Downloading… \(Int(fraction * 100))%")
-                    .font(.callout).foregroundStyle(.secondary)
-                Button("Cancel") { modelStore.cancel() }.controlSize(.small)
-            case .verifying:
-                ProgressView().controlSize(.small)
-                Text("Verifying…").font(.callout).foregroundStyle(.secondary)
-            case .failed(let message):
-                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
-                Text(message).font(.callout).foregroundStyle(.secondary)
-                Button("Try Again") { modelStore.download() }.controlSize(.small)
-            default:   // absent / checking
-                Image(systemName: "arrow.down.circle.fill").foregroundStyle(.tint)
-                Text("Install \(modelStore.spec.displayName) (\(modelStore.spec.approxSizeText)) to continue.")
-                    .font(.callout).foregroundStyle(.secondary)
-                Spacer(minLength: 8)
-                Button("Install") { modelStore.download() }
-                    .buttonStyle(.borderedProminent).controlSize(.small)
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .cardBackground(.tint.opacity(0.08))
     }
 
     /// Select a model: persist the choice and retarget the store (which rechecks

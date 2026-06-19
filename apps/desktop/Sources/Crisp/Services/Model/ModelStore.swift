@@ -49,10 +49,16 @@ final class ModelStore {
     /// callback from a cancelled-then-restarted download can't clobber the new state.
     private var generation = 0
 
+    /// One provisioner per model id, reused across switches so a model verified
+    /// this session isn't re-hashed (148–574 MB) when the user toggles back to it.
+    private var provisioners: [String: ModelProvisioner] = [:]
+
     /// Start tracking the user's selected model (or an explicit one for tests).
     init(spec: ModelSpec = ModelProvisioner.selectedSpec()) {
         self.spec = spec
-        self.provisioner = ModelProvisioner(spec: spec)
+        let p = ModelProvisioner(spec: spec)
+        self.provisioner = p
+        self.provisioners[spec.id] = p
     }
 
     /// Absolute path the engine should load, or nil until the model is verified.
@@ -65,8 +71,17 @@ final class ModelStore {
     func use(_ spec: ModelSpec) {
         guard spec != self.spec, task == nil else { return }
         self.spec = spec
-        self.provisioner = ModelProvisioner(spec: spec)
+        self.provisioner = cachedProvisioner(for: spec)
         recheck()
+    }
+
+    /// Reuse the existing provisioner for a model (keeping its verified-session
+    /// cache), creating one the first time it's selected.
+    private func cachedProvisioner(for spec: ModelSpec) -> ModelProvisioner {
+        if let existing = provisioners[spec.id] { return existing }
+        let p = ModelProvisioner(spec: spec)
+        provisioners[spec.id] = p
+        return p
     }
 
     // MARK: - Launch check
