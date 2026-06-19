@@ -106,6 +106,40 @@ class ParseTranscriptionTests(unittest.TestCase):
         words = parse_transcription(data)
         self.assertEqual([w["text"] for w in words], [" ok"])
 
+    def test_collapsed_span_extends_to_next_word_onset(self):
+        # A DTW onset that lands at/past whisper's segment end would collapse the
+        # span to zero (and the renderer drops sub-10ms cuts). The word must extend
+        # to the next word's onset instead — this is the Turbo regression.
+        data = {"transcription": [
+            {"text": " uh,", "offsets": {"from": 600, "to": 650},
+             "tokens": [{"text": " uh", "t_dtw": 68}]},   # onset 0.68 > seg end 0.65
+            {"text": " then", "offsets": {"from": 700, "to": 900},
+             "tokens": [{"text": " then", "t_dtw": 72}]}]}  # onset 0.72
+        words = parse_transcription(data)
+        self.assertAlmostEqual(words[0]["start"], 0.68)
+        self.assertAlmostEqual(words[0]["end"], 0.72)      # extended to next onset
+        self.assertGreater(words[0]["end"] - words[0]["start"], 0)
+
+    def test_collapsed_last_word_has_no_next_onset(self):
+        # A collapsed final word (no next onset) stays zero-width — acceptable, and
+        # the renderer will simply drop a sub-10ms cut.
+        data = {"transcription": [
+            {"text": " uh,", "offsets": {"from": 600, "to": 600},
+             "tokens": [{"text": " uh", "t_dtw": 68}]}]}
+        words = parse_transcription(data)
+        self.assertAlmostEqual(words[0]["start"], 0.68)
+        self.assertAlmostEqual(words[0]["end"], 0.68)
+
+    def test_normal_span_keeps_segment_end(self):
+        # A healthy span (DTW onset well before the segment end) is untouched.
+        data = {"transcription": [
+            {"text": " um,", "offsets": {"from": 100, "to": 600},
+             "tokens": [{"text": " um", "t_dtw": 18}]},
+            {"text": " ok", "offsets": {"from": 700, "to": 900}}]}
+        words = parse_transcription(data)
+        self.assertAlmostEqual(words[0]["start"], 0.18)
+        self.assertAlmostEqual(words[0]["end"], 0.60)      # keeps segment end, not next onset
+
     def test_end_never_precedes_start(self):
         data = {"transcription": [
             {"text": " x", "offsets": {"from": 500, "to": 400},
