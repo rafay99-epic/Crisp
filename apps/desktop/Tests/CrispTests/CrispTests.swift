@@ -69,6 +69,42 @@ final class CrispTests: XCTestCase {
         XCTAssertEqual(parsed.first?.inputPath, "/in/a.mp4")
     }
 
+    func testHistoryDecodesLinesWrittenBeforeBackupField() {
+        // A history.jsonl line from before the `backup` field was added must still
+        // decode (Optional → missing key is nil), or every old entry would vanish.
+        let old = #"{"id":"\#(UUID().uuidString)","date":"2026-06-19T12:00:00Z","inputPath":"/in/a.mp4","outputPath":"/out/a.mp4","origSeconds":10,"newSeconds":8,"savedSeconds":2,"fillers":1,"pauses":1}"#
+        let parsed = HistoryStore.parse(old + "\n")
+        XCTAssertEqual(parsed.count, 1)
+        XCTAssertNil(parsed.first?.backup)
+        XCTAssertNil(parsed.first?.backupURL)
+        XCTAssertEqual(parsed.first?.inputPath, "/in/a.mp4")
+    }
+
+    func testHistoryRoundTripsBackupPath() {
+        let entry = HistoryEntry(date: Date(timeIntervalSince1970: 1_700_000_000),
+                                 inputPath: "/in/a.mp4", outputPath: "/out/a.mp4",
+                                 origSeconds: 10, newSeconds: 8, savedSeconds: 2,
+                                 fillers: 1, pauses: 1, backup: "/Originals/2026-06-19/a.mp4")
+        let line = String(data: HistoryStore.encodeLine(entry)!, encoding: .utf8)!
+        let parsed = HistoryStore.parse(line)
+        XCTAssertEqual(parsed.first?.backup, "/Originals/2026-06-19/a.mp4")
+        XCTAssertEqual(parsed.first?.backupURL?.lastPathComponent, "a.mp4")
+    }
+
+    func testCleanResultCarriesBackupViaHistoryEntry() {
+        let result = CleanResult(output: "/out/a.mp4", origSeconds: 10, newSeconds: 8,
+                                 savedSeconds: 2, pauses: 1, fillers: 0,
+                                 backup: "/Originals/2026-06-19/a.mp4")
+        let entry = HistoryEntry(input: URL(fileURLWithPath: "/in/a.mp4"), result: result,
+                                 date: Date(timeIntervalSince1970: 1_700_000_000))
+        XCTAssertEqual(entry.backup, "/Originals/2026-06-19/a.mp4")
+        // An empty backup (backup off) becomes nil, not "".
+        let noBackup = CleanResult(output: "/o", origSeconds: 1, newSeconds: 1,
+                                   savedSeconds: 0, pauses: 0, fillers: 0)
+        XCTAssertNil(HistoryEntry(input: URL(fileURLWithPath: "/i"), result: noBackup,
+                                  date: Date()).backup)
+    }
+
     func testCutPreviewBasicPause() {
         // One 3s silence in a 10s clip; cut its middle leaving 0.15s on each side.
         let r = CutPreview.compute(silences: [(3, 6)], duration: 10,
