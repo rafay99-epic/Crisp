@@ -7,6 +7,7 @@ import CrispCore
 /// the append-only `history.jsonl` via `HistoryStore`.
 struct HistoryView: View {
     @Bindable var model: CleanModel
+    @Bindable var quickDrop: QuickDropModel
     @Environment(\.openWindow) private var openWindow
 
     @State private var entries: [HistoryEntry] = []
@@ -41,8 +42,14 @@ struct HistoryView: View {
             }
         }
         .onAppear(perform: reload)
-        // Refresh when a clean finishes while the window is open.
+        // Refresh when a clean finishes while the window is open — from the queue,
+        // from a menu-bar drop (same process), and when returning to the app (which
+        // catches the separate watch-folder agent's cleans).
         .onChange(of: model.doneCount) { reload() }
+        .onChange(of: quickDrop.state) { reload() }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            reload()
+        }
     }
 
     private var emptyState: some View {
@@ -61,7 +68,11 @@ struct HistoryView: View {
 
     // MARK: - Actions
 
-    private func reload() { entries = HistoryStore.shared.load() }
+    private func reload() {
+        // Read + decode off the main actor (it can be a large file, and this runs on
+        // every clean completion while the window is open).
+        Task { entries = await HistoryStore.shared.loadAsync() }
+    }
 
     private func clearHistory() {
         HistoryStore.shared.clear()

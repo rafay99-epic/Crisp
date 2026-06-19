@@ -88,15 +88,24 @@ struct MenuBarPanel: View {
                     }
                 }
             }
-        case .done(let output, let saved):
-            Button {
-                NSWorkspace.shared.activateFileViewerSelecting([output])
-            } label: {
-                Label("Cleaned \u{00B7} removed \(formatTime(saved)) \u{2014} show in Finder",
-                      systemImage: "checkmark.circle.fill")
-                    .font(.caption).foregroundStyle(.green).lineLimit(2)
+        case .done(let output, let saved, let cleaned, let failed):
+            VStack(alignment: .leading, spacing: 4) {
+                if let output {
+                    Button {
+                        NSWorkspace.shared.activateFileViewerSelecting([output])
+                    } label: {
+                        Label("Cleaned \(cleaned) \u{00B7} removed \(formatTime(saved)) \u{2014} show in Finder",
+                              systemImage: "checkmark.circle.fill")
+                            .font(.caption).foregroundStyle(.green).lineLimit(2)
+                    }
+                    .buttonStyle(.plain)
+                }
+                if failed > 0 {
+                    Label(failed == 1 ? "1 couldn\u{2019}t be cleaned" : "\(failed) couldn\u{2019}t be cleaned",
+                          systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption).foregroundStyle(.red).lineLimit(1)
+                }
             }
-            .buttonStyle(.plain)
         case .failed(let message):
             Label(message, systemImage: "exclamationmark.triangle.fill")
                 .font(.caption).foregroundStyle(.red).lineLimit(2)

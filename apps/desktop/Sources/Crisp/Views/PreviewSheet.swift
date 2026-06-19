@@ -5,9 +5,14 @@ import CrispCore
 /// drags the cut knobs — the source waveform with the slices that would be removed
 /// dimmed, plus how many pauses and how much time would be cut. Pauses only (filler
 /// words also get removed during the real clean but need transcription to locate).
-/// "Use these settings" applies the choice to the default recipe.
+///
+/// Previews the recipe the file will *actually* be cleaned with: if the queue row
+/// has a preset, the controls seed from and apply to that preset; otherwise they use
+/// the window's default recipe. The cut knobs run through the same
+/// `Strength.parameters(using:)` mapping the real clean uses, so the preview can't
+/// drift from the output.
 struct PreviewSheet: View {
-    let input: URL
+    let item: QueueItem
     @Bindable var model: CleanModel
     @Bindable var settings: EngineSettings
     @Environment(\.dismiss) private var dismiss
@@ -23,32 +28,41 @@ struct PreviewSheet: View {
     @State private var errorText: String?
     @State private var analysisTask: Task<Void, Never>?
 
-    // MARK: Effective knobs for the current selection
-
+    private var input: URL { item.url }
     private var isCustom: Bool { strength == .custom }
-    private var effPause: Double { isCustom ? pause : strength.pause }
-    private var effKeep: Double { isCustom ? breathing : strength.keepPause }
-    private var effMinKeep: Double { isCustom ? minKeep : EngineConfig.defaults.minKeep }
-    /// Presets use the default floor; Custom uses the saved silence floor. Only this
-    /// changing forces a re-analysis (everything else recomputes locally).
-    private var effNoise: Double { isCustom ? settings.silenceFloorDB : EngineConfig.defaults.silenceFloorDB }
 
-    private var preview: CutPreview.Result? {
-        guard let a = current else { return nil }
-        return CutPreview.compute(silences: a.silences, duration: a.duration,
-                                  pause: effPause, keepPause: effKeep, minKeep: effMinKeep)
+    /// The preset this row uses, if any — drives seeding, the label, and where Apply
+    /// writes.
+    private var preset: Preset? { settings.preset(withID: item.presetID) }
+
+    // MARK: Effective cut parameters (via the real mapping — no duplicated logic)
+
+    /// The exact cut parameters this preview represents, resolved through the same
+    /// `Strength.parameters(using:)` path a real clean uses. Presets carry no custom
+    /// silence floor, so they resolve against engine defaults; the global recipe uses
+    /// the saved config. Only the local cut knobs are overlaid.
+    private var effectiveParams: CleanParameters {
+        var config = preset == nil ? settings.config : EngineConfig.defaults
+        config.pauseThreshold = pause
+        config.breathingRoom = breathing
+        config.minKeep = minKeep
+        return strength.parameters(using: config)
     }
 
-    private var removedMask: [Bool] {
-        guard let a = current, let p = preview else { return [] }
-        return CutPreview.removedMask(keep: p.keep, duration: a.duration, bucketCount: a.peaks.count)
+    private var computedPreview: CutPreview.Result? {
+        guard let a = current else { return nil }
+        let p = effectiveParams
+        return CutPreview.compute(silences: a.silences, duration: a.duration,
+                                  pause: p.pause, keepPause: p.keepPause, minKeep: p.minKeep)
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        // Compute the cut set once per render and feed both the waveform and stats.
+        let result = computedPreview
+        return VStack(alignment: .leading, spacing: 14) {
             header
-            waveform
-            stats
+            waveform(result)
+            stats(result)
             controls
             footer
         }
@@ -62,16 +76,23 @@ struct PreviewSheet: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text("Preview cuts").font(.headline)
-            Text(input.lastPathComponent)
-                .font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+            HStack(spacing: 6) {
+                Text(input.lastPathComponent)
+                    .lineLimit(1).truncationMode(.middle)
+                if let preset {
+                    Text("\u{00B7} preset \u{201C}\(preset.name)\u{201D}")
+                        .foregroundStyle(.tint).lineLimit(1)
+                }
+            }
+            .font(.caption).foregroundStyle(.secondary)
         }
     }
 
-    @ViewBuilder private var waveform: some View {
+    private func waveform(_ result: CutPreview.Result?) -> some View {
         ZStack {
             RoundedRectangle(cornerRadius: 10).fill(.quaternary.opacity(0.4))
             if let a = current, !a.peaks.isEmpty {
-                WaveformView(peaks: a.peaks, removed: removedMask)
+                WaveformView(peaks: a.peaks, removed: mask(a, result))
                     .padding(10)
             } else if isAnalyzing {
                 ProgressView("Analyzing\u{2026}").controlSize(.small)
@@ -83,8 +104,14 @@ struct PreviewSheet: View {
         .frame(height: 90)
     }
 
-    @ViewBuilder private var stats: some View {
-        if let a = current, let p = preview {
+    private func mask(_ analysis: VideoAnalysis, _ result: CutPreview.Result?) -> [Bool] {
+        guard let p = result else { return [] }
+        return CutPreview.removedMask(keep: p.keep, duration: analysis.duration,
+                                      bucketCount: analysis.peaks.count)
+    }
+
+    @ViewBuilder private func stats(_ result: CutPreview.Result?) -> some View {
+        if let a = current, let p = result {
             let pct = a.duration > 0 ? Int((p.removedSeconds / a.duration) * 100) : 0
             HStack(spacing: 6) {
                 Image(systemName: "scissors")
@@ -122,7 +149,7 @@ struct PreviewSheet: View {
                 .font(.caption2).foregroundStyle(.secondary)
             Spacer()
             Button("Cancel") { dismiss() }
-            Button("Use These Settings") { apply() }
+            Button(preset == nil ? "Use These Settings" : "Save to Preset") { apply() }
                 .buttonStyle(.borderedProminent)
         }
     }
@@ -141,15 +168,22 @@ struct PreviewSheet: View {
     // MARK: - Analysis
 
     private func seedAndLoad() {
-        strength = model.strength
-        pause = settings.pauseThreshold
-        breathing = settings.breathingRoom
-        minKeep = settings.minKeep
+        if let preset {
+            strength = Strength(rawValue: preset.strength) ?? .custom
+            pause = preset.pauseThreshold
+            breathing = preset.breathingRoom
+            minKeep = preset.minKeep
+        } else {
+            strength = model.strength
+            pause = settings.pauseThreshold
+            breathing = settings.breathingRoom
+            minKeep = settings.minKeep
+        }
         reload()
     }
 
     private func reload() {
-        let noise = effNoise
+        let noise = effectiveParams.noiseDB
         let key = Int(noise.rounded())
         if let cached = analysesByNoise[key] {
             // Cancel any in-flight analyze for a different floor, or its late
@@ -180,12 +214,23 @@ struct PreviewSheet: View {
         }
     }
 
+    /// Apply the chosen recipe where it'll actually take effect: into the row's preset
+    /// if it has one, otherwise the window's default recipe.
     private func apply() {
-        model.strength = strength
-        if isCustom {
-            settings.pauseThreshold = pause
-            settings.breathingRoom = breathing
-            settings.minKeep = minKeep
+        if let pid = item.presetID, let idx = settings.presets.firstIndex(where: { $0.id == pid }) {
+            settings.presets[idx].strength = strength.rawValue
+            if isCustom {
+                settings.presets[idx].pauseThreshold = pause
+                settings.presets[idx].breathingRoom = breathing
+                settings.presets[idx].minKeep = minKeep
+            }
+        } else {
+            model.strength = strength
+            if isCustom {
+                settings.pauseThreshold = pause
+                settings.breathingRoom = breathing
+                settings.minKeep = minKeep
+            }
         }
         dismiss()
     }

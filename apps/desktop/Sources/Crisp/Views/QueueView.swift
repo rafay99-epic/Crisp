@@ -35,7 +35,7 @@ struct QueueView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .animation(.snappy, value: model.queue.count)   // animate row insert/remove
         .sheet(item: $previewItem) { item in
-            PreviewSheet(input: item.url, model: model, settings: settings)
+            PreviewSheet(item: item, model: model, settings: settings)
         }
     }
 

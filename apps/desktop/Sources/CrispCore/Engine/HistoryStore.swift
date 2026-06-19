@@ -69,6 +69,12 @@ public final class HistoryStore: @unchecked Sendable {
             defer { close(fd) }
             data.withUnsafeBytes { buf in
                 guard let base = buf.baseAddress else { return }
+                // Deliberately one write() — for a line-sized append to a local file
+                // it's all-or-nothing, and O_APPEND makes that single call atomic
+                // against the watcher process. A short-write retry loop would split
+                // the record across two appends, which a concurrent process could
+                // interleave; a truncated line on the (practically impossible) short
+                // write is preferable, and parse() skips it.
                 _ = Darwin.write(fd, base, buf.count)
             }
         }
@@ -78,6 +84,18 @@ public final class HistoryStore: @unchecked Sendable {
     public func load(limit: Int = 500) -> [HistoryEntry] {
         guard let text = try? String(contentsOf: fileURL, encoding: .utf8) else { return [] }
         return Self.parse(text, limit: limit)
+    }
+
+    /// Same as `load`, but the file read + JSON decode run on the store's serial queue
+    /// instead of the caller's thread — so the History window can refresh without
+    /// blocking the main actor (it reloads on every clean completion).
+    public func loadAsync(limit: Int = 500) async -> [HistoryEntry] {
+        await withCheckedContinuation { continuation in
+            queue.async {
+                let text = (try? String(contentsOf: self.fileURL, encoding: .utf8)) ?? ""
+                continuation.resume(returning: Self.parse(text, limit: limit))
+            }
+        }
     }
 
     /// Trim the file to its most recent `keeping` lines so it can't grow forever.

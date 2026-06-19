@@ -52,7 +52,7 @@ struct CrispApp: App {
         // A library of past cleans (every surface records to it). Opened from the
         // main window's toolbar; a single reusable window.
         Window("History", id: "history") {
-            HistoryView(model: model)
+            HistoryView(model: model, quickDrop: quickDrop)
         }
         .defaultSize(width: 540, height: 480)
         .keyboardShortcut("y", modifiers: .command)

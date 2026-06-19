@@ -12,7 +12,9 @@ final class QuickDropModel {
         case idle
         case preparing(name: String)
         case cleaning(name: String, remaining: Int)
-        case done(output: URL, saved: Double)
+        /// A finished batch: how many succeeded (with the last output to reveal) and
+        /// how many failed — so a mixed batch never hides a failure.
+        case done(output: URL?, saved: Double, cleaned: Int, failed: Int)
         case failed(String)
     }
 
@@ -70,14 +72,17 @@ final class QuickDropModel {
             } catch is CancellationError {
                 break
             } catch {
-                failed += 1
-                state = .failed(error.localizedDescription)
+                failed += 1   // reflected in the final state below, not mid-loop
             }
         }
 
-        if let lastOutput, cleaned > 0 {
-            state = .done(output: lastOutput, saved: totalSaved)
-        } else if failed == 0 {
+        if cleaned > 0 {
+            // Mixed batches keep the failure count visible alongside the successes.
+            state = .done(output: lastOutput, saved: totalSaved, cleaned: cleaned, failed: failed)
+        } else if failed > 0 {
+            state = .failed(failed == 1 ? "Couldn\u{2019}t clean the video."
+                                        : "Couldn\u{2019}t clean \(failed) videos.")
+        } else {
             state = .idle
         }
         // Ping when the app isn't frontmost (the whole point of a background drop).
