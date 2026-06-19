@@ -110,6 +110,15 @@ private struct HistoryRow: View {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(entry.outputURL?.path ?? entry.inputPath, forType: .string)
             } label: { Label("Copy Output Path", systemImage: "doc.on.doc") }
+            if let backup = entry.backup, !backup.isEmpty {
+                Divider()
+                Button { Restore.revealBackup(backup) } label: {
+                    Label("Reveal Backed-up Original", systemImage: "clock.arrow.circlepath")
+                }
+                Button { Restore.restoreOriginal(backupPath: backup, sourcePath: entry.inputPath) } label: {
+                    Label("Restore Original\u{2026}", systemImage: "arrow.uturn.backward")
+                }
+            }
         }
     }
 

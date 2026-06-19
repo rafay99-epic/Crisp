@@ -26,6 +26,7 @@ public struct CleanRunner {
         var removed: [Bool]?
         var video_output: String?
         var audio_output: String?
+        var backup: String?
     }
 
     /// A progress signal for the one file being cleaned. `fraction` is 0…1 for this
@@ -177,7 +178,8 @@ public struct CleanRunner {
                             peaks: ev.peaks ?? [],
                             removed: ev.removed ?? [],
                             videoOutput: ev.video_output ?? "",
-                            audioOutput: ev.audio_output ?? "")
+                            audioOutput: ev.audio_output ?? "",
+                            backup: ev.backup ?? "")
                     case "error":
                         throw NSError(domain: "Crisp", code: 1,
                                       userInfo: [NSLocalizedDescriptionKey: ev.message ?? "Unknown error"])

@@ -224,6 +224,16 @@ private struct QueueRow: View {
             if let audio = stemURL(item.result?.audioOutput) {
                 Button { reveal(audio) } label: { Label("Show Audio Track", systemImage: "waveform") }
             }
+            // The backed-up pristine original, when one was kept.
+            if let backup = item.result?.backup, !backup.isEmpty {
+                Divider()
+                Button { Restore.revealBackup(backup) } label: {
+                    Label("Reveal Backed-up Original", systemImage: "clock.arrow.circlepath")
+                }
+                Button { Restore.restoreOriginal(backupPath: backup, sourcePath: item.url.path) } label: {
+                    Label("Restore Original\u{2026}", systemImage: "arrow.uturn.backward")
+                }
+            }
             Divider()
             Button { model.reclean(item.id) } label: { Label("Re-clean", systemImage: "arrow.clockwise") }
             Button(role: .destructive) { model.remove(item.id) } label: {

@@ -16,9 +16,17 @@ struct ContentView: View {
     @State private var showUltraSheet = false
     @State private var ultraTarget = 1
     @State private var ultraVerdict: ResourceGovernor.Verdict?
+    @State private var estimate = EstimateModel()
 
     /// Filler-word removal needs the speech model; pauses-only doesn't.
     private var needsModel: Bool { model.removeFillers }
+
+    /// Pre-flight estimate of how much the waiting files would shrink (pauses only).
+    private func runEstimate() {
+        let items = model.queue.filter { $0.status == .waiting }
+            .map { (url: $0.url, params: resolveParameters($0)) }
+        estimate.estimate(items)
+    }
 
     /// Resolve a queued file's recipe: its own preset if it has one, otherwise the
     /// live global strength + settings shown in the bottom bar. (A "default for new
@@ -96,8 +104,8 @@ struct ContentView: View {
             } else {
                 QueueView(model: model, settings: settings, player: player)
                 Divider()
-                BottomBar(model: model, settings: settings,
-                          modelBlocks: modelBlocks, onStart: attemptStart)
+                BottomBar(model: model, settings: settings, estimate: estimate,
+                          modelBlocks: modelBlocks, onStart: attemptStart, onEstimate: runEstimate)
             }
         }
         // Min width keeps the bottom bar's recipe + action on one line (no wrapping)
@@ -118,6 +126,9 @@ struct ContentView: View {
         .onChange(of: settings.defaultPresetID, initial: true) {
             model.newItemPresetID = settings.defaultPreset?.id
         }
+        // A prior estimate goes stale when the recipe or the queue changes.
+        .onChange(of: model.strength) { estimate.reset() }
+        .onChange(of: model.queue.count) { estimate.reset() }
         .dropDestination(for: URL.self) { urls, _ in
             model.addFiles(urls)
             return true

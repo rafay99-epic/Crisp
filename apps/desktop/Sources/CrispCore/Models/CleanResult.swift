@@ -17,11 +17,14 @@ public struct CleanResult: Identifiable, Sendable {
     /// Separate video-only / audio-only files, when "split tracks" was on (else "").
     public let videoOutput: String
     public let audioOutput: String
+    /// Where the pristine original was backed up (`~/.crisp*/Originals/<date>/…`),
+    /// or "" when backup was off. Lets the UI offer "Restore Original".
+    public let backup: String
 
     public init(output: String, origSeconds: Double, newSeconds: Double,
                 savedSeconds: Double, pauses: Int, fillers: Int,
                 peaks: [Double] = [], removed: [Bool] = [],
-                videoOutput: String = "", audioOutput: String = "") {
+                videoOutput: String = "", audioOutput: String = "", backup: String = "") {
         self.output = output
         self.origSeconds = origSeconds
         self.newSeconds = newSeconds
@@ -32,6 +35,7 @@ public struct CleanResult: Identifiable, Sendable {
         self.removed = removed
         self.videoOutput = videoOutput
         self.audioOutput = audioOutput
+        self.backup = backup
     }
 
     /// What was cut, as "12 fillers · 47 pauses" — only the non-zero parts, properly

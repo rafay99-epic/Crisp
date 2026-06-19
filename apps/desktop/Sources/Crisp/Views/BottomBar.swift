@@ -9,9 +9,11 @@ import CrispCore
 struct BottomBar: View {
     @Bindable var model: CleanModel
     @Bindable var settings: EngineSettings
+    @Bindable var estimate: EstimateModel
     /// Fillers need the speech model; true while it's missing/downloading.
     let modelBlocks: Bool
     let onStart: () -> Void
+    let onEstimate: () -> Void
 
     private var pending: Int { model.waitingCount }
     private var doneCount: Int { model.doneCount }
@@ -53,7 +55,7 @@ struct BottomBar: View {
                         .toggleStyle(.checkbox)
                 }
                 .fixedSize()        // keep the whole recipe row on one line
-                caption
+                estimateRow
             }
         } else {
             // Nothing left to clean → just the summary, leaving room for the
@@ -74,6 +76,30 @@ struct BottomBar: View {
                 .font(.caption).foregroundStyle(.secondary).lineLimit(1).fixedSize()
         } else {
             Text("Crisp only writes a cleaned copy \u{2014} your originals are untouched.")
+                .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+        }
+    }
+
+    /// Pre-flight estimate: a button to predict the time saved before cleaning, or
+    /// its progress / result once run.
+    @ViewBuilder private var estimateRow: some View {
+        switch estimate.state {
+        case .idle:
+            Button("Estimate savings", action: onEstimate)
+                .buttonStyle(.link).controlSize(.small)
+        case .estimating(let done, let total):
+            HStack(spacing: 6) {
+                ProgressView().controlSize(.small)
+                Text("Estimating\u{2026} \(done)/\(total)").font(.caption).foregroundStyle(.secondary)
+            }
+        case .done(let removed, let orig, let partial):
+            let pct = orig > 0 ? Int((removed / orig) * 100) : 0
+            Text("\u{2248} \(formatTime(removed)) would be removed (\(pct)% shorter)"
+                 + (partial ? " \u{00B7} some files couldn\u{2019}t be read" : "")
+                 + " \u{00B7} pauses only")
+                .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+        case .failed:
+            Text("Couldn\u{2019}t estimate those videos.")
                 .font(.caption).foregroundStyle(.secondary).lineLimit(1)
         }
     }
