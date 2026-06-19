@@ -80,13 +80,9 @@ struct OnboardingView: View {
                        "Crisp cuts the silences and fillers from each one — several at once when your Mac can — and saves a cleaned copy of every original.")
 
         case .fillers:
-            header(symbol: "waveform", title: "Pauses & filler words",
-                   subtitle: "Crisp removes dead air, and can also strip the “um”s and “uh”s.")
-            featureRow("waveform", "Pauses — always on",
-                       "Detected from the real audio. Works out of the box, no setup.")
-            featureRow("text.bubble.fill", "Filler words — optional",
-                       "Turn on “Remove fillers” and Crisp downloads a one-time speech model. Pauses-only needs no download.")
-            modelWidget
+            header(symbol: "waveform", title: "Choose a speech model",
+                   subtitle: "Crisp detects filler words with a speech model that runs entirely on your Mac. Install one to finish setup — pauses are always removed either way.")
+            modelChoice
 
         case .preferences:
             header(symbol: "slider.horizontal.3", title: "Make it yours",
@@ -227,34 +223,109 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: - Optional model download (filler step)
+    // MARK: - Speech model choice (mandatory — gates the model step)
 
-    @ViewBuilder private var modelWidget: some View {
+    /// True once the selected model is on disk and verified. Onboarding can't move
+    /// past the model step until this holds (a model is required for filler removal).
+    private var modelReady: Bool { modelStore.state.isReady }
+
+    @ViewBuilder private var modelChoice: some View {
+        VStack(spacing: 10) {
+            ForEach(ModelCatalog.all) { spec in
+                modelOption(spec)
+            }
+            modelInstallStatus
+        }
+    }
+
+    private func modelOption(_ spec: ModelSpec) -> some View {
+        let selected = settings.selectedModelID == spec.id
+        return Button { selectModel(spec) } label: {
+            HStack(spacing: 12) {
+                Image(systemName: selected ? "largecircle.fill.circle" : "circle")
+                    .font(.title3)
+                    .foregroundStyle(selected ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(spec.displayName).font(.headline)
+                        if spec.recommended {
+                            Text("Recommended")
+                                .font(.caption2.bold())
+                                .padding(.horizontal, 6).padding(.vertical, 2)
+                                .background(Capsule().fill(.tint.opacity(0.18)))
+                                .foregroundStyle(.tint)
+                        }
+                    }
+                    Text(spec.summary).font(.callout).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 8)
+                Text(spec.approxSizeText).font(.caption).foregroundStyle(.secondary).fixedSize()
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .cardBackground(selected ? AnyShapeStyle(.tint.opacity(0.12))
+                                      : AnyShapeStyle(.quaternary.opacity(0.25)))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(.tint.opacity(selected ? 0.5 : 0), lineWidth: 1.5)
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(modelStore.state.isBusy)   // don't switch mid-download
+    }
+
+    /// Install / progress / ready state for whichever model is selected.
+    @ViewBuilder private var modelInstallStatus: some View {
         HStack(spacing: 10) {
             switch modelStore.state {
             case .ready:
                 Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-                Text("Speech model ready — filler removal is set up.").font(.callout)
+                Text("\(modelStore.spec.displayName) is installed — you’re ready for filler removal.")
+                    .font(.callout)
             case .downloading(let fraction):
                 ProgressView(value: fraction < 0 ? nil : fraction).frame(width: 130)
                 Text(fraction < 0 ? "Downloading…" : "Downloading… \(Int(fraction * 100))%")
                     .font(.callout).foregroundStyle(.secondary)
+                Button("Cancel") { modelStore.cancel() }.controlSize(.small)
             case .verifying:
                 ProgressView().controlSize(.small)
                 Text("Verifying…").font(.callout).foregroundStyle(.secondary)
             case .failed(let message):
                 Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
                 Text(message).font(.callout).foregroundStyle(.secondary)
-            default:
-                Image(systemName: "arrow.down.circle").foregroundStyle(.tint)
-                Text("Set up filler removal now (optional):").font(.callout).foregroundStyle(.secondary)
-                Button("Download (~148 MB)") { modelStore.download() }.controlSize(.small)
+                Button("Try Again") { modelStore.download() }.controlSize(.small)
+            default:   // absent / checking
+                Image(systemName: "arrow.down.circle.fill").foregroundStyle(.tint)
+                Text("Install \(modelStore.spec.displayName) (\(modelStore.spec.approxSizeText)) to continue.")
+                    .font(.callout).foregroundStyle(.secondary)
+                Spacer(minLength: 8)
+                Button("Install") { modelStore.download() }
+                    .buttonStyle(.borderedProminent).controlSize(.small)
             }
             Spacer(minLength: 0)
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardBackground(.tint.opacity(0.08))
+    }
+
+    /// Select a model: persist the choice and retarget the store (which rechecks
+    /// disk, so picking an already-installed model is instantly ready again).
+    private func selectModel(_ spec: ModelSpec) {
+        guard settings.selectedModelID != spec.id else { return }
+        settings.selectedModelID = spec.id
+        Task { await modelStore.use(spec) }
+    }
+
+    /// "Skip" still routes through the mandatory model step until one is installed —
+    /// a returning user who already has a model can leave immediately.
+    private func skip() {
+        if modelReady {
+            onboarding.finish()
+        } else {
+            withAnimation(.snappy) { index = steps.firstIndex(of: .fillers) ?? index }
+        }
     }
 
     // MARK: - Reusable pieces
@@ -336,7 +407,7 @@ struct OnboardingView: View {
             if index > 0 {
                 Button("Back") { withAnimation(.snappy) { index -= 1 } }.buttonStyle(.link)
             } else {
-                Button("Skip") { onboarding.finish() }
+                Button("Skip") { skip() }
                     .buttonStyle(.link).keyboardShortcut(.cancelAction)
             }
             Spacer()
@@ -353,6 +424,9 @@ struct OnboardingView: View {
             }
             .buttonStyle(.borderedProminent).controlSize(.large)
             .keyboardShortcut(.defaultAction)
+            // A speech model is required — the model step can't be passed until one
+            // is installed (a returning user's model is already ready, so no friction).
+            .disabled(step == .fillers && !modelReady)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 14)
