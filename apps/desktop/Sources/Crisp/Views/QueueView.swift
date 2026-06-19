@@ -10,11 +10,14 @@ struct QueueView: View {
     @Bindable var settings: EngineSettings
     @Bindable var player: PreviewPlayer
 
+    @State private var previewItem: QueueItem?
+
     var body: some View {
         List {
             Section {
                 ForEach($model.queue) { $item in
-                    QueueRow(item: $item, model: model, player: player, presets: settings.presets)
+                    QueueRow(item: $item, model: model, player: player, presets: settings.presets,
+                             onPreview: { previewItem = item })
                         .listRowSeparator(.hidden)
                 }
                 .onMove(perform: model.moveWaiting)
@@ -31,6 +34,9 @@ struct QueueView: View {
         .listStyle(.inset)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .animation(.snappy, value: model.queue.count)   // animate row insert/remove
+        .sheet(item: $previewItem) { item in
+            PreviewSheet(item: item, model: model, settings: settings)
+        }
     }
 
     private var countLabel: String {
@@ -51,6 +57,7 @@ private struct QueueRow: View {
     let model: CleanModel
     let player: PreviewPlayer
     let presets: [Preset]
+    let onPreview: () -> Void
 
     /// The cleaned file, once it exists — used for drag-out, reveal, preview, copy.
     private var outputURL: URL? {
@@ -111,14 +118,23 @@ private struct QueueRow: View {
         case .running:
             ProgressView(value: item.progress).controlSize(.small)
         case .done:
-            if let r = item.result, !r.peaks.isEmpty {
-                WaveformView(peaks: r.peaks, removed: r.removed)
-                    .frame(height: 22)
-                    .transition(.opacity)
-            } else if let r = item.result, r.origSeconds > 0 {
-                ReductionBar(kept: max(0, min(1, r.newSeconds / r.origSeconds)))
-            } else {
-                Text("Cleaned").font(.caption).foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 3) {
+                if let r = item.result, !r.peaks.isEmpty {
+                    WaveformView(peaks: r.peaks, removed: r.removed)
+                        .frame(height: 22)
+                        .transition(.opacity)
+                } else if let r = item.result, r.origSeconds > 0 {
+                    ReductionBar(kept: max(0, min(1, r.newSeconds / r.origSeconds)))
+                } else {
+                    Text("Cleaned").font(.caption).foregroundStyle(.secondary)
+                }
+                if let summary = item.result?.cutsSummary {
+                    Text(summary)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .contentTransition(.numericText())
+                        .transition(.opacity)
+                }
             }
         case .waiting where !presets.isEmpty:
             Picker("Preset", selection: $item.presetID) {
@@ -139,12 +155,17 @@ private struct QueueRow: View {
     @ViewBuilder private var trailing: some View {
         switch item.status {
         case .waiting:
-            Button(role: .destructive) { model.remove(item.id) } label: {
-                Image(systemName: "xmark.circle.fill")
+            HStack(spacing: 10) {
+                Button { onPreview() } label: { Image(systemName: "waveform") }
+                    .buttonStyle(.plain).foregroundStyle(.tint)
+                    .help("Preview cuts")
+                Button(role: .destructive) { model.remove(item.id) } label: {
+                    Image(systemName: "xmark.circle.fill")
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .help("Remove from queue")
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-            .help("Remove from queue")
         case .running:
             Text("\(Int(item.progress * 100))%")
                 .font(.caption.monospacedDigit())
@@ -186,6 +207,7 @@ private struct QueueRow: View {
     @ViewBuilder private var contextMenu: some View {
         switch item.status {
         case .done:
+            if let cuts = item.result?.cutsSummary { Text("Removed \(cuts)") }
             if let summary = sizeSummary { Text(summary) }
             if let url = outputURL {
                 Button { revealOutput() } label: { Label("Show in Finder", systemImage: "folder") }
@@ -202,6 +224,11 @@ private struct QueueRow: View {
             if let audio = stemURL(item.result?.audioOutput) {
                 Button { reveal(audio) } label: { Label("Show Audio Track", systemImage: "waveform") }
             }
+            // The backed-up pristine original, when one was kept.
+            if let backup = item.result?.backup, !backup.isEmpty {
+                Divider()
+                BackupMenuItems(backupPath: backup, sourcePath: item.url.path)
+            }
             Divider()
             Button { model.reclean(item.id) } label: { Label("Re-clean", systemImage: "arrow.clockwise") }
             Button(role: .destructive) { model.remove(item.id) } label: {
@@ -213,6 +240,7 @@ private struct QueueRow: View {
                 Label("Remove from Queue", systemImage: "trash")
             }
         case .waiting:
+            Button { onPreview() } label: { Label("Preview Cuts\u{2026}", systemImage: "waveform") }
             Button(role: .destructive) { model.remove(item.id) } label: {
                 Label("Remove from Queue", systemImage: "trash")
             }
@@ -280,36 +308,6 @@ private struct QueueRow: View {
         case .failed:    return item.error ?? "Couldn\u{2019}t be cleaned"
         default:         return "Waiting"
         }
-    }
-}
-
-/// The signature view: the file's actual audio as peak bars, with the slices Crisp
-/// cut drawn dim and the kept audio in green. Built from the engine's waveform
-/// summary, so it shows exactly what was removed — honest, and unmistakably Crisp.
-private struct WaveformView: View {
-    let peaks: [Double]
-    let removed: [Bool]
-
-    var body: some View {
-        Canvas { context, size in
-            let n = peaks.count
-            guard n > 0 else { return }
-            let gap: CGFloat = n > 90 ? 0.5 : 1
-            let barW = max(0.75, (size.width - gap * CGFloat(n - 1)) / CGFloat(n))
-            let mid = size.height / 2
-            for i in 0..<n {
-                let x = CGFloat(i) * (barW + gap)
-                let h = max(1.5, CGFloat(peaks[i]) * size.height)
-                let rect = CGRect(x: x, y: mid - h / 2, width: barW, height: h)
-                let isCut = i < removed.count && removed[i]
-                let style: GraphicsContext.Shading = isCut
-                    ? .color(.secondary.opacity(0.28))
-                    : .color(.green)
-                context.fill(Path(roundedRect: rect, cornerRadius: barW / 2), with: style)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .accessibilityLabel("Audio waveform with removed sections dimmed")
     }
 }
 

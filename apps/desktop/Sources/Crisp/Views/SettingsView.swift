@@ -210,6 +210,27 @@ struct SettingsView: View {
             }
 
             Section {
+                Toggle("Show Crisp in the menu bar", isOn: $settings.menuBarEnabled)
+            } header: {
+                Text("Menu Bar")
+            } footer: {
+                Text("Adds a menu-bar item with a drop zone \u{2014} drop a video to clean it with your default recipe without opening this window.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
+            Section {
+                LabeledContent("Logs") {
+                    Button("Reveal in Finder") { Diagnostics.revealLogs() }
+                        .controlSize(.small)
+                }
+            } header: {
+                Text("Diagnostics")
+            } footer: {
+                Text("Crisp keeps a daily log of each clean \u{2014} and anything that goes wrong \u{2014} in \(logsPathDisplay). If you hit a problem, share today\u{2019}s log.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
+            Section {
                 Button("Restore Defaults") { settings.restoreDefaults() }
             }
         }
@@ -351,6 +372,12 @@ struct SettingsView: View {
         if let path = FolderPicker.choosePath(message: "Choose where cleaned videos are saved.") {
             settings.outputDirectory = path
         }
+    }
+
+    // MARK: - Diagnostics
+
+    private var logsPathDisplay: String {
+        (Channel.current.logsDirectory.path as NSString).abbreviatingWithTildeInPath
     }
 
     // MARK: - Watch folder

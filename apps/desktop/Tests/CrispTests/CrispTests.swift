@@ -37,6 +37,172 @@ final class CrispTests: XCTestCase {
         XCTAssertEqual(formatTime(600), "10:00")
     }
 
+    func testHistoryRoundTripNewestFirstAndLimit() {
+        let base = Date(timeIntervalSince1970: 1_700_000_000)
+        let entries = (0..<5).map { i in
+            HistoryEntry(date: base.addingTimeInterval(Double(i)),
+                         inputPath: "/in/clip\(i).mp4", outputPath: "/out/clip\(i)_cleaned.mp4",
+                         origSeconds: 100, newSeconds: 70, savedSeconds: 30,
+                         fillers: i, pauses: i * 2)
+        }
+        // Lines are appended in chronological order.
+        let text = entries.compactMap { HistoryStore.encodeLine($0) }
+            .compactMap { String(data: $0, encoding: .utf8) }.joined()
+        let parsed = HistoryStore.parse(text, limit: 3)
+        // Newest first, capped at the limit.
+        XCTAssertEqual(parsed.count, 3)
+        XCTAssertEqual(parsed.map(\.inputPath), ["/in/clip4.mp4", "/in/clip3.mp4", "/in/clip2.mp4"])
+        // Fields survive the round trip (incl. the ISO-8601 date).
+        XCTAssertEqual(parsed.first?.fillers, 4)
+        XCTAssertEqual(parsed.first?.pauses, 8)
+        XCTAssertEqual(parsed.first?.date, base.addingTimeInterval(4))
+    }
+
+    func testHistoryParseSkipsMalformedLines() {
+        let good = HistoryEntry(date: Date(timeIntervalSince1970: 1_700_000_000),
+                                inputPath: "/in/a.mp4", outputPath: "/out/a.mp4",
+                                origSeconds: 10, newSeconds: 8, savedSeconds: 2, fillers: 1, pauses: 1)
+        let line = String(data: HistoryStore.encodeLine(good)!, encoding: .utf8)!
+        let text = "not json\n" + line + "{ partial\n"
+        let parsed = HistoryStore.parse(text)
+        XCTAssertEqual(parsed.count, 1)
+        XCTAssertEqual(parsed.first?.inputPath, "/in/a.mp4")
+    }
+
+    func testHistoryDecodesLinesWrittenBeforeBackupField() {
+        // A history.jsonl line from before the `backup` field was added must still
+        // decode (Optional → missing key is nil), or every old entry would vanish.
+        let old = #"{"id":"\#(UUID().uuidString)","date":"2026-06-19T12:00:00Z","inputPath":"/in/a.mp4","outputPath":"/out/a.mp4","origSeconds":10,"newSeconds":8,"savedSeconds":2,"fillers":1,"pauses":1}"#
+        let parsed = HistoryStore.parse(old + "\n")
+        XCTAssertEqual(parsed.count, 1)
+        XCTAssertNil(parsed.first?.backup)
+        XCTAssertNil(parsed.first?.backupURL)
+        XCTAssertEqual(parsed.first?.inputPath, "/in/a.mp4")
+    }
+
+    func testHistoryRoundTripsBackupPath() {
+        let entry = HistoryEntry(date: Date(timeIntervalSince1970: 1_700_000_000),
+                                 inputPath: "/in/a.mp4", outputPath: "/out/a.mp4",
+                                 origSeconds: 10, newSeconds: 8, savedSeconds: 2,
+                                 fillers: 1, pauses: 1, backup: "/Originals/2026-06-19/a.mp4")
+        let line = String(data: HistoryStore.encodeLine(entry)!, encoding: .utf8)!
+        let parsed = HistoryStore.parse(line)
+        XCTAssertEqual(parsed.first?.backup, "/Originals/2026-06-19/a.mp4")
+        XCTAssertEqual(parsed.first?.backupURL?.lastPathComponent, "a.mp4")
+    }
+
+    func testCleanResultCarriesBackupViaHistoryEntry() {
+        let result = CleanResult(output: "/out/a.mp4", origSeconds: 10, newSeconds: 8,
+                                 savedSeconds: 2, pauses: 1, fillers: 0,
+                                 backup: "/Originals/2026-06-19/a.mp4")
+        let entry = HistoryEntry(input: URL(fileURLWithPath: "/in/a.mp4"), result: result,
+                                 date: Date(timeIntervalSince1970: 1_700_000_000))
+        XCTAssertEqual(entry.backup, "/Originals/2026-06-19/a.mp4")
+        // An empty backup (backup off) becomes nil, not "".
+        let noBackup = CleanResult(output: "/o", origSeconds: 1, newSeconds: 1,
+                                   savedSeconds: 0, pauses: 0, fillers: 0)
+        XCTAssertNil(HistoryEntry(input: URL(fileURLWithPath: "/i"), result: noBackup,
+                                  date: Date()).backup)
+    }
+
+    func testCutPreviewBasicPause() {
+        // One 3s silence in a 10s clip; cut its middle leaving 0.15s on each side.
+        let r = CutPreview.compute(silences: [(3, 6)], duration: 10,
+                                   pause: 0.6, keepPause: 0.15, minKeep: 0.05)
+        XCTAssertEqual(r.pauseCount, 1)
+        XCTAssertEqual(r.removedSeconds, 2.7, accuracy: 0.0001)   // (6-0.15) - (3+0.15)
+        XCTAssertEqual(r.keep.count, 2)
+    }
+
+    func testCutPreviewIgnoresShortSilences() {
+        // A 0.3s gap is shorter than the 0.6s threshold → nothing is cut.
+        let r = CutPreview.compute(silences: [(1, 1.3)], duration: 10,
+                                   pause: 0.6, keepPause: 0.15, minKeep: 0.05)
+        XCTAssertEqual(r.pauseCount, 0)
+        XCTAssertEqual(r.removedSeconds, 0, accuracy: 0.0001)
+        XCTAssertEqual(r.keep, [0...10])
+    }
+
+    func testCutPreviewMinKeepDropsTinyFragments() {
+        // Two pauses leave sub-minKeep fragments at the head/middle → folded into the cut.
+        let r = CutPreview.compute(silences: [(0, 2.9), (3.0, 6.0)], duration: 10,
+                                   pause: 0.6, keepPause: 0.15, minKeep: 0.5)
+        XCTAssertEqual(r.pauseCount, 2)
+        XCTAssertEqual(r.keep.count, 1)                          // only the final tail survives
+        XCTAssertEqual(r.removedSeconds, 5.85, accuracy: 0.0001) // 10 - (10 - 5.85)
+    }
+
+    func testCutPreviewRemovedMask() {
+        let r = CutPreview.compute(silences: [(3, 6)], duration: 10,
+                                   pause: 0.6, keepPause: 0.15, minKeep: 0.05)
+        let mask = CutPreview.removedMask(keep: r.keep, duration: 10, bucketCount: 10)
+        // Bucket centers 3.5/4.5/5.5 fall in the removed middle; the rest are kept.
+        XCTAssertEqual(mask, [false, false, false, true, true, true, false, false, false, false])
+    }
+
+    func testWhatsNewPrefersHighlightsSection() {
+        // When the LLM "## Highlights" section is present, it's used verbatim and the
+        // detailed "## What's changed" list is ignored.
+        let raw = """
+        ## Highlights
+
+        - Choose where your cleaned videos are saved.
+        - Preview the exact cuts before you clean.
+
+        ## What's changed
+
+        ### Desktop (1)
+
+        - #27 Split tracks: export separate video + audio files — @rafay99-epic
+        """
+        XCTAssertEqual(WhatsNewController.parse(raw), [
+            "Choose where your cleaned videos are saved.",
+            "Preview the exact cuts before you clean."
+        ])
+    }
+
+    func testWhatsNewFallsBackToCleanedTitles() {
+        // No Highlights section → clean, deduped titles from user-facing areas only.
+        let raw = """
+        ## What's changed
+
+        ### Desktop (2)
+
+        - #27 Split tracks: export separate video + audio files — @rafay99-epic
+        - #37 Add a unified daily logging system — @rafay99-epic
+
+        ### Backend (1)
+
+        - #35 Speech engine: multi-model + accurate DTW timestamps — @rafay99-epic
+
+        ### Docs (1)
+
+        - #37 Add a unified daily logging system — @rafay99-epic
+
+        ### CI (1)
+
+        - #22 Add website CI — @rafay99-epic
+        """
+        // Desktop + Backend only (Docs/CI dropped), deduped (#37 once), decoration stripped.
+        XCTAssertEqual(WhatsNewController.parse(raw), [
+            "Split tracks: export separate video + audio files",
+            "Add a unified daily logging system",
+            "Speech engine: multi-model + accurate DTW timestamps"
+        ])
+    }
+
+    func testCutsSummary() {
+        // Both parts, pluralized.
+        XCTAssertEqual(CleanResult.cutsSummary(fillers: 12, pauses: 47), "12 fillers \u{00B7} 47 pauses")
+        // Singular forms.
+        XCTAssertEqual(CleanResult.cutsSummary(fillers: 1, pauses: 1), "1 filler \u{00B7} 1 pause")
+        // Only the non-zero part shows.
+        XCTAssertEqual(CleanResult.cutsSummary(fillers: 0, pauses: 3), "3 pauses")
+        XCTAssertEqual(CleanResult.cutsSummary(fillers: 5, pauses: 0), "5 fillers")
+        // Nothing cut → nil (caller hides the line).
+        XCTAssertNil(CleanResult.cutsSummary(fillers: 0, pauses: 0))
+    }
+
     func testChannelDataDirIsolatedPerChannel() {
         // Each channel keeps its downloaded model in its own home dir, so the
         // three installs never share (or clobber) one another's data.

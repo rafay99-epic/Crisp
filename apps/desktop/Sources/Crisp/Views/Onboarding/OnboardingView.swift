@@ -76,6 +76,8 @@ struct OnboardingView: View {
                        "Drag recordings onto the window, or click “Choose videos…”. They line up in a queue you can reorder — the top one runs first.")
             featureRow("slider.horizontal.3", "Pick how much to cut",
                        "Set the default for the queue — Gentle through Very Aggressive, or Custom — and give any single file its own preset.")
+            featureRow("waveform", "Preview the cuts first",
+                       "Click Preview on any queued video to see exactly what Crisp will remove — and tune the strength live before you commit.")
             featureRow("scissors", "Clean the queue",
                        "Crisp cuts the silences and fillers from each one — several at once when your Mac can — and saves a cleaned copy of every original.")
 
@@ -99,11 +101,14 @@ struct OnboardingView: View {
                        "Right-click any video → Services → Clean with Crisp.")
             featureRow("square.stack.3d.up.fill", "Shortcuts",
                        "Add the “Clean with Crisp” action to any Shortcut or automation.")
+            menuBarSetup
             watchSetup
 
         case .done:
             header(symbol: "checkmark.seal.fill", title: "You’re all set",
                    subtitle: "Everything’s ready. You can fine-tune cutting strength, the encoder, and more in Settings (⌘,), and reopen this guide any time from the Help menu.")
+            featureRow("clock.arrow.circlepath", "Find every clean in History",
+                       "Open History (⌘Y) for a list of everything Crisp has cleaned — from the queue, the menu bar, Shortcuts, or the watch folder — to reveal or re-clean.")
         }
     }
 
@@ -172,6 +177,29 @@ struct OnboardingView: View {
         if let path = FolderPicker.choosePath(message: "Choose where cleaned videos are saved (e.g. a NAS).") {
             settings.outputDirectory = path
         }
+    }
+
+    // MARK: - Configuration: menu bar
+
+    @ViewBuilder private var menuBarSetup: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Image(systemName: "menubar.rectangle").font(.title3).foregroundStyle(.tint)
+                    .frame(width: 30)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Menu Bar").font(.headline)
+                    Text("Drop a video on Crisp’s menu-bar icon to clean it with your default recipe — without opening this window.")
+                        .font(.callout).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+            Toggle("Show Crisp in the menu bar", isOn: $settings.menuBarEnabled)
+                .toggleStyle(.switch)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardBackground(.tint.opacity(0.08))
     }
 
     // MARK: - Configuration: watch folder

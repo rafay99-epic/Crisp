@@ -40,6 +40,8 @@ final class EngineSettings {
     var perJobMemoryBudgetMB: Int { didSet { save() } }
     // Speech model — which catalog model the engine loads for filler detection
     var selectedModelID: String { didSet { save() } }
+    // Menu bar — show a quick-drop menu-bar item (opt-in)
+    var menuBarEnabled: Bool { didSet { save() } }
 
     /// Whether the user arrived with a real saved configuration — a `settings.json`
     /// that differs from the defaults. Captured once at launch (so it stays stable
@@ -64,7 +66,7 @@ final class EngineSettings {
                      presets: presets, defaultPresetID: defaultPresetID,
                      concurrencyMode: concurrencyMode, manualConcurrency: manualConcurrency,
                      perJobMemoryBudgetMB: perJobMemoryBudgetMB,
-                     selectedModelID: selectedModelID)
+                     selectedModelID: selectedModelID, menuBarEnabled: menuBarEnabled)
     }
 
     init() {
@@ -100,6 +102,7 @@ final class EngineSettings {
         // Normalize a removed/unknown model id to the catalog fallback, so the
         // Settings picker always has a valid selection (and the engine a real model).
         selectedModelID = ModelCatalog.spec(id: cfg.selectedModelID).id
+        menuBarEnabled = cfg.menuBarEnabled
         if !existed { EngineConfigStore.save(config) }  // materialize the file on first launch
     }
 

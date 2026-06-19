@@ -103,9 +103,23 @@ final class Updater {
     private struct APIRelease: Decodable {
         let tagName: String
         let name: String?
+        let body: String?
         let prerelease: Bool?
         let draft: Bool?
         let assets: [APIAsset]
+    }
+
+    /// The release notes (body) for the version currently running, or nil. Lets the
+    /// "What's New" sheet show the same PR-derived notes the release page does — one
+    /// source of truth, nothing hand-maintained in the app. Best-effort: nil on dev
+    /// (no releases), offline, or if the release has no notes.
+    nonisolated static func currentReleaseNotes() async -> String? {
+        guard Channel.current.updatesEnabled else { return nil }
+        let tag = Channel.current.isPrerelease ? "nightly" : "v\(currentVersion)"
+        guard let data = try? await get("https://api.github.com/repos/\(repository)/releases/tags/\(tag)"),
+              let api = try? jsonDecoder().decode(APIRelease.self, from: data) else { return nil }
+        let body = (api.body ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return body.isEmpty ? nil : body
     }
 
     nonisolated static func fetchLatestRelease() async throws -> Release? {

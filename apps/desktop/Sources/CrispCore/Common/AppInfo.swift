@@ -1,5 +1,3 @@
-import os
-
 /// App-wide identity shared across services, so cross-cutting constants live in
 /// one place instead of being re-typed per file.
 public enum AppInfo {
@@ -8,8 +6,10 @@ public enum AppInfo {
     /// subsystem so every category logs under one roof.
     public static let bundleIdentifier = "com.syntaxlabtechnology.crisp"
 
-    /// A `Logger` for `category` under the shared subsystem.
-    public static func logger(_ category: String) -> Logger {
-        Logger(subsystem: bundleIdentifier, category: category)
+    /// A logger for `category`. Tees to Apple's unified logging (Console.app) and
+    /// to Crisp's persistent daily file (`~/.crisp*/logs/`) so problems are
+    /// debuggable after the fact — see `CrispLog` / `FileLog`.
+    public static func logger(_ category: String) -> CrispLog {
+        CrispLog(category: category)
     }
 }

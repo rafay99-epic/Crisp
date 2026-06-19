@@ -95,7 +95,13 @@ if ! git diff --quiet --cached "${ORIGIN_NIGHTLY}"; then
   exit 1
 fi
 
-git commit --quiet -m "Promote nightly → main: Stable ${version}"
+# Stamp the promoted nightly SHA as a trailer (message-only — doesn't change the
+# tree, so the "staged tree == nightly" check above still holds). ci.yml's release
+# reads this and the previous promotion's trailer to list the PRs in between for the
+# Stable release notes — main itself carries no PR-merge commits, only these squashes.
+git commit --quiet \
+  -m "Promote nightly → main: Stable ${version}" \
+  --trailer "Promoted-nightly: $(git rev-parse "${ORIGIN_NIGHTLY}")"
 git push origin main
 
 # Return the user to where they started.

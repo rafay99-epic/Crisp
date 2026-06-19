@@ -35,6 +35,21 @@ subprocess. License: **GPL-3.0**. Conventions mirror the Vitals project.
   branch.** Every feature on its own branch **from `nightly`** → push → **draft PR
   into `nightly`**. The user squash-merges. **Never** hand-commit to `main` or
   directly to `nightly`.
+- **Use Graphite (`gt`) for the PR workflow — the user reviews every PR through
+  Graphite (the GitHub PR *view* is broken for them).** `gt` is installed + authed.
+  Use it for branch + stack management and pushing: `gt track --parent heads/nightly`
+  to put a branch on the stack, `gt submit --draft --no-interactive` to push, `gt
+  sync` to pull + restack, `gt ls`/`gt log` to see the stack. Then the user reviews
+  in the Graphite app. **Caveat — opening PRs:** this repo names *both* a branch and
+  the rolling-release tag `nightly`, so Graphite's trunk is stored as `heads/nightly`
+  to disambiguate locally — but `gt submit` then hands GitHub base `heads/nightly`,
+  which it rejects, and setting the trunk to plain `nightly` breaks `gt`'s local
+  resolution (no single value works for both). So **`gt submit` pushes the branch but
+  can't create the PR.** Open it with `gh pr create --base nightly --draft` once `gt`
+  has pushed the branch — the user still reviews it in Graphite. **Never** use `gh pr
+  view`/`gh pr edit` (the broken UI). `gh api` (read-only, e.g. CodeRabbit comments)
+  and `gh pr comment` (replies) are fine. Keep the no-AI-attribution rule above in
+  every PR.
 - **Promotion `nightly → main` is automated and uses a script, never the merge
   button.** Each promotion adds a squash commit to `main` that never lands on
   `nightly`, so the branches don't share recent history — GitHub's merge button
@@ -106,8 +121,9 @@ is a pure move):
 
 - `App/CrispApp.swift` — `@main`, single `Window` scene, channel-titled,
   "Check for Updates…" command; owns the `CleanModel`, `Updater`, `ModelStore`.
-- `Common/` — cross-cutting: `Channel` (identity from `CrispChannel`), `AppInfo`
-  (bundle-id base + the shared `Logger` subsystem), `Formatting` (`formatTime`).
+- `Common/` — cross-cutting: `Channel` (identity from `CrispChannel`; also owns
+  `logsDirectory`), `AppInfo` (bundle-id base + the `logger(_:)` factory),
+  `Formatting` (`formatTime`), and the logging system (`FileLog`).
 - `Models/` — plain value types: `Strength`, `CleanResult`.
 - `Services/` — the logic (knows nothing about views):
   - `Cleaning/` — `CleanModel` (`@MainActor @Observable`; spawns
@@ -120,6 +136,25 @@ is a pure move):
   `ProgressSection`, `ResultCard`, `UpdateBanner`, `ModelStatusView`; `SettingsView`
   is the ⌘, window for the Custom cutting knobs;
   `Components/Card.swift` is the shared `.cardBackground(…)` surface every card uses.
+
+## Logging
+
+Both layers write to one **per-channel, per-day** file:
+`~/.crisp*/logs/<yyyy-MM-dd>.log` (beside `Originals/`, `models/`, `config/`).
+- **Swift:** `AppInfo.logger(_:)` returns a `CrispLog` that tees every line to
+  Apple unified logging (Console.app, unchanged) **and** the file via `FileLog`
+  (a serial-queue, `O_APPEND`, daily-rotating writer — so the app, watcher, Finder
+  helper, and parallel cleans can all append safely). `CrispLog` accepts the same
+  `\(x, privacy: .public)` interpolation as `os.Logger`, so existing call sites
+  were untouched. `CrispApp` logs a launch line + prunes files >30 days old;
+  Settings has a "Reveal in Finder" row. `CleanRunner` sets `CRISP_LOG_DIR` for the
+  engine and captures its stderr (uncaught Python tracebacks).
+- **Python:** `crisp/enginelog.py` (`EngineLogger`) writes to the **same** daily
+  file (told the dir via `CRISP_LOG_DIR` / `--log-dir`; a no-op when unset, so the
+  bare CLI/library are unchanged). It's threaded through the pipeline to log every
+  ffmpeg/whisper **command + exit code + stderr-on-failure** (previously discarded)
+  and turns unexpected exceptions into a logged traceback + a clean NDJSON `error`.
+  Line format matches Swift's for one merged timeline.
 
 ## The engine (`Resources/engine/`)
 

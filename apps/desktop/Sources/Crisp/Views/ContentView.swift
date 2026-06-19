@@ -10,13 +10,36 @@ struct ContentView: View {
     @Bindable var watchAgent: WatchAgentController
     @Bindable var onboarding: OnboardingController
     @Bindable var player: PreviewPlayer
+    @Bindable var whatsNew: WhatsNewController
+    @Environment(\.openWindow) private var openWindow
     @State private var importing = false
     @State private var showUltraSheet = false
     @State private var ultraTarget = 1
     @State private var ultraVerdict: ResourceGovernor.Verdict?
+    @State private var estimate = EstimateModel()
 
     /// Filler-word removal needs the speech model; pauses-only doesn't.
     private var needsModel: Bool { model.removeFillers }
+
+    /// Everything a pre-flight estimate depends on — the global recipe (strength +
+    /// custom cut knobs) and the waiting files with their per-row presets. Order is
+    /// sorted so reordering the queue (which doesn't change the total) doesn't
+    /// needlessly clear a valid estimate.
+    private var estimateSignature: String {
+        let waiting = model.queue.filter { $0.status == .waiting }
+            .map { "\($0.id)|\($0.presetID?.uuidString ?? "")" }
+            .sorted()
+            .joined(separator: ",")
+        return "\(model.strength.rawValue)|\(settings.pauseThreshold)|\(settings.breathingRoom)"
+            + "|\(settings.minKeep)|\(settings.silenceFloorDB)|\(waiting)"
+    }
+
+    /// Pre-flight estimate of how much the waiting files would shrink (pauses only).
+    private func runEstimate() {
+        let items = model.queue.filter { $0.status == .waiting }
+            .map { (url: $0.url, params: resolveParameters($0)) }
+        estimate.estimate(items)
+    }
 
     /// Resolve a queued file's recipe: its own preset if it has one, otherwise the
     /// live global strength + settings shown in the bottom bar. (A "default for new
@@ -94,19 +117,32 @@ struct ContentView: View {
             } else {
                 QueueView(model: model, settings: settings, player: player)
                 Divider()
-                BottomBar(model: model, settings: settings,
-                          modelBlocks: modelBlocks, onStart: attemptStart)
+                BottomBar(model: model, settings: settings, estimate: estimate,
+                          modelBlocks: modelBlocks, onStart: attemptStart, onEstimate: runEstimate)
             }
         }
         // Min width keeps the bottom bar's recipe + action on one line (no wrapping)
         // at the smallest size; the queue takes any extra height/width.
         .frame(minWidth: 600, minHeight: 460)
         .background(.background)
+        // After an update, introduce the release's new features once. Runs only when
+        // the workspace is showing (i.e. not during onboarding, which covers them).
+        .task {
+            whatsNew.presentIfNeeded(onboardingActive: onboarding.isPresented,
+                                     onboardingAppearedOnLaunch: onboarding.appearedOnLaunch)
+        }
+        .sheet(isPresented: $whatsNew.isPresented) {
+            WhatsNewView(whatsNew: whatsNew, onDismiss: { whatsNew.isPresented = false })
+        }
         // Keep the "default for new files" preset the model stamps onto added rows
         // in sync with Settings, in both directions and at first appearance.
         .onChange(of: settings.defaultPresetID, initial: true) {
             model.newItemPresetID = settings.defaultPreset?.id
         }
+        // A prior estimate goes stale when anything it depends on changes — the
+        // global strength + custom knobs, or which files are waiting and their
+        // per-row presets. (Sorted, so a harmless reorder doesn't clear it.)
+        .onChange(of: estimateSignature) { estimate.reset() }
         .dropDestination(for: URL.self) { urls, _ in
             model.addFiles(urls)
             return true
@@ -115,6 +151,10 @@ struct ContentView: View {
             ToolbarItem(placement: .primaryAction) {
                 Button { importing = true } label: { Label("Add Videos", systemImage: "plus") }
                     .help("Add videos")
+            }
+            ToolbarItem(placement: .primaryAction) {
+                Button { openWindow(id: "history") } label: { Label("History", systemImage: "clock.arrow.circlepath") }
+                    .help("History")
             }
             ToolbarItem(placement: .primaryAction) {
                 SettingsLink { Label("Settings", systemImage: "gearshape") }

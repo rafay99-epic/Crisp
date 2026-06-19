@@ -10,6 +10,7 @@ import subprocess
 from pathlib import Path
 
 from .encode import container_args
+from .enginelog import EngineLogger
 from .tools import ffmpeg_bin
 
 # Audio-only container per codec when copying the stream as-is (no re-encode):
@@ -28,12 +29,13 @@ def split_paths(cleaned_path, audio_codec, audio_format="match"):
     return video_path, audio_path
 
 
-def split_av(cleaned_path, audio_codec, on_log, audio_format="match"):
+def split_av(cleaned_path, audio_codec, on_log, audio_format="match", logger=None):
     """Write the video-only and audio-only stems. The video is always a stream copy
     (no re-encode); the audio is copied as-is, or re-encoded to uncompressed WAV
     when `audio_format="wav"` (what most editors prefer). Returns
     `(video_path, audio_path)` as strings; a stem that fails comes back "" (the
     combined cleaned file already exists, so a split failure never fails the clean)."""
+    logger = logger or EngineLogger(None)
     try:
         cleaned = Path(cleaned_path)
         container = cleaned.suffix.lower().lstrip(".")
@@ -44,10 +46,10 @@ def split_av(cleaned_path, audio_codec, on_log, audio_format="match"):
         on_log("Splitting video and audio tracks…")
         video_ok = _extract(
             [ffmpeg_bin(), "-y", "-i", str(cleaned), "-map", "0:v:0", "-an", "-c", "copy",
-             *faststart, str(video_path)], video_path)
+             *faststart, str(video_path)], video_path, "split video", logger)
         audio_ok = _extract(
             [ffmpeg_bin(), "-y", "-i", str(cleaned), "-map", "0:a:0", "-vn", *audio_codec_args,
-             str(audio_path)], audio_path)
+             str(audio_path)], audio_path, "split audio", logger)
 
         if not video_ok:
             on_log("Couldn't write the video-only track.")
@@ -57,15 +59,25 @@ def split_av(cleaned_path, audio_codec, on_log, audio_format="match"):
     except Exception:
         # Best-effort: the combined cleaned file is the real deliverable, so any
         # failure here (e.g. ffmpeg can't be resolved) must never fail the clean.
+        logger.exception("Track split failed")
         on_log("Couldn't split the tracks.")
         return "", ""
 
 
-def _extract(cmd, out_path):
+def _extract(cmd, out_path, label, logger):
+    logger.command(f"ffmpeg {label}", cmd)
     try:
         res = subprocess.run(cmd, capture_output=True, text=True)
-    except OSError:
+    except OSError as e:
+        logger.error(f"ffmpeg {label} couldn't run: {e}")
         return False
     out = Path(out_path)
     # returncode 0 alone isn't enough — guard against a 0-byte / truncated stem.
-    return res.returncode == 0 and out.exists() and out.stat().st_size > 0
+    ok = res.returncode == 0 and out.exists() and out.stat().st_size > 0
+    # Splitting is best-effort (a clip with no audio track legitimately "fails"),
+    # so record the exit code for every run at DEBUG rather than ERROR — and attach
+    # stderr only when it didn't produce a usable file.
+    detail = "" if ok else (res.stderr or "").strip()
+    logger.debug(f"ffmpeg {label} exited {res.returncode}"
+                 + (f"\n{detail[-2000:]}" if detail else ""))
+    return ok
