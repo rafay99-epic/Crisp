@@ -10,7 +10,6 @@ import UserNotifications
 final class WatchController: @unchecked Sendable {
     private let queue = DispatchQueue(label: "com.syntaxlabtechnology.crisp.watcher")
     private let log = AppInfo.logger("watcher")
-    private let provisioner = ModelProvisioner()
 
     private var config = EngineConfig.defaults
     private var folderWatcher: FolderWatcher?
@@ -150,13 +149,16 @@ final class WatchController: @unchecked Sendable {
         busy = true
         let url = jobs.removeFirst()
         let removeFillers = config.watchRemoveFillers
+        // Resolve against the freshly-loaded config so a model switch in Settings
+        // is picked up (the config dir is watched, so `config` stays current).
+        let provisioner = ModelProvisioner(spec: ModelCatalog.spec(id: config.selectedModelID))
         log.info("Cleaning \(url.lastPathComponent, privacy: .public)")
         Task { [weak self] in
             guard let self else { return }
             do {
                 let result = try await QuickClean().clean(url, strength: .aggressive,
                                                           removeFillers: removeFillers,
-                                                          provisioner: self.provisioner)
+                                                          provisioner: provisioner)
                 self.queue.async { self.finished(url, output: result.output, error: nil) }
             } catch {
                 self.queue.async { self.finished(url, output: nil, error: error) }

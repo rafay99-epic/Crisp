@@ -33,15 +33,34 @@ final class ModelStore {
 
     private(set) var state: State = .checking
 
-    /// The shared provisioner. Exposed so an external trigger (the Finder Service)
-    /// can auto-download through the *same* instance instead of racing a second
-    /// download onto the same `.part` file.
-    let provisioner = ModelProvisioner()
+    /// The model this store currently tracks (the user's selection). Switching it
+    /// retargets the provisioner and rechecks disk.
+    private(set) var spec: ModelSpec
+
+    /// The provisioner for `spec`. Exposed so an external trigger can auto-download
+    /// through the *same* instance instead of racing a second download onto the
+    /// same `.part` file.
+    private(set) var provisioner: ModelProvisioner
     private static let log = AppInfo.logger("model")
     private var task: Task<Void, Never>?
 
+    /// Start tracking the user's selected model (or an explicit one for tests).
+    init(spec: ModelSpec = ModelProvisioner.selectedSpec()) {
+        self.spec = spec
+        self.provisioner = ModelProvisioner(spec: spec)
+    }
+
     /// Absolute path the engine should load, or nil until the model is verified.
     var readyModelPath: String? { state.isReady ? provisioner.path : nil }
+
+    /// Point the store at a different catalog model and recheck its state on disk.
+    /// No-op while a download is in flight (the UI disables switching then).
+    func use(_ spec: ModelSpec) async {
+        guard spec != self.spec, task == nil else { return }
+        self.spec = spec
+        self.provisioner = ModelProvisioner(spec: spec)
+        await refresh()
+    }
 
     // MARK: - Launch check
 

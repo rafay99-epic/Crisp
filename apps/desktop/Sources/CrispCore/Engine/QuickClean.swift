@@ -16,7 +16,7 @@ public struct QuickClean {
     public func clean(_ input: URL,
                       strength: Strength,
                       removeFillers: Bool,
-                      provisioner: ModelProvisioner = ModelProvisioner(),
+                      provisioner: ModelProvisioner = .forSelectedModel(),
                       onEvent: (@Sendable (CleanRunner.Progress) -> Void)? = nil) async throws -> CleanResult {
         let config = EngineConfigStore.load()
         let modelPath: String? = removeFillers ? try await provisioner.ensureModel() : nil
