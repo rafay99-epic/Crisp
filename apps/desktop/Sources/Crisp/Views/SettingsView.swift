@@ -384,7 +384,7 @@ struct SettingsView: View {
             }
             Toggle("Auto-clean dropped recordings", isOn: watchEnabledBinding)
                 .disabled(settings.watchFolderPath.isEmpty)
-            Toggle("Remove filler words", isOn: $settings.watchRemoveFillers)
+            Toggle("Remove fillers", isOn: $settings.watchRemoveFillers)
                 .disabled(!settings.watchEnabled)
         } header: {
             Text("Watch Folder")

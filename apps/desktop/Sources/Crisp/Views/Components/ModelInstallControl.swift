@@ -31,8 +31,8 @@ struct ModelInstallControl: View {
                 ProgressView(value: fraction < 0 ? nil : fraction).frame(width: 130)
                 Text(fraction < 0 ? "Downloading\u{2026}" : "Downloading\u{2026} \(Int(fraction * 100))%")
                     .font(.callout).foregroundStyle(.secondary)
+                Spacer(minLength: 8)
                 Button("Cancel") { store.cancel() }.controlSize(.small)
-                Spacer(minLength: 0)
             case .verifying:
                 ProgressView().controlSize(.small)
                 Text("Verifying\u{2026}").font(.callout).foregroundStyle(.secondary)

@@ -16,7 +16,6 @@ reviews:
     base_branches:
       - nightly
       - main
-      - 'speech/.*'
   path_instructions:
     - path: "apps/desktop/Sources/**/*.swift"
       instructions: >-

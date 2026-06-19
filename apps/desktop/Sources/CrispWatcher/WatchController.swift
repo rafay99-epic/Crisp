@@ -12,6 +12,10 @@ final class WatchController: @unchecked Sendable {
     private let log = AppInfo.logger("watcher")
 
     private var config = EngineConfig.defaults
+    /// One provisioner reused across a batch so the session verification cache hits
+    /// (a 10-file drop doesn't re-hash the model 10×). Re-targeted when the selected
+    /// model changes in the config.
+    private var provisioner = ModelProvisioner.forSelectedModel()
     private var folderWatcher: FolderWatcher?
     private let configWatcher: FolderWatcher
 
@@ -58,6 +62,9 @@ final class WatchController: @unchecked Sendable {
         guard new != config else { return }
         let folderChanged = new.watchFolderPath != config.watchFolderPath
             || new.watchEnabled != config.watchEnabled
+        if new.selectedModelID != config.selectedModelID {
+            provisioner = ModelProvisioner(spec: ModelCatalog.spec(id: new.selectedModelID))
+        }
         config = new
         if folderChanged { reconfigureFolder() }
     }
@@ -149,9 +156,9 @@ final class WatchController: @unchecked Sendable {
         busy = true
         let url = jobs.removeFirst()
         let removeFillers = config.watchRemoveFillers
-        // Resolve against the freshly-loaded config so a model switch in Settings
-        // is picked up (the config dir is watched, so `config` stays current).
-        let provisioner = ModelProvisioner(spec: ModelCatalog.spec(id: config.selectedModelID))
+        // Reuse the held provisioner (re-targeted on config change) so a batch
+        // shares one verification instead of re-hashing the model per file.
+        let provisioner = self.provisioner
         log.info("Cleaning \(url.lastPathComponent, privacy: .public)")
         Task { [weak self] in
             guard let self else { return }

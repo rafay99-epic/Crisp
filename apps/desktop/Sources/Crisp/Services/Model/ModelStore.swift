@@ -72,7 +72,8 @@ final class ModelStore {
         guard spec != self.spec, task == nil else { return }
         self.spec = spec
         self.provisioner = cachedProvisioner(for: spec)
-        recheck()
+        state = .checking   // synchronous: a gate reading `state` closes this frame,
+        recheck()           // before the async disk check resolves to .ready/.absent
     }
 
     /// Reuse the existing provisioner for a model (keeping its verified-session
@@ -99,7 +100,8 @@ final class ModelStore {
         state = ready ? .ready : .absent
     }
 
-    /// Fire-and-forget disk recheck (used on retarget). Sets `.checking` now.
+    /// Fire-and-forget disk recheck (used on retarget). The caller has already set
+    /// `.checking` synchronously; this resolves it to `.ready`/`.absent`.
     private func recheck() {
         guard task == nil else { return }
         Task { await refresh() }
