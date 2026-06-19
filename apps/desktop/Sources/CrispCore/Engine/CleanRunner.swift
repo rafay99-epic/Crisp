@@ -7,6 +7,9 @@ import Foundation
 /// system, not two"). Honors `Task` cancellation: cancelling the surrounding task
 /// terminates the subprocess (the original is never touched, so this is safe).
 public struct CleanRunner {
+    private static let log = AppInfo.logger("clean")
+    private static let engineLog = AppInfo.logger("engine")
+
     /// One line of the engine's `--ndjson` output.
     private struct Event: Decodable {
         let event: String
@@ -110,53 +113,92 @@ public struct CleanRunner {
         if let p = CleanEngine.bundledTool("ffprobe") { env["CRISP_FFPROBE"] = p }
         if let w = CleanEngine.bundledTool("whisper-cli") { env["CRISP_WHISPER"] = w }
         env["PATH"] = "/opt/homebrew/bin:" + (env["PATH"] ?? "")
+        // Tell the engine where to write its detailed log so the Python side of a
+        // clean lands in the same daily file as the app (`~/.crisp*/logs/`).
+        env["CRISP_LOG_DIR"] = Channel.current.logsDirectory.path
         proc.environment = env
 
         let outPipe = Pipe()
+        let errPipe = Pipe()
         proc.standardOutput = outPipe
-        proc.standardError = Pipe()
+        proc.standardError = errPipe
 
-        return try await withTaskCancellationHandler {
-            try proc.run()
-            var result: CleanResult?
-            let decoder = JSONDecoder()
-            for try await line in outPipe.fileHandleForReading.bytes.lines {
-                if Task.isCancelled { break }
-                guard let data = line.data(using: .utf8),
-                      let ev = try? decoder.decode(Event.self, from: data) else { continue }
-                switch ev.event {
-                case "log":
-                    if let m = ev.message { onEvent(.log(m)) }
-                case "progress":
-                    onEvent(.progress(fraction: ev.fraction ?? 0, label: ev.label ?? ""))
-                case "result":
-                    result = CleanResult(
-                        output: ev.output ?? "",
-                        origSeconds: ev.orig_seconds ?? 0,
-                        newSeconds: ev.new_seconds ?? 0,
-                        savedSeconds: ev.saved_seconds ?? 0,
-                        pauses: ev.pauses ?? 0,
-                        fillers: ev.fillers ?? 0,
-                        peaks: ev.peaks ?? [],
-                        removed: ev.removed ?? [],
-                        videoOutput: ev.video_output ?? "",
-                        audioOutput: ev.audio_output ?? "")
-                case "error":
-                    throw NSError(domain: "Crisp", code: 1,
-                                  userInfo: [NSLocalizedDescriptionKey: ev.message ?? "Unknown error"])
-                default:
-                    break
+        Self.log.info("Clean start: \(input.lastPathComponent) [\(parameters.videoCodec)/\(parameters.audioCodec) q=\(parameters.videoQuality) hw=\(parameters.hardwareEncoding) fillers=\(options.removeFillers)]")
+
+        // Drain the engine's own stderr in the background so a flood (e.g. a Python
+        // traceback) can't deadlock the stdout reader by filling the pipe buffer.
+        // This is the safety net for failures that escape before the engine can emit
+        // a structured error — the bundled engine routes its detail to the log file,
+        // so anything here means something went wrong unexpectedly.
+        let stderrTask = Task<String, Never> {
+            guard let data = try? errPipe.fileHandleForReading.readToEnd(),
+                  let text = String(data: data, encoding: .utf8) else { return "" }
+            return text
+        }
+
+        do {
+            let result = try await withTaskCancellationHandler {
+                try proc.run()
+                var result: CleanResult?
+                let decoder = JSONDecoder()
+                for try await line in outPipe.fileHandleForReading.bytes.lines {
+                    if Task.isCancelled { break }
+                    guard let data = line.data(using: .utf8),
+                          let ev = try? decoder.decode(Event.self, from: data) else { continue }
+                    switch ev.event {
+                    case "log":
+                        if let m = ev.message { onEvent(.log(m)) }
+                    case "progress":
+                        onEvent(.progress(fraction: ev.fraction ?? 0, label: ev.label ?? ""))
+                    case "result":
+                        result = CleanResult(
+                            output: ev.output ?? "",
+                            origSeconds: ev.orig_seconds ?? 0,
+                            newSeconds: ev.new_seconds ?? 0,
+                            savedSeconds: ev.saved_seconds ?? 0,
+                            pauses: ev.pauses ?? 0,
+                            fillers: ev.fillers ?? 0,
+                            peaks: ev.peaks ?? [],
+                            removed: ev.removed ?? [],
+                            videoOutput: ev.video_output ?? "",
+                            audioOutput: ev.audio_output ?? "")
+                    case "error":
+                        throw NSError(domain: "Crisp", code: 1,
+                                      userInfo: [NSLocalizedDescriptionKey: ev.message ?? "Unknown error"])
+                    default:
+                        break
+                    }
                 }
+                proc.waitUntilExit()
+                if Task.isCancelled { throw CancellationError() }
+                guard let result else {
+                    throw NSError(domain: "Crisp", code: 2, userInfo:
+                        [NSLocalizedDescriptionKey: "The engine finished without producing a result."])
+                }
+                return result
+            } onCancel: {
+                proc.terminate()
             }
-            proc.waitUntilExit()
-            if Task.isCancelled { throw CancellationError() }
-            guard let result else {
-                throw NSError(domain: "Crisp", code: 2, userInfo:
-                    [NSLocalizedDescriptionKey: "The engine finished without producing a result."])
-            }
+            Self.logEngineStderr(await stderrTask.value)
+            Self.log.info("Clean done: \(input.lastPathComponent) → \(URL(fileURLWithPath: result.output).lastPathComponent) (saved \(Int(result.savedSeconds))s, \(result.fillers) fillers, \(result.pauses) pauses)")
             return result
-        } onCancel: {
-            proc.terminate()
+        } catch {
+            Self.logEngineStderr(await stderrTask.value)
+            if error is CancellationError {
+                Self.log.notice("Clean cancelled: \(input.lastPathComponent)")
+            } else {
+                Self.log.error("Clean failed: \(input.lastPathComponent): \(error.localizedDescription)")
+            }
+            throw error
+        }
+    }
+
+    /// Record whatever the engine wrote to stderr, line by line (so a multi-line
+    /// Python traceback stays readable in the log). Empty in the normal case — the
+    /// engine logs its own detail directly to the file.
+    private static func logEngineStderr(_ text: String) {
+        for line in text.split(separator: "\n", omittingEmptySubsequences: true) {
+            engineLog.error("[stderr] \(String(line))")
         }
     }
 

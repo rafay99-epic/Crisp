@@ -210,6 +210,18 @@ struct SettingsView: View {
             }
 
             Section {
+                LabeledContent("Logs") {
+                    Button("Reveal in Finder") { revealLogs() }
+                        .controlSize(.small)
+                }
+            } header: {
+                Text("Diagnostics")
+            } footer: {
+                Text("Crisp keeps a daily log of each clean \u{2014} and anything that goes wrong \u{2014} in \(logsPathDisplay). If you hit a problem, share today\u{2019}s log.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
+            Section {
                 Button("Restore Defaults") { settings.restoreDefaults() }
             }
         }
@@ -350,6 +362,25 @@ struct SettingsView: View {
     private func chooseOutputFolder() {
         if let path = FolderPicker.choosePath(message: "Choose where cleaned videos are saved.") {
             settings.outputDirectory = path
+        }
+    }
+
+    // MARK: - Diagnostics
+
+    private var logsPathDisplay: String {
+        (Channel.current.logsDirectory.path as NSString).abbreviatingWithTildeInPath
+    }
+
+    /// Reveal today's log in Finder (or the folder itself if nothing's been logged
+    /// yet this run), creating the folder so the button always does something.
+    private func revealLogs() {
+        let dir = Channel.current.logsDirectory
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let today = FileLog.shared.currentLogFileURL()
+        if FileManager.default.fileExists(atPath: today.path) {
+            NSWorkspace.shared.activateFileViewerSelecting([today])
+        } else {
+            NSWorkspace.shared.open(dir)
         }
     }
 

@@ -16,6 +16,7 @@ struct CrispApp: App {
             ContentView(model: model, updater: updater, modelStore: modelStore,
                         settings: settings, watchAgent: watchAgent, onboarding: onboarding,
                         player: player)
+                .task { logLaunch() }
                 .task { updater.checkOnLaunch() }
                 .task { await modelStore.refresh() }
                 .task { QuickActionInstaller.install() }
@@ -46,6 +47,17 @@ struct CrispApp: App {
             SettingsView(settings: settings, updater: updater, watchAgent: watchAgent,
                          modelStore: modelStore, model: model)
         }
+    }
+
+    /// Open the day's log with a launch marker and trim old files, so the log has a
+    /// clear "app started" boundary and the folder can't grow without bound.
+    private func logLaunch() {
+        FileLog.shared.pruneOldLogs()
+        let version = Updater.currentBuildNumber > 0
+            ? "\(Updater.currentVersion) (build \(Updater.currentBuildNumber))"
+            : Updater.currentVersion
+        AppInfo.logger("app").info(
+            "\(Channel.current.displayName) \(version) launched — logs at \(Channel.current.logsDirectory.path)")
     }
 
     /// Keep the registered background agent in sync with the saved preference, in

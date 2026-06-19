@@ -75,6 +75,12 @@ public enum Channel: String {
             .appendingPathComponent(dataDirSuffix, isDirectory: true)
     }
 
+    /// Where the daily log files live (`~/.crisp*/logs/`). Both the Swift app and
+    /// the Python engine write here, so one timeline covers a whole clean.
+    public var logsDirectory: URL {
+        dataDirectory.appendingPathComponent("logs", isDirectory: true)
+    }
+
     /// Stable tracks the latest full release; Nightly tracks the newest
     /// pre-release. (Dev tracks nothing — see `updatesEnabled`.)
     public var isPrerelease: Bool { self == .nightly }

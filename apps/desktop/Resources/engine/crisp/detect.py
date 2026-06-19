@@ -4,11 +4,13 @@ This is the analysis half of the engine — what to consider cutting. The cuttin
 itself lives in `edit`.
 """
 
+import collections
 import json
 import re
 import subprocess
 from pathlib import Path
 
+from .enginelog import EngineLogger
 from .errors import CleanError
 from .tools import ffmpeg_bin
 
@@ -87,25 +89,30 @@ def parse_transcription(data: dict) -> list:
     return words
 
 
-def extract_audio(src: Path, wav_path: Path, on_log) -> None:
+def extract_audio(src: Path, wav_path: Path, on_log, logger=None) -> None:
+    logger = logger or EngineLogger(None)
     on_log("Extracting audio for analysis...")
-    res = subprocess.run(
-        [ffmpeg_bin(), "-y", "-i", str(src),
-         "-vn", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", str(wav_path)],
-        capture_output=True, text=True,
-    )
+    cmd = [ffmpeg_bin(), "-y", "-i", str(src),
+           "-vn", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", str(wav_path)]
+    logger.command("ffmpeg extract-audio", cmd)
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    logger.tool_result("ffmpeg extract-audio", res.returncode, res.stderr)
     if res.returncode != 0 or not wav_path.exists():
         raise CleanError(f"Could not extract audio.\n{res.stderr[-800:]}")
 
 
-def detect_silences(wav_path: Path, noise_db: float, min_pause: float, on_log) -> list:
+def detect_silences(wav_path: Path, noise_db: float, min_pause: float, on_log, logger=None) -> list:
+    logger = logger or EngineLogger(None)
     on_log("Detecting pauses / silence...")
-    res = subprocess.run(
-        [ffmpeg_bin(), "-i", str(wav_path),
-         "-af", f"silencedetect=noise={noise_db}dB:d={min_pause}",
-         "-f", "null", "-"],
-        capture_output=True, text=True,
-    )
+    cmd = [ffmpeg_bin(), "-i", str(wav_path),
+           "-af", f"silencedetect=noise={noise_db}dB:d={min_pause}",
+           "-f", "null", "-"]
+    logger.command("ffmpeg silencedetect", cmd)
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    # silencedetect writes its findings to stderr; a nonzero exit means none were
+    # parsed, so log it (the engine otherwise treats this as "no pauses found").
+    if res.returncode != 0:
+        logger.tool_result("ffmpeg silencedetect", res.returncode, res.stderr)
     silences, start = [], None
     for line in res.stderr.splitlines():
         line = line.strip()
@@ -121,6 +128,7 @@ def detect_silences(wav_path: Path, noise_db: float, min_pause: float, on_log) -
             except (IndexError, ValueError):
                 pass
             start = None
+    logger.debug(f"silencedetect found {len(silences)} pauses")
     return silences
 
 
@@ -140,13 +148,17 @@ def whisper_command(whisper_bin, model, wav_path, out_prefix) -> list:
     return cmd
 
 
-def transcribe(whisper_bin, model, wav_path, out_prefix, on_log, on_progress):
+def transcribe(whisper_bin, model, wav_path, out_prefix, on_log, on_progress, logger=None):
+    logger = logger or EngineLogger(None)
     on_log("Transcribing (finding filler words)... this is the slow step.")
     json_path = Path(str(out_prefix) + ".json")
-    proc = subprocess.Popen(
-        whisper_command(whisper_bin, model, wav_path, out_prefix),
-        stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True,
-    )
+    cmd = whisper_command(whisper_bin, model, wav_path, out_prefix)
+    logger.command("whisper", cmd)
+    proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+    # whisper.cpp interleaves progress with real diagnostics on stderr. Consume the
+    # progress lines for the UI, but keep the rest (bounded) so a failure has its
+    # actual cause in the log instead of vanishing into DEVNULL.
+    stderr_tail = collections.deque(maxlen=200)
     for line in proc.stderr:
         if "progress =" in line:
             try:
@@ -154,9 +166,14 @@ def transcribe(whisper_bin, model, wav_path, out_prefix, on_log, on_progress):
                 on_progress(pct / 100.0, f"Transcribing… {pct}%")
             except (IndexError, ValueError):
                 pass
+        elif line.strip():
+            stderr_tail.append(line.rstrip())
     proc.wait()
+    logger.tool_result("whisper", proc.returncode, "\n".join(stderr_tail))
     if not json_path.exists():
-        raise CleanError("Transcription failed — the speech model may be missing.")
+        detail = "\n".join(stderr_tail)[-1200:]
+        raise CleanError("Transcription failed — the speech model may be missing."
+                         + (f"\n{detail}" if detail else ""))
     with open(json_path) as f:
         data = json.load(f)
     return parse_transcription(data)
