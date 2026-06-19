@@ -19,6 +19,7 @@ Library users can skip the CLI and import the package directly:
 import argparse
 import json
 import os
+import shlex
 import signal
 import sys
 from pathlib import Path
@@ -119,7 +120,9 @@ def main():
     # Tee every human status line into the run log, and record the invocation so a
     # log starts with exactly how the engine was called.
     log = logger_from_env(args.log_dir, tag=os.path.basename(args.video))
-    log.info(f"clean_video invoked: {' '.join(sys.argv[1:])}")
+    # Quote each arg so the logged invocation is copy-paste replayable (paths with
+    # spaces stay intact).
+    log.info("clean_video invoked: " + " ".join(shlex.quote(a) for a in sys.argv[1:]))
 
     def on_log(msg):
         log.info(msg)

@@ -109,10 +109,10 @@ def detect_silences(wav_path: Path, noise_db: float, min_pause: float, on_log, l
            "-f", "null", "-"]
     logger.command("ffmpeg silencedetect", cmd)
     res = subprocess.run(cmd, capture_output=True, text=True)
-    # silencedetect writes its findings to stderr; a nonzero exit means none were
-    # parsed, so log it (the engine otherwise treats this as "no pauses found").
-    if res.returncode != 0:
-        logger.tool_result("ffmpeg silencedetect", res.returncode, res.stderr)
+    # Record the exit code for every run (stderr only attaches on failure). On a
+    # nonzero exit nothing parses out, which the engine would otherwise silently
+    # treat as "no pauses found".
+    logger.tool_result("ffmpeg silencedetect", res.returncode, res.stderr)
     silences, start = [], None
     for line in res.stderr.splitlines():
         line = line.strip()

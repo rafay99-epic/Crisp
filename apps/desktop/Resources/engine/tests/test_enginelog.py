@@ -4,12 +4,19 @@ Pure I/O against a temp dir — no ffmpeg/whisper. Mirrors the other suites:
 unittest + tempfile, inline expectations.
 """
 
+import re
 import unittest
 from datetime import date
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from crisp.enginelog import EngineLogger, logger_from_env
+
+# The shared Swift/Python line shape: "<ts>  <LEVEL>  [<category>]  <text>".
+# Every physical line a record produces must match this so a merged timeline
+# (engine + app, interleaved) parses uniformly.
+LINE_RE = re.compile(
+    r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}  [A-Z]+ +\[engine[^\]]*\]  ")
 
 
 class NoOpLoggerTests(unittest.TestCase):
@@ -71,14 +78,25 @@ class FileWriteTests(unittest.TestCase):
             log.info("ok")
             self.assertTrue((nested / f"{date.today().isoformat()}.log").exists())
 
+    def _assert_every_line_well_formed(self, path):
+        """Each physical line must carry the shared timestamp/level/category prefix
+        — even continuation lines of a multi-line record — so a merged engine+app
+        timeline parses uniformly."""
+        lines = path.read_text().splitlines()
+        self.assertTrue(lines)
+        for ln in lines:
+            self.assertRegex(ln, LINE_RE)
+
     def test_tool_result_logs_stderr_on_failure(self):
         with TemporaryDirectory() as d:
             log = EngineLogger(d)
-            log.tool_result("ffmpeg render", 1, "Invalid data found")
+            log.tool_result("ffmpeg render", 1, "Invalid data found\nmoov atom not found")
             text = self._today_file(d).read_text()
             self.assertIn("ERROR", text)
             self.assertIn("ffmpeg render exited 1", text)
             self.assertIn("Invalid data found", text)
+            # The multi-line stderr block must stay one-prefixed-line-per-record.
+            self._assert_every_line_well_formed(self._today_file(d))
 
     def test_tool_result_quiet_on_success(self):
         with TemporaryDirectory() as d:
@@ -107,6 +125,8 @@ class FileWriteTests(unittest.TestCase):
             self.assertIn("Unexpected error", text)
             self.assertIn("Traceback", text)
             self.assertIn("kaboom", text)
+            # A traceback spans many lines; each must keep the record prefix.
+            self._assert_every_line_well_formed(self._today_file(d))
 
 
 if __name__ == "__main__":

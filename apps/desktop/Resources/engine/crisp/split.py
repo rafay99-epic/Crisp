@@ -74,6 +74,10 @@ def _extract(cmd, out_path, label, logger):
     out = Path(out_path)
     # returncode 0 alone isn't enough — guard against a 0-byte / truncated stem.
     ok = res.returncode == 0 and out.exists() and out.stat().st_size > 0
-    if not ok:
-        logger.tool_result(f"ffmpeg {label}", res.returncode, res.stderr)
+    # Splitting is best-effort (a clip with no audio track legitimately "fails"),
+    # so record the exit code for every run at DEBUG rather than ERROR — and attach
+    # stderr only when it didn't produce a usable file.
+    detail = "" if ok else (res.stderr or "").strip()
+    logger.debug(f"ffmpeg {label} exited {res.returncode}"
+                 + (f"\n{detail[-2000:]}" if detail else ""))
     return ok

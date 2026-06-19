@@ -55,11 +55,19 @@ class EngineLogger:
         # The pid disambiguates lines when several cleans interleave in one file;
         # the tag (input filename) says which clean this line belongs to.
         cat = f"engine:{self.tag}#{self.pid}" if self.tag else f"engine#{self.pid}"
-        line = f"{stamp}  {level:<6}  [{cat}]  {message}\n"
+        prefix = f"{stamp}  {level:<6}  [{cat}]  "
+        # One prefixed physical line per record line: a multi-line message (a
+        # traceback, an ffmpeg stderr block) stays greppable and keeps the same
+        # self-describing shape as the Swift FileLog, so a merged timeline parses
+        # uniformly. The whole block is a single os.write() so it still appends
+        # atomically against the other processes sharing this file.
+        block = "".join(f"{prefix}{ln}\n" for ln in str(message).split("\n"))
         try:
-            fd = os.open(str(self._path()), os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o644)
+            # 0o600: the log holds filenames, command args, and tool stderr — keep
+            # it readable only by the user who owns it.
+            fd = os.open(str(self._path()), os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
             try:
-                os.write(fd, line.encode("utf-8", "replace"))
+                os.write(fd, block.encode("utf-8", "replace"))
             finally:
                 os.close(fd)
         except OSError:

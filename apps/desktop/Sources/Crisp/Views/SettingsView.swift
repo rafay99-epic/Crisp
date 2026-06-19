@@ -211,7 +211,7 @@ struct SettingsView: View {
 
             Section {
                 LabeledContent("Logs") {
-                    Button("Reveal in Finder") { revealLogs() }
+                    Button("Reveal in Finder") { Diagnostics.revealLogs() }
                         .controlSize(.small)
                 }
             } header: {
@@ -369,19 +369,6 @@ struct SettingsView: View {
 
     private var logsPathDisplay: String {
         (Channel.current.logsDirectory.path as NSString).abbreviatingWithTildeInPath
-    }
-
-    /// Reveal today's log in Finder (or the folder itself if nothing's been logged
-    /// yet this run), creating the folder so the button always does something.
-    private func revealLogs() {
-        let dir = Channel.current.logsDirectory
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let today = FileLog.shared.currentLogFileURL()
-        if FileManager.default.fileExists(atPath: today.path) {
-            NSWorkspace.shared.activateFileViewerSelecting([today])
-        } else {
-            NSWorkspace.shared.open(dir)
-        }
     }
 
     // MARK: - Watch folder

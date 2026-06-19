@@ -107,7 +107,12 @@ public final class FileLog: @unchecked Sendable {
         queue.async {
             let stamp = Self.lineFormatter.string(from: now)
             let lvl = level.rawValue.padding(toLength: 6, withPad: " ", startingAt: 0)
-            self.append("\(stamp)  \(lvl)  [\(category)]  \(message)\n", on: now)
+            let prefix = "\(stamp)  \(lvl)  [\(category)]  "
+            // One prefixed physical line per record line, so a multi-line message
+            // stays self-describing and matches the engine's file format.
+            for sub in message.split(separator: "\n", omittingEmptySubsequences: false) {
+                self.append("\(prefix)\(sub)\n", on: now)
+            }
         }
     }
 
@@ -150,7 +155,8 @@ public final class FileLog: @unchecked Sendable {
         let url = directory.appendingPathComponent("\(day).log")
         // O_APPEND so concurrent writers (parallel cleans, the watcher, the engine)
         // each land at end-of-file atomically rather than clobbering one another.
-        let newFd = open(url.path, O_WRONLY | O_APPEND | O_CREAT, 0o644)
+        // 0o600: the log holds file paths and tool diagnostics — user-only.
+        let newFd = open(url.path, O_WRONLY | O_APPEND | O_CREAT, 0o600)
         guard newFd >= 0 else { return }
         fd = newFd
         openDay = day
