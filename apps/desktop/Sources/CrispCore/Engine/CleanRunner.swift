@@ -26,6 +26,8 @@ public struct CleanRunner {
         var removed: [Bool]?
         var video_output: String?
         var audio_output: String?
+        var srt_output: String?
+        var vtt_output: String?
         var backup: String?
     }
 
@@ -92,11 +94,15 @@ public struct CleanRunner {
         }
         if !parameters.outputDirectory.isEmpty { args += ["--out-dir", parameters.outputDirectory] }
         // A reviewed keep-list renders exactly those segments — no detection, so no
-        // model and no waveform pass; the other flags below would be ignored anyway.
+        // model, captions, waveform, or filler flags (all moot in keep-file mode).
         if let keepFile = options.keepFilePath {
             args += ["--keep-file", keepFile]
         } else {
-            if options.removeFillers, let model = options.modelPath { args += ["--model", model] }
+            if parameters.captionsFormat != "none" { args += ["--captions", parameters.captionsFormat] }
+            // The model is needed for the transcript — for filler removal *or* captions
+            // (which re-time the same transcription onto the cut timeline).
+            let needsTranscript = options.removeFillers || parameters.captionsFormat != "none"
+            if needsTranscript, let model = options.modelPath { args += ["--model", model] }
             if !options.removeFillers { args.append("--no-fillers") }
             if options.waveformBuckets > 0 { args += ["--waveform", String(options.waveformBuckets)] }
         }
@@ -178,6 +184,8 @@ public struct CleanRunner {
                             removed: ev.removed ?? [],
                             videoOutput: ev.video_output ?? "",
                             audioOutput: ev.audio_output ?? "",
+                            srtOutput: ev.srt_output ?? "",
+                            vttOutput: ev.vtt_output ?? "",
                             backup: ev.backup ?? "")
                     case "error":
                         throw NSError(domain: "Crisp", code: 1,

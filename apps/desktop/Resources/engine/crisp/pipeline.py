@@ -61,7 +61,8 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
                 audio_codec=DEFAULT_AUDIO_CODEC, audio_bitrate=DEFAULT_AUDIO_BITRATE,
                 container=DEFAULT_CONTAINER, remove_fillers=True, backup=DEFAULT_BACKUP,
                 backup_dir=None, out_dir=None, split_tracks=False, split_audio="match",
-                waveform_buckets=0, keep_file=None, on_log=None, on_progress=None, logger=None):
+                waveform_buckets=0, keep_file=None, captions="none",
+                on_log=None, on_progress=None, logger=None):
     """
     Clean one video. Returns a dict with results.
       on_log(str)            — called with human-readable status lines.
@@ -105,12 +106,15 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
     logger.info(f"src={src}")
     logger.info(f"out={out_path} container={container} video={video_codec} "
                 f"audio={audio_codec} hw={hardware} quality={quality} "
-                f"remove_fillers={remove_fillers} keep_file={bool(keep_file)} backup={backup}")
+                f"remove_fillers={remove_fillers} captions={captions} "
+                f"keep_file={bool(keep_file)} backup={backup}")
 
-    # An explicit reviewed keep-list (the app's edit-timeline output) bypasses
-    # detection entirely — no audio analysis, no transcription, no model — so we
-    # render exactly the segments the user approved.
-    need_transcript = remove_fillers and not keep_file
+    # Captions also need the transcript (and the speech model), so we transcribe
+    # whenever fillers are removed OR captions are requested. But an explicit reviewed
+    # keep-list (the app's edit-timeline output) bypasses detection entirely — no audio
+    # analysis, transcription, or model — so we render exactly the approved segments.
+    want_captions = captions != "none"
+    need_transcript = (remove_fillers or want_captions) and not keep_file
     whisper_bin = None
     if need_transcript:
         if not model.exists():
@@ -140,6 +144,8 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
     # keep-list path skips analysis, so it has no waveform (the done row falls back to
     # the simpler reduction bar).
     wave_summary = {"peaks": [], "removed": []}
+    # Spoken words for caption re-timing — stays empty in keep-file mode (no transcript).
+    words = []
 
     if keep_file:
         from .edit import load_keep_segments
@@ -165,14 +171,17 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
             silences = detect_silences(wav, noise, pause, on_log, logger=logger)
             on_progress(0.15, "Pauses detected")
 
-            words = []
-            if remove_fillers:
+            if need_transcript:
                 words = transcribe(whisper_bin, model, wav, tmp / "transcript",
                                    on_log, stage(0.15, 0.58), logger=logger)
                 on_log(f"Found {len(words)} spoken words.")
             on_progress(0.58, "Planning cuts…")
 
-            keep, stats = build_keep_segments(words, silences, duration, keep_pause, min_keep)
+            # Only cut filler words when the user asked to; if we transcribed purely
+            # for captions, every word stays in the cut plan (fillers are still
+            # excluded from the caption text below).
+            cut_words = words if remove_fillers else []
+            keep, stats = build_keep_segments(cut_words, silences, duration, keep_pause, min_keep)
             if not keep:
                 raise CleanError("Everything looked like silence — nothing to keep. "
                                  "Try a larger pause value.")
@@ -218,6 +227,22 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
         video_out, audio_out = split_av(out_path, audio_codec, on_log,
                                         audio_format=split_audio, logger=logger)
 
+    # Subtitle sidecars (SRT/VTT), re-timed onto the cleaned timeline. Best-effort —
+    # a caption write never fails the clean (the video is the deliverable).
+    srt_out, vtt_out = "", ""
+    if want_captions:
+        # Best-effort: the cleaned video is the deliverable and is already written by
+        # now, so a caption failure (re-timing edge case, encoding, disk) must never
+        # turn a successful clean into a failed one — log it and move on.
+        try:
+            from .captions import write_captions
+            srt_out, vtt_out = write_captions(out_path, words, keep, captions)
+            for path in (srt_out, vtt_out):
+                if path:
+                    on_log(f"Wrote captions: {Path(path).name}")
+        except Exception:
+            logger.exception("Caption export failed (continuing without captions)")
+
     on_progress(1.0, "Done")
     on_log(f"✅ Done! Cleaned video: {out_path}")
     return {
@@ -233,4 +258,6 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
         "removed": wave_summary["removed"],
         "video_output": video_out,
         "audio_output": audio_out,
+        "srt_output": srt_out,
+        "vtt_output": vtt_out,
     }

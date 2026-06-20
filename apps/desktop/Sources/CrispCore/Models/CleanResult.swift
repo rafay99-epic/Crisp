@@ -17,6 +17,10 @@ public struct CleanResult: Identifiable, Sendable {
     /// Separate video-only / audio-only files, when "split tracks" was on (else "").
     public let videoOutput: String
     public let audioOutput: String
+    /// Subtitle sidecars written beside the cleaned video, when captions were on
+    /// (else ""). Re-timed onto the cut timeline.
+    public let srtOutput: String
+    public let vttOutput: String
     /// Where the pristine original was backed up (`~/.crisp*/Originals/<date>/…`),
     /// or "" when backup was off. Lets the UI offer "Restore Original".
     public let backup: String
@@ -24,7 +28,8 @@ public struct CleanResult: Identifiable, Sendable {
     public init(output: String, origSeconds: Double, newSeconds: Double,
                 savedSeconds: Double, pauses: Int, fillers: Int,
                 peaks: [Double] = [], removed: [Bool] = [],
-                videoOutput: String = "", audioOutput: String = "", backup: String = "") {
+                videoOutput: String = "", audioOutput: String = "",
+                srtOutput: String = "", vttOutput: String = "", backup: String = "") {
         self.output = output
         self.origSeconds = origSeconds
         self.newSeconds = newSeconds
@@ -35,6 +40,8 @@ public struct CleanResult: Identifiable, Sendable {
         self.removed = removed
         self.videoOutput = videoOutput
         self.audioOutput = audioOutput
+        self.srtOutput = srtOutput
+        self.vttOutput = vttOutput
         self.backup = backup
     }
 

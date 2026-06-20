@@ -488,6 +488,7 @@ final class CrispTests: XCTestCase {
         XCTAssertFalse(args.contains("--model"))
         XCTAssertFalse(args.contains("--waveform"))
         XCTAssertFalse(args.contains("--no-fillers"))
+        XCTAssertFalse(args.contains("--captions"))
         // Encoder choices still apply (the reviewed cut is still re-encoded).
         XCTAssertTrue(args.contains("--hardware"))
     }
@@ -502,6 +503,38 @@ final class CrispTests: XCTestCase {
         XCTAssertFalse(args.contains("--keep-file"))
         XCTAssertEqual(valueAfter("--model", in: args), "/models/ggml.bin")
         XCTAssertEqual(valueAfter("--waveform", in: args), "120")
+    }
+
+    func testCaptionsFlagAndModelGating() {
+        // Off by default → no --captions; and pauses-only with captions off needs
+        // no model.
+        XCTAssertEqual(EngineConfig.defaults.captionsFormat, "none")
+        let noModel = CleanRunner.Options(modelPath: nil, removeFillers: false)
+        let off = CleanRunner.arguments(scriptPath: "/eng/clean_video.py",
+                                        input: URL(fileURLWithPath: "/v/in.mp4"),
+                                        parameters: Strength.aggressive.parameters(using: .defaults),
+                                        options: noModel)
+        XCTAssertFalse(off.contains("--captions"))
+
+        // Captions on, fillers OFF: the flag is passed, fillers stay off, and the
+        // model is still required (captions are transcribed from speech).
+        var cfg = EngineConfig.defaults
+        cfg.captionsFormat = "both"
+        let withModel = CleanRunner.Options(modelPath: "/models/ggml.bin", removeFillers: false)
+        let on = CleanRunner.arguments(scriptPath: "/eng/clean_video.py",
+                                       input: URL(fileURLWithPath: "/v/in.mp4"),
+                                       parameters: Strength.aggressive.parameters(using: cfg),
+                                       options: withModel)
+        XCTAssertEqual(valueAfter("--captions", in: on), "both")
+        XCTAssertTrue(on.contains("--no-fillers"))
+        XCTAssertEqual(valueAfter("--model", in: on), "/models/ggml.bin")
+    }
+
+    func testCaptionsForwardCompatDefaultsToNone() throws {
+        // A config predating the key decodes with captions off.
+        let legacy = Data(#"{ "version": 3, "pauseThreshold": 0.4 }"#.utf8)
+        let cfg = try JSONDecoder().decode(EngineConfig.self, from: legacy)
+        XCTAssertEqual(cfg.captionsFormat, "none")
     }
 
     func testWaveformFlagOnlyWhenRequested() {
