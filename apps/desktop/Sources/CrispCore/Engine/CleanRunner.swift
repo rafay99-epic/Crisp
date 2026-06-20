@@ -139,6 +139,13 @@ public struct CleanRunner {
 
         do {
             let result = try await withTaskCancellationHandler {
+                // If the task was already cancelled before the handler was installed,
+                // don't launch the engine at all (the onCancel handler can't, since the
+                // process isn't running yet).
+                if Task.isCancelled {
+                    try? errPipe.fileHandleForWriting.close()
+                    throw CancellationError()
+                }
                 do {
                     try proc.run()
                 } catch {

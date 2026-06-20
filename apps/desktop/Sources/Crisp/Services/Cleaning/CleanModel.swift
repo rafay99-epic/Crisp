@@ -242,9 +242,11 @@ final class CleanModel {
         // serialize it to a temp JSON the engine reads, and skip the model entirely
         // (keep-file mode does no detection/transcription). The temp file is removed
         // once the run finishes.
-        var keepFilePath: String?
-        let tempKeepURL = item.editedKeep.flatMap { try? Self.writeKeepFile($0) }
-        if let tempKeepURL { keepFilePath = tempKeepURL.path }
+        // Surface a write failure (don't `try?`): for a reviewed run, silently dropping
+        // the keep-file would clean with freshly-detected cuts instead of the segments
+        // the user approved. `map` is a no-op (no throw) for a normal, non-reviewed run.
+        let tempKeepURL = try item.editedKeep.map { try Self.writeKeepFile($0) }
+        let keepFilePath = tempKeepURL?.path
         defer { if let tempKeepURL { try? FileManager.default.removeItem(at: tempKeepURL) } }
 
         let options = CleanRunner.Options(modelPath: keepFilePath == nil ? modelPath : nil,

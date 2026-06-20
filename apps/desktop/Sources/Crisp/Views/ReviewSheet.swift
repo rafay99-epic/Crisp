@@ -169,8 +169,10 @@ private struct CutTimeline: View {
             ZStack(alignment: .leading) {
                 RoundedRectangle(cornerRadius: 6).fill(.quaternary)
 
-                // Kept stretches (everything not removed) in green.
-                ForEach(Array(review.keep.enumerated()), id: \.offset) { _, range in
+                // Kept stretches (everything not removed) in green. Keep ranges are
+                // non-overlapping, so the range value is a stable identity (index-based
+                // ids churn as cuts toggle, causing SwiftUI diffing artifacts).
+                ForEach(review.keep, id: \.self) { range in
                     rect(start: range.lowerBound, end: range.upperBound, width: w, dur: dur)
                         .fill(.green.opacity(0.7))
                 }

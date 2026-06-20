@@ -50,6 +50,11 @@ public struct AnalysisRunner {
 
         do {
             let analysis = try await withTaskCancellationHandler { () throws -> VideoAnalysis in
+                // Already cancelled before the handler installed: don't launch at all.
+                if Task.isCancelled {
+                    try? errPipe.fileHandleForWriting.close()
+                    throw CancellationError()
+                }
                 do {
                     try proc.run()
                 } catch {

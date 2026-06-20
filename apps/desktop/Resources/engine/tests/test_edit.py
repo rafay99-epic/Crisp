@@ -157,6 +157,13 @@ class LoadKeepSegmentsTests(unittest.TestCase):
         keep = load_keep_segments(path, duration=10.0)
         self.assertEqual(keep, [(1.0, 3.0)])
 
+    def test_skips_dict_and_nonfinite_entries(self):
+        # Dict-shaped entries (would KeyError) and nan/inf are skipped, not crashed on.
+        path = self._write({"keep": [{"start": 0, "end": 2}, ["nan", "inf"],
+                                     [float("inf"), 5.0], [1.0, 3.0]]})
+        keep = load_keep_segments(path, duration=10.0)
+        self.assertEqual(keep, [(1.0, 3.0)])
+
     def test_empty_keep_raises(self):
         path = self._write({"keep": []})
         with self.assertRaises(CleanError):

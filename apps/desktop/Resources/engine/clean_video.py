@@ -114,6 +114,11 @@ def main():
                         "review timeline. Skips analysis, transcription, and the model.")
     args = p.parse_args()
 
+    # --analyze returns early (before the clean), so a --keep-file passed alongside it
+    # would be silently ignored. Fail fast rather than behave ambiguously.
+    if args.analyze and args.keep_file:
+        p.error("--analyze and --keep-file can't be used together.")
+
     if args.ndjson:
         _enable_group_cancel()
         def emit(obj):

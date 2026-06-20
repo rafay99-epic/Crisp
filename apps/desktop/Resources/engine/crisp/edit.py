@@ -4,6 +4,7 @@ This is the cutting half of the engine — it acts on what `detect` found.
 """
 
 import json
+import math
 import os
 import shutil
 import subprocess
@@ -160,10 +161,16 @@ def load_keep_segments(path, duration):
 
     segs = []
     for pair in raw:
+        # Skip anything that isn't a 2-element [start, end] (incl. dict-shaped entries,
+        # which would raise KeyError) rather than failing the whole list.
+        if not isinstance(pair, (list, tuple)) or len(pair) != 2:
+            continue
         try:
             s, e = float(pair[0]), float(pair[1])
-        except (TypeError, ValueError, IndexError):
-            continue                      # skip a malformed entry rather than fail the lot
+        except (TypeError, ValueError):
+            continue
+        if not (math.isfinite(s) and math.isfinite(e)):
+            continue                      # reject nan/inf — they'd clamp to bogus ranges
         s, e = max(0.0, s), min(duration, e)
         if e - s > 0.01:
             segs.append((s, e))
