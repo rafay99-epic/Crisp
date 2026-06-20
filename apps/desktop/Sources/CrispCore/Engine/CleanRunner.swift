@@ -128,34 +128,14 @@ public struct CleanRunner {
 
         Self.log.info("Clean start: \(input.lastPathComponent) [\(parameters.videoCodec)/\(parameters.audioCodec) q=\(parameters.videoQuality) hw=\(parameters.hardwareEncoding) fillers=\(options.removeFillers)]")
 
-        // Drain the engine's own stderr in the background so a flood (e.g. a Python
-        // traceback) can't deadlock the stdout reader by filling the pipe buffer.
-        // This is the safety net for failures that escape before the engine can emit
-        // a structured error — the bundled engine routes its detail to the log file,
-        // so anything here means something went wrong unexpectedly. Uses the async
-        // byte stream (not a blocking `readToEnd`) so it suspends rather than tying
-        // up a cooperative-pool thread — important when several cleans run at once.
-        // Bounded to the most recent lines so a pathological spew can't grow memory
-        // without limit; for a traceback the root cause is at the end anyway.
-        let maxStderrLines = 500
-        let stderrTask = Task<[String], Never> {
-            var lines: [String] = []
-            do {
-                for try await line in errPipe.fileHandleForReading.bytes.lines {
-                    lines.append(line)
-                    // Trim in batches (drop oldest) so this stays amortized O(1).
-                    if lines.count > maxStderrLines * 2 {
-                        lines.removeFirst(lines.count - maxStderrLines)
-                    }
-                }
-            } catch {
-                // Best-effort: the clean's own result/error is what actually matters.
-            }
-            if lines.count > maxStderrLines {
-                lines.removeFirst(lines.count - maxStderrLines)
-            }
-            return lines
-        }
+        // Drain the engine's stderr via a readabilityHandler (NOT a second
+        // `bytes.lines`): two concurrent FileHandle.AsyncBytes readers contend on a
+        // shared serial queue, and the stderr reader — blocked on a normally-empty
+        // pipe — would starve the stdout reader, delivering all progress in one burst
+        // at EOF (the live progress bar stayed frozen at 0%). A readabilityHandler is
+        // an independent source, so stdout streams; it still drains stderr promptly so
+        // a flood can't fill the pipe and deadlock the writer.
+        let stderrDrain = StderrDrain(errPipe.fileHandleForReading)
 
         do {
             let result = try await withTaskCancellationHandler {
@@ -213,7 +193,7 @@ public struct CleanRunner {
                 // NSInvalidArgumentException ("task not launched") that crashes the app.
                 if proc.isRunning { proc.terminate() }
             }
-            Self.logEngineStderr(await stderrTask.value)
+            Self.logEngineStderr(stderrDrain.finish())
             Self.log.info("Clean done: \(input.lastPathComponent) → \(URL(fileURLWithPath: result.output).lastPathComponent) (saved \(Int(result.savedSeconds))s, \(result.fillers) fillers, \(result.pauses) pauses)")
             // Record to History from this shared path, so the queue, watch-folder
             // agent, App Intent, and menu-bar drop all land in one timeline.
@@ -222,7 +202,7 @@ public struct CleanRunner {
             }
             return result
         } catch {
-            Self.logEngineStderr(await stderrTask.value)
+            Self.logEngineStderr(stderrDrain.finish())
             if error is CancellationError {
                 Self.log.notice("Clean cancelled: \(input.lastPathComponent)")
             } else {

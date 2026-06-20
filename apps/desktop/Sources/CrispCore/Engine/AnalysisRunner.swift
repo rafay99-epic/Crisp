@@ -41,19 +41,12 @@ public struct AnalysisRunner {
         proc.standardOutput = outPipe
         proc.standardError = errPipe
 
-        // Drain stderr concurrently (bounded) so a flood can't deadlock the stdout
-        // reader by filling the pipe buffer — same safety net as CleanRunner. The
-        // engine routes its detail to the log file, so anything here is unexpected.
-        let stderrTask = Task<[String], Never> {
-            var lines: [String] = []
-            do {
-                for try await line in errPipe.fileHandleForReading.bytes.lines {
-                    lines.append(line)
-                    if lines.count > 400 { lines.removeFirst(lines.count - 200) }
-                }
-            } catch { /* best-effort */ }
-            return lines
-        }
+        // Drain stderr via a readabilityHandler, not a second `bytes.lines`: two
+        // concurrent FileHandle.AsyncBytes readers contend on a shared serial queue,
+        // so a stderr reader blocked on an empty pipe stalls the stdout reader until
+        // EOF (see StderrDrain). Same safety net (drains a flood promptly), without
+        // starving the stdout stream.
+        let stderrDrain = StderrDrain(errPipe.fileHandleForReading)
 
         do {
             let analysis = try await withTaskCancellationHandler { () throws -> VideoAnalysis in
@@ -101,10 +94,10 @@ public struct AnalysisRunner {
                 // launched"), an uncaught ObjC exception that crashes the app.
                 if proc.isRunning { proc.terminate() }
             }
-            Self.logStderr(await stderrTask.value)
+            Self.logStderr(stderrDrain.finish())
             return analysis
         } catch {
-            Self.logStderr(await stderrTask.value)
+            Self.logStderr(stderrDrain.finish())
             throw error
         }
     }
