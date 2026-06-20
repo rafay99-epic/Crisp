@@ -3,8 +3,9 @@ import AppKit
 import ServiceManagement
 import CrispCore
 
-/// The ⌘, Settings window. Edits the four numeric cutting knobs used by the
-/// "Custom" strength; values persist to `~/.crisp*/config/settings.json`.
+/// The ⌘, Settings window. Organized into native preference tabs (Cutting, Output,
+/// Presets, Automation, General) rather than one long scroll, so each group of
+/// options is scannable on its own. Values persist to `~/.crisp*/config/settings.json`.
 struct SettingsView: View {
     @Bindable var settings: EngineSettings
     @Bindable var updater: Updater
@@ -29,56 +30,37 @@ struct SettingsView: View {
             : Updater.currentVersion
     }
 
-    /// The action row: a Check button (with inline result), the install prompt when
-    /// an update is found, or progress while it downloads/installs. All three drive
-    /// the same shared `Updater` the launch check and menu command use.
-    @ViewBuilder private var updateRow: some View {
-        switch updater.status {
-        case .available(let release):
-            LabeledContent {
-                Button("Install & Relaunch") { Task { await updater.downloadAndInstall() } }
-            } label: {
-                Label("Update available \u{2014} \(release.displayVersion)", systemImage: "arrow.down.circle.fill")
-                    .foregroundStyle(.tint)
-            }
-        case .downloading, .installing:
-            HStack(spacing: 8) {
-                ProgressView().controlSize(.small)
-                Text(updater.status == .downloading ? "Downloading update\u{2026}" : "Installing update\u{2026}")
-                    .foregroundStyle(.secondary)
-            }
-        default:
-            LabeledContent {
-                switch updater.status {
-                case .checking:
-                    ProgressView().controlSize(.small)
-                case .upToDate:
-                    Label("Up to date", systemImage: "checkmark.circle.fill").foregroundStyle(.secondary)
-                default:
-                    EmptyView()
-                }
-            } label: {
-                Button("Check for Updates\u{2026}") {
-                    Task { await updater.check(userInitiated: true) }
-                }
-                .disabled(!Channel.current.updatesEnabled || updater.isBusy)
-            }
+    // MARK: - Window
+
+    var body: some View {
+        TabView {
+            tab { cuttingSection; speechModelSection }
+                .tabItem { Label("Cutting", systemImage: "scissors") }
+
+            tab { encodingSection; captionsSection; outputLocationSection; originalsSection }
+                .tabItem { Label("Output", systemImage: "film.stack") }
+
+            tab { presetsSection }
+                .tabItem { Label("Presets", systemImage: "square.stack.3d.up") }
+
+            tab { watchSection; menuBarSection }
+                .tabItem { Label("Automation", systemImage: "wand.and.rays") }
+
+            tab { performanceSection; softwareUpdateSection; diagnosticsSection; restoreDefaultsSection }
+                .tabItem { Label("General", systemImage: "gearshape") }
         }
+        .frame(width: 520, height: 560)
+        .onAppear { watchAgent.refresh(); snapshot = SystemProbe.snapshot() }
     }
 
-    /// Footer: a check error (if any), the disabled note for Dev, the last-checked
-    /// time, or the default "checks at launch" line.
-    @ViewBuilder private var updateFooter: some View {
-        if case .failed(let message) = updater.status {
-            Text(message).foregroundStyle(.red)
-        } else if !Channel.current.updatesEnabled {
-            Text("Automatic updates are off for this build.")
-        } else if let date = updater.lastChecked {
-            Text("Last checked \(date.formatted(date: .abbreviated, time: .shortened)).")
-        } else {
-            Text("Crisp also checks automatically each time it launches.")
-        }
+    /// One settings tab: a grouped Form of the given sections. Centralizes the style
+    /// so every tab matches.
+    private func tab<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        Form { content() }
+            .formStyle(.grouped)
     }
+
+    // MARK: - Cutting
 
     /// Describes one slider row (keeps the row builder to a single argument).
     private struct Knob {
@@ -90,166 +72,127 @@ struct SettingsView: View {
         var decimals: Int = 2
     }
 
-    var body: some View {
-        Form {
-            Section {
-                row(Knob(title: "Pause threshold", help: "Cut silences longer than this.",
-                         unit: "s", range: 0.1...2.0, step: 0.05), $settings.pauseThreshold)
-                row(Knob(title: "Silence floor", help: "Audio quieter than this counts as silence.",
-                         unit: "dB", range: -45...(-15), step: 1, decimals: 0), $settings.silenceFloorDB)
-                row(Knob(title: "Breathing room", help: "Padding kept on each side of a cut.",
-                         unit: "s", range: 0...0.5, step: 0.01), $settings.breathingRoom)
-                row(Knob(title: "Minimum keep", help: "Drop kept fragments shorter than this.",
-                         unit: "s", range: 0...0.5, step: 0.01), $settings.minKeep)
-            } header: {
-                Text("Custom cutting")
-            } footer: {
-                Text("Applied when \u{201C}How much to cut\u{201D} is set to Custom.")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-
-            Section {
-                Picker("Output format", selection: $settings.outputContainer) {
-                    ForEach(OutputContainer.allCases) { Text($0.label).tag($0.rawValue) }
-                }
-                Text(isWebM
-                     ? "WebM always uses VP9 video and Opus audio. It\u{2019}s the most web-friendly format, but slower to encode (no hardware VP9 encoder)."
-                     : "\u{201C}Same as input\u{201D} keeps each video\u{2019}s original container \u{2014} an .mkv stays .mkv, an .mp4 stays .mp4.")
-                    .font(.caption).foregroundStyle(.secondary)
-
-                // WebM dictates its own codecs, so these don't apply when it's chosen.
-                Group {
-                    Picker("Video format", selection: $settings.videoCodec) {
-                        ForEach(VideoCodec.allCases) { Text($0.label).tag($0.rawValue) }
-                    }
-                    Toggle("Hardware acceleration", isOn: $settings.hardwareEncoding)
-                    Text("Apple VideoToolbox \u{2014} faster, but software gives slightly better quality per file size.")
-                        .font(.caption).foregroundStyle(.secondary)
-                    Picker("Audio format", selection: $settings.audioCodec) {
-                        ForEach(AudioCodec.allCases) { Text($0.label).tag($0.rawValue) }
-                    }
-                }
-                .disabled(isWebM)
-
-                // Quality (VP9's CRF too) and bitrate (Opus too) always apply.
-                Picker("Quality", selection: $settings.videoQuality) {
-                    ForEach(VideoQuality.allCases) { Text($0.label).tag($0.rawValue) }
-                }
-                Picker("Audio bitrate", selection: $settings.audioBitrateKbps) {
-                    ForEach([128, 160, 192, 256], id: \.self) { Text("\($0) kbps").tag($0) }
-                }
-            } header: {
-                Text("Encoding")
-            } footer: {
-                Text("Applied to every clean. Cuts are always re-encoded, so these set the output quality.")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-
-            speechModelSection
-
-            presetsSection
-
-            performanceSection
-
-            Section {
-                LabeledContent("Cleaned files") {
-                    HStack(spacing: 8) {
-                        Text(outputLocationName)
-                            .foregroundStyle(settings.outputDirectory.isEmpty ? .secondary : .primary)
-                            .lineLimit(1).truncationMode(.middle)
-                        Button("Choose\u{2026}") { chooseOutputFolder() }
-                            .controlSize(.small)
-                    }
-                }
-                if !settings.outputDirectory.isEmpty {
-                    Button("Use the source video\u{2019}s folder") { settings.outputDirectory = "" }
-                        .controlSize(.small)
-                }
-                Toggle("Also export separate video & audio", isOn: $settings.splitTracks)
-                if settings.splitTracks {
-                    Picker("Audio track format", selection: $settings.splitAudioFormat) {
-                        ForEach(SplitAudioFormat.allCases) { Text($0.label).tag($0.rawValue) }
-                    }
-                }
-            } header: {
-                Text("Output location")
-            } footer: {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(settings.outputDirectory.isEmpty
-                         ? "Cleaned videos are saved next to the original \u{2014} the same folder you picked the video from."
-                         : "Cleaned videos are saved into this folder (e.g. a NAS). The original stays where it is.")
-                    Text(settings.splitTracks
-                         ? "Alongside each cleaned file, Crisp also writes a video-only and an audio-only copy \u{2014} so you can animate the picture while keeping the cleaned voiceover."
-                         : "Turn on \u{201C}separate video & audio\u{201D} to also get the picture and sound as their own files for editing.")
-                }
+    @ViewBuilder private var cuttingSection: some View {
+        Section {
+            row(Knob(title: "Pause threshold", help: "Cut silences longer than this.",
+                     unit: "s", range: 0.1...2.0, step: 0.05), $settings.pauseThreshold)
+            row(Knob(title: "Silence floor", help: "Audio quieter than this counts as silence.",
+                     unit: "dB", range: -45...(-15), step: 1, decimals: 0), $settings.silenceFloorDB)
+            row(Knob(title: "Breathing room", help: "Padding kept on each side of a cut.",
+                     unit: "s", range: 0...0.5, step: 0.01), $settings.breathingRoom)
+            row(Knob(title: "Minimum keep", help: "Drop kept fragments shorter than this.",
+                     unit: "s", range: 0...0.5, step: 0.01), $settings.minKeep)
+        } header: {
+            Text("Custom cutting")
+        } footer: {
+            Text("Applied when \u{201C}How much to cut\u{201D} is set to Custom.")
                 .font(.caption).foregroundStyle(.secondary)
-            }
+        }
+    }
 
-            Section {
-                Picker("Subtitle files", selection: $settings.captionsFormat) {
-                    ForEach(CaptionFormat.allCases) { Text($0.label).tag($0.rawValue) }
+    // MARK: - Output / Encoding
+
+    @ViewBuilder private var encodingSection: some View {
+        Section {
+            Picker("Output format", selection: $settings.outputContainer) {
+                ForEach(OutputContainer.allCases) { Text($0.label).tag($0.rawValue) }
+            }
+            Text(isWebM
+                 ? "WebM always uses VP9 video and Opus audio. It\u{2019}s the most web-friendly format, but slower to encode (no hardware VP9 encoder)."
+                 : "\u{201C}Same as input\u{201D} keeps each video\u{2019}s original container \u{2014} an .mkv stays .mkv, an .mp4 stays .mp4.")
+                .font(.caption).foregroundStyle(.secondary)
+
+            // WebM dictates its own codecs, so these don't apply when it's chosen.
+            Group {
+                Picker("Video format", selection: $settings.videoCodec) {
+                    ForEach(VideoCodec.allCases) { Text($0.label).tag($0.rawValue) }
                 }
-            } header: {
-                Text("Captions")
-            } footer: {
-                Text(settings.captionsFormat == "none"
-                     ? "Turn this on to also write a subtitle file (.srt or .vtt) next to each cleaned video \u{2014} ready for YouTube, Premiere, or the web. Captions are transcribed, so they need the speech model."
-                     : "Crisp writes the subtitles re-timed to the cut video, so they stay in sync after pauses and fillers are removed. Filler words are left out of the captions.")
+                Toggle("Hardware acceleration", isOn: $settings.hardwareEncoding)
+                Text("Apple VideoToolbox \u{2014} faster, but software gives slightly better quality per file size.")
                     .font(.caption).foregroundStyle(.secondary)
-            }
-
-            Section {
-                Toggle("Keep a backup of the original", isOn: $settings.backupOriginal)
-            } header: {
-                Text("Originals")
-            } footer: {
-                Text(settings.backupOriginal
-                     ? "Before each clean, your original is copied into a dated folder under \u{201C}Originals\u{201D} in Crisp\u{2019}s home folder. Crisp never edits or deletes your source file."
-                     : "Crisp won\u{2019}t copy your original. It still never edits or deletes your source file \u{2014} only a new cleaned copy is written.")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-
-            watchSection
-
-            Section {
-                LabeledContent("Version") {
-                    Text(versionString).foregroundStyle(.secondary)
+                Picker("Audio format", selection: $settings.audioCodec) {
+                    ForEach(AudioCodec.allCases) { Text($0.label).tag($0.rawValue) }
                 }
-                updateRow
-            } header: {
-                Text("Software Update")
-            } footer: {
-                updateFooter.font(.caption).foregroundStyle(.secondary)
             }
+            .disabled(isWebM)
 
-            Section {
-                Toggle("Show Crisp in the menu bar", isOn: $settings.menuBarEnabled)
-            } header: {
-                Text("Menu Bar")
-            } footer: {
-                Text("Adds a menu-bar item with a drop zone \u{2014} drop a video to clean it with your default recipe without opening this window.")
-                    .font(.caption).foregroundStyle(.secondary)
+            // Quality (VP9's CRF too) and bitrate (Opus too) always apply.
+            Picker("Quality", selection: $settings.videoQuality) {
+                ForEach(VideoQuality.allCases) { Text($0.label).tag($0.rawValue) }
             }
+            Picker("Audio bitrate", selection: $settings.audioBitrateKbps) {
+                ForEach([128, 160, 192, 256], id: \.self) { Text("\($0) kbps").tag($0) }
+            }
+        } header: {
+            Text("Encoding")
+        } footer: {
+            Text("Applied to every clean. Cuts are always re-encoded, so these set the output quality.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
 
-            Section {
-                LabeledContent("Logs") {
-                    Button("Reveal in Finder") { Diagnostics.revealLogs() }
+    @ViewBuilder private var captionsSection: some View {
+        Section {
+            Picker("Subtitle files", selection: $settings.captionsFormat) {
+                ForEach(CaptionFormat.allCases) { Text($0.label).tag($0.rawValue) }
+            }
+        } header: {
+            Text("Captions")
+        } footer: {
+            Text(settings.captionsFormat == "none"
+                 ? "Turn this on to also write a subtitle file (.srt or .vtt) next to each cleaned video \u{2014} ready for YouTube, Premiere, or the web. Captions are transcribed, so they need the speech model."
+                 : "Crisp writes the subtitles re-timed to the cut video, so they stay in sync after pauses and fillers are removed. Filler words are left out of the captions.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder private var outputLocationSection: some View {
+        Section {
+            LabeledContent("Cleaned files") {
+                HStack(spacing: 8) {
+                    Text(outputLocationName)
+                        .foregroundStyle(settings.outputDirectory.isEmpty ? .secondary : .primary)
+                        .lineLimit(1).truncationMode(.middle)
+                    Button("Choose\u{2026}") { chooseOutputFolder() }
                         .controlSize(.small)
                 }
-            } header: {
-                Text("Diagnostics")
-            } footer: {
-                Text("Crisp keeps a daily log of each clean \u{2014} and anything that goes wrong \u{2014} in \(logsPathDisplay). If you hit a problem, share today\u{2019}s log.")
-                    .font(.caption).foregroundStyle(.secondary)
             }
-
-            Section {
-                Button("Restore Defaults") { settings.restoreDefaults() }
+            if !settings.outputDirectory.isEmpty {
+                Button("Use the source video\u{2019}s folder") { settings.outputDirectory = "" }
+                    .controlSize(.small)
             }
+            Toggle("Also export separate video & audio", isOn: $settings.splitTracks)
+            if settings.splitTracks {
+                Picker("Audio track format", selection: $settings.splitAudioFormat) {
+                    ForEach(SplitAudioFormat.allCases) { Text($0.label).tag($0.rawValue) }
+                }
+            }
+        } header: {
+            Text("Output location")
+        } footer: {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(settings.outputDirectory.isEmpty
+                     ? "Cleaned videos are saved next to the original \u{2014} the same folder you picked the video from."
+                     : "Cleaned videos are saved into this folder (e.g. a NAS). The original stays where it is.")
+                Text(settings.splitTracks
+                     ? "Alongside each cleaned file, Crisp also writes a video-only and an audio-only copy \u{2014} so you can animate the picture while keeping the cleaned voiceover."
+                     : "Turn on \u{201C}separate video & audio\u{201D} to also get the picture and sound as their own files for editing.")
+            }
+            .font(.caption).foregroundStyle(.secondary)
         }
-        .formStyle(.grouped)
-        .frame(width: 460, height: 620)
-        .onAppear { watchAgent.refresh(); snapshot = SystemProbe.snapshot() }
+    }
+
+    @ViewBuilder private var originalsSection: some View {
+        Section {
+            Toggle("Keep a backup of the original", isOn: $settings.backupOriginal)
+        } header: {
+            Text("Originals")
+        } footer: {
+            Text(settings.backupOriginal
+                 ? "Before each clean, your original is copied into a dated folder under \u{201C}Originals\u{201D} in Crisp\u{2019}s home folder. Crisp never edits or deletes your source file."
+                 : "Crisp won\u{2019}t copy your original. It still never edits or deletes your source file \u{2014} only a new cleaned copy is written.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
     }
 
     // MARK: - Speech model
@@ -373,7 +316,7 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - Output location
+    // MARK: - Output location helpers
 
     private var outputLocationName: String {
         settings.outputDirectory.isEmpty
@@ -387,13 +330,20 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - Diagnostics
+    // MARK: - Automation: Menu bar
 
-    private var logsPathDisplay: String {
-        (Channel.current.logsDirectory.path as NSString).abbreviatingWithTildeInPath
+    @ViewBuilder private var menuBarSection: some View {
+        Section {
+            Toggle("Show Crisp in the menu bar", isOn: $settings.menuBarEnabled)
+        } header: {
+            Text("Menu Bar")
+        } footer: {
+            Text("Adds a menu-bar item with a drop zone \u{2014} drop a video to clean it with your default recipe without opening this window.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
     }
 
-    // MARK: - Watch folder
+    // MARK: - Automation: Watch folder
 
     /// Toggling this both saves the preference and registers/unregisters the
     /// background LaunchAgent, so "on" really means "running in the background".
@@ -461,6 +411,103 @@ struct SettingsView: View {
             settings.watchFolderPath = path
         }
     }
+
+    // MARK: - General: Software update
+
+    /// The action row: a Check button (with inline result), the install prompt when
+    /// an update is found, or progress while it downloads/installs. All three drive
+    /// the same shared `Updater` the launch check and menu command use.
+    @ViewBuilder private var updateRow: some View {
+        switch updater.status {
+        case .available(let release):
+            LabeledContent {
+                Button("Install & Relaunch") { Task { await updater.downloadAndInstall() } }
+            } label: {
+                Label("Update available \u{2014} \(release.displayVersion)", systemImage: "arrow.down.circle.fill")
+                    .foregroundStyle(.tint)
+            }
+        case .downloading, .installing:
+            HStack(spacing: 8) {
+                ProgressView().controlSize(.small)
+                Text(updater.status == .downloading ? "Downloading update\u{2026}" : "Installing update\u{2026}")
+                    .foregroundStyle(.secondary)
+            }
+        default:
+            LabeledContent {
+                switch updater.status {
+                case .checking:
+                    ProgressView().controlSize(.small)
+                case .upToDate:
+                    Label("Up to date", systemImage: "checkmark.circle.fill").foregroundStyle(.secondary)
+                default:
+                    EmptyView()
+                }
+            } label: {
+                Button("Check for Updates\u{2026}") {
+                    Task { await updater.check(userInitiated: true) }
+                }
+                .disabled(!Channel.current.updatesEnabled || updater.isBusy)
+            }
+        }
+    }
+
+    /// Footer: a check error (if any), the disabled note for Dev, the last-checked
+    /// time, or the default "checks at launch" line.
+    @ViewBuilder private var updateFooter: some View {
+        if case .failed(let message) = updater.status {
+            Text(message).foregroundStyle(.red)
+        } else if !Channel.current.updatesEnabled {
+            Text("Automatic updates are off for this build.")
+        } else if let date = updater.lastChecked {
+            Text("Last checked \(date.formatted(date: .abbreviated, time: .shortened)).")
+        } else {
+            Text("Crisp also checks automatically each time it launches.")
+        }
+    }
+
+    @ViewBuilder private var softwareUpdateSection: some View {
+        Section {
+            LabeledContent("Version") {
+                Text(versionString).foregroundStyle(.secondary)
+            }
+            updateRow
+        } header: {
+            Text("Software Update")
+        } footer: {
+            updateFooter.font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    // MARK: - General: Diagnostics + reset
+
+    @ViewBuilder private var diagnosticsSection: some View {
+        Section {
+            LabeledContent("Logs") {
+                Button("Reveal in Finder") { Diagnostics.revealLogs() }
+                    .controlSize(.small)
+            }
+        } header: {
+            Text("Diagnostics")
+        } footer: {
+            Text("Crisp keeps a daily log of each clean \u{2014} and anything that goes wrong \u{2014} in \(logsPathDisplay). If you hit a problem, share today\u{2019}s log.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder private var restoreDefaultsSection: some View {
+        Section {
+            Button("Restore Defaults") { settings.restoreDefaults() }
+        } footer: {
+            Text("Resets the cutting, encoding, output, and backup options to their defaults. Presets and watch-folder settings are left alone.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    private var logsPathDisplay: String {
+        (Channel.current.logsDirectory.path as NSString).abbreviatingWithTildeInPath
+    }
+
+    // MARK: - Cutting slider row
 
     private func row(_ knob: Knob, _ value: Binding<Double>) -> some View {
         let readout = String(format: "%.\(knob.decimals)f", value.wrappedValue) + " " + knob.unit
