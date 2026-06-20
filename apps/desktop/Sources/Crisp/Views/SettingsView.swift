@@ -498,7 +498,7 @@ struct SettingsView: View {
         Section {
             Button("Restore Defaults") { settings.restoreDefaults() }
         } footer: {
-            Text("Resets the cutting, encoding, output, and backup options to their defaults. Presets and watch-folder settings are left alone.")
+            Text("Resets the cutting, encoding, output, captions, and backup options to their defaults. Your presets, speech model, performance, and automation (watch folder, menu bar) settings are left unchanged.")
                 .font(.caption).foregroundStyle(.secondary)
         }
     }
