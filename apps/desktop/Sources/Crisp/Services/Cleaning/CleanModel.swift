@@ -234,12 +234,26 @@ final class CleanModel {
 
     private func cleanOne(id: QueueItem.ID, modelPath: String?,
                           removeFillers: Bool, parameters: CleanParameters) async throws -> CleanResult {
-        guard let url = queue.first(where: { $0.id == id })?.url else { throw CancellationError() }
+        guard let item = queue.first(where: { $0.id == id }) else { throw CancellationError() }
+        let url = item.url
         let backupDir = parameters.backupOriginal ? CleanRunner.backupDirectory() : nil
-        let options = CleanRunner.Options(modelPath: modelPath,
+
+        // A reviewed keep-list (from the edit timeline) renders exactly those segments:
+        // serialize it to a temp JSON the engine reads, and skip the model entirely
+        // (keep-file mode does no detection/transcription). The temp file is removed
+        // once the run finishes.
+        // Surface a write failure (don't `try?`): for a reviewed run, silently dropping
+        // the keep-file would clean with freshly-detected cuts instead of the segments
+        // the user approved. `map` is a no-op (no throw) for a normal, non-reviewed run.
+        let tempKeepURL = try item.editedKeep.map { try Self.writeKeepFile($0) }
+        let keepFilePath = tempKeepURL?.path
+        defer { if let tempKeepURL { try? FileManager.default.removeItem(at: tempKeepURL) } }
+
+        let options = CleanRunner.Options(modelPath: keepFilePath == nil ? modelPath : nil,
                                           removeFillers: removeFillers,
                                           backupDirectory: backupDir,
-                                          waveformBuckets: 120)
+                                          waveformBuckets: keepFilePath == nil ? 120 : 0,
+                                          keepFilePath: keepFilePath)
         return try await CleanRunner().run(input: url, parameters: parameters, options: options) { [weak self] event in
             guard case .progress(let fraction, _) = event else { return }
             Task { @MainActor in
@@ -249,6 +263,40 @@ final class CleanModel {
                 self.update(id) { $0.progress = max(0, fraction) }
             }
         }
+    }
+
+    /// Clean a single reviewed file with the user's hand-edited keep-list — the
+    /// "Clean with these cuts" action from the review timeline. Unlike `start`, this
+    /// touches only the one item and needs no speech model (the engine renders the
+    /// given segments directly), so it runs immediately regardless of model state.
+    func cleanReviewed(_ id: QueueItem.ID, keep: [ClosedRange<Double>],
+                       parameters: CleanParameters) async {
+        guard !isRunning,
+              let idx = queue.firstIndex(where: { $0.id == id }),
+              queue[idx].status == .waiting else { return }
+        queue[idx].editedKeep = keep
+        isRunning = true
+        cancelled = false
+        errorMessage = nil
+        let work = Task { @MainActor in
+            await self.runOne(id: id, modelPath: nil, removeFillers: false, parameters: parameters)
+        }
+        runTask = work
+        await work.value
+        runTask = nil
+        isRunning = false
+        finishStatus()
+    }
+
+    /// Serialize a keep-list to a temp `{"keep": [[start, end], …]}` JSON file the
+    /// engine reads via `--keep-file`. Caller removes it after the run.
+    private static func writeKeepFile(_ keep: [ClosedRange<Double>]) throws -> URL {
+        let pairs = keep.map { [$0.lowerBound, $0.upperBound] }
+        let data = try JSONSerialization.data(withJSONObject: ["keep": pairs])
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("crisp-keep-\(UUID().uuidString).json")
+        try data.write(to: url, options: .atomic)
+        return url
     }
 
     // MARK: - Helpers

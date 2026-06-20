@@ -2,12 +2,16 @@
 words into the list of segments to KEEP. This is the heart of the engine, and
 it's pure arithmetic, so it's the most valuable thing to pin down with tests."""
 
+import json
 import os
 import tempfile
 import unittest
 from pathlib import Path
 
-from crisp.edit import _output_owner, build_keep_segments, tag_output_source, unique_output_path
+from crisp.edit import (
+    _output_owner, build_keep_segments, load_keep_segments, tag_output_source, unique_output_path,
+)
+from crisp.errors import CleanError
 
 
 def word(text, start, end):
@@ -120,6 +124,64 @@ class BuildKeepSegmentsTests(unittest.TestCase):
             silences=[(3.0, 4.0)], duration=10.0, keep_pause=0.1, min_keep=0.05)
         self.assertEqual(stats["fillers"], 2)
         self.assertEqual(stats["pauses"], 1)
+
+
+class LoadKeepSegmentsTests(unittest.TestCase):
+    """The review-timeline keep-list loader: validate, clamp, sort, merge — and
+    never silently render the whole video on a broken edit list."""
+
+    def _write(self, obj):
+        f = tempfile.NamedTemporaryFile("w", suffix=".json", delete=False)
+        json.dump(obj, f)
+        f.close()
+        self.addCleanup(os.unlink, f.name)
+        return f.name
+
+    def test_valid_sorts_and_clamps(self):
+        path = self._write({"keep": [[5.0, 8.0], [0.0, 2.0]]})
+        keep = load_keep_segments(path, duration=10.0)
+        self.assertEqual(keep, [(0.0, 2.0), (5.0, 8.0)])
+
+    def test_clamps_to_duration_and_zero(self):
+        path = self._write({"keep": [[-1.0, 3.0], [8.0, 99.0]]})
+        keep = load_keep_segments(path, duration=10.0)
+        self.assertEqual(keep, [(0.0, 3.0), (8.0, 10.0)])
+
+    def test_merges_overlapping(self):
+        path = self._write({"keep": [[0.0, 4.0], [3.5, 6.0]]})
+        keep = load_keep_segments(path, duration=10.0)
+        self.assertEqual(keep, [(0.0, 6.0)])
+
+    def test_skips_malformed_entries_but_keeps_valid(self):
+        path = self._write({"keep": [["x", 2], [1.0, 3.0], [5.0]]})
+        keep = load_keep_segments(path, duration=10.0)
+        self.assertEqual(keep, [(1.0, 3.0)])
+
+    def test_skips_dict_and_nonfinite_entries(self):
+        # Dict-shaped entries (would KeyError) and nan/inf are skipped, not crashed on.
+        path = self._write({"keep": [{"start": 0, "end": 2}, ["nan", "inf"],
+                                     [float("inf"), 5.0], [1.0, 3.0]]})
+        keep = load_keep_segments(path, duration=10.0)
+        self.assertEqual(keep, [(1.0, 3.0)])
+
+    def test_empty_keep_raises(self):
+        path = self._write({"keep": []})
+        with self.assertRaises(CleanError):
+            load_keep_segments(path, duration=10.0)
+
+    def test_all_zero_length_raises(self):
+        path = self._write({"keep": [[2.0, 2.0], [5.0, 5.005]]})
+        with self.assertRaises(CleanError):
+            load_keep_segments(path, duration=10.0)
+
+    def test_missing_keep_key_raises(self):
+        path = self._write({"nope": 1})
+        with self.assertRaises(CleanError):
+            load_keep_segments(path, duration=10.0)
+
+    def test_unreadable_file_raises(self):
+        with self.assertRaises(CleanError):
+            load_keep_segments("/no/such/file.json", duration=10.0)
 
 
 if __name__ == "__main__":

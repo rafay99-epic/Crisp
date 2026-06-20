@@ -69,6 +69,65 @@ public enum CutPreview {
         return Result(keep: keep, pauseCount: pauseCount, removedSeconds: removed)
     }
 
+    /// One removable region on the review timeline — a stretch the cut would drop.
+    /// `enabled` means it will be removed; the user toggles it off to keep that
+    /// stretch. `id` is the stable position in the original detected order.
+    public struct CutRegion: Identifiable, Equatable, Sendable {
+        public let id: Int
+        public let start: Double
+        public let end: Double
+        public var enabled: Bool
+        public init(id: Int, start: Double, end: Double, enabled: Bool = true) {
+            self.id = id
+            self.start = start
+            self.end = end
+            self.enabled = enabled
+        }
+        public var duration: Double { max(0, end - start) }
+    }
+
+    /// The removed regions implied by a keep-list over `[0, duration]`: the gaps
+    /// between kept ranges plus any leading/trailing trim. These become the editable
+    /// cuts in the review timeline.
+    public static func removedRegions(keep: [ClosedRange<Double>],
+                                      duration: Double) -> [(Double, Double)] {
+        guard duration > 0 else { return [] }
+        let sorted = keep.sorted { $0.lowerBound < $1.lowerBound }
+        var cuts: [(Double, Double)] = []
+        var cursor = 0.0
+        for r in sorted {
+            if r.lowerBound - cursor > 0.01 { cuts.append((cursor, r.lowerBound)) }
+            cursor = max(cursor, r.upperBound)
+        }
+        if duration - cursor > 0.01 { cuts.append((cursor, duration)) }
+        return cuts
+    }
+
+    /// Build the editable cut regions (all enabled) from an initial keep-list.
+    public static func cutRegions(keep: [ClosedRange<Double>], duration: Double) -> [CutRegion] {
+        removedRegions(keep: keep, duration: duration).enumerated().map { i, r in
+            CutRegion(id: i, start: r.0, end: r.1)
+        }
+    }
+
+    /// Recompute the keep-list from the current cut toggles: `[0, duration]` minus
+    /// every *enabled* region (disabled cuts are kept), dropping empty fragments.
+    /// This is exactly what the engine renders via `--keep-file`.
+    public static func keep(forCuts cuts: [CutRegion], duration: Double) -> [ClosedRange<Double>] {
+        guard duration > 0 else { return [] }
+        let active = cuts.filter { $0.enabled && $0.end - $0.start > 0.01 }
+            .map { (max(0, $0.start), min(duration, $0.end)) }
+            .sorted { $0.0 < $1.0 }
+        var keep: [ClosedRange<Double>] = []
+        var cursor = 0.0
+        for (s, e) in active {
+            if s - cursor > 0.01 { keep.append(cursor...s) }
+            cursor = max(cursor, e)
+        }
+        if duration - cursor > 0.01 { keep.append(cursor...duration) }
+        return keep
+    }
+
     /// A per-bucket "removed" mask aligned to a waveform's `bucketCount` peaks: a
     /// bucket is removed when its center time falls outside every kept range. Mirrors
     /// `crisp/waveform.py:_removed_flags` so the preview waveform dims exactly the

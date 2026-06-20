@@ -186,6 +186,19 @@ struct SettingsView: View {
             }
 
             Section {
+                Picker("Subtitle files", selection: $settings.captionsFormat) {
+                    ForEach(CaptionFormat.allCases) { Text($0.label).tag($0.rawValue) }
+                }
+            } header: {
+                Text("Captions")
+            } footer: {
+                Text(settings.captionsFormat == "none"
+                     ? "Turn this on to also write a subtitle file (.srt or .vtt) next to each cleaned video \u{2014} ready for YouTube, Premiere, or the web. Captions are transcribed, so they need the speech model."
+                     : "Crisp writes the subtitles re-timed to the cut video, so they stay in sync after pauses and fillers are removed. Filler words are left out of the captions.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
+            Section {
                 Toggle("Keep a backup of the original", isOn: $settings.backupOriginal)
             } header: {
                 Text("Originals")

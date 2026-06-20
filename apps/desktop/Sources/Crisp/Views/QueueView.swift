@@ -11,13 +11,15 @@ struct QueueView: View {
     @Bindable var player: PreviewPlayer
 
     @State private var previewItem: QueueItem?
+    @State private var reviewItem: QueueItem?
 
     var body: some View {
         List {
             Section {
                 ForEach($model.queue) { $item in
                     QueueRow(item: $item, model: model, player: player, presets: settings.presets,
-                             onPreview: { previewItem = item })
+                             onPreview: { previewItem = item },
+                             onReview: { reviewItem = item })
                         .listRowSeparator(.hidden)
                 }
                 .onMove(perform: model.moveWaiting)
@@ -36,6 +38,9 @@ struct QueueView: View {
         .animation(.snappy, value: model.queue.count)   // animate row insert/remove
         .sheet(item: $previewItem) { item in
             PreviewSheet(item: item, model: model, settings: settings)
+        }
+        .sheet(item: $reviewItem) { item in
+            ReviewSheet(item: item, model: model, settings: settings)
         }
     }
 
@@ -58,6 +63,7 @@ private struct QueueRow: View {
     let player: PreviewPlayer
     let presets: [Preset]
     let onPreview: () -> Void
+    let onReview: () -> Void
 
     /// The cleaned file, once it exists — used for drag-out, reveal, preview, copy.
     private var outputURL: URL? {
@@ -156,6 +162,9 @@ private struct QueueRow: View {
         switch item.status {
         case .waiting:
             HStack(spacing: 10) {
+                Button { onReview() } label: { Image(systemName: "slider.horizontal.below.rectangle") }
+                    .buttonStyle(.plain).foregroundStyle(.tint)
+                    .help("Review & edit cuts")
                 Button { onPreview() } label: { Image(systemName: "waveform") }
                     .buttonStyle(.plain).foregroundStyle(.tint)
                     .help("Preview cuts")
@@ -224,6 +233,13 @@ private struct QueueRow: View {
             if let audio = stemURL(item.result?.audioOutput) {
                 Button { reveal(audio) } label: { Label("Show Audio Track", systemImage: "waveform") }
             }
+            // The subtitle sidecars, when captions were exported.
+            if let srt = stemURL(item.result?.srtOutput) {
+                Button { reveal(srt) } label: { Label("Show Subtitles (.srt)", systemImage: "captions.bubble") }
+            }
+            if let vtt = stemURL(item.result?.vttOutput) {
+                Button { reveal(vtt) } label: { Label("Show Subtitles (.vtt)", systemImage: "captions.bubble") }
+            }
             // The backed-up pristine original, when one was kept.
             if let backup = item.result?.backup, !backup.isEmpty {
                 Divider()
@@ -240,6 +256,9 @@ private struct QueueRow: View {
                 Label("Remove from Queue", systemImage: "trash")
             }
         case .waiting:
+            Button { onReview() } label: {
+                Label("Review & Edit Cuts\u{2026}", systemImage: "slider.horizontal.below.rectangle")
+            }
             Button { onPreview() } label: { Label("Preview Cuts\u{2026}", systemImage: "waveform") }
             Button(role: .destructive) { model.remove(item.id) } label: {
                 Label("Remove from Queue", systemImage: "trash")

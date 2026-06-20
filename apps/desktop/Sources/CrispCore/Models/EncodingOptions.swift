@@ -60,6 +60,28 @@ public enum OutputContainer: String, CaseIterable, Identifiable {
     public var forcesOwnCodecs: Bool { self == .webm }
 }
 
+/// Subtitle sidecars to write beside the cleaned video, re-timed onto the cut
+/// timeline. `none` writes nothing; `srt` is SubRip (the universal format every
+/// editor and YouTube accepts); `vtt` is WebVTT (the web/HTML5 `<track>` format);
+/// `both` writes the pair. Each `rawValue` is exactly the string the engine's
+/// `--captions` flag expects.
+public enum CaptionFormat: String, CaseIterable, Identifiable {
+    case none, srt, vtt, both
+    public var id: String { rawValue }
+    public var label: String {
+        switch self {
+        case .none: return "Off"
+        case .srt:  return "SubRip (.srt)"
+        case .vtt:  return "WebVTT (.vtt)"
+        case .both: return "Both (.srt + .vtt)"
+        }
+    }
+
+    /// Captions are transcribed from speech, so any choice but `none` needs the
+    /// speech model — same gate as filler removal.
+    public var needsTranscript: Bool { self != .none }
+}
+
 /// Format for the separate audio track when "split tracks" is on. `match` copies
 /// the cleaned audio stream as-is (lossless, no re-encode — `.m4a` for AAC, Ogg
 /// `.opus` for Opus); `wav` re-encodes it to uncompressed PCM, the format most

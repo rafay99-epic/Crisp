@@ -26,6 +26,8 @@ public struct CleanRunner {
         var removed: [Bool]?
         var video_output: String?
         var audio_output: String?
+        var srt_output: String?
+        var vtt_output: String?
         var backup: String?
     }
 
@@ -45,12 +47,18 @@ public struct CleanRunner {
         /// >0 asks the engine to emit an N-bucket waveform for the UI (the bare
         /// CLI / watcher leave it 0 so they don't pay for data nothing renders).
         public var waveformBuckets: Int
+        /// An explicit reviewed keep-list (the edit timeline's output): the path to a
+        /// `{"keep": [[start, end], ...]}` JSON. When set, the engine renders exactly
+        /// those segments and skips detection/transcription/model entirely.
+        public var keepFilePath: String?
         public init(modelPath: String? = nil, removeFillers: Bool,
-                    backupDirectory: URL? = nil, waveformBuckets: Int = 0) {
+                    backupDirectory: URL? = nil, waveformBuckets: Int = 0,
+                    keepFilePath: String? = nil) {
             self.modelPath = modelPath
             self.removeFillers = removeFillers
             self.backupDirectory = backupDirectory
             self.waveformBuckets = waveformBuckets
+            self.keepFilePath = keepFilePath
         }
     }
 
@@ -85,9 +93,19 @@ public struct CleanRunner {
             args += ["--split-audio", parameters.splitAudioFormat]
         }
         if !parameters.outputDirectory.isEmpty { args += ["--out-dir", parameters.outputDirectory] }
-        if options.removeFillers, let model = options.modelPath { args += ["--model", model] }
-        if !options.removeFillers { args.append("--no-fillers") }
-        if options.waveformBuckets > 0 { args += ["--waveform", String(options.waveformBuckets)] }
+        // A reviewed keep-list renders exactly those segments — no detection, so no
+        // model, captions, waveform, or filler flags (all moot in keep-file mode).
+        if let keepFile = options.keepFilePath {
+            args += ["--keep-file", keepFile]
+        } else {
+            if parameters.captionsFormat != "none" { args += ["--captions", parameters.captionsFormat] }
+            // The model is needed for the transcript — for filler removal *or* captions
+            // (which re-time the same transcription onto the cut timeline).
+            let needsTranscript = options.removeFillers || parameters.captionsFormat != "none"
+            if needsTranscript, let model = options.modelPath { args += ["--model", model] }
+            if !options.removeFillers { args.append("--no-fillers") }
+            if options.waveformBuckets > 0 { args += ["--waveform", String(options.waveformBuckets)] }
+        }
         if let dir = options.backupDirectory {
             args += ["--backup-dir", dir.path]
         } else {
@@ -116,37 +134,24 @@ public struct CleanRunner {
 
         Self.log.info("Clean start: \(input.lastPathComponent) [\(parameters.videoCodec)/\(parameters.audioCodec) q=\(parameters.videoQuality) hw=\(parameters.hardwareEncoding) fillers=\(options.removeFillers)]")
 
-        // Drain the engine's own stderr in the background so a flood (e.g. a Python
-        // traceback) can't deadlock the stdout reader by filling the pipe buffer.
-        // This is the safety net for failures that escape before the engine can emit
-        // a structured error — the bundled engine routes its detail to the log file,
-        // so anything here means something went wrong unexpectedly. Uses the async
-        // byte stream (not a blocking `readToEnd`) so it suspends rather than tying
-        // up a cooperative-pool thread — important when several cleans run at once.
-        // Bounded to the most recent lines so a pathological spew can't grow memory
-        // without limit; for a traceback the root cause is at the end anyway.
-        let maxStderrLines = 500
-        let stderrTask = Task<[String], Never> {
-            var lines: [String] = []
-            do {
-                for try await line in errPipe.fileHandleForReading.bytes.lines {
-                    lines.append(line)
-                    // Trim in batches (drop oldest) so this stays amortized O(1).
-                    if lines.count > maxStderrLines * 2 {
-                        lines.removeFirst(lines.count - maxStderrLines)
-                    }
-                }
-            } catch {
-                // Best-effort: the clean's own result/error is what actually matters.
-            }
-            if lines.count > maxStderrLines {
-                lines.removeFirst(lines.count - maxStderrLines)
-            }
-            return lines
-        }
+        // Drain the engine's stderr via a readabilityHandler (NOT a second
+        // `bytes.lines`): two concurrent FileHandle.AsyncBytes readers contend on a
+        // shared serial queue, and the stderr reader — blocked on a normally-empty
+        // pipe — would starve the stdout reader, delivering all progress in one burst
+        // at EOF (the live progress bar stayed frozen at 0%). A readabilityHandler is
+        // an independent source, so stdout streams; it still drains stderr promptly so
+        // a flood can't fill the pipe and deadlock the writer.
+        let stderrDrain = StderrDrain(errPipe.fileHandleForReading)
 
         do {
             let result = try await withTaskCancellationHandler {
+                // If the task was already cancelled before the handler was installed,
+                // don't launch the engine at all (the onCancel handler can't, since the
+                // process isn't running yet).
+                if Task.isCancelled {
+                    try? errPipe.fileHandleForWriting.close()
+                    throw CancellationError()
+                }
                 do {
                     try proc.run()
                 } catch {
@@ -179,6 +184,8 @@ public struct CleanRunner {
                             removed: ev.removed ?? [],
                             videoOutput: ev.video_output ?? "",
                             audioOutput: ev.audio_output ?? "",
+                            srtOutput: ev.srt_output ?? "",
+                            vttOutput: ev.vtt_output ?? "",
                             backup: ev.backup ?? "")
                     case "error":
                         throw NSError(domain: "Crisp", code: 1,
@@ -195,9 +202,13 @@ public struct CleanRunner {
                 }
                 return result
             } onCancel: {
-                proc.terminate()
+                // Guard against terminating an unlaunched process: if the task is
+                // already cancelled when the handler is installed it fires immediately,
+                // before `proc.run()`, and `terminate()` then throws an uncaught
+                // NSInvalidArgumentException ("task not launched") that crashes the app.
+                if proc.isRunning { proc.terminate() }
             }
-            Self.logEngineStderr(await stderrTask.value)
+            Self.logEngineStderr(stderrDrain.finish())
             Self.log.info("Clean done: \(input.lastPathComponent) → \(URL(fileURLWithPath: result.output).lastPathComponent) (saved \(Int(result.savedSeconds))s, \(result.fillers) fillers, \(result.pauses) pauses)")
             // Record to History from this shared path, so the queue, watch-folder
             // agent, App Intent, and menu-bar drop all land in one timeline.
@@ -206,7 +217,7 @@ public struct CleanRunner {
             }
             return result
         } catch {
-            Self.logEngineStderr(await stderrTask.value)
+            Self.logEngineStderr(stderrDrain.finish())
             if error is CancellationError {
                 Self.log.notice("Clean cancelled: \(input.lastPathComponent)")
             } else {

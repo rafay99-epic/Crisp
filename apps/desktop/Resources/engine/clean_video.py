@@ -101,13 +101,26 @@ def main():
     p.add_argument("--waveform", type=int, default=0, metavar="N",
                    help="also emit an N-bucket audio waveform (peaks + which slices "
                         "were cut) in the result, for the app to render (0 = off)")
+    p.add_argument("--captions", choices=["none", "srt", "vtt", "both"], default="none",
+                   help="also write subtitle sidecar files (re-timed to the cleaned "
+                        "video) beside the output: SubRip (.srt), WebVTT (.vtt), or both")
     p.add_argument("--log-dir", default=None,
                    help="folder to write a detailed run log into (default: the "
                         "CRISP_LOG_DIR env var the desktop app sets; off if neither)")
     p.add_argument("--analyze", action="store_true",
                    help="analyze only: emit {duration, peaks, silences} for the app's "
                         "live cut preview — no transcription, no render")
+    p.add_argument("--keep-file", default=None,
+                   help="render exactly the segments listed in this JSON file "
+                        '({"keep": [[start, end], ...]}, seconds on the original '
+                        "timeline) instead of detecting cuts — used by the app's "
+                        "review timeline. Skips analysis, transcription, and the model.")
     args = p.parse_args()
+
+    # --analyze returns early (before the clean), so a --keep-file passed alongside it
+    # would be silently ignored. Fail fast rather than behave ambiguously.
+    if args.analyze and args.keep_file:
+        p.error("--analyze and --keep-file can't be used together.")
 
     if args.ndjson:
         _enable_group_cancel()
@@ -169,6 +182,7 @@ def main():
                              backup=not args.no_backup, backup_dir=args.backup_dir,
                              out_dir=args.out_dir, split_tracks=args.split,
                              split_audio=args.split_audio, waveform_buckets=args.waveform,
+                             keep_file=args.keep_file, captions=args.captions,
                              on_log=on_log, on_progress=on_progress, logger=log)
         if args.ndjson:
             emit({"event": "result", **result})

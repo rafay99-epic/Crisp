@@ -3,6 +3,8 @@
 This is the cutting half of the engine — it acts on what `detect` found.
 """
 
+import json
+import math
 import os
 import shutil
 import subprocess
@@ -137,6 +139,53 @@ def build_keep_segments(words, silences, duration, keep_pause, min_keep=MIN_KEEP
     if duration - cursor >= min_keep:
         keep.append((cursor, duration))
     return keep, stats
+
+
+def load_keep_segments(path, duration):
+    """Load an explicit list of (start, end) seconds to KEEP from a JSON file
+    (`{"keep": [[start, end], ...]}`) — as written by the desktop app's review
+    timeline, where the user toggled individual cuts by hand. Validates, clamps to
+    `[0, duration]`, sorts, and merges touching/overlapping segments so the result
+    is exactly the non-overlapping keep list `render()` expects. Raises CleanError on
+    a missing/unreadable/malformed file or an empty result (never silently render the
+    whole video when the edit list is broken)."""
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError) as e:
+        raise CleanError(f"Couldn't read the reviewed cut list.\n{e}")
+
+    raw = data.get("keep") if isinstance(data, dict) else None
+    if not isinstance(raw, list):
+        raise CleanError("The reviewed cut list is malformed (missing a 'keep' array).")
+
+    segs = []
+    for pair in raw:
+        # Skip anything that isn't a 2-element [start, end] (incl. dict-shaped entries,
+        # which would raise KeyError) rather than failing the whole list.
+        if not isinstance(pair, (list, tuple)) or len(pair) != 2:
+            continue
+        try:
+            s, e = float(pair[0]), float(pair[1])
+        except (TypeError, ValueError):
+            continue
+        if not (math.isfinite(s) and math.isfinite(e)):
+            continue                      # reject nan/inf — they'd clamp to bogus ranges
+        s, e = max(0.0, s), min(duration, e)
+        if e - s > 0.01:
+            segs.append((s, e))
+
+    segs.sort()
+    merged = []
+    for s, e in segs:
+        if merged and s <= merged[-1][1]:
+            merged[-1] = (merged[-1][0], max(merged[-1][1], e))
+        else:
+            merged.append((s, e))
+
+    if not merged:
+        raise CleanError("The reviewed cut list had no usable segments to keep.")
+    return merged
 
 
 def render(src, keep, out_path, on_log, on_progress, video_opts, audio_opts, mux_opts=(), logger=None):
