@@ -16,6 +16,11 @@ public struct QueueItem: Identifiable, Sendable {
     public var result: CleanResult?
     /// A human-readable failure message when `status == .failed`.
     public var error: String?
+    /// An explicit keep-list the user approved in the review timeline, as `(start,
+    /// end)` seconds on the original timeline. When set, this file is cleaned to
+    /// exactly these segments (the engine skips detection/transcription); `nil` ⇒ the
+    /// normal recipe-driven clean.
+    public var editedKeep: [ClosedRange<Double>]?
 
     public enum Status: Sendable, Equatable {
         case waiting, running, done, failed, cancelled
@@ -29,6 +34,7 @@ public struct QueueItem: Identifiable, Sendable {
         self.progress = 0
         self.result = nil
         self.error = nil
+        self.editedKeep = nil
     }
 
     /// A waiting item is the only kind the user may reorder or remove — anything

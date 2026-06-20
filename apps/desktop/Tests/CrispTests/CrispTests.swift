@@ -140,6 +140,39 @@ final class CrispTests: XCTestCase {
         XCTAssertEqual(mask, [false, false, false, true, true, true, false, false, false, false])
     }
 
+    // MARK: - Review timeline (cut regions ⇄ keep-list)
+
+    func testRemovedRegionsAreGapsAndTrims() {
+        // keep [0–2],[5–8] in a 10s clip → cuts are the 2–5 gap and the 8–10 tail.
+        let cuts = CutPreview.removedRegions(keep: [0...2, 5...8], duration: 10)
+        XCTAssertEqual(cuts.count, 2)
+        XCTAssertEqual(cuts[0].0, 2, accuracy: 0.0001)
+        XCTAssertEqual(cuts[0].1, 5, accuracy: 0.0001)
+        XCTAssertEqual(cuts[1].0, 8, accuracy: 0.0001)
+        XCTAssertEqual(cuts[1].1, 10, accuracy: 0.0001)
+    }
+
+    func testCutRegionsRoundTripToSameKeep() {
+        // Building cuts from a keep-list and turning them back (all enabled) reproduces it.
+        let keep: [ClosedRange<Double>] = [0...2, 5...8]
+        let cuts = CutPreview.cutRegions(keep: keep, duration: 10)
+        XCTAssertTrue(cuts.allSatisfy(\.enabled))
+        XCTAssertEqual(CutPreview.keep(forCuts: cuts, duration: 10), keep)
+    }
+
+    func testDisablingACutKeepsThatStretch() {
+        // Disable the first cut (the 2–5 gap) → it merges back into the kept span.
+        var cuts = CutPreview.cutRegions(keep: [0...2, 5...8], duration: 10)
+        cuts[0].enabled = false
+        XCTAssertEqual(CutPreview.keep(forCuts: cuts, duration: 10), [0...8])
+    }
+
+    func testDisablingAllCutsKeepsWholeVideo() {
+        var cuts = CutPreview.cutRegions(keep: [0...2, 5...8], duration: 10)
+        for i in cuts.indices { cuts[i].enabled = false }
+        XCTAssertEqual(CutPreview.keep(forCuts: cuts, duration: 10), [0...10])
+    }
+
     func testWhatsNewPrefersHighlightsSection() {
         // When the LLM "## Highlights" section is present, it's used verbatim and the
         // detailed "## What's changed" list is ignored.
@@ -439,6 +472,36 @@ final class CrispTests: XCTestCase {
         let legacy = Data(#"{ "version": 3, "pauseThreshold": 0.4 }"#.utf8)
         let cfg = try JSONDecoder().decode(EngineConfig.self, from: legacy)
         XCTAssertFalse(cfg.splitTracks)
+    }
+
+    func testKeepFileBypassesDetectionFlags() {
+        // A reviewed keep-list renders exactly those segments: --keep-file is passed,
+        // and no model / no waveform pass / no --no-fillers detection flags.
+        let opts = CleanRunner.Options(modelPath: "/models/ggml.bin", removeFillers: true,
+                                       backupDirectory: nil, waveformBuckets: 120,
+                                       keepFilePath: "/tmp/keep.json")
+        let args = CleanRunner.arguments(scriptPath: "/eng/clean_video.py",
+                                         input: URL(fileURLWithPath: "/v/in.mp4"),
+                                         parameters: Strength.aggressive.parameters(using: .defaults),
+                                         options: opts)
+        XCTAssertEqual(valueAfter("--keep-file", in: args), "/tmp/keep.json")
+        XCTAssertFalse(args.contains("--model"))
+        XCTAssertFalse(args.contains("--waveform"))
+        XCTAssertFalse(args.contains("--no-fillers"))
+        // Encoder choices still apply (the reviewed cut is still re-encoded).
+        XCTAssertTrue(args.contains("--hardware"))
+    }
+
+    func testNoKeepFileKeepsNormalFlags() {
+        let opts = CleanRunner.Options(modelPath: "/models/ggml.bin", removeFillers: true,
+                                       backupDirectory: nil, waveformBuckets: 120)
+        let args = CleanRunner.arguments(scriptPath: "/eng/clean_video.py",
+                                         input: URL(fileURLWithPath: "/v/in.mp4"),
+                                         parameters: Strength.aggressive.parameters(using: .defaults),
+                                         options: opts)
+        XCTAssertFalse(args.contains("--keep-file"))
+        XCTAssertEqual(valueAfter("--model", in: args), "/models/ggml.bin")
+        XCTAssertEqual(valueAfter("--waveform", in: args), "120")
     }
 
     func testWaveformFlagOnlyWhenRequested() {

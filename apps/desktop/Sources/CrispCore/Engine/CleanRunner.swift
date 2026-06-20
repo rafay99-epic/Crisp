@@ -45,12 +45,18 @@ public struct CleanRunner {
         /// >0 asks the engine to emit an N-bucket waveform for the UI (the bare
         /// CLI / watcher leave it 0 so they don't pay for data nothing renders).
         public var waveformBuckets: Int
+        /// An explicit reviewed keep-list (the edit timeline's output): the path to a
+        /// `{"keep": [[start, end], ...]}` JSON. When set, the engine renders exactly
+        /// those segments and skips detection/transcription/model entirely.
+        public var keepFilePath: String?
         public init(modelPath: String? = nil, removeFillers: Bool,
-                    backupDirectory: URL? = nil, waveformBuckets: Int = 0) {
+                    backupDirectory: URL? = nil, waveformBuckets: Int = 0,
+                    keepFilePath: String? = nil) {
             self.modelPath = modelPath
             self.removeFillers = removeFillers
             self.backupDirectory = backupDirectory
             self.waveformBuckets = waveformBuckets
+            self.keepFilePath = keepFilePath
         }
     }
 
@@ -85,9 +91,15 @@ public struct CleanRunner {
             args += ["--split-audio", parameters.splitAudioFormat]
         }
         if !parameters.outputDirectory.isEmpty { args += ["--out-dir", parameters.outputDirectory] }
-        if options.removeFillers, let model = options.modelPath { args += ["--model", model] }
-        if !options.removeFillers { args.append("--no-fillers") }
-        if options.waveformBuckets > 0 { args += ["--waveform", String(options.waveformBuckets)] }
+        // A reviewed keep-list renders exactly those segments — no detection, so no
+        // model and no waveform pass; the other flags below would be ignored anyway.
+        if let keepFile = options.keepFilePath {
+            args += ["--keep-file", keepFile]
+        } else {
+            if options.removeFillers, let model = options.modelPath { args += ["--model", model] }
+            if !options.removeFillers { args.append("--no-fillers") }
+            if options.waveformBuckets > 0 { args += ["--waveform", String(options.waveformBuckets)] }
+        }
         if let dir = options.backupDirectory {
             args += ["--backup-dir", dir.path]
         } else {
@@ -195,7 +207,11 @@ public struct CleanRunner {
                 }
                 return result
             } onCancel: {
-                proc.terminate()
+                // Guard against terminating an unlaunched process: if the task is
+                // already cancelled when the handler is installed it fires immediately,
+                // before `proc.run()`, and `terminate()` then throws an uncaught
+                // NSInvalidArgumentException ("task not launched") that crashes the app.
+                if proc.isRunning { proc.terminate() }
             }
             Self.logEngineStderr(await stderrTask.value)
             Self.log.info("Clean done: \(input.lastPathComponent) → \(URL(fileURLWithPath: result.output).lastPathComponent) (saved \(Int(result.savedSeconds))s, \(result.fillers) fillers, \(result.pauses) pauses)")

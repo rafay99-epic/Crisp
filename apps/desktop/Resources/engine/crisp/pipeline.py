@@ -61,7 +61,7 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
                 audio_codec=DEFAULT_AUDIO_CODEC, audio_bitrate=DEFAULT_AUDIO_BITRATE,
                 container=DEFAULT_CONTAINER, remove_fillers=True, backup=DEFAULT_BACKUP,
                 backup_dir=None, out_dir=None, split_tracks=False, split_audio="match",
-                waveform_buckets=0, on_log=None, on_progress=None, logger=None):
+                waveform_buckets=0, keep_file=None, on_log=None, on_progress=None, logger=None):
     """
     Clean one video. Returns a dict with results.
       on_log(str)            — called with human-readable status lines.
@@ -105,10 +105,14 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
     logger.info(f"src={src}")
     logger.info(f"out={out_path} container={container} video={video_codec} "
                 f"audio={audio_codec} hw={hardware} quality={quality} "
-                f"remove_fillers={remove_fillers} backup={backup}")
+                f"remove_fillers={remove_fillers} keep_file={bool(keep_file)} backup={backup}")
 
+    # An explicit reviewed keep-list (the app's edit-timeline output) bypasses
+    # detection entirely — no audio analysis, no transcription, no model — so we
+    # render exactly the segments the user approved.
+    need_transcript = remove_fillers and not keep_file
     whisper_bin = None
-    if remove_fillers:
+    if need_transcript:
         if not model.exists():
             raise CleanError(f"Speech model not found: {model}\nRun setup.sh to download it.")
         whisper_bin = which_whisper()
@@ -132,56 +136,74 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
         raise CleanError("Could not read the video's duration — is it a valid video file?")
     logger.info(f"duration={duration:.2f}s")
 
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp = Path(tmp)
-        wav = tmp / "audio.wav"
+    # The waveform (peaks + cut mask) is built from the analysis WAV; the reviewed
+    # keep-list path skips analysis, so it has no waveform (the done row falls back to
+    # the simpler reduction bar).
+    wave_summary = {"peaks": [], "removed": []}
 
-        extract_audio(src, wav, on_log, logger=logger)
-        on_progress(0.08, "Audio extracted")
+    if keep_file:
+        from .edit import load_keep_segments
+        keep = load_keep_segments(keep_file, duration)
+        # The user decided the cuts; report how many removed gaps the keep-list implies
+        # (a leading/trailing trim and each interior gap), so the summary still reads.
+        cuts = sum(1 for i in range(len(keep) - 1) if keep[i + 1][0] - keep[i][1] > 0.01)
+        if keep[0][0] > 0.01:
+            cuts += 1
+        if keep[-1][1] < duration - 0.01:
+            cuts += 1
+        stats = {"fillers": 0, "pauses": cuts}
+        on_log(f"Using {len(keep)} reviewed segment(s).")
+        on_progress(0.58, "Rendering reviewed cuts…")
+    else:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            wav = tmp / "audio.wav"
 
-        silences = detect_silences(wav, noise, pause, on_log, logger=logger)
-        on_progress(0.15, "Pauses detected")
+            extract_audio(src, wav, on_log, logger=logger)
+            on_progress(0.08, "Audio extracted")
 
-        words = []
-        if remove_fillers:
-            words = transcribe(whisper_bin, model, wav, tmp / "transcript",
-                               on_log, stage(0.15, 0.58), logger=logger)
-            on_log(f"Found {len(words)} spoken words.")
-        on_progress(0.58, "Planning cuts…")
+            silences = detect_silences(wav, noise, pause, on_log, logger=logger)
+            on_progress(0.15, "Pauses detected")
 
-        keep, stats = build_keep_segments(words, silences, duration, keep_pause, min_keep)
-        if not keep:
-            raise CleanError("Everything looked like silence — nothing to keep. "
-                             "Try a larger pause value.")
+            words = []
+            if remove_fillers:
+                words = transcribe(whisper_bin, model, wav, tmp / "transcript",
+                                   on_log, stage(0.15, 0.58), logger=logger)
+                on_log(f"Found {len(words)} spoken words.")
+            on_progress(0.58, "Planning cuts…")
 
-        kept_dur = sum(e - s for s, e in keep)
-        logger.info(f"keep {len(keep)} segments, kept {kept_dur:.2f}s, "
-                    f"fillers={stats['fillers']} pauses={stats['pauses']}")
-        on_log(f"Removing {stats['fillers']} filler words and {stats['pauses']} pauses.")
-        on_log(f"{duration:.0f}s  →  {kept_dur:.0f}s  (saved {duration - kept_dur:.0f}s)")
+            keep, stats = build_keep_segments(words, silences, duration, keep_pause, min_keep)
+            if not keep:
+                raise CleanError("Everything looked like silence — nothing to keep. "
+                                 "Try a larger pause value.")
 
-        # Build the UI waveform now, while the analysis WAV still exists (it's
-        # deleted when this temp dir closes). Opt-in via waveform_buckets so the
-        # bare CLI / watcher don't pay for data nothing renders.
-        wave_summary = {"peaks": [], "removed": []}
-        if waveform_buckets > 0:
-            from .waveform import waveform_summary
-            wave_summary = waveform_summary(wav, duration, keep, waveform_buckets)
+            # Build the UI waveform now, while the analysis WAV still exists (it's
+            # deleted when this temp dir closes). Opt-in via waveform_buckets so the
+            # bare CLI / watcher don't pay for data nothing renders.
+            if waveform_buckets > 0:
+                from .waveform import waveform_summary
+                wave_summary = waveform_summary(wav, duration, keep, waveform_buckets)
 
-        audio = audio_args(audio_codec, audio_bitrate)
-        mux = container_args(container)
-        try:
-            render(src, keep, out_path, on_log, stage(0.60, 1.0),
-                   video_args(video_codec, hardware, quality), audio, mux, logger=logger)
-        except CleanError:
-            if not hardware:
-                raise
-            # Hardware encoding can be unavailable in odd setups (e.g. a macOS VM
-            # with no media engine). Fall back to software so a clean never fails.
-            logger.notice("Hardware encoding failed — retrying in software")
-            on_log("Hardware encoding failed — falling back to software encoding…")
-            render(src, keep, out_path, on_log, stage(0.60, 1.0),
-                   video_args(video_codec, False, quality), audio, mux, logger=logger)
+    kept_dur = sum(e - s for s, e in keep)
+    logger.info(f"keep {len(keep)} segments, kept {kept_dur:.2f}s, "
+                f"fillers={stats['fillers']} pauses={stats['pauses']}")
+    on_log(f"Removing {stats['fillers']} filler words and {stats['pauses']} pauses.")
+    on_log(f"{duration:.0f}s  →  {kept_dur:.0f}s  (saved {duration - kept_dur:.0f}s)")
+
+    audio = audio_args(audio_codec, audio_bitrate)
+    mux = container_args(container)
+    try:
+        render(src, keep, out_path, on_log, stage(0.60, 1.0),
+               video_args(video_codec, hardware, quality), audio, mux, logger=logger)
+    except CleanError:
+        if not hardware:
+            raise
+        # Hardware encoding can be unavailable in odd setups (e.g. a macOS VM
+        # with no media engine). Fall back to software so a clean never fails.
+        logger.notice("Hardware encoding failed — retrying in software")
+        on_log("Hardware encoding failed — falling back to software encoding…")
+        render(src, keep, out_path, on_log, stage(0.60, 1.0),
+               video_args(video_codec, False, quality), audio, mux, logger=logger)
 
     if out_dir:
         # Tag the output so a later re-clean of this same source overwrites it,

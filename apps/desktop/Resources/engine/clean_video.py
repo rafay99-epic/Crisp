@@ -107,6 +107,11 @@ def main():
     p.add_argument("--analyze", action="store_true",
                    help="analyze only: emit {duration, peaks, silences} for the app's "
                         "live cut preview — no transcription, no render")
+    p.add_argument("--keep-file", default=None,
+                   help="render exactly the segments listed in this JSON file "
+                        '({"keep": [[start, end], ...]}, seconds on the original '
+                        "timeline) instead of detecting cuts — used by the app's "
+                        "review timeline. Skips analysis, transcription, and the model.")
     args = p.parse_args()
 
     if args.ndjson:
@@ -169,6 +174,7 @@ def main():
                              backup=not args.no_backup, backup_dir=args.backup_dir,
                              out_dir=args.out_dir, split_tracks=args.split,
                              split_audio=args.split_audio, waveform_buckets=args.waveform,
+                             keep_file=args.keep_file,
                              on_log=on_log, on_progress=on_progress, logger=log)
         if args.ndjson:
             emit({"event": "result", **result})

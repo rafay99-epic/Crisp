@@ -94,7 +94,12 @@ public struct AnalysisRunner {
                 }
                 return analysis
             } onCancel: {
-                proc.terminate()
+                // Only a launched process can be terminated. If the task is already
+                // cancelled when `withTaskCancellationHandler` installs this handler,
+                // it runs *immediately* — before `proc.run()` — and `terminate()` on an
+                // unlaunched NSTask throws NSInvalidArgumentException ("task not
+                // launched"), an uncaught ObjC exception that crashes the app.
+                if proc.isRunning { proc.terminate() }
             }
             Self.logStderr(await stderrTask.value)
             return analysis
