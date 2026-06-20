@@ -101,6 +101,9 @@ def main():
     p.add_argument("--waveform", type=int, default=0, metavar="N",
                    help="also emit an N-bucket audio waveform (peaks + which slices "
                         "were cut) in the result, for the app to render (0 = off)")
+    p.add_argument("--captions", choices=["none", "srt", "vtt", "both"], default="none",
+                   help="also write subtitle sidecar files (re-timed to the cleaned "
+                        "video) beside the output: SubRip (.srt), WebVTT (.vtt), or both")
     p.add_argument("--log-dir", default=None,
                    help="folder to write a detailed run log into (default: the "
                         "CRISP_LOG_DIR env var the desktop app sets; off if neither)")
@@ -179,7 +182,7 @@ def main():
                              backup=not args.no_backup, backup_dir=args.backup_dir,
                              out_dir=args.out_dir, split_tracks=args.split,
                              split_audio=args.split_audio, waveform_buckets=args.waveform,
-                             keep_file=args.keep_file,
+                             keep_file=args.keep_file, captions=args.captions,
                              on_log=on_log, on_progress=on_progress, logger=log)
         if args.ndjson:
             emit({"event": "result", **result})

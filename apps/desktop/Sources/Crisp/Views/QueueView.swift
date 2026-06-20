@@ -233,6 +233,13 @@ private struct QueueRow: View {
             if let audio = stemURL(item.result?.audioOutput) {
                 Button { reveal(audio) } label: { Label("Show Audio Track", systemImage: "waveform") }
             }
+            // The subtitle sidecars, when captions were exported.
+            if let srt = stemURL(item.result?.srtOutput) {
+                Button { reveal(srt) } label: { Label("Show Subtitles (.srt)", systemImage: "captions.bubble") }
+            }
+            if let vtt = stemURL(item.result?.vttOutput) {
+                Button { reveal(vtt) } label: { Label("Show Subtitles (.vtt)", systemImage: "captions.bubble") }
+            }
             // The backed-up pristine original, when one was kept.
             if let backup = item.result?.backup, !backup.isEmpty {
                 Divider()

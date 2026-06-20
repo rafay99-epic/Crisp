@@ -18,8 +18,9 @@ struct ContentView: View {
     @State private var ultraVerdict: ResourceGovernor.Verdict?
     @State private var estimate = EstimateModel()
 
-    /// Filler-word removal needs the speech model; pauses-only doesn't.
-    private var needsModel: Bool { model.removeFillers }
+    /// Filler-word removal needs the speech model; so does caption export (both are
+    /// transcribed). Pauses-only with no captions doesn't.
+    private var needsModel: Bool { model.removeFillers || settings.captionsFormat != "none" }
 
     /// Everything a pre-flight estimate depends on — the global recipe (strength +
     /// custom cut knobs) and the waiting files with their per-row presets. Order is
