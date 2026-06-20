@@ -92,7 +92,10 @@ final class EngineSettings {
         outputDirectory = cfg.outputDirectory
         splitTracks = cfg.splitTracks
         splitAudioFormat = cfg.splitAudioFormat
-        captionsFormat = cfg.captionsFormat
+        // Clamp a hand-edited/corrupt value to a known one, so the Settings picker
+        // always has a valid selection and the engine never gets a bogus --captions.
+        captionsFormat = CaptionFormat(rawValue: cfg.captionsFormat)?.rawValue
+            ?? EngineConfig.defaults.captionsFormat
         backupOriginal = cfg.backupOriginal
         watchEnabled = cfg.watchEnabled
         watchFolderPath = cfg.watchFolderPath

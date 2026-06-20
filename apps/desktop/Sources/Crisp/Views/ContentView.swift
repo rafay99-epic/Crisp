@@ -19,8 +19,14 @@ struct ContentView: View {
     @State private var estimate = EstimateModel()
 
     /// Filler-word removal needs the speech model; so does caption export (both are
-    /// transcribed). Pauses-only with no captions doesn't.
-    private var needsModel: Bool { model.removeFillers || settings.captionsFormat != "none" }
+    /// transcribed). Checks the *resolved* recipe of each waiting file — not just the
+    /// global setting — so a per-row preset that turns captions on is also covered.
+    private var needsModel: Bool {
+        if model.removeFillers { return true }
+        return model.queue.contains { item in
+            item.status == .waiting && resolveParameters(item).captionsFormat != "none"
+        }
+    }
 
     /// Everything a pre-flight estimate depends on — the global recipe (strength +
     /// custom cut knobs) and the waiting files with their per-row presets. Order is
