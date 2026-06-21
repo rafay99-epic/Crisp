@@ -253,18 +253,6 @@ struct SettingsView: View {
                 })
     }
 
-    /// Download + verify the newer model the updater found, replacing the installed
-    /// one. Removes the old config sidecar so the new one is re-fetched when the new
-    /// model lands (via CrispApp's ready task).
-    private func updateFillerModel() async {
-        guard let spec = fillerUpdater.updateSpec else { return }
-        if let path = fillerModelStore.readyModelPath {
-            try? FileManager.default.removeItem(at: FillerModelConfig.sidecar(for: path))
-        }
-        await fillerModelStore.applyUpdate(to: spec)
-        fillerUpdater.clear()
-    }
-
     @ViewBuilder private var fillerModelSection: some View {
         Section {
             Toggle("Use the fast on-device filler model", isOn: fillerEnabledBinding)
@@ -289,7 +277,7 @@ struct SettingsView: View {
                         Label("Model update available — v\(version)", systemImage: "arrow.down.circle.fill")
                             .foregroundStyle(.tint)
                         Spacer()
-                        Button("Update") { Task { await updateFillerModel() } }
+                        Button("Update") { Task { await fillerUpdater.apply(using: fillerModelStore) } }
                             .disabled(fillerModelStore.state.isBusy || model.isRunning)
                     }
                 }

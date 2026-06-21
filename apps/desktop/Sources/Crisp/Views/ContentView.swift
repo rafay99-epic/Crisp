@@ -7,6 +7,7 @@ struct ContentView: View {
     @Bindable var updater: Updater
     @Bindable var modelStore: ModelStore
     @Bindable var fillerModelStore: ModelStore
+    @Bindable var fillerUpdater: FillerModelUpdater
     @Bindable var settings: EngineSettings
     @Bindable var watchAgent: WatchAgentController
     @Bindable var onboarding: OnboardingController
@@ -130,6 +131,12 @@ struct ContentView: View {
     private var workspace: some View {
         VStack(spacing: 0) {
             UpdateBanner(updater: updater)
+            // A newer filler model is on Hugging Face — offer the update here too,
+            // not only in Settings (mirrors the app's update banner).
+            if settings.fillerModelEnabled {
+                FillerUpdateBar(updater: fillerUpdater, store: fillerModelStore)
+                    .padding(.horizontal, 16).padding(.top, 10)
+            }
             if needsFillerModel && (!fillerModelStore.state.isReady || fillerModelStore.state.isBusy) {
                 ModelStatusView(store: fillerModelStore)
                     .padding(.horizontal, 16).padding(.top, 10)

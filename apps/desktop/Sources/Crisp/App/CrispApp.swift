@@ -19,7 +19,7 @@ struct CrispApp: App {
     var body: some Scene {
         Window(Channel.current.displayName, id: "main") {
             ContentView(model: model, updater: updater, modelStore: modelStore,
-                        fillerModelStore: fillerModelStore,
+                        fillerModelStore: fillerModelStore, fillerUpdater: fillerUpdater,
                         settings: settings, watchAgent: watchAgent, onboarding: onboarding,
                         player: player, whatsNew: whatsNew)
                 .task { logLaunch() }

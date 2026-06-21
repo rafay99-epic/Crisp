@@ -49,6 +49,18 @@ final class FillerModelUpdater {
 
     func clear() { state = .idle; updateSpec = nil }
 
+    /// Apply the found update via `store`: drop the old config sidecar (so the new one
+    /// is re-fetched when the model lands), then download + verify the new version.
+    /// Shared by the Settings row and the main-window bar.
+    func apply(using store: ModelStore) async {
+        guard let spec = updateSpec else { return }
+        if let path = store.readyModelPath {
+            try? FileManager.default.removeItem(at: FillerModelConfig.sidecar(for: path))
+        }
+        await store.applyUpdate(to: spec)
+        clear()
+    }
+
     // MARK: - HF resolve-URL helpers (…/resolve/<ref>/<file>)
 
     /// …/resolve/<ref>/<Name>.mlmodel → …/resolve/main/<Name>.config.json
