@@ -126,8 +126,13 @@ final class CleanModel {
     /// `modelPath` is given, the model is fetched first (progress shown in the
     /// window). The normal in-app path passes a ready `modelPath` and no
     /// provisioner, so this step is skipped.
+    /// Filler-model id to record anonymous feedback under for this batch, or nil to
+    /// record nothing (the opt-in is off). Frozen for the whole run in `start`.
+    private var activeFeedbackModelID: String?
+
     func start(modelPath: String?,
                fillerModelPath: String? = nil,
+               feedbackModelID: String? = nil,
                concurrency: Int = 1,
                resolveParameters: (QueueItem) -> CleanParameters,
                provisioner: ModelProvisioner? = nil) async {
@@ -142,6 +147,7 @@ final class CleanModel {
         // afterward can't change files that are already in flight.
         let fillers = removeFillers
         let fillerModel = fillers ? fillerModelPath : nil   // coreml backend when present
+        activeFeedbackModelID = fillerModel != nil ? feedbackModelID : nil   // record only classifier cleans
         var params: [QueueItem.ID: CleanParameters] = [:]
         for item in waiting { params[item.id] = resolveParameters(item) }
         let waitingIDs = waiting.map(\.id)
@@ -262,7 +268,7 @@ final class CleanModel {
                                           keepFilePath: keepFilePath,
                                           fillerBackend: useClassifier ? "coreml" : "whisper",
                                           fillerModelPath: useClassifier ? fillerModelPath : nil)
-        return try await CleanRunner().run(input: url, parameters: parameters, options: options) { [weak self] event in
+        let result = try await CleanRunner().run(input: url, parameters: parameters, options: options) { [weak self] event in
             guard case .progress(let fraction, _) = event else { return }
             Task { @MainActor in
                 // Ignore a late callback for a file that's already finished.
@@ -271,6 +277,12 @@ final class CleanModel {
                 self.update(id) { $0.progress = max(0, fraction) }
             }
         }
+        // Opt-in, anonymous, on-device: record a tiny feedback line for a classifier clean.
+        if useClassifier, let mid = activeFeedbackModelID {
+            FillerFeedback.record(modelID: mid, fillers: result.fillers,
+                                  origSeconds: result.origSeconds, savedSeconds: result.savedSeconds)
+        }
+        return result
     }
 
     /// Clean a single reviewed file with the user's hand-edited keep-list — the

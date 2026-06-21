@@ -101,6 +101,8 @@ struct ContentView: View {
         Task {
             await model.start(modelPath: modelStore.readyModelPath,
                               fillerModelPath: needsFillerModel ? fillerModelStore.readyModelPath : nil,
+                              feedbackModelID: (needsFillerModel && settings.shareFillerData)
+                                  ? settings.selectedFillerModelID : nil,
                               concurrency: concurrency,
                               resolveParameters: resolveParameters)
         }

@@ -47,6 +47,8 @@ final class EngineSettings {
     // detection (off by default; whisper stays the default when off)
     var fillerModelEnabled: Bool { didSet { save() } }
     var selectedFillerModelID: String { didSet { save() } }
+    // Opt-in: record anonymous local feedback to help improve the filler model
+    var shareFillerData: Bool { didSet { save() } }
 
     /// Whether the user arrived with a real saved configuration — a `settings.json`
     /// that differs from the defaults. Captured once at launch (so it stays stable
@@ -74,7 +76,8 @@ final class EngineSettings {
                      perJobMemoryBudgetMB: perJobMemoryBudgetMB,
                      selectedModelID: selectedModelID, menuBarEnabled: menuBarEnabled,
                      fillerModelEnabled: fillerModelEnabled,
-                     selectedFillerModelID: selectedFillerModelID)
+                     selectedFillerModelID: selectedFillerModelID,
+                     shareFillerData: shareFillerData)
     }
 
     init() {
@@ -119,6 +122,7 @@ final class EngineSettings {
         // Clamp a removed/unknown filler-model id to the catalog fallback, so the
         // Settings picker always has a valid selection.
         selectedFillerModelID = FillerModelCatalog.spec(id: cfg.selectedFillerModelID).id
+        shareFillerData = cfg.shareFillerData
         if !existed { EngineConfigStore.save(config) }  // materialize the file on first launch
     }
 

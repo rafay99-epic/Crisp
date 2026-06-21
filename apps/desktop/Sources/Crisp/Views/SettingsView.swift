@@ -256,6 +256,9 @@ struct SettingsView: View {
                 Text(fillerModelStore.spec.summary)
                     .font(.caption).foregroundStyle(.secondary)
                 ModelInstallControl(store: fillerModelStore, allowRemove: true, removeDisabled: model.isRunning)
+                Toggle("Share anonymous data to help improve the model", isOn: $settings.shareFillerData)
+                Text("On-device only. Records counts + durations (never your audio, filenames, or any content) to ~/.crisp/feedback. Nothing is uploaded.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
         } header: {
             Text("Filler detection (experimental)")

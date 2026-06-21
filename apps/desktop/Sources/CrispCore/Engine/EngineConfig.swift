@@ -65,6 +65,11 @@ public struct EngineConfig: Codable, Equatable, Sendable {
     // `selectedModelID`: the engine receives the resolved model path via a flag.
     public var fillerModelEnabled: Bool
     public var selectedFillerModelID: String
+    // Opt-in (off by default): when the on-device filler model is used, record
+    // ANONYMOUS feedback locally (model version, counts, durations — never audio,
+    // never filenames) under ~/.crisp*/feedback/, to help improve the model. Stays
+    // on-device; nothing is uploaded.
+    public var shareFillerData: Bool
 
     public static let defaults = EngineConfig(
         version: 3,
@@ -78,7 +83,8 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         presets: [], defaultPresetID: "",
         concurrencyMode: "auto", manualConcurrency: 2, perJobMemoryBudgetMB: 2048,
         selectedModelID: ModelCatalog.defaultID, menuBarEnabled: false,
-        fillerModelEnabled: false, selectedFillerModelID: FillerModelCatalog.defaultID)
+        fillerModelEnabled: false, selectedFillerModelID: FillerModelCatalog.defaultID,
+        shareFillerData: false)
 
     enum CodingKeys: String, CodingKey {
         case version, pauseThreshold, silenceFloorDB, breathingRoom, minKeep
@@ -88,7 +94,7 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         case presets, defaultPresetID
         case concurrencyMode, manualConcurrency, perJobMemoryBudgetMB
         case selectedModelID, menuBarEnabled
-        case fillerModelEnabled, selectedFillerModelID
+        case fillerModelEnabled, selectedFillerModelID, shareFillerData
     }
 
     public init(version: Int, pauseThreshold: Double, silenceFloorDB: Double, breathingRoom: Double,
@@ -101,7 +107,8 @@ public struct EngineConfig: Codable, Equatable, Sendable {
                 concurrencyMode: String, manualConcurrency: Int, perJobMemoryBudgetMB: Int,
                 selectedModelID: String = ModelCatalog.defaultID, menuBarEnabled: Bool = false,
                 fillerModelEnabled: Bool = false,
-                selectedFillerModelID: String = FillerModelCatalog.defaultID) {
+                selectedFillerModelID: String = FillerModelCatalog.defaultID,
+                shareFillerData: Bool = false) {
         self.version = version
         self.pauseThreshold = pauseThreshold
         self.silenceFloorDB = silenceFloorDB
@@ -130,6 +137,7 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         self.menuBarEnabled = menuBarEnabled
         self.fillerModelEnabled = fillerModelEnabled
         self.selectedFillerModelID = selectedFillerModelID
+        self.shareFillerData = shareFillerData
     }
 
     public init(from decoder: Decoder) throws {
@@ -163,6 +171,7 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         menuBarEnabled     = try c.decodeIfPresent(Bool.self, forKey: .menuBarEnabled) ?? d.menuBarEnabled
         fillerModelEnabled = try c.decodeIfPresent(Bool.self, forKey: .fillerModelEnabled) ?? d.fillerModelEnabled
         selectedFillerModelID = try c.decodeIfPresent(String.self, forKey: .selectedFillerModelID) ?? d.selectedFillerModelID
+        shareFillerData    = try c.decodeIfPresent(Bool.self, forKey: .shareFillerData) ?? d.shareFillerData
     }
 }
 
