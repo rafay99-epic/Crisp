@@ -83,6 +83,26 @@ it matches the PyTorch model to ~1e-9 (parity-checked). Feature extraction (mel 
 chunking) stays in the host, so `infer.py` is the **reference implementation** the
 shipped backend must reproduce.
 
+### 6. Validate on your OWN footage (precision + recall)
+The test-split F1 is on podcasts; to judge the model on *your* domain you need
+ground truth on your own video. `validate` makes that a ~10-minute job: label one
+short window by ear, and it grades the model's predictions against your labels.
+
+```sh
+# 1) cut a window to label (writes window.wav + an empty labels.json):
+python -m filler_classifier.validate prepare /tmp/test.wav --start 60 --end 240
+
+# 2) play window.wav; add every um/uh you hear as [start,end] (seconds) to labels.json:
+#    {"fillers": [[12.3, 12.6], [45.1, 45.8]]}
+#    Label by ear — recall depends on you catching what the model missed.
+
+# 3) grade it:
+python -m filler_classifier.validate score window.wav --labels labels.json --threshold 0.7
+```
+It reports precision (were the cuts real fillers?), recall (did it catch the real
+ones?), and lists the **false positives** (cut, but not a filler) and **misses** so
+you can see exactly where it errs.
+
 ## Environment notes (bleeding-edge Python)
 - **Audio loading:** torchaudio 2.8+ routes `load()` through TorchCodec, which has
   no wheel here — so WAVs are read with the stdlib `wave` module (`features.py`).
