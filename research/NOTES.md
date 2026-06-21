@@ -110,6 +110,14 @@ First real production-video test (a ~20-min talking-head recording in `~/Movies`
 - `Wren.config.json` carries `recommended_threshold=0.85`, `min_filler=0.30` (the Tier-1 values). Republished as **v0.0.7** (model weights unchanged; catalog points there).
 - Silence-gate knobs (`FILLER_MIN_SOLO`/`FILLER_PAUSE_PAD`) are engine-side `config.py` (cut-smoothness, fairly model-agnostic) — could move into per-model config later if needed.
 
+### Model update system (like the app updater, but from Hugging Face)
+- **Goal:** push a new model to HF → users get an in-app update banner → download the new model + config, independent of app releases.
+- **Manifest = `config.json` on `main`.** Carries `version` + **`model_sha256`** (added to `publish_hf`) + the recommended values. The `main` ref always points at the latest, so polling it = "what's the newest?".
+- **`FillerModelUpdater.check()`** fetches the manifest, compares `version` to the installed one (`FillerModelConfig.installedVersion`, read from the local config sidecar), and if newer builds an `updateSpec` (URL pinned to the new `vX`, **sha from the manifest** → the update is verified like a first install).
+- **UI:** an "Model update available — vX → Update" row in the filler Settings section. Update action: remove old config sidecar → `ModelStore.applyUpdate(to:)` (evicts the stale id-keyed provisioner, removes old file, downloads+verifies new) → CrispApp's ready-task re-fetches the new config.
+- **Checked on launch** (when the model is installed + the feature is on).
+- **Dev workflow:** train → export → `publish_hf` (bumps `v0.0.N`, updates `main`) → app sees it and offers the update. No app rebuild needed to ship a new model. (The catalog's pinned URL is just the baseline/first-install version.)
+
 ### Tier 2 — the real fix (TODO, retraining)
 - **Deployment-matched diet:** far more *negative* (normal-speech) examples + **hard negatives** (the exact mid-sentence hmms and filler-like words it confuses). Recalibrates the prior.
 - **Train on continuous audio**, not event-centered 1-s clips, so it learns context.

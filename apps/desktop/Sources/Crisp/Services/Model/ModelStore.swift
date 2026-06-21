@@ -76,6 +76,19 @@ final class ModelStore {
         recheck()           // before the async disk check resolves to .ready/.absent
     }
 
+    /// Apply a model **update**: the same model id at a new version (new url + sha).
+    /// The provisioner cache is keyed by id, so it would otherwise hand back the stale
+    /// provisioner (old url/sha) — evict it, remove the old file, target the new spec,
+    /// and download. No-op while a download is in flight.
+    func applyUpdate(to spec: ModelSpec) async {
+        guard task == nil else { return }
+        await provisioner.removeFromDisk()
+        provisioners[spec.id] = nil          // drop the stale provisioner so a fresh one is built
+        self.spec = spec
+        self.provisioner = cachedProvisioner(for: spec)
+        download()
+    }
+
     /// Reuse the existing provisioner for a model (keeping its verified-session
     /// cache), creating one the first time it's selected.
     private func cachedProvisioner(for spec: ModelSpec) -> ModelProvisioner {

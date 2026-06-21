@@ -8,6 +8,7 @@ struct CrispApp: App {
     @State private var modelStore = ModelStore()
     // The opt-in on-device filler model (Wren), downloaded separately from whisper.
     @State private var fillerModelStore = ModelStore(spec: FillerModelCatalog.wren)
+    @State private var fillerUpdater = FillerModelUpdater()
     @State private var settings = EngineSettings()
     @State private var watchAgent = WatchAgentController()
     @State private var onboarding = OnboardingController()
@@ -25,12 +26,15 @@ struct CrispApp: App {
                 .task { updater.checkOnLaunch() }
                 .task { await modelStore.refresh() }
                 .task { if settings.fillerModelEnabled { await fillerModelStore.refresh() } }
-                // When the filler model is ready, grab its config.json sibling so the
-                // helper reads per-model values (best-effort; falls back to defaults).
+                // When the filler model is ready: grab its config.json sibling (so the
+                // helper reads per-model values), then check Hugging Face for a newer
+                // model version (the in-app model updater).
                 .task(id: fillerModelStore.readyModelPath) {
-                    if let path = fillerModelStore.readyModelPath {
-                        await FillerModelConfig.fetchIfNeeded(modelURL: fillerModelStore.spec.url, modelPath: path)
-                    }
+                    guard let path = fillerModelStore.readyModelPath else { return }
+                    await FillerModelConfig.fetchIfNeeded(modelURL: fillerModelStore.spec.url, modelPath: path)
+                    await fillerUpdater.check(
+                        baseSpec: FillerModelCatalog.spec(id: settings.selectedFillerModelID),
+                        installedVersion: FillerModelConfig.installedVersion(modelPath: path))
                 }
                 .task { QuickActionInstaller.install() }
                 .task { reconcileWatchAgent() }
@@ -58,7 +62,8 @@ struct CrispApp: App {
 
         Settings {
             SettingsView(settings: settings, updater: updater, watchAgent: watchAgent,
-                         modelStore: modelStore, fillerModelStore: fillerModelStore, model: model)
+                         modelStore: modelStore, fillerModelStore: fillerModelStore,
+                         fillerUpdater: fillerUpdater, model: model)
         }
 
         // A library of past cleans (every surface records to it). Opened from the

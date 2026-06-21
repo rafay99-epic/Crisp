@@ -12,6 +12,7 @@ struct SettingsView: View {
     @Bindable var watchAgent: WatchAgentController
     @Bindable var modelStore: ModelStore
     @Bindable var fillerModelStore: ModelStore
+    @Bindable var fillerUpdater: FillerModelUpdater
     @Bindable var model: CleanModel
 
     @State private var newPresetName = ""
@@ -252,6 +253,18 @@ struct SettingsView: View {
                 })
     }
 
+    /// Download + verify the newer model the updater found, replacing the installed
+    /// one. Removes the old config sidecar so the new one is re-fetched when the new
+    /// model lands (via CrispApp's ready task).
+    private func updateFillerModel() async {
+        guard let spec = fillerUpdater.updateSpec else { return }
+        if let path = fillerModelStore.readyModelPath {
+            try? FileManager.default.removeItem(at: FillerModelConfig.sidecar(for: path))
+        }
+        await fillerModelStore.applyUpdate(to: spec)
+        fillerUpdater.clear()
+    }
+
     @ViewBuilder private var fillerModelSection: some View {
         Section {
             Toggle("Use the fast on-device filler model", isOn: fillerEnabledBinding)
@@ -271,6 +284,15 @@ struct SettingsView: View {
                 Text(fillerModelStore.spec.summary)
                     .font(.caption).foregroundStyle(.secondary)
                 ModelInstallControl(store: fillerModelStore, allowRemove: true, removeDisabled: model.isRunning)
+                if case .available(let version) = fillerUpdater.state {
+                    HStack {
+                        Label("Model update available — v\(version)", systemImage: "arrow.down.circle.fill")
+                            .foregroundStyle(.tint)
+                        Spacer()
+                        Button("Update") { Task { await updateFillerModel() } }
+                            .disabled(fillerModelStore.state.isBusy || model.isRunning)
+                    }
+                }
                 Toggle("Share anonymous data to help improve the model", isOn: $settings.shareFillerData)
                 Text("On-device only. Records counts + durations (never your audio, filenames, or any content) to ~/.crisp/feedback. Nothing is uploaded.")
                     .font(.caption).foregroundStyle(.secondary)

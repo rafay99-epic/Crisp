@@ -42,13 +42,15 @@ def next_version(api, repo: str) -> str:
     return f"0.0.{n + 1}"
 
 
-def model_config(name: str, version: str, model_file: str) -> dict:
-    """Everything the host needs to RUN the model — incl. the Swift helper, so it
-    reads these instead of hardcoding."""
+def model_config(name: str, version: str, model_file: str, model_sha256: str) -> dict:
+    """Everything the host needs to RUN the model (the helper reads these instead of
+    hardcoding) AND to UPDATE it: the config on `main` is the manifest the app polls
+    — `version` + `model_sha256` let it detect and verify a newer model."""
     return {
         "name": name,
         "version": version,
         "task": "filler-word-detection",
+        "model_sha256": model_sha256,
         "model_file": model_file,
         "input": "chunk",
         "output": "filler_prob",
@@ -93,11 +95,12 @@ def main():
     version = next_version(api, a.repo)
 
     model_file = f"{a.name}.mlmodel"
+    digest = sha256(model)        # goes into the manifest (config.json) so the app can verify updates
     stage = Path(tempfile.mkdtemp())
     shutil.copy(model, stage / model_file)
     shutil.copy(a.weights, stage / f"{a.name}.pt")                      # open weights
     (stage / f"{a.name}.config.json").write_text(
-        json.dumps(model_config(a.name, version, model_file), indent=2))
+        json.dumps(model_config(a.name, version, model_file, digest), indent=2))
     new_files = [model_file, f"{a.name}.pt", f"{a.name}.config.json"]
     if a.card:
         shutil.copy(a.card, stage / "README.md")
@@ -113,7 +116,7 @@ def main():
                       commit_message=f"{a.name} v{version}")
     create_tag(a.repo, tag=f"v{version}", repo_type="model")
 
-    digest, size = sha256(model), model.stat().st_size
+    size = model.stat().st_size
     pinned = f"https://huggingface.co/{a.repo}/resolve/v{version}/{model_file}"
     print(f"\npublished {a.name} v{version}  (tag v{version})")
     if stale:
