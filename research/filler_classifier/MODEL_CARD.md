@@ -9,11 +9,16 @@ language:
   - en
 ---
 
-# Crisp Filler Classifier
+# Wren — Crisp filler detector
 
-A tiny (~75k-param) CNN that detects **filler words** ("uh", "um") in speech, for
-the [Crisp](https://rafay99.com) macOS app. It's a fast, on-device alternative to
-running full speech-to-text just to find fillers.
+**Wren** is the fast, lightweight model in Crisp's filler-detection family (named
+after birds — keen ears, clean song; the larger, higher-accuracy sibling is
+**Kestrel**). A wren is the tiniest bird yet punches far above its size — fitting
+for a ~75k-param CNN that hits 0.94 precision at ~600× real-time.
+
+It detects **filler words** ("uh", "um") in speech for the
+[Crisp](https://rafay99.com) macOS app — a fast, on-device alternative to running
+full speech-to-text just to find fillers.
 
 - **Input:** one log-mel chunk, `[1, 1, 64, 25]` (250 ms of 16 kHz mono audio,
   standardized with fixed constants `MEL_MEAN=-18.5658`, `MEL_STD=17.9252`).

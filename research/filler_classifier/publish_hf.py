@@ -40,6 +40,7 @@ def main():
                     help="file name in the HF repo (use the model's cool name)")
     ap.add_argument("--out", default="checkpoints", help="dir to write the zip into")
     ap.add_argument("--repo", help="HF repo id, e.g. you/crisp-models (uploads if set)")
+    ap.add_argument("--card", help="model card .md to upload as the repo README.md")
     a = ap.parse_args()
 
     src = Path(a.mlpackage)
@@ -54,8 +55,12 @@ def main():
 
     if a.repo:
         from huggingface_hub import HfApi, create_repo
-        create_repo(a.repo, repo_type="model", exist_ok=True)
-        HfApi().upload_file(path_or_fileobj=str(out), path_in_repo=a.name,
+        api = HfApi()
+        create_repo(a.repo, repo_type="model", exist_ok=True, private=False)  # public: app downloads w/o auth
+        api.upload_file(path_or_fileobj=str(out), path_in_repo=a.name,
+                        repo_id=a.repo, repo_type="model")
+        if a.card:
+            api.upload_file(path_or_fileobj=a.card, path_in_repo="README.md",
                             repo_id=a.repo, repo_type="model")
         url = f"https://huggingface.co/{a.repo}/resolve/main/{a.name}"
         print(f"uploaded → {url}\n")
