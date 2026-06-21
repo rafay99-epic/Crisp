@@ -32,16 +32,20 @@ def _load(dataset, data_dir, val_frac):
         val_ds = corpora.podcastfillers(data_dir, ("validation",))
         return train_ds, val_ds, train_ds.pos_weight()
 
+    if not 0.0 < val_frac < 1.0:
+        raise SystemExit(f"--val-frac must be in (0, 1), got {val_frac}.")
     full = corpora.sep28k(data_dir) if dataset == "sep28k" else FillerChunks(data_dir)
-    if len(full) == 0:
-        raise SystemExit(f"No labeled examples found for --dataset {dataset} in {data_dir!r}.")
-    n_val = max(1, int(len(full) * val_frac))
+    if len(full) < 2:
+        raise SystemExit(f"Need >=2 labeled examples for --dataset {dataset} in {data_dir!r}, "
+                         f"found {len(full)}.")
+    n_val = min(len(full) - 1, max(1, int(len(full) * val_frac)))   # keep both splits non-empty
     train_ds, val_ds = random_split(
         full, [len(full) - n_val, n_val], generator=torch.Generator().manual_seed(0))
     return train_ds, val_ds, full.pos_weight()
 
 
 def run(dataset, data_dir, epochs, batch_size, lr, val_frac, workers, out):
+    torch.manual_seed(0)                          # reproducible weight init + shuffling
     train_ds, val_ds, pos_weight = _load(dataset, data_dir, val_frac)
     print(f"{dataset}: {len(train_ds)} train chunks, {len(val_ds)} val chunks, "
           f"pos_weight={pos_weight.item():.2f}")

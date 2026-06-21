@@ -17,6 +17,14 @@ CHUNK_HOP_SEC = 0.10                                 # one decision every 100 ms
 CHUNK_FRAMES = round(CHUNK_SEC / FRAME_SEC)          # 25 mel frames per chunk
 CHUNK_HOP_FRAMES = round(CHUNK_HOP_SEC / FRAME_SEC)  # 10 frames between chunks
 
+# Fixed log-mel normalization, computed once over the PodcastFillers train split.
+# FIXED constants — not per-clip or per-recording stats — so training chunks and
+# full-recording inference are normalized identically (no train/serve skew), and
+# the Swift inference helper just bakes in these two numbers. Recompute if the mel
+# framing above changes (see the stats snippet in the README).
+MEL_MEAN = -18.5658
+MEL_STD = 17.9252
+
 # Inference defaults (tunable; the shipped Core ML path mirrors these).
 DEFAULT_THRESHOLD = 0.5      # P(filler) above this = filler chunk
 MERGE_GAP_SEC = 0.12         # bridge filler runs separated by <= this

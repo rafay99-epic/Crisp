@@ -46,7 +46,7 @@ def predict_intervals(model, waveform, threshold=config.DEFAULT_THRESHOLD,
             merged[-1][1] = run[1]
         else:
             merged.append(run)
-    return [(round(a, 3), round(b, 3)) for a, b in merged if b - a >= min_len]
+    return [(a, b) for a, b in merged if b - a >= min_len]
 
 
 def load_model(checkpoint):
@@ -65,7 +65,8 @@ def main():
     model = load_model(a.checkpoint)
     waveform = features.load_waveform(a.audio)
     intervals = predict_intervals(model, waveform, threshold=a.threshold)
-    print(json.dumps({"fillers": [[s, e] for s, e in intervals]}, indent=2))
+    rounded = [[round(s, 3), round(e, 3)] for s, e in intervals]   # round only for display
+    print(json.dumps({"fillers": rounded}, indent=2))
 
 
 if __name__ == "__main__":

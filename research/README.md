@@ -103,6 +103,28 @@ It reports precision (were the cuts real fillers?), recall (did it catch the rea
 ones?), and lists the **false positives** (cut, but not a filler) and **misses** so
 you can see exactly where it errs.
 
+## Normalization constants
+Log-mel is standardized with **fixed** constants (`config.MEL_MEAN`, `MEL_STD`),
+not per-clip/per-recording stats — so training chunks and full-recording inference
+are normalized identically (no train/serve skew), and the Swift helper just bakes
+in the two numbers. **If you change the mel framing (`N_FFT`/`HOP_LENGTH`/`N_MELS`),
+recompute them** over the train split:
+
+```python
+import csv, torch
+from pathlib import Path
+from filler_classifier import features
+root = Path("data/PodcastFillers"); cd = root/"audio"/"clip_wav"
+names = [(r["clip_split_subset"], r["clip_name"]) for r in
+         csv.DictReader(open(root/"metadata"/"PodcastFillers.csv")) if r["clip_split_subset"] == "train"]
+s = ss = n = 0
+for split, name in names[::max(1, len(names)//4000)]:
+    mel = features.log_mel(features.load_waveform(str(cd/split/name)))
+    s += float(mel.sum()); ss += float((mel*mel).sum()); n += mel.numel()
+mean = s/n; print("MEL_MEAN =", round(mean, 4), "MEL_STD =", round((ss/n - mean*mean)**0.5, 4))
+```
+Changing normalization means **retrain + re-export** (the old checkpoint expects the old inputs).
+
 ## Environment notes (bleeding-edge Python)
 - **Audio loading:** torchaudio 2.8+ routes `load()` through TorchCodec, which has
   no wheel here — so WAVs are read with the stdlib `wave` module (`features.py`).

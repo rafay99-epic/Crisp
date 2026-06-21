@@ -57,8 +57,19 @@ final class Bench {
             return .failure(BenchError(message: "Failed to launch python: \(error.localizedDescription)"))
         }
 
+        // Drain stderr concurrently: torch can print warnings there, and reading
+        // the two pipes sequentially would deadlock if stderr fills its buffer
+        // before stdout closes.
+        var errData = Data()
+        let errHandle = err.fileHandleForReading
+        let group = DispatchGroup()
+        group.enter()
+        DispatchQueue.global().async {
+            errData = errHandle.readDataToEndOfFile()
+            group.leave()
+        }
         let data = out.fileHandleForReading.readDataToEndOfFile()
-        let errData = err.fileHandleForReading.readDataToEndOfFile()
+        group.wait()
         proc.waitUntilExit()
 
         guard proc.terminationStatus == 0 else {

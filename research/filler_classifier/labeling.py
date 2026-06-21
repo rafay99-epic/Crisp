@@ -11,13 +11,24 @@ this model only has to learn filler-vs-speech.
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 
 
 def load_intervals(path) -> list:
-    """Read a *.fillers.json file → list of (start, end) tuples in seconds."""
+    """Read a *.fillers.json file → list of (start, end) tuples in seconds.
+
+    Fails fast on malformed pairs (non-finite, or end <= start) so a bad label file
+    can't silently corrupt training/eval targets.
+    """
     data = json.loads(Path(path).read_text())
-    return [(float(a), float(b)) for a, b in data.get("fillers", [])]
+    intervals = []
+    for a, b in data.get("fillers", []):
+        a, b = float(a), float(b)
+        if not (math.isfinite(a) and math.isfinite(b)) or b <= a:
+            raise ValueError(f"{path}: invalid filler interval [{a}, {b}] (need finite, end > start)")
+        intervals.append((a, b))
+    return intervals
 
 
 def save_intervals(path, intervals) -> None:

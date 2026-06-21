@@ -9,6 +9,7 @@ so the model is a pure tensor→scalar function — easy to verify against infer
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 
 import torch
 
@@ -45,6 +46,7 @@ def export(checkpoint, out):
         outputs=[ct.TensorType(name="filler_prob")],
         minimum_deployment_target=ct.target.macOS13,
     )
+    Path(out).parent.mkdir(parents=True, exist_ok=True)
     mlmodel.save(out)
     print(f"saved {out}")
 

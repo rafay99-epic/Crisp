@@ -63,6 +63,16 @@ def log_mel(waveform: torch.Tensor) -> torch.Tensor:
     return _to_db(_mel(waveform))
 
 
+def normalize(mel: torch.Tensor) -> torch.Tensor:
+    """Standardize log-mel with FIXED dataset constants.
+
+    Using fixed constants (not per-clip or per-recording mean/std) is what keeps
+    training and full-recording inference seeing the same input distribution — and
+    it's the normalization the Swift helper will replicate with two baked-in numbers.
+    """
+    return (mel - config.MEL_MEAN) / config.MEL_STD
+
+
 def _chunk_starts(num_frames: int):
     """Yield each chunk's start frame for a spectrogram of num_frames frames."""
     f0 = 0
@@ -77,9 +87,7 @@ def chunks_from_waveform(waveform: torch.Tensor):
     patches: tensor [N, 1, n_mels, CHUNK_FRAMES]
     centers: list of chunk center times in seconds (one per patch)
     """
-    mel = log_mel(waveform)                       # [n_mels, T]
-    # per-utterance normalization keeps levels comparable across recordings
-    mel = (mel - mel.mean()) / (mel.std() + 1e-5)
+    mel = normalize(log_mel(waveform))            # [n_mels, T], fixed-constant norm
 
     patches, centers = [], []
     for f0 in _chunk_starts(mel.shape[1]):
@@ -98,12 +106,11 @@ def chunk_at(waveform: torch.Tensor, center_sec: float) -> torch.Tensor:
 
     Used for the short corpus clips (PodcastFillers, SEP-28k): we know where the
     filler sits, so we sample the single chunk over it instead of the whole clip.
-    Normalization matches `chunks_from_waveform` (per-clip mean/std), so training
+    Normalization matches `chunks_from_waveform` (same fixed constants), so training
     chunks and sliding-inference chunks see the same statistics. Clips shorter
     than one chunk are right-padded.
     """
-    mel = log_mel(waveform)                                  # [n_mels, T]
-    mel = (mel - mel.mean()) / (mel.std() + 1e-5)
+    mel = normalize(log_mel(waveform))                      # [n_mels, T]
     if mel.shape[1] < config.CHUNK_FRAMES:
         mel = F.pad(mel, (0, config.CHUNK_FRAMES - mel.shape[1]))
 
