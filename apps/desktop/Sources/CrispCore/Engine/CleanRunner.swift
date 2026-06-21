@@ -51,14 +51,21 @@ public struct CleanRunner {
         /// `{"keep": [[start, end], ...]}` JSON. When set, the engine renders exactly
         /// those segments and skips detection/transcription/model entirely.
         public var keepFilePath: String?
+        /// Filler-detection backend: "whisper" (default) or "coreml" (the on-device
+        /// classifier). For "coreml", `fillerModelPath` is the .mlmodel to run.
+        public var fillerBackend: String
+        public var fillerModelPath: String?
         public init(modelPath: String? = nil, removeFillers: Bool,
                     backupDirectory: URL? = nil, waveformBuckets: Int = 0,
-                    keepFilePath: String? = nil) {
+                    keepFilePath: String? = nil,
+                    fillerBackend: String = "whisper", fillerModelPath: String? = nil) {
             self.modelPath = modelPath
             self.removeFillers = removeFillers
             self.backupDirectory = backupDirectory
             self.waveformBuckets = waveformBuckets
             self.keepFilePath = keepFilePath
+            self.fillerBackend = fillerBackend
+            self.fillerModelPath = fillerModelPath
         }
     }
 
@@ -103,6 +110,11 @@ public struct CleanRunner {
             // (which re-time the same transcription onto the cut timeline).
             let needsTranscript = options.removeFillers || parameters.captionsFormat != "none"
             if needsTranscript, let model = options.modelPath { args += ["--model", model] }
+            // Opt-in: detect fillers with the on-device classifier instead of whisper.
+            // Only when we have a filler model to run; otherwise the engine defaults to whisper.
+            if needsTranscript, options.fillerBackend == "coreml", let fillerModel = options.fillerModelPath {
+                args += ["--filler-backend", "coreml", "--filler-model", fillerModel]
+            }
             if !options.removeFillers { args.append("--no-fillers") }
             if options.waveformBuckets > 0 { args += ["--waveform", String(options.waveformBuckets)] }
         }
