@@ -9,7 +9,9 @@
     "dev": "turbo run dev",
     "build": "turbo run build",
     "lint": "turbo run lint",
-    "preview": "turbo run preview"
+    "preview": "turbo run preview",
+    "bench": "swift run --package-path research/FillerBench FillerBench",
+    "test:bench": "swift build --package-path research/FillerBench"
   },
   "devDependencies": {
     "turbo": "^2.1.3"
