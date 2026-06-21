@@ -58,6 +58,13 @@ public struct EngineConfig: Codable, Equatable, Sendable {
     // the default recipe without opening the main window. Opt-in; off by default so
     // it never adds a menu-bar icon a user didn't ask for.
     public var menuBarEnabled: Bool
+    // Filler model (experimental, opt-in) — a fast on-device Core ML alternative to
+    // whisper for filler detection. `fillerModelEnabled` gates the whole feature
+    // (off by default, so default behavior is unchanged); `selectedFillerModelID`
+    // picks which FillerModelCatalog model to download + run. App-side state like
+    // `selectedModelID`: the engine receives the resolved model path via a flag.
+    public var fillerModelEnabled: Bool
+    public var selectedFillerModelID: String
 
     public static let defaults = EngineConfig(
         version: 3,
@@ -70,7 +77,8 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         watchEnabled: false, watchFolderPath: "", watchRemoveFillers: true,
         presets: [], defaultPresetID: "",
         concurrencyMode: "auto", manualConcurrency: 2, perJobMemoryBudgetMB: 2048,
-        selectedModelID: ModelCatalog.defaultID, menuBarEnabled: false)
+        selectedModelID: ModelCatalog.defaultID, menuBarEnabled: false,
+        fillerModelEnabled: false, selectedFillerModelID: FillerModelCatalog.defaultID)
 
     enum CodingKeys: String, CodingKey {
         case version, pauseThreshold, silenceFloorDB, breathingRoom, minKeep
@@ -80,6 +88,7 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         case presets, defaultPresetID
         case concurrencyMode, manualConcurrency, perJobMemoryBudgetMB
         case selectedModelID, menuBarEnabled
+        case fillerModelEnabled, selectedFillerModelID
     }
 
     public init(version: Int, pauseThreshold: Double, silenceFloorDB: Double, breathingRoom: Double,
@@ -90,7 +99,9 @@ public struct EngineConfig: Codable, Equatable, Sendable {
                 watchEnabled: Bool, watchFolderPath: String, watchRemoveFillers: Bool,
                 presets: [Preset], defaultPresetID: String,
                 concurrencyMode: String, manualConcurrency: Int, perJobMemoryBudgetMB: Int,
-                selectedModelID: String = ModelCatalog.defaultID, menuBarEnabled: Bool = false) {
+                selectedModelID: String = ModelCatalog.defaultID, menuBarEnabled: Bool = false,
+                fillerModelEnabled: Bool = false,
+                selectedFillerModelID: String = FillerModelCatalog.defaultID) {
         self.version = version
         self.pauseThreshold = pauseThreshold
         self.silenceFloorDB = silenceFloorDB
@@ -117,6 +128,8 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         self.perJobMemoryBudgetMB = perJobMemoryBudgetMB
         self.selectedModelID = selectedModelID
         self.menuBarEnabled = menuBarEnabled
+        self.fillerModelEnabled = fillerModelEnabled
+        self.selectedFillerModelID = selectedFillerModelID
     }
 
     public init(from decoder: Decoder) throws {
@@ -148,6 +161,8 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         perJobMemoryBudgetMB = try c.decodeIfPresent(Int.self, forKey: .perJobMemoryBudgetMB) ?? d.perJobMemoryBudgetMB
         selectedModelID    = try c.decodeIfPresent(String.self, forKey: .selectedModelID) ?? d.selectedModelID
         menuBarEnabled     = try c.decodeIfPresent(Bool.self, forKey: .menuBarEnabled) ?? d.menuBarEnabled
+        fillerModelEnabled = try c.decodeIfPresent(Bool.self, forKey: .fillerModelEnabled) ?? d.fillerModelEnabled
+        selectedFillerModelID = try c.decodeIfPresent(String.self, forKey: .selectedFillerModelID) ?? d.selectedFillerModelID
     }
 }
 

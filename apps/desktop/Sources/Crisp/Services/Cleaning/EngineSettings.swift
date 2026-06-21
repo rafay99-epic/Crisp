@@ -43,6 +43,10 @@ final class EngineSettings {
     var selectedModelID: String { didSet { save() } }
     // Menu bar — show a quick-drop menu-bar item (opt-in)
     var menuBarEnabled: Bool { didSet { save() } }
+    // Filler model — experimental, opt-in fast on-device backend for filler
+    // detection (off by default; whisper stays the default when off)
+    var fillerModelEnabled: Bool { didSet { save() } }
+    var selectedFillerModelID: String { didSet { save() } }
 
     /// Whether the user arrived with a real saved configuration — a `settings.json`
     /// that differs from the defaults. Captured once at launch (so it stays stable
@@ -68,7 +72,9 @@ final class EngineSettings {
                      presets: presets, defaultPresetID: defaultPresetID,
                      concurrencyMode: concurrencyMode, manualConcurrency: manualConcurrency,
                      perJobMemoryBudgetMB: perJobMemoryBudgetMB,
-                     selectedModelID: selectedModelID, menuBarEnabled: menuBarEnabled)
+                     selectedModelID: selectedModelID, menuBarEnabled: menuBarEnabled,
+                     fillerModelEnabled: fillerModelEnabled,
+                     selectedFillerModelID: selectedFillerModelID)
     }
 
     init() {
@@ -109,6 +115,10 @@ final class EngineSettings {
         // Settings picker always has a valid selection (and the engine a real model).
         selectedModelID = ModelCatalog.spec(id: cfg.selectedModelID).id
         menuBarEnabled = cfg.menuBarEnabled
+        fillerModelEnabled = cfg.fillerModelEnabled
+        // Clamp a removed/unknown filler-model id to the catalog fallback, so the
+        // Settings picker always has a valid selection.
+        selectedFillerModelID = FillerModelCatalog.spec(id: cfg.selectedFillerModelID).id
         if !existed { EngineConfigStore.save(config) }  // materialize the file on first launch
     }
 
