@@ -55,10 +55,13 @@ def next_version(api, repo: str, branch: str) -> str:
     commit. We always count the `nightly` branch, even for a direct stable publish, so
     the counter is a single monotonic line across the model's life (every model goes
     through nightly first). Falls back to `main`, then 0, when nightly doesn't exist yet."""
+    from huggingface_hub.utils import RevisionNotFoundError
     for rev in ("nightly", "main"):
         try:
             return f"0.0.{len(api.list_repo_commits(repo, repo_type='model', revision=rev)) + 1}"
-        except Exception:
+        except RevisionNotFoundError:
+            # That branch doesn't exist yet — try the next. Real API/auth/network
+            # failures aren't swallowed here; they propagate.
             continue
     return "0.0.1"
 
@@ -108,6 +111,12 @@ def main():
     model = Path(a.model)
     if not model.exists():
         raise SystemExit(f"{model} not found — run export_coreml first.")
+    # Validate the other inputs up front, so a wrong path fails with a clear message
+    # instead of a shutil traceback mid-publish (after the repo/branch were touched).
+    if not Path(a.weights).exists():
+        raise SystemExit(f"{a.weights} not found — pass --weights to the .pt file.")
+    if a.card and not Path(a.card).exists():
+        raise SystemExit(f"{a.card} not found — pass --card to the model card .md.")
 
     if not a.repo:
         print(f"{model}  ({model.stat().st_size:,} bytes)\nsha256: {sha256(model)}")

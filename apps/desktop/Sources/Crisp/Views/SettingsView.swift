@@ -21,7 +21,6 @@ struct SettingsView: View {
     /// Dev sideload: the local model path picked in this build (mirrors
     /// `DevFillerModel.pickedPath`; `@State` so the UI refreshes after picking).
     @State private var devLocalModel: String? = DevFillerModel.pickedPath
-    @State private var installingVersion: String?
 
     /// Whether the chosen container dictates its own codecs (WebM → VP9 + Opus),
     /// in which case the codec controls are disabled. Reads the rule off the enum
@@ -347,13 +346,18 @@ struct SettingsView: View {
             HStack {
                 Text("Install version").font(.callout)
                 Spacer()
-                if let installing = installingVersion {
+                if let installing = fillerVersions.installing {
                     ProgressView().controlSize(.small)
                     Text("v\(installing)…").font(.caption).foregroundStyle(.secondary)
                 } else {
                     Menu("Choose…") {
                         ForEach(fillerVersions.versions, id: \.self) { v in
-                            Button("v\(v)") { installVersion(v) }
+                            Button("v\(v)") {
+                                Task {
+                                    await fillerVersions.install(version: v, baseSpec: fillerModelStore.spec,
+                                                                 store: fillerModelStore)
+                                }
+                            }
                         }
                     }
                     .frame(width: 130)
@@ -367,26 +371,19 @@ struct SettingsView: View {
         }
     }
 
-    /// Pick a local `.mlmodel` to sideload (dev only).
+    /// Pick a local `.mlmodel` to sideload (dev only). The native file picker is a
+    /// genuine View concern; the async install/version workflow lives in
+    /// `FillerModelVersions` (a Service), so the View only triggers + observes it.
     private func pickLocalModel() {
         let panel = NSOpenPanel()
+        // Restrict to .mlmodel so a stray file can't be persisted as a model path.
         panel.allowedContentTypes = [.init(filenameExtension: "mlmodel")].compactMap { $0 }
-        panel.allowsOtherFileTypes = true
+        panel.allowsOtherFileTypes = false
         panel.canChooseDirectories = false
         panel.prompt = "Use Model"
         if panel.runModal() == .OK, let url = panel.url {
             devLocalModel = url.path
             DevFillerModel.pickedPath = url.path
-        }
-    }
-
-    /// Install a chosen published version into the filler model store (dev only).
-    private func installVersion(_ version: String) {
-        installingVersion = version
-        Task {
-            await fillerVersions.install(version: version, baseSpec: fillerModelStore.spec,
-                                         store: fillerModelStore)
-            installingVersion = nil
         }
     }
 

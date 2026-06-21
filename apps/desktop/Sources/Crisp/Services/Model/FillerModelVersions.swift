@@ -16,17 +16,22 @@ final class FillerModelVersions {
     /// Published versions, newest first (e.g. ["0.0.8", "0.0.7", …]).
     private(set) var versions: [String] = []
     private(set) var isLoading = false
+    /// The version currently being installed (drives the in-flight UI), or nil. Owned
+    /// here so the View just observes it rather than orchestrating the workflow itself.
+    private(set) var installing: String?
 
     /// Fetch the tag list for the model's repo. Best-effort: leaves `versions` empty
-    /// on any failure (dev tool, non-critical). Derives the API URL from the model URL.
+    /// on any failure (dev tool, non-critical) — including resetting a previously
+    /// loaded list, so a failed reload never shows stale versions. Derives the API URL
+    /// from the model URL.
     func load(repoModelURL: URL) async {
-        guard let url = Self.refsURL(from: repoModelURL) else { return }
+        guard let url = Self.refsURL(from: repoModelURL) else { versions = []; return }
         isLoading = true
         defer { isLoading = false }
         guard let (data, resp) = try? await URLSession.shared.data(from: url),
               (resp as? HTTPURLResponse)?.statusCode == 200,
               let j = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let tags = j["tags"] as? [[String: Any]] else { return }
+              let tags = j["tags"] as? [[String: Any]] else { versions = []; return }
         versions = tags.compactMap { $0["name"] as? String }
             .filter { $0.hasPrefix("v") }
             .map { String($0.dropFirst()) }                       // "v0.0.8" → "0.0.8"
@@ -39,6 +44,8 @@ final class FillerModelVersions {
     /// manifest couldn't be resolved.
     @discardableResult
     func install(version: String, baseSpec: ModelSpec, store: ModelStore) async -> Bool {
+        installing = version
+        defer { installing = nil }
         guard let cfgURL = FillerModelUpdater.versionedURL(
                 from: baseSpec.url, version: version, file: baseSpec.fileName)
                 .flatMap({ $0.deletingPathExtension().appendingPathExtension("config.json") }),

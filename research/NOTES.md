@@ -118,6 +118,7 @@ First real production-video test (a ~20-min talking-head recording in `~/Movies`
 - **Checked on launch** (when the model is installed + the feature is on).
 
 ### ML dev flow — model channels mirror the app's release channels
+
 The same problem the app solves with dev/nightly/stable, for models: **don't push a freshly trained model straight to Stable users, and keep old models reachable in dev.** All three pieces reuse what already existed (the `ModelSpec` download/verify stack, `versionedURL`, `applyUpdate`).
 
 - **HF repo `rafay99-epic/crisp-models` is branched per channel** (decision: branch-per-channel):
@@ -131,6 +132,7 @@ The same problem the app solves with dev/nightly/stable, for models: **don't pus
 - **Tests:** `FillerModelDevFlowTests` — channel→branch mapping, the HF URL helpers (now `nonisolated`), dev-tool gating, sideload inert off-dev.
 
 ### Tier 2 — the real fix (TODO, retraining)
+
 - **Deployment-matched diet:** far more *negative* (normal-speech) examples + **hard negatives** (the exact mid-sentence hmms and filler-like words it confuses). Recalibrates the prior.
 - **Train on continuous audio**, not event-centered 1-s clips, so it learns context.
 - **Augmentation** (noise, varied speakers/mics) for robustness.
