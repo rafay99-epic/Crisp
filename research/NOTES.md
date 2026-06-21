@@ -112,18 +112,32 @@ First real production-video test (a ~20-min talking-head recording in `~/Movies`
 
 ### Model update system (like the app updater, but from Hugging Face)
 - **Goal:** push a new model to HF → users get an in-app update banner → download the new model + config, independent of app releases.
-- **Manifest = `config.json` on `main`.** Carries `version` + **`model_sha256`** (added to `publish_hf`) + the recommended values. The `main` ref always points at the latest, so polling it = "what's the newest?".
+- **Manifest = `config.json` on the channel's branch** (see ML dev flow). Carries `version` + **`model_sha256`** (added to `publish_hf`) + the recommended values. The branch's tip always points at the newest model on that channel, so polling it = "what's the newest for me?".
 - **`FillerModelUpdater.check()`** fetches the manifest, compares `version` to the installed one (`FillerModelConfig.installedVersion`, read from the local config sidecar), and if newer builds an `updateSpec` (URL pinned to the new `vX`, **sha from the manifest** → the update is verified like a first install).
 - **UI:** an "Model update available — vX → Update" row in the filler Settings section. Update action: remove old config sidecar → `ModelStore.applyUpdate(to:)` (evicts the stale id-keyed provisioner, removes old file, downloads+verifies new) → CrispApp's ready-task re-fetches the new config.
 - **Checked on launch** (when the model is installed + the feature is on).
-- **Dev workflow:** train → export → `publish_hf` (bumps `v0.0.N`, updates `main`) → app sees it and offers the update. No app rebuild needed to ship a new model. (The catalog's pinned URL is just the baseline/first-install version.)
+
+### ML dev flow — model channels mirror the app's release channels
+
+The same problem the app solves with dev/nightly/stable, for models: **don't push a freshly trained model straight to Stable users, and keep old models reachable in dev.** All three pieces reuse what already existed (the `ModelSpec` download/verify stack, `versionedURL`, `applyUpdate`).
+
+- **HF repo `rafay99-epic/crisp-models` is branched per channel** (decision: branch-per-channel):
+  - `main` branch → **Stable** manifest. `nightly` branch → **Nightly + Dev** manifest.
+  - `Channel.modelChannelRef` (`main` on Stable, `nightly` on Nightly/Dev) is the only thing that changes which manifest the app polls — `FillerModelUpdater.manifestURL` reads it. Everything else (download by global `v0.0.N` tag, verify by sha) is identical.
+- **Publish = staging by default.** `publish_hf.py --channel {nightly,stable}` (default **nightly**) commits to that branch + tags `v0.0.N` (commit-count, counted on `nightly` so it's one monotonic line). Nightly/Dev apps offer the update immediately; Stable can't see it.
+- **Promotion = `promote_model.py`** (the model mirror of `.github/scripts/promote.sh`): copies the nightly tip's files onto `main` in **one commit** (no branch merge → no 3-way-merge conflict). Flips the manifest's `channel` marker to `stable`. `--version vX` promotes/rolls back to a specific tag. Pin the catalog floor to the promoted version afterwards.
+- **Local sideload (the `./dev.sh` of models)** — `DevFillerModel` (CrispCore), **dev build only**: run a `.mlmodel` straight from disk *before* publishing anything. Resolves from `$CRISP_FILLER_MODEL` (scripted) or a Settings → "Load local model…" picker. Put `<name>.config.json` beside it (export writes one) so framing/threshold travel. Gating (`fillerModelReady`), the engine `--filler-model`, and the status banner all follow the override; a stale picked path silently falls back to the downloaded model.
+- **Version history (the git-history of models)** — `FillerModelVersions` (dev build only): lists the repo's `v0.0.N` tags via the HF refs API (`/api/models/<repo>/refs`) and installs any one (pinned + sha-verified from that version's own `config.json`). Lets you A/B an old model against a new one in Dev. The history already exists server-side — every publish is an immutable tag.
+- **Wiring:** `Channel.showsModelDevTools` (== dev) gates both dev affordances; `CrispApp` owns `FillerModelVersions`; the two dev sections live under a "Developer" divider in the filler Settings section.
+- **Tests:** `FillerModelDevFlowTests` — channel→branch mapping, the HF URL helpers (now `nonisolated`), dev-tool gating, sideload inert off-dev.
 
 ### Tier 2 — the real fix (TODO, retraining)
+
 - **Deployment-matched diet:** far more *negative* (normal-speech) examples + **hard negatives** (the exact mid-sentence hmms and filler-like words it confuses). Recalibrates the prior.
 - **Train on continuous audio**, not event-centered 1-s clips, so it learns context.
 - **Augmentation** (noise, varied speakers/mics) for robustness.
 - Optionally fold in SEP-28k (NC license → experiments only) for more/varied negatives.
-- Then re-export → publish `v0.0.N` → bump the one `ModelSpec` line.
+- Then re-export → `publish_hf --channel nightly` → test in Crisp Dev (sideload first, even) → `promote_model` → bump the catalog floor. Ships as a model update; **no app change** (this is the whole point of the dev flow above).
 
 ### Data collection (later)
 - Current `FillerFeedback` only logs anonymous stats **locally**; nothing reaches the developer yet.
@@ -133,8 +147,11 @@ First real production-video test (a ~20-min talking-head recording in `~/Movies`
 
 ## 7. Quick reference
 
-- Branch: `feature/wren-backend` → PR #48 (into `nightly`).
+- Branches: `feature/wren-backend` → PR #48 (merged into `nightly`); `feature/ml-dev-flow` = the model dev flow (channels + sideload + history).
 - Try it: Crisp Dev → ⌘, → Cutting → enable filler model → Install Wren → clean a video.
 - Helper CLI: `crisp-filler --model Wren.mlmodel --audio in.wav [--threshold 0.85]`.
 - Engine: `clean_video.py … --filler-backend coreml --filler-model Wren.mlmodel` (set `CRISP_FILLER`).
 - Tunables: `Spec.defaultThreshold`/`minFiller` in `main.swift`; `FILLER_MIN_SOLO`/`FILLER_PAUSE_PAD` in `crisp/config.py`.
+- **Ship a new model:** `python -m filler_classifier.publish_hf --repo rafay99-epic/crisp-models --model …/Wren.mlmodel --weights …/filler_cnn.pt --card …/MODEL_CARD.md` (→ nightly) → test → `python -m filler_classifier.promote_model --repo rafay99-epic/crisp-models` (→ stable).
+- **Sideload (no publish):** `CRISP_FILLER_MODEL=…/Wren.mlmodel open 'Crisp Dev.app'`, or Settings → "Load local model…". Dev build only.
+- **One-time HF seed:** the `nightly` branch is auto-created on first `--channel nightly` publish (forked off `main`). Until then Nightly/Dev just see no update (manifest 404 → handled).

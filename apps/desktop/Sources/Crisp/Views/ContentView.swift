@@ -37,6 +37,16 @@ struct ContentView: View {
     private var needsFillerModel: Bool {
         model.removeFillers && settings.fillerModelEnabled
     }
+    /// The filler model is ready to run if it's downloaded — or, on a dev build, if a
+    /// local model is sideloaded (which needs no download). Keeps the dev sideload from
+    /// being blocked by the download gate.
+    private var fillerModelReady: Bool {
+        DevFillerModel.overridePath != nil || fillerModelStore.state.isReady
+    }
+    /// The active filler model path: a dev sideload overrides the downloaded model.
+    private var activeFillerModelPath: String? {
+        DevFillerModel.overridePath ?? fillerModelStore.readyModelPath
+    }
 
     /// Everything a pre-flight estimate depends on — the global recipe (strength +
     /// custom cut knobs) and the waiting files with their per-row presets. Order is
@@ -101,7 +111,7 @@ struct ContentView: View {
     private func launch(concurrency: Int) {
         Task {
             await model.start(modelPath: modelStore.readyModelPath,
-                              fillerModelPath: needsFillerModel ? fillerModelStore.readyModelPath : nil,
+                              fillerModelPath: needsFillerModel ? activeFillerModelPath : nil,
                               feedbackModelID: (needsFillerModel && settings.shareFillerData)
                                   ? settings.selectedFillerModelID : nil,
                               concurrency: concurrency,
@@ -110,7 +120,7 @@ struct ContentView: View {
     }
     private var modelBlocks: Bool {
         (needsWhisper && !modelStore.state.isReady)
-            || (needsFillerModel && !fillerModelStore.state.isReady)
+            || (needsFillerModel && !fillerModelReady)
     }
 
     var body: some View {
@@ -137,7 +147,8 @@ struct ContentView: View {
                 FillerUpdateBar(updater: fillerUpdater, store: fillerModelStore)
                     .padding(.horizontal, 16).padding(.top, 10)
             }
-            if needsFillerModel && (!fillerModelStore.state.isReady || fillerModelStore.state.isBusy) {
+            if needsFillerModel && DevFillerModel.overridePath == nil
+                && (!fillerModelStore.state.isReady || fillerModelStore.state.isBusy) {
                 ModelStatusView(store: fillerModelStore)
                     .padding(.horizontal, 16).padding(.top, 10)
             } else if needsWhisper && (!modelStore.state.isReady || modelStore.state.isBusy) {
