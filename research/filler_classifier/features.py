@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import torch
 import torchaudio
+from torch.nn import functional as F
 
 from . import config
 
@@ -63,3 +64,23 @@ def chunks_from_waveform(waveform: torch.Tensor):
         empty = torch.empty(0, 1, config.N_MELS, config.CHUNK_FRAMES)
         return empty, []
     return torch.stack(patches), centers
+
+
+def chunk_at(waveform: torch.Tensor, center_sec: float) -> torch.Tensor:
+    """One normalized log-mel chunk [1, n_mels, CHUNK_FRAMES] centered at center_sec.
+
+    Used for the short corpus clips (PodcastFillers, SEP-28k): we know where the
+    filler sits, so we sample the single chunk over it instead of the whole clip.
+    Normalization matches `chunks_from_waveform` (per-clip mean/std), so training
+    chunks and sliding-inference chunks see the same statistics. Clips shorter
+    than one chunk are right-padded.
+    """
+    mel = log_mel(waveform)                                  # [n_mels, T]
+    mel = (mel - mel.mean()) / (mel.std() + 1e-5)
+    if mel.shape[1] < config.CHUNK_FRAMES:
+        mel = F.pad(mel, (0, config.CHUNK_FRAMES - mel.shape[1]))
+
+    center_frame = center_sec / config.FRAME_SEC
+    f0 = int(round(center_frame - config.CHUNK_FRAMES / 2.0))
+    f0 = max(0, min(f0, mel.shape[1] - config.CHUNK_FRAMES))
+    return mel[:, f0:f0 + config.CHUNK_FRAMES].unsqueeze(0)

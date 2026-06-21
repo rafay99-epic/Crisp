@@ -25,30 +25,42 @@ pip install -r requirements.txt
 ```
 
 ### 1. Get labeled data
-Put clips and their labels side by side under `data/`:
+The model trains on one of three sources, selected with `--dataset`:
 
-```
-data/clip01.wav            # 16 kHz mono
-data/clip01.fillers.json   # {"fillers": [[1.20, 1.46], [8.03, 8.31]]}
-```
+**a) PodcastFillers (default, recommended).** 35k human-labeled "uh"/"um" events
+across 350+ speakers — diverse, so the model generalizes. Download from
+<https://podcastfillers.github.io/> and extract to `data/PodcastFillers/`.
+The loader reads `metadata/PodcastFillers.csv` (filler = `label_consolidated_vocab`
+in {Uh, Um}; `event_*_inclip` columns place it inside each 1 s clip) and the clips
+under `audio/clip_wav/<split>/`.
 
-Extract mono 16 kHz audio from any recording with:
-```sh
-ffmpeg -i input.mp4 -vn -ac 1 -ar 16000 -c:a pcm_s16le data/clip01.wav
-```
+> ⚠️ The archive is Zip64 (>4 GB). macOS's built-in `unzip` corrupts the large
+> entries ("bad zipfile offset") — the 1 s clips extract fine, but grab
+> `metadata/PodcastFillers.csv` from the site's standalone download if it's missing.
+> We only need `audio/clip_wav/` + that CSV; the full episode audio is unused.
 
-The easiest source is your own recordings. A quick bootstrap: run Crisp's normal
-clean, note where it cut "um/uh", and hand-correct those intervals into the JSON.
-Keep a held-out set under `data/val/` for honest evaluation.
+**b) SEP-28k (Apple stuttering events).** Filler = the `Interjection` annotator
+count. Labels are clip-level (coarser — no within-clip timing). The clone ships
+only labels + scripts, so download audio first (`download_audio.py` then
+`extract_clips.py` in `data/ml-stuttering-events-dataset/`), which writes clips to
+`clips/<Show>/<EpId>/`.
+
+**c) Your own recordings (`--dataset folder`).** For later domain-adaptation to
+Crisp's talking-head footage. Put `*.wav` (16 kHz mono) + `*.fillers.json`
+(`{"fillers": [[1.20, 1.46], …]}`) side by side under a folder. Extract audio with
+`ffmpeg -i in.mp4 -vn -ac 1 -ar 16000 -c:a pcm_s16le data/clip01.wav`.
 
 ### 2. Train
 ```sh
-python -m filler_classifier.train --data data/ --epochs 30
+# PodcastFillers, using its built-in train/validation splits:
+python -m filler_classifier.train --dataset podcastfillers --data data/PodcastFillers --epochs 30
 ```
+Each epoch prints validation Precision / Recall / F1 so you can watch it learn;
+the best-F1 checkpoint is saved to `checkpoints/filler_cnn.pt`.
 
-### 3. Evaluate (on held-out clips)
+### 3. Evaluate (on the held-out test split)
 ```sh
-python -m filler_classifier.evaluate --data data/val --checkpoint checkpoints/filler_cnn.pt
+python -m filler_classifier.evaluate --dataset podcastfillers --data data/PodcastFillers --split test
 ```
 
 ### 4. Try it on a clip
