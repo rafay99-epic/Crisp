@@ -68,6 +68,8 @@ def run(root, checkpoint, split):
         patches.append(features.chunk_at(wav, center))
         labels.append(label)
         vocabs.append(vocab)
+    if not patches:
+        raise SystemExit(f"No examples for split={split!r} under {root!r}.")
     X = torch.stack(patches)
     y = torch.tensor(labels)
     print(f"test examples: {len(X)}  ({int(y.sum())} filler, {int((y == 0).sum())} non-filler)\n")

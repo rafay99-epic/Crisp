@@ -79,8 +79,8 @@ struct ContentView: View {
                 Text("Decision threshold").font(.headline)
                 Spacer()
                 Picker("", selection: $threshold) {
-                    ForEach([0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9], id: \.self) {
-                        Text(String(format: "%.1f", $0)).tag($0)
+                    ForEach(r.sweep.map(\.threshold), id: \.self) { t in
+                        Text(String(format: "%.1f", t)).tag(t)
                     }
                 }
                 .pickerStyle(.segmented).fixedSize().labelsHidden()

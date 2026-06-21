@@ -32,7 +32,7 @@ def _pos_weight(labels: torch.Tensor) -> torch.Tensor:
     """BCE pos_weight to offset class imbalance (fillers are the rare class)."""
     pos = float(labels.sum())
     neg = float(len(labels)) - pos
-    return torch.tensor(neg / pos) if pos else torch.tensor(1.0)
+    return torch.tensor(neg / pos) if (pos and neg) else torch.tensor(1.0)  # single-class → no reweighting
 
 
 class _ChunkDataset(Dataset):

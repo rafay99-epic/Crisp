@@ -51,6 +51,6 @@ class FillerChunks(Dataset):
         """BCE pos_weight to offset class imbalance (fillers are rare)."""
         pos = float(self.labels.sum())
         neg = float(len(self.labels)) - pos
-        if pos == 0:
+        if pos == 0 or neg == 0:        # single-class set: neg/pos would be 0 (kills the gradient)
             return torch.tensor(1.0)
         return torch.tensor(neg / pos)

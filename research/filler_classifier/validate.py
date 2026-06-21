@@ -38,6 +38,7 @@ from pathlib import Path
 
 from . import features
 from .infer import load_model, predict_intervals
+from .labeling import load_intervals
 
 
 # ------------------------------------------------------------------- prepare
@@ -47,6 +48,10 @@ def prepare(src, start, end, out_wav, out_labels):
         sr, ch, sw, n = (w.getframerate(), w.getnchannels(),
                          w.getsampwidth(), w.getnframes())
         raw = w.readframes(n)
+
+    dur = n / sr
+    if start < 0 or start >= dur or (end and end <= start):
+        raise SystemExit(f"invalid window [{start}, {end or round(dur, 1)}] for a {dur:.1f}s clip.")
 
     bpf = ch * sw                                   # bytes per frame
     s = int(start * sr)
@@ -91,7 +96,7 @@ def _fmt(iv):
 
 
 def score(window_wav, labels_path, checkpoint, threshold):
-    gold = [tuple(x) for x in json.loads(Path(labels_path).read_text()).get("fillers", [])]
+    gold = load_intervals(labels_path)              # shared parser: validates bounds
     if not gold:
         raise SystemExit(f"{labels_path} has no fillers yet — label window.wav by ear first.")
 

@@ -24,7 +24,7 @@ full speech-to-text just to find fillers.
   standardized with fixed constants `MEL_MEAN=-18.5658`, `MEL_STD=17.9252`).
 - **Output:** `filler_prob` — P(this chunk is a filler), 0…1.
 - **Format:** a single-file Core ML `.mlmodel` (download directly, no unzip).
-  Runs on the Apple Neural Engine.
+  Runs on-device — Core ML schedules it across the Neural Engine, GPU, or CPU.
 
 Feature extraction (mel + chunking + the slide/merge into time ranges) lives in
 the host app; the model itself is a pure `chunk → probability` function.

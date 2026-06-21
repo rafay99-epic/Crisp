@@ -118,10 +118,12 @@ root = Path("data/PodcastFillers"); cd = root/"audio"/"clip_wav"
 names = [(r["clip_split_subset"], r["clip_name"]) for r in
          csv.DictReader(open(root/"metadata"/"PodcastFillers.csv")) if r["clip_split_subset"] == "train"]
 s = ss = n = 0
-for split, name in names[::max(1, len(names)//4000)]:
+for split, name in names[::max(1, len(names)//4000)]:   # ~4k-clip sample = a stable estimate
     mel = features.log_mel(features.load_waveform(str(cd/split/name)))
     s += float(mel.sum()); ss += float((mel*mel).sum()); n += mel.numel()
-mean = s/n; print("MEL_MEAN =", round(mean, 4), "MEL_STD =", round((ss/n - mean*mean)**0.5, 4))
+mean = s / n
+var = max(0.0, ss / n - mean * mean)                    # clamp: guard float round-off < 0
+print("MEL_MEAN =", round(mean, 4), "MEL_STD =", round(var ** 0.5, 4))
 ```
 Changing normalization means **retrain + re-export** (the old checkpoint expects the old inputs).
 

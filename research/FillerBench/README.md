@@ -20,12 +20,14 @@ It shows precision · recall · F1 at the chosen threshold, inference speed
 per-filler recall.
 
 The **Research dir** field must point at the `research/` folder that contains the
-`.venv/` (training env) and `data/PodcastFillers/`. Defaults to the absolute path
-on this machine.
+`.venv/` (training env) and `data/PodcastFillers/`. It defaults to
+`$CRISP_RESEARCH_DIR`, else `<cwd>/research` if present, else the working
+directory — edit the field if your checkout is elsewhere.
 
 > Scoring on the full `test` split runs the model over ~9.5k clips (a minute or
 > two). Use **Quick** for fast feedback.
 
-### Next
+## Next
+
 - **Run on my own data** mode: drop in a video → predictions + a label-a-window
   flow that computes precision/recall on your footage (graphical `validate`).

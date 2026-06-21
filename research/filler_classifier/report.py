@@ -33,6 +33,8 @@ def build_report(root, checkpoint, split, limit=0):
         patches.append(features.chunk_at(features.load_waveform(str(path)), center))
         labels.append(label)
         vocabs.append(vocab)
+    if not patches:
+        raise SystemExit(f"No examples for split={split!r} under {root!r}.")
     X = torch.stack(patches)
     y = torch.tensor(labels)
 

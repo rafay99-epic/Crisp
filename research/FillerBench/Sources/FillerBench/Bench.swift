@@ -11,7 +11,16 @@ struct BenchError: LocalizedError {
 /// its JSON, keep the UI a pure display layer.
 @MainActor @Observable
 final class Bench {
-    var researchDir = "/Users/prometheus/Code/Crisp/research"
+    /// Portable default: $CRISP_RESEARCH_DIR, else `<cwd>/research` if it exists,
+    /// else the cwd. Editable in the UI — no machine-specific path hardcoded.
+    static let defaultResearchDir: String = {
+        if let env = ProcessInfo.processInfo.environment["CRISP_RESEARCH_DIR"] { return env }
+        let cwd = FileManager.default.currentDirectoryPath
+        let nested = cwd + "/research"
+        return FileManager.default.fileExists(atPath: nested) ? nested : cwd
+    }()
+
+    var researchDir = Bench.defaultResearchDir
     var split = "test"
     var quick = false            // pass --limit for fast feedback while iterating
     var report: Report?
