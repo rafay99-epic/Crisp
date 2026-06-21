@@ -257,6 +257,13 @@ struct SettingsView: View {
             Toggle("Use the fast on-device filler model", isOn: fillerEnabledBinding)
                 .disabled(model.isRunning)
             if settings.fillerModelEnabled {
+                Label {
+                    Text("**English only.** Experimental — built for clear English speech. It can occasionally cut a real word, and it won't work on other languages. For non-English audio or captions, turn this off and use the speech model.")
+                        .font(.caption).foregroundStyle(.secondary)
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                }
                 Picker("Model", selection: activeFillerModelBinding) {
                     ForEach(FillerModelCatalog.all) { Text($0.displayName).tag($0.id) }
                 }
