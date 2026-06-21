@@ -56,6 +56,17 @@ let package = Package(
             dependencies: ["CrispCore"],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
+        // The on-device filler detector the engine shells out to (CRISP_FILLER):
+        // reads a WAV, computes the model's log-mel via Accelerate (BLAS DFT), and
+        // runs the bundled Core ML model. Standalone — no CrispCore dependency.
+        .executableTarget(
+            name: "crisp-filler",
+            swiftSettings: [.swiftLanguageMode(.v5)],
+            linkerSettings: [
+                .linkedFramework("CoreML"),
+                .linkedFramework("Accelerate")
+            ]
+        ),
         .testTarget(
             name: "CrispTests",
             dependencies: ["Crisp", "CrispCore"],
