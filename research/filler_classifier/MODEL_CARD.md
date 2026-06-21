@@ -54,6 +54,25 @@ English only. Trained on podcast audio; very different domains (heavy accents,
 noisy rooms) may need a higher threshold or a fine-tune. Not a transcriber — it
 only flags fillers.
 
+## Files & versions (open weights)
+
+Everything is downloadable — pick whichever you need:
+
+| File | What |
+|------|------|
+| `Wren.mlpackage.zip` | Core ML build (Apple Neural Engine). What the app downloads. |
+| `Wren.pt` | Raw PyTorch weights (`state_dict`) — for your own inference/fine-tuning. |
+| `Wren.config.json` | Audio framing + normalization constants + recommended threshold. |
+
+**Versioning:** each release is one commit tagged **`v0.0.N`** (mirrors Crisp's
+commit-count scheme). Pin an exact version in the URL:
+
+```
+https://huggingface.co/rafay99-epic/crisp-models/resolve/v0.0.1/Wren.mlpackage.zip
+```
+
+`main` always points at the latest.
+
 ## License
 
 Code: GPL-3.0 (Crisp). Model weights derive from PodcastFillers (CC).
