@@ -13,10 +13,15 @@ struct SettingsView: View {
     @Bindable var modelStore: ModelStore
     @Bindable var fillerModelStore: ModelStore
     @Bindable var fillerUpdater: FillerModelUpdater
+    @Bindable var fillerVersions: FillerModelVersions
     @Bindable var model: CleanModel
 
     @State private var newPresetName = ""
     @State private var snapshot = SystemProbe.snapshot()
+    /// Dev sideload: the local model path picked in this build (mirrors
+    /// `DevFillerModel.pickedPath`; `@State` so the UI refreshes after picking).
+    @State private var devLocalModel: String? = DevFillerModel.pickedPath
+    @State private var installingVersion: String?
 
     /// Whether the chosen container dictates its own codecs (WebM → VP9 + Opus),
     /// in which case the codec controls are disabled. Reads the rule off the enum
@@ -286,12 +291,102 @@ struct SettingsView: View {
                 Toggle("Share anonymous data to help improve the model", isOn: $settings.shareFillerData)
                 Text("On-device only. Records counts + durations (never your audio, filenames, or any content) to ~/.crisp/feedback. Nothing is uploaded.")
                     .font(.caption).foregroundStyle(.secondary)
+                if Channel.current.showsModelDevTools { devModelTools }
             }
         } header: {
             Text("Filler detection (experimental)")
         } footer: {
             Text("A tiny on-device model that spots um/uh much faster than transcribing — used instead of the speech model above when removing fillers. English only; off by default. Captions still use the speech model.")
                 .font(.caption).foregroundStyle(.secondary)
+        }
+        // Dev build: load the published version history so the picker can offer old models.
+        .task(id: settings.fillerModelEnabled) {
+            guard Channel.current.showsModelDevTools, settings.fillerModelEnabled else { return }
+            await fillerVersions.load(repoModelURL: fillerModelStore.spec.url)
+        }
+    }
+
+    // MARK: - Filler model — developer tools (dev build only)
+
+    /// Two dev-only affordances mirroring the app's dev flow for ML:
+    /// • **Local sideload** — run a freshly trained `.mlmodel` from disk before
+    ///   publishing anything (the `./dev.sh` of models).
+    /// • **Version history** — install any published `v0.0.N` to A/B old vs new
+    ///   (the git-history of models; the tags already exist on Hugging Face).
+    @ViewBuilder private var devModelTools: some View {
+        Divider()
+        Label("Developer (Dev build only)", systemImage: "hammer")
+            .font(.caption.bold()).foregroundStyle(.secondary)
+
+        // Local sideload.
+        if DevFillerModel.isEnvOverride {
+            Label("Running the local model from $\(DevFillerModel.envKey).",
+                  systemImage: "wrench.and.screwdriver")
+                .font(.caption).foregroundStyle(.secondary)
+        } else {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Local model").font(.callout)
+                    Text(devLocalModel.map { ($0 as NSString).lastPathComponent }
+                         ?? "Using the downloaded model")
+                        .font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                }
+                Spacer()
+                if devLocalModel != nil {
+                    Button("Clear") { devLocalModel = nil; DevFillerModel.pickedPath = nil }
+                }
+                Button("Load local model…") { pickLocalModel() }
+                    .disabled(model.isRunning)
+            }
+            Text("Run a `.mlmodel` you just trained, before publishing. Put its `\(fillerModelStore.spec.displayName).config.json` beside it so framing + threshold travel too.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+
+        // Version history (published v0.0.N tags).
+        if !fillerVersions.versions.isEmpty {
+            HStack {
+                Text("Install version").font(.callout)
+                Spacer()
+                if let installing = installingVersion {
+                    ProgressView().controlSize(.small)
+                    Text("v\(installing)…").font(.caption).foregroundStyle(.secondary)
+                } else {
+                    Menu("Choose…") {
+                        ForEach(fillerVersions.versions, id: \.self) { v in
+                            Button("v\(v)") { installVersion(v) }
+                        }
+                    }
+                    .frame(width: 130)
+                    .disabled(fillerModelStore.state.isBusy || model.isRunning)
+                }
+            }
+            Text("Download any past model to compare it against the current one (\(fillerVersions.versions.count) published).")
+                .font(.caption).foregroundStyle(.secondary)
+        } else if fillerVersions.isLoading {
+            Label("Loading version history…", systemImage: "clock").font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    /// Pick a local `.mlmodel` to sideload (dev only).
+    private func pickLocalModel() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.init(filenameExtension: "mlmodel")].compactMap { $0 }
+        panel.allowsOtherFileTypes = true
+        panel.canChooseDirectories = false
+        panel.prompt = "Use Model"
+        if panel.runModal() == .OK, let url = panel.url {
+            devLocalModel = url.path
+            DevFillerModel.pickedPath = url.path
+        }
+    }
+
+    /// Install a chosen published version into the filler model store (dev only).
+    private func installVersion(_ version: String) {
+        installingVersion = version
+        Task {
+            await fillerVersions.install(version: version, baseSpec: fillerModelStore.spec,
+                                         store: fillerModelStore)
+            installingVersion = nil
         }
     }
 

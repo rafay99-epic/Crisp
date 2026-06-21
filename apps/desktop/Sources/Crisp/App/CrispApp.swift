@@ -9,6 +9,8 @@ struct CrispApp: App {
     // The opt-in on-device filler model (Wren), downloaded separately from whisper.
     @State private var fillerModelStore = ModelStore(spec: FillerModelCatalog.wren)
     @State private var fillerUpdater = FillerModelUpdater()
+    // Dev build only: lists/install published model versions (the model "history").
+    @State private var fillerVersions = FillerModelVersions()
     @State private var settings = EngineSettings()
     @State private var watchAgent = WatchAgentController()
     @State private var onboarding = OnboardingController()
@@ -70,7 +72,7 @@ struct CrispApp: App {
         Settings {
             SettingsView(settings: settings, updater: updater, watchAgent: watchAgent,
                          modelStore: modelStore, fillerModelStore: fillerModelStore,
-                         fillerUpdater: fillerUpdater, model: model)
+                         fillerUpdater: fillerUpdater, fillerVersions: fillerVersions, model: model)
         }
 
         // A library of past cleans (every surface records to it). Opened from the

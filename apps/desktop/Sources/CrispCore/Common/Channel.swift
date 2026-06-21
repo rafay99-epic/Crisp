@@ -88,6 +88,19 @@ public enum Channel: String {
     /// Dev has no updater at all. Stable and Nightly both update from their feeds.
     public var updatesEnabled: Bool { self != .dev }
 
+    /// Which branch of the Hugging Face model repo this channel pulls **model**
+    /// updates from — the model analogue of the app's release channels. Stable
+    /// rides the promoted `main` manifest; Nightly and Dev ride the `nightly`
+    /// staging manifest, so they see (and test) a new model before it's promoted to
+    /// Stable. A model published to nightly is fetched by its global `v0.0.N` tag,
+    /// so only the manifest the channel polls differs — not the model bytes.
+    public var modelChannelRef: String { self == .stable ? "main" : "nightly" }
+
+    /// Dev gets the model-history + local-sideload affordances in Settings — the
+    /// "see / A-B old models" and "test a freshly trained model before publishing"
+    /// tools. Hidden on Stable/Nightly, which only pick the recommended model.
+    public var showsModelDevTools: Bool { self == .dev }
+
     /// Nightly orders builds by the monotonic CI build number (its pre-release
     /// tag is reused, so the version string can't order them). Stable orders by
     /// the numeric version.

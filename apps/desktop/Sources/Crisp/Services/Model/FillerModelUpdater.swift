@@ -62,17 +62,22 @@ final class FillerModelUpdater {
     }
 
     // MARK: - HF resolve-URL helpers (…/resolve/<ref>/<file>)
+    // Pure, stateless string transforms — `nonisolated` so they're callable off the
+    // main actor (and unit-testable directly).
 
-    /// …/resolve/<ref>/<Name>.mlmodel → …/resolve/main/<Name>.config.json
-    static func manifestURL(from modelURL: URL) -> URL? {
+    /// …/resolve/<ref>/<Name>.mlmodel → …/resolve/<channel ref>/<Name>.config.json.
+    /// The ref is channel-derived (`main` on Stable, `nightly` on Nightly/Dev), so
+    /// each channel polls its own manifest and a new model reaches Stable only once
+    /// promoted — mirroring the app's release channels.
+    nonisolated static func manifestURL(from modelURL: URL) -> URL? {
         let cfg = modelURL.deletingPathExtension().lastPathComponent + ".config.json"
-        return replacingResolve(modelURL, ref: "main", file: cfg)
+        return replacingResolve(modelURL, ref: Channel.current.modelChannelRef, file: cfg)
     }
     /// …/resolve/<ref>/<file> → …/resolve/v<version>/<file>
-    static func versionedURL(from modelURL: URL, version: String, file: String) -> URL? {
+    nonisolated static func versionedURL(from modelURL: URL, version: String, file: String) -> URL? {
         replacingResolve(modelURL, ref: "v\(version)", file: file)
     }
-    private static func replacingResolve(_ url: URL, ref: String, file: String) -> URL? {
+    nonisolated private static func replacingResolve(_ url: URL, ref: String, file: String) -> URL? {
         var parts = url.pathComponents              // ["/", owner, repo, "resolve", ref, file]
         guard let i = parts.firstIndex(of: "resolve"), i + 2 < parts.count else { return nil }
         parts[i + 1] = ref
@@ -83,7 +88,7 @@ final class FillerModelUpdater {
     }
 
     /// Compare "0.0.N" version strings numerically (the commit-count scheme).
-    static func isNewer(_ a: String, than b: String) -> Bool {
+    nonisolated static func isNewer(_ a: String, than b: String) -> Bool {
         func nums(_ s: String) -> [Int] { s.split(separator: ".").map { Int($0) ?? 0 } }
         let (pa, pb) = (nums(a), nums(b))
         for k in 0..<max(pa.count, pb.count) {
