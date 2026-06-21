@@ -6,6 +6,9 @@ through `chunks_from_waveform`, so the two can never drift apart.
 """
 from __future__ import annotations
 
+import wave
+
+import numpy as np
 import torch
 import torchaudio
 from torch.nn import functional as F
@@ -21,14 +24,38 @@ _mel = torchaudio.transforms.MelSpectrogram(
 _to_db = torchaudio.transforms.AmplitudeToDB(top_db=80.0)
 
 
+# PCM sample widths → (numpy dtype, scale to [-1, 1]). Covers 8/16/32-bit PCM,
+# which is everything ffmpeg's `-c:a pcm_s16le` and the corpus clips produce.
+_PCM = {1: (np.uint8, 128.0), 2: (np.dtype("<i2"), 32768.0), 4: (np.dtype("<i4"), 2147483648.0)}
+
+
 def load_waveform(path: str) -> torch.Tensor:
-    """Load an audio file as a mono 16 kHz waveform of shape [samples]."""
-    wav, sr = torchaudio.load(path)
-    if wav.shape[0] > 1:                          # downmix to mono
-        wav = wav.mean(dim=0, keepdim=True)
-    if sr != config.SAMPLE_RATE:
+    """Load a WAV as a mono 16 kHz waveform of shape [samples].
+
+    Uses the stdlib `wave` module rather than torchaudio.load: torchaudio 2.8+
+    delegates decoding to TorchCodec, which has no wheel on bleeding-edge Python.
+    Our clips (and Crisp's extracted analysis audio) are plain PCM WAV, so `wave`
+    reads them with no extra dependency — the same stdlib-only stance as the engine.
+    """
+    with wave.open(str(path), "rb") as w:
+        sr, channels, width, n = (w.getframerate(), w.getnchannels(),
+                                  w.getsampwidth(), w.getnframes())
+        raw = w.readframes(n)
+    if width not in _PCM:
+        raise ValueError(f"{path}: unsupported PCM sample width {width} bytes")
+
+    dtype, scale = _PCM[width]
+    data = np.frombuffer(raw, dtype=dtype).astype(np.float32)
+    if width == 1:                                 # 8-bit PCM is unsigned, centered at 128
+        data -= 128.0
+    data /= scale
+    if channels > 1:                               # downmix to mono
+        data = data.reshape(-1, channels).mean(axis=1)
+
+    wav = torch.from_numpy(data.copy())
+    if sr != config.SAMPLE_RATE:                   # functional.resample is pure torch (no codec)
         wav = torchaudio.functional.resample(wav, sr, config.SAMPLE_RATE)
-    return wav.squeeze(0)
+    return wav
 
 
 def log_mel(waveform: torch.Tensor) -> torch.Tensor:
