@@ -11,6 +11,7 @@ struct SettingsView: View {
     @Bindable var updater: Updater
     @Bindable var watchAgent: WatchAgentController
     @Bindable var modelStore: ModelStore
+    @Bindable var fillerModelStore: ModelStore
     @Bindable var model: CleanModel
 
     @State private var newPresetName = ""
@@ -34,7 +35,7 @@ struct SettingsView: View {
 
     var body: some View {
         TabView {
-            tab { cuttingSection; speechModelSection }
+            tab { cuttingSection; speechModelSection; fillerModelSection }
                 .tabItem { Label("Cutting", systemImage: "scissors") }
 
             tab { encodingSection; captionsSection; outputLocationSection; originalsSection }
@@ -222,6 +223,44 @@ struct SettingsView: View {
             Text("Speech model")
         } footer: {
             Text("Used to find filler words. Larger models catch more fillers and place cuts more precisely, but download and run slower. Pauses are detected from the audio either way.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    /// Enabling the on-device filler model rechecks disk (so an already-installed
+    /// model shows ready immediately); switching models retargets its store.
+    private var fillerEnabledBinding: Binding<Bool> {
+        Binding(get: { settings.fillerModelEnabled },
+                set: { on in
+                    settings.fillerModelEnabled = on
+                    if on { Task { await fillerModelStore.refresh() } }
+                })
+    }
+    private var activeFillerModelBinding: Binding<String> {
+        Binding(get: { settings.selectedFillerModelID },
+                set: { id in
+                    settings.selectedFillerModelID = id
+                    fillerModelStore.use(FillerModelCatalog.spec(id: id))
+                })
+    }
+
+    @ViewBuilder private var fillerModelSection: some View {
+        Section {
+            Toggle("Use the fast on-device filler model", isOn: fillerEnabledBinding)
+                .disabled(model.isRunning)
+            if settings.fillerModelEnabled {
+                Picker("Model", selection: activeFillerModelBinding) {
+                    ForEach(FillerModelCatalog.all) { Text($0.displayName).tag($0.id) }
+                }
+                .disabled(fillerModelStore.state.isBusy || model.isRunning)
+                Text(fillerModelStore.spec.summary)
+                    .font(.caption).foregroundStyle(.secondary)
+                ModelInstallControl(store: fillerModelStore, allowRemove: true, removeDisabled: model.isRunning)
+            }
+        } header: {
+            Text("Filler detection (experimental)")
+        } footer: {
+            Text("A tiny on-device model that spots um/uh much faster than transcribing — used instead of the speech model above when removing fillers. English only; off by default. Captions still use the speech model.")
                 .font(.caption).foregroundStyle(.secondary)
         }
     }

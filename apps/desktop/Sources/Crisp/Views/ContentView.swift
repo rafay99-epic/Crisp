@@ -6,6 +6,7 @@ struct ContentView: View {
     @Bindable var model: CleanModel
     @Bindable var updater: Updater
     @Bindable var modelStore: ModelStore
+    @Bindable var fillerModelStore: ModelStore
     @Bindable var settings: EngineSettings
     @Bindable var watchAgent: WatchAgentController
     @Bindable var onboarding: OnboardingController
@@ -18,14 +19,22 @@ struct ContentView: View {
     @State private var ultraVerdict: ResourceGovernor.Verdict?
     @State private var estimate = EstimateModel()
 
-    /// Filler-word removal needs the speech model; so does caption export (both are
-    /// transcribed). Checks the *resolved* recipe of each waiting file — not just the
-    /// global setting — so a per-row preset that turns captions on is also covered.
-    private var needsModel: Bool {
-        if model.removeFillers { return true }
-        return model.queue.contains { item in
+    /// Any waiting file asking for captions (checks the *resolved* recipe, so a
+    /// per-row preset that turns captions on is covered). Captions always use whisper.
+    private var anyCaptions: Bool {
+        model.queue.contains { item in
             item.status == .waiting && resolveParameters(item).captionsFormat != "none"
         }
+    }
+    /// Whisper is needed for captions, and for filler removal unless the opt-in
+    /// on-device classifier is enabled.
+    private var needsWhisper: Bool {
+        (model.removeFillers && !settings.fillerModelEnabled) || anyCaptions
+    }
+    /// The on-device filler model is needed when filler removal is on and the user
+    /// opted into the classifier backend.
+    private var needsFillerModel: Bool {
+        model.removeFillers && settings.fillerModelEnabled
     }
 
     /// Everything a pre-flight estimate depends on — the global recipe (strength +
@@ -91,11 +100,15 @@ struct ContentView: View {
     private func launch(concurrency: Int) {
         Task {
             await model.start(modelPath: modelStore.readyModelPath,
+                              fillerModelPath: needsFillerModel ? fillerModelStore.readyModelPath : nil,
                               concurrency: concurrency,
                               resolveParameters: resolveParameters)
         }
     }
-    private var modelBlocks: Bool { needsModel && !modelStore.state.isReady }
+    private var modelBlocks: Bool {
+        (needsWhisper && !modelStore.state.isReady)
+            || (needsFillerModel && !fillerModelStore.state.isReady)
+    }
 
     var body: some View {
         // The welcome flow owns the whole window on first launch — the main app
@@ -115,7 +128,10 @@ struct ContentView: View {
     private var workspace: some View {
         VStack(spacing: 0) {
             UpdateBanner(updater: updater)
-            if modelBlocks || modelStore.state.isBusy {
+            if needsFillerModel && (!fillerModelStore.state.isReady || fillerModelStore.state.isBusy) {
+                ModelStatusView(store: fillerModelStore)
+                    .padding(.horizontal, 16).padding(.top, 10)
+            } else if (needsWhisper && !modelStore.state.isReady) || modelStore.state.isBusy {
                 ModelStatusView(store: modelStore)
                     .padding(.horizontal, 16).padding(.top, 10)
             }

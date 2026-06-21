@@ -6,6 +6,8 @@ struct CrispApp: App {
     @State private var model = CleanModel()
     @State private var updater = Updater()
     @State private var modelStore = ModelStore()
+    // The opt-in on-device filler model (Wren), downloaded separately from whisper.
+    @State private var fillerModelStore = ModelStore(spec: FillerModelCatalog.wren)
     @State private var settings = EngineSettings()
     @State private var watchAgent = WatchAgentController()
     @State private var onboarding = OnboardingController()
@@ -16,11 +18,13 @@ struct CrispApp: App {
     var body: some Scene {
         Window(Channel.current.displayName, id: "main") {
             ContentView(model: model, updater: updater, modelStore: modelStore,
+                        fillerModelStore: fillerModelStore,
                         settings: settings, watchAgent: watchAgent, onboarding: onboarding,
                         player: player, whatsNew: whatsNew)
                 .task { logLaunch() }
                 .task { updater.checkOnLaunch() }
                 .task { await modelStore.refresh() }
+                .task { if settings.fillerModelEnabled { await fillerModelStore.refresh() } }
                 .task { QuickActionInstaller.install() }
                 .task { reconcileWatchAgent() }
                 .task { Notifier.requestAuthorization() }
@@ -47,7 +51,7 @@ struct CrispApp: App {
 
         Settings {
             SettingsView(settings: settings, updater: updater, watchAgent: watchAgent,
-                         modelStore: modelStore, model: model)
+                         modelStore: modelStore, fillerModelStore: fillerModelStore, model: model)
         }
 
         // A library of past cleans (every surface records to it). Opened from the
