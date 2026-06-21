@@ -9,7 +9,8 @@ from .config import (
     DEFAULT_VIDEO_CODEC, MIN_KEEP,
 )
 from .detect import detect_silences, extract_audio, filler_words, transcribe
-from .edit import build_keep_segments, make_backup, render, tag_output_source, unique_output_path
+from .edit import (build_keep_segments, gate_fillers_by_silence, make_backup, render,
+                   tag_output_source, unique_output_path)
 from .encode import (
     audio_args, container_args, default_output_path, resolve_codecs, resolve_container, video_args,
 )
@@ -179,6 +180,11 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
                 if use_classifier:
                     words = filler_words(which_filler(), filler_model, wav,
                                          on_log, stage(0.15, 0.58), logger=logger)
+                    # Keep only fillers at a pause or clearly long — don't cut
+                    # brief hesitations embedded mid-sentence (rough, removes flow).
+                    before = len(words)
+                    words = gate_fillers_by_silence(words, silences)
+                    logger.debug(f"silence-gate: kept {len(words)}/{before} fillers")
                 else:
                     words = transcribe(whisper_bin, model, wav, tmp / "transcript",
                                        on_log, stage(0.15, 0.58), logger=logger)

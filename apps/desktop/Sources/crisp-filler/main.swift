@@ -29,9 +29,9 @@ enum Spec {
     static let chunkSec = 0.25
     static let melMean: Float = -18.5658
     static let melStd: Float = 17.9252
-    static let defaultThreshold = 0.7
+    static let defaultThreshold = 0.85    // conservative: real video is word-dominated, so favor precision
     static let mergeGap = 0.12
-    static let minFiller = 0.08
+    static let minFiller = 0.30           // drop fleeting fillers (a real "uhh" is longer)
     static var nFreqs: Int { nFFT / 2 + 1 }     // 201
 }
 

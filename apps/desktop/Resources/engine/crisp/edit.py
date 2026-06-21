@@ -11,11 +11,32 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from .config import MIN_KEEP
+from .config import FILLER_MIN_SOLO, FILLER_PAUSE_PAD, MIN_KEEP
 from .enginelog import EngineLogger
 from .errors import CleanError
 from .text import is_filler
 from .tools import ffmpeg_bin
+
+
+def gate_fillers_by_silence(words, silences, min_solo=FILLER_MIN_SOLO, pad=FILLER_PAUSE_PAD):
+    """Keep only the on-device classifier's fillers worth cutting.
+
+    A filler is removable if it's a clearly long, deliberate hesitation OR sits right
+    at a pause boundary (silence just before or after it). Brief fillers embedded in
+    continuous speech are dropped — cutting those mid-sentence removes natural delivery
+    and makes a rough jump-cut. Whisper fillers don't need this (it only flags sounds
+    it actually transcribes as "um"/"uh").
+    """
+    if not words or not silences:
+        return words
+    kept = []
+    for w in words:
+        long_enough = (w["end"] - w["start"]) >= min_solo
+        at_pause = any(abs(se - w["start"]) <= pad or abs(ss - w["end"]) <= pad
+                       for ss, se in silences)
+        if long_enough or at_pause:
+            kept.append(w)
+    return kept
 
 
 def make_backup(src: Path, on_log, backup_dir: Path | None = None, logger=None) -> Path:
