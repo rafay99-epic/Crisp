@@ -210,19 +210,27 @@ struct SettingsView: View {
 
     @ViewBuilder private var speechModelSection: some View {
         Section {
-            Picker("Model", selection: activeModelBinding) {
-                ForEach(ModelCatalog.all) { Text($0.displayName).tag($0.id) }
+            if settings.fillerModelEnabled {
+                // Mutually exclusive with the on-device filler model: when Wren is on,
+                // whisper isn't used for fillers, so its picker is hidden here.
+                Label("The on-device filler model (below) is handling filler detection — the speech model isn't used.",
+                      systemImage: "bird")
+                    .font(.callout).foregroundStyle(.secondary)
+            } else {
+                Picker("Model", selection: activeModelBinding) {
+                    ForEach(ModelCatalog.all) { Text($0.displayName).tag($0.id) }
+                }
+                // Don't switch mid-download, or mid-clean (the running clean already
+                // locked in its model — switching would only mislead).
+                .disabled(modelStore.state.isBusy || model.isRunning)
+                Text(modelStore.spec.summary)
+                    .font(.caption).foregroundStyle(.secondary)
+                ModelInstallControl(store: modelStore, allowRemove: true, removeDisabled: model.isRunning)
             }
-            // Don't switch mid-download, or mid-clean (the running clean already
-            // locked in its model — switching would only mislead).
-            .disabled(modelStore.state.isBusy || model.isRunning)
-            Text(modelStore.spec.summary)
-                .font(.caption).foregroundStyle(.secondary)
-            ModelInstallControl(store: modelStore, allowRemove: true, removeDisabled: model.isRunning)
         } header: {
             Text("Speech model")
         } footer: {
-            Text("Used to find filler words. Larger models catch more fillers and place cuts more precisely, but download and run slower. Pauses are detected from the audio either way.")
+            Text("Used to find filler words (and to write captions). Larger models catch more fillers and place cuts more precisely, but download and run slower. Pauses are detected from the audio either way.")
                 .font(.caption).foregroundStyle(.secondary)
         }
     }

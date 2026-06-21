@@ -133,18 +133,19 @@ func logMel(_ signal: [Float], _ fe: Frontend) -> (mel: [Float], frames: Int) {
         for j in 0..<n { frames[t * n + j] = x[off + j] * fe.hann[j] }
     }
     // Real/Imag = frames[T,n] · basis[n,freqs]  (BLAS), then power = re²+im².
+    // vDSP_mmul: C[M×N] = A[M×P]·B[P×N], row-major. Non-deprecated Accelerate matmul.
     var re = [Float](repeating: 0, count: T * freqs)
     var im = [Float](repeating: 0, count: T * freqs)
     fe.cosB.withUnsafeBufferPointer { cb in
         frames.withUnsafeBufferPointer { fb in
-            cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, Int32(T), Int32(freqs), Int32(n),
-                        1, fb.baseAddress, Int32(n), cb.baseAddress, Int32(freqs), 0, &re, Int32(freqs))
+            vDSP_mmul(fb.baseAddress!, 1, cb.baseAddress!, 1, &re, 1,
+                      vDSP_Length(T), vDSP_Length(freqs), vDSP_Length(n))
         }
     }
     fe.sinB.withUnsafeBufferPointer { sb in
         frames.withUnsafeBufferPointer { fb in
-            cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, Int32(T), Int32(freqs), Int32(n),
-                        1, fb.baseAddress, Int32(n), sb.baseAddress, Int32(freqs), 0, &im, Int32(freqs))
+            vDSP_mmul(fb.baseAddress!, 1, sb.baseAddress!, 1, &im, 1,
+                      vDSP_Length(T), vDSP_Length(freqs), vDSP_Length(n))
         }
     }
     var power = [Float](repeating: 0, count: T * freqs)
@@ -154,8 +155,8 @@ func logMel(_ signal: [Float], _ fe: Frontend) -> (mel: [Float], frames: Int) {
     var mel = [Float](repeating: 0, count: T * mels)
     fe.melFB.withUnsafeBufferPointer { mb in
         power.withUnsafeBufferPointer { pb in
-            cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, Int32(T), Int32(mels), Int32(freqs),
-                        1, pb.baseAddress, Int32(freqs), mb.baseAddress, Int32(mels), 0, &mel, Int32(mels))
+            vDSP_mmul(pb.baseAddress!, 1, mb.baseAddress!, 1, &mel, 1,
+                      vDSP_Length(T), vDSP_Length(mels), vDSP_Length(freqs))
         }
     }
     // AmplitudeToDB(power, top_db=80): 10·log10(max(x,1e-10)), clamp to global max-80.
