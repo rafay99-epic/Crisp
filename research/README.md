@@ -68,12 +68,25 @@ python -m filler_classifier.evaluate --dataset podcastfillers --data data/Podcas
 python -m filler_classifier.infer some_clip.wav
 ```
 
-### 5. Export for the app
+### 5. Export for the app (Core ML)
+coremltools' native blob writer has **no working build on bleeding-edge Python**
+(3.14 here fails with `BlobWriter not loaded`), so the export runs in a separate
+env on a supported Python (3.10–3.12). It needs only torch + coremltools — no
+audio stack:
 ```sh
-python -m filler_classifier.export_coreml
+python3.10 -m venv .venv-export
+./.venv-export/bin/pip install -r requirements-export.txt
+./.venv-export/bin/python -m filler_classifier.export_coreml   # → checkpoints/FillerClassifier.mlpackage
 ```
+The exported model is a pure `chunk [1,1,n_mels,CHUNK_FRAMES] → P(filler)` function;
+it matches the PyTorch model to ~1e-9 (parity-checked). Feature extraction (mel +
+chunking) stays in the host, so `infer.py` is the **reference implementation** the
+shipped backend must reproduce.
 
-`infer.py` is the **reference implementation** — the shipped Core ML backend must
-produce the same intervals from the same audio. Feature extraction (mel + chunking)
-stays in the host, so the model itself is a pure `chunk → P(filler)` function,
-trivial to verify against this script.
+## Environment notes (bleeding-edge Python)
+- **Audio loading:** torchaudio 2.8+ routes `load()` through TorchCodec, which has
+  no wheel here — so WAVs are read with the stdlib `wave` module (`features.py`).
+- **Core ML export:** runs in `.venv-export` on Python 3.10 (see step 5).
+- **PodcastFillers zip** is Zip64; macOS `unzip` corrupts entries >4 GB ("bad
+  zipfile offset"). The 1 s clips extract fine; if `metadata/PodcastFillers.csv`
+  is missing, copy the standalone CSV from the dataset site.

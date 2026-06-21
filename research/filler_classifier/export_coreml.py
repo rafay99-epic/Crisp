@@ -13,13 +13,17 @@ import argparse
 import torch
 
 from . import config
-from .infer import load_model
+from .model import FillerCNN
 
 
 def export(checkpoint, out):
     import coremltools as ct
 
-    base = load_model(checkpoint)
+    # Load weights directly (not via infer.load_model) so the export environment
+    # needs only torch + coremltools — no torchaudio/audio stack.
+    base = FillerCNN()
+    base.load_state_dict(torch.load(checkpoint, map_location="cpu"))
+    base.eval()
 
     class Prob(torch.nn.Module):
         """Fold the sigmoid in so the Core ML output is P(filler) directly."""
