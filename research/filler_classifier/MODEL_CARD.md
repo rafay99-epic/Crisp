@@ -23,8 +23,8 @@ full speech-to-text just to find fillers.
 - **Input:** one log-mel chunk, `[1, 1, 64, 25]` (250 ms of 16 kHz mono audio,
   standardized with fixed constants `MEL_MEAN=-18.5658`, `MEL_STD=17.9252`).
 - **Output:** `filler_prob` — P(this chunk is a filler), 0…1.
-- **Format:** Core ML `.mlpackage` (zipped for download). Runs on the Apple
-  Neural Engine.
+- **Format:** a single-file Core ML `.mlmodel` (download directly, no unzip).
+  Runs on the Apple Neural Engine.
 
 Feature extraction (mel + chunking + the slide/merge into time ranges) lives in
 the host app; the model itself is a pure `chunk → probability` function.
@@ -60,15 +60,16 @@ Everything is downloadable — pick whichever you need:
 
 | File | What |
 |------|------|
-| `Wren.mlpackage.zip` | Core ML build (Apple Neural Engine). What the app downloads. |
+| `Wren.mlmodel` | Core ML model (Apple Neural Engine). A single file the app downloads directly. |
 | `Wren.pt` | Raw PyTorch weights (`state_dict`) — for your own inference/fine-tuning. |
-| `Wren.config.json` | Audio framing + normalization constants + recommended threshold. |
+| `Wren.config.json` | Audio framing + normalization + input/output names + recommended threshold. |
 
-**Versioning:** each release is one commit tagged **`v0.0.N`** (mirrors Crisp's
-commit-count scheme). Pin an exact version in the URL:
+**Versioning:** the version is the repo's commit count, **`v0.0.N`** (mirrors
+Crisp's `0.<commits>` scheme); each release is one commit + one tag. Pin an exact
+version in the URL:
 
 ```
-https://huggingface.co/rafay99-epic/crisp-models/resolve/v0.0.1/Wren.mlpackage.zip
+https://huggingface.co/rafay99-epic/crisp-models/resolve/v0.0.5/Wren.mlmodel
 ```
 
 `main` always points at the latest.

@@ -1,21 +1,18 @@
 """Package, version, and publish Crisp models to Hugging Face — open weights.
 
-Each publish is ONE commit and gets an immutable version tag **v0.0.N** (N = next
-sequential, mirroring Crisp's commit-count versioning). So anyone can download an
-exact, frozen version:
+Uploads the model as a **single raw file** (`<name>.mlmodel`) the app downloads
+directly (no zip/unzip). Each publish is **one commit**, and the version is the
+repo's **commit count** (`0.0.N`, mirroring Crisp's `0.<commits>` scheme) — so it's
+deterministic and never goes backwards. The release is tagged `v0.0.N`:
 
-    https://huggingface.co/<repo>/resolve/v0.0.1/Wren.mlpackage.zip
+    https://huggingface.co/<repo>/resolve/v0.0.5/Wren.mlmodel
 
-All artifacts ship (fully open): the Core ML build (`<name>.mlpackage.zip`), the
-raw PyTorch weights (`<name>.pt`), a machine-readable `<name>.config.json` (audio
-framing + normalization + recommended threshold), and the model card (README).
+Everything ships open: the Core ML model, the raw PyTorch weights (`<name>.pt`),
+a machine-readable `<name>.config.json` (framing + normalization + input/output
+names, so the host reads them instead of hardcoding), and the model card.
 
-    # local package + hash only:
-    python -m filler_classifier.publish_hf --name Wren
-
-    # publish a new version (after huggingface-cli login):
     python -m filler_classifier.publish_hf --repo you/crisp-models --name Wren \
-        --mlpackage checkpoints/Wren.mlpackage --weights checkpoints/filler_cnn.pt \
+        --model checkpoints/Wren.mlmodel --weights checkpoints/filler_cnn.pt \
         --card filler_classifier/MODEL_CARD.md
 """
 import argparse
@@ -23,18 +20,9 @@ import hashlib
 import json
 import shutil
 import tempfile
-import zipfile
 from pathlib import Path
 
 from . import config
-
-
-def zip_mlpackage(src: Path, dst: Path) -> None:
-    """Zip the .mlpackage dir, keeping its top-level folder so it unzips cleanly."""
-    with zipfile.ZipFile(dst, "w", zipfile.ZIP_DEFLATED) as z:
-        for f in sorted(src.rglob("*")):
-            if f.is_file():
-                z.write(f, f.relative_to(src.parent))
 
 
 def sha256(path: Path) -> str:
@@ -46,21 +34,25 @@ def sha256(path: Path) -> str:
 
 
 def next_version(api, repo: str) -> str:
-    """Next v0.0.N from existing tags (1 if none) — deterministic, one bump/release."""
+    """Version = (commits so far) + 1 — this publish is exactly one new commit."""
     try:
-        tags = [t.name.rsplit("/", 1)[-1] for t in api.list_repo_refs(repo, repo_type="model").tags]
+        n = len(api.list_repo_commits(repo, repo_type="model"))
     except Exception:
-        tags = []
-    nums = [int(t[5:]) for t in tags if t.startswith("v0.0.") and t[5:].isdigit()]
-    return f"0.0.{(max(nums) + 1) if nums else 1}"
+        n = 0
+    return f"0.0.{n + 1}"
 
 
-def model_config(name: str, version: str) -> dict:
-    """The spec needed to RUN the model — read by the host (incl. the Swift helper)."""
+def model_config(name: str, version: str, model_file: str) -> dict:
+    """Everything the host needs to RUN the model — incl. the Swift helper, so it
+    reads these instead of hardcoding."""
     return {
         "name": name,
         "version": version,
         "task": "filler-word-detection",
+        "model_file": model_file,
+        "input": "chunk",
+        "output": "filler_prob",
+        "input_shape": [1, 1, config.N_MELS, config.CHUNK_FRAMES],
         "sample_rate": config.SAMPLE_RATE,
         "n_fft": config.N_FFT,
         "hop_length": config.HOP_LENGTH,
@@ -71,55 +63,60 @@ def model_config(name: str, version: str) -> dict:
         "mel_mean": config.MEL_MEAN,
         "mel_std": config.MEL_STD,
         "recommended_threshold": 0.7,
-        "input_shape": [1, 1, config.N_MELS, config.CHUNK_FRAMES],
-        "output": "filler_prob",
     }
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--name", default="Wren", help="model name (file prefix)")
-    ap.add_argument("--mlpackage", default="checkpoints/FillerClassifier.mlpackage")
+    ap.add_argument("--model", default="checkpoints/Wren.mlmodel", help="the .mlmodel to publish")
     ap.add_argument("--weights", default="checkpoints/filler_cnn.pt", help="raw PyTorch weights")
     ap.add_argument("--card", help="model card .md → uploaded as README.md")
     ap.add_argument("--repo", help="HF repo id, e.g. you/crisp-models (publishes if set)")
     a = ap.parse_args()
 
-    src = Path(a.mlpackage)
-    if not src.exists():
-        raise SystemExit(f"{src} not found — run export_coreml first.")
+    model = Path(a.model)
+    if not model.exists():
+        raise SystemExit(f"{model} not found — run export_coreml first.")
 
     if not a.repo:
-        out = Path("checkpoints") / f"{a.name}.mlpackage.zip"
-        zip_mlpackage(src, out)
-        print(f"packaged {out}  ({out.stat().st_size:,} bytes)\nsha256: {sha256(out)}")
-        print("(no --repo; local package only — pass --repo to publish a version)")
+        print(f"{model}  ({model.stat().st_size:,} bytes)\nsha256: {sha256(model)}")
+        print("(no --repo; pass it to publish a version)")
         return
 
-    from huggingface_hub import HfApi, create_repo, create_tag
+    from huggingface_hub import (HfApi, create_repo, create_tag,
+                                 CommitOperationAdd, CommitOperationDelete)
     api = HfApi()
     create_repo(a.repo, repo_type="model", exist_ok=True, private=False)  # public: app downloads w/o auth
     version = next_version(api, a.repo)
 
-    # Stage every artifact, then upload as ONE commit (so 1 release = 1 version bump).
+    model_file = f"{a.name}.mlmodel"
     stage = Path(tempfile.mkdtemp())
-    zip_name = f"{a.name}.mlpackage.zip"
-    zip_mlpackage(src, stage / zip_name)
-    shutil.copy(a.weights, stage / f"{a.name}.pt")                       # open weights
+    shutil.copy(model, stage / model_file)
+    shutil.copy(a.weights, stage / f"{a.name}.pt")                      # open weights
     (stage / f"{a.name}.config.json").write_text(
-        json.dumps(model_config(a.name, version), indent=2))
+        json.dumps(model_config(a.name, version, model_file), indent=2))
+    new_files = [model_file, f"{a.name}.pt", f"{a.name}.config.json"]
     if a.card:
         shutil.copy(a.card, stage / "README.md")
+        new_files.append("README.md")
 
-    api.upload_folder(folder_path=str(stage), repo_id=a.repo, repo_type="model",
+    # One commit: add the new files, and clean up any stale artifacts for this model
+    # (e.g. an old <name>.mlpackage.zip) so the repo stays tidy without extra commits.
+    existing = set(api.list_repo_files(a.repo, repo_type="model"))
+    stale = [f for f in existing if f.startswith(f"{a.name}.") and f not in new_files]
+    ops = [CommitOperationAdd(path_in_repo=f, path_or_fileobj=str(stage / f)) for f in new_files]
+    ops += [CommitOperationDelete(path_in_repo=f) for f in stale]
+    api.create_commit(repo_id=a.repo, repo_type="model", operations=ops,
                       commit_message=f"{a.name} v{version}")
     create_tag(a.repo, tag=f"v{version}", repo_type="model")
 
-    digest = sha256(stage / zip_name)
-    size = (stage / zip_name).stat().st_size
-    pinned = f"https://huggingface.co/{a.repo}/resolve/v{version}/{zip_name}"
-    print(f"\npublished {a.name} v{version}  →  tag v{version}")
-    print(f"  files: {zip_name}, {a.name}.pt, {a.name}.config.json, README.md")
+    digest, size = sha256(model), model.stat().st_size
+    pinned = f"https://huggingface.co/{a.repo}/resolve/v{version}/{model_file}"
+    print(f"\npublished {a.name} v{version}  (tag v{version})")
+    if stale:
+        print(f"  removed stale: {stale}")
+    print(f"  files: {', '.join(new_files)}")
     print(f"  pinned url: {pinned}")
     print(f"  sha256: {digest}   ({size:,} bytes)\n")
     print("--- ModelSpec (pin to this version) for CrispCore/Model/ModelCatalog.swift ---")

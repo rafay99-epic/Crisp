@@ -40,21 +40,31 @@ def export(checkpoint, out):
     example = torch.zeros(1, 1, config.N_MELS, config.CHUNK_FRAMES)
     traced = torch.jit.trace(wrapped, example)
 
+    # Export the classic single-file `.mlmodel` (neuralnetwork) rather than an
+    # `.mlpackage` (a directory) — one raw file the app downloads with no unzip.
+    # neuralnetwork → a single .mlmodel file (no min-target: that format requires
+    # a pre-macOS12 floor, but the model still loads/runs fine on macOS 14).
     mlmodel = ct.convert(
         traced,
         inputs=[ct.TensorType(name="chunk", shape=example.shape)],
-        outputs=[ct.TensorType(name="filler_prob")],
-        minimum_deployment_target=ct.target.macOS13,
+        convert_to="neuralnetwork",
     )
+    # Pin a stable output name so the host (and config.json) can rely on it.
+    spec = mlmodel.get_spec()
+    out_name = spec.description.output[0].name
+    if out_name != "filler_prob":
+        ct.utils.rename_feature(spec, out_name, "filler_prob")
+        mlmodel = ct.models.MLModel(spec)
+
     Path(out).parent.mkdir(parents=True, exist_ok=True)
     mlmodel.save(out)
-    print(f"saved {out}")
+    print(f"saved {out}  (input='chunk', output='filler_prob')")
 
 
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--checkpoint", default="checkpoints/filler_cnn.pt")
-    p.add_argument("--out", default="checkpoints/FillerClassifier.mlpackage")
+    p.add_argument("--out", default="checkpoints/Wren.mlmodel")
     a = p.parse_args()
     export(a.checkpoint, a.out)
 
