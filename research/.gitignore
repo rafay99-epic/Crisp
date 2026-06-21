@@ -16,3 +16,6 @@ checkpoints/
 # Stray large media that might land outside data/ by accident.
 *.wav
 *.zip
+
+# validate-tool scratch (your hand labels for a window)
+labels.json
