@@ -36,6 +36,14 @@ def which_whisper():
                          "Install it with:  brew install whisper-cpp")
 
 
+def which_filler():
+    """The bundled Core ML filler-classifier helper (an opt-in alternative to
+    whisper for filler detection). Resolved from CRISP_FILLER (set by the app to
+    the bundled binary), falling back to PATH for a dev build."""
+    return _resolve_tool("CRISP_FILLER", ("crisp-filler",),
+                         "The filler-classifier helper ships with the Crisp app.")
+
+
 def ffprobe_duration(path: Path, logger=None) -> float:
     out = subprocess.run(
         [ffprobe_bin(), "-v", "error", "-show_entries", "format=duration",

@@ -56,6 +56,7 @@ DEFAULT_QUALITY = "high"      # maximum | high | balanced | smaller
 DEFAULT_AUDIO_CODEC = "aac"   # aac | opus
 DEFAULT_AUDIO_BITRATE = 192   # kbps
 DEFAULT_CONTAINER = "auto"    # auto (match input) | mp4 | mkv | mov | m4v | ts | webm
+DEFAULT_FILLER_BACKEND = "whisper"  # whisper | coreml (fast on-device classifier)
 
 # The engine dir is the package's parent (…/engine/crisp → …/engine).
 HERE = Path(__file__).resolve().parent.parent

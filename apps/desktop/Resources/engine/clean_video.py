@@ -46,8 +46,9 @@ def _enable_group_cancel():
 
 from crisp import CleanError, clean_video
 from crisp.config import (
-    DEFAULT_AUDIO_BITRATE, DEFAULT_AUDIO_CODEC, DEFAULT_CONTAINER, DEFAULT_KEEP_PAUSE,
-    DEFAULT_MAX_PAUSE, DEFAULT_MODEL, DEFAULT_NOISE_DB, DEFAULT_QUALITY, DEFAULT_VIDEO_CODEC, MIN_KEEP,
+    DEFAULT_AUDIO_BITRATE, DEFAULT_AUDIO_CODEC, DEFAULT_CONTAINER, DEFAULT_FILLER_BACKEND,
+    DEFAULT_KEEP_PAUSE, DEFAULT_MAX_PAUSE, DEFAULT_MODEL, DEFAULT_NOISE_DB, DEFAULT_QUALITY,
+    DEFAULT_VIDEO_CODEC, MIN_KEEP,
 )
 from crisp.encode import SUPPORTED_CONTAINERS
 from crisp.enginelog import logger_from_env
@@ -104,6 +105,11 @@ def main():
     p.add_argument("--captions", choices=["none", "srt", "vtt", "both"], default="none",
                    help="also write subtitle sidecar files (re-timed to the cleaned "
                         "video) beside the output: SubRip (.srt), WebVTT (.vtt), or both")
+    p.add_argument("--filler-backend", choices=["whisper", "coreml"], default=DEFAULT_FILLER_BACKEND,
+                   help="how to find filler words: 'whisper' (transcribe) or 'coreml' "
+                        "(fast on-device classifier via --filler-model)")
+    p.add_argument("--filler-model", default=None,
+                   help="Core ML filler model (.mlmodel) used when --filler-backend=coreml")
     p.add_argument("--log-dir", default=None,
                    help="folder to write a detailed run log into (default: the "
                         "CRISP_LOG_DIR env var the desktop app sets; off if neither)")
@@ -183,6 +189,7 @@ def main():
                              out_dir=args.out_dir, split_tracks=args.split,
                              split_audio=args.split_audio, waveform_buckets=args.waveform,
                              keep_file=args.keep_file, captions=args.captions,
+                             filler_backend=args.filler_backend, filler_model=args.filler_model,
                              on_log=on_log, on_progress=on_progress, logger=log)
         if args.ndjson:
             emit({"event": "result", **result})

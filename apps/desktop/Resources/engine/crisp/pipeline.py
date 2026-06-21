@@ -8,14 +8,14 @@ from .config import (
     DEFAULT_KEEP_PAUSE, DEFAULT_MAX_PAUSE, DEFAULT_MODEL, DEFAULT_NOISE_DB, DEFAULT_QUALITY,
     DEFAULT_VIDEO_CODEC, MIN_KEEP,
 )
-from .detect import detect_silences, extract_audio, transcribe
+from .detect import detect_silences, extract_audio, filler_words, transcribe
 from .edit import build_keep_segments, make_backup, render, tag_output_source, unique_output_path
 from .encode import (
     audio_args, container_args, default_output_path, resolve_codecs, resolve_container, video_args,
 )
 from .enginelog import EngineLogger
 from .errors import CleanError
-from .tools import ffprobe_duration, which_whisper
+from .tools import ffprobe_duration, which_filler, which_whisper
 
 
 def _noop(*_a, **_k):
@@ -62,6 +62,7 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
                 container=DEFAULT_CONTAINER, remove_fillers=True, backup=DEFAULT_BACKUP,
                 backup_dir=None, out_dir=None, split_tracks=False, split_audio="match",
                 waveform_buckets=0, keep_file=None, captions="none",
+                filler_backend="whisper", filler_model=None,
                 on_log=None, on_progress=None, logger=None):
     """
     Clean one video. Returns a dict with results.
@@ -115,8 +116,11 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
     # analysis, transcription, or model — so we render exactly the approved segments.
     want_captions = captions != "none"
     need_transcript = (remove_fillers or want_captions) and not keep_file
+    # The Core ML filler classifier finds fillers but can't transcribe, so captions
+    # still need whisper — use the classifier only when captions aren't requested.
+    use_classifier = need_transcript and filler_backend == "coreml" and not want_captions
     whisper_bin = None
-    if need_transcript:
+    if need_transcript and not use_classifier:
         if not model.exists():
             raise CleanError(f"Speech model not found: {model}\nRun setup.sh to download it.")
         whisper_bin = which_whisper()
@@ -172,8 +176,12 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
             on_progress(0.15, "Pauses detected")
 
             if need_transcript:
-                words = transcribe(whisper_bin, model, wav, tmp / "transcript",
-                                   on_log, stage(0.15, 0.58), logger=logger)
+                if use_classifier:
+                    words = filler_words(which_filler(), filler_model, wav,
+                                         on_log, stage(0.15, 0.58), logger=logger)
+                else:
+                    words = transcribe(whisper_bin, model, wav, tmp / "transcript",
+                                       on_log, stage(0.15, 0.58), logger=logger)
                 on_log(f"Found {len(words)} spoken words.")
             on_progress(0.58, "Planning cuts…")
 

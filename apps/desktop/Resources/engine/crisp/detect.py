@@ -177,3 +177,29 @@ def transcribe(whisper_bin, model, wav_path, out_prefix, on_log, on_progress, lo
     with open(json_path) as f:
         data = json.load(f)
     return parse_transcription(data)
+
+
+def filler_words(filler_bin, model, wav_path, on_log, on_progress, logger=None):
+    """Filler spans from the bundled Core ML classifier helper — an opt-in
+    alternative to whisper for the filler step.
+
+    The helper prints ``{"fillers": [[start, end], ...]}`` (seconds). Each span is
+    returned as a word tagged ``"um"`` so the existing ``is_filler``/edit cut path
+    removes it unchanged — the rest of the pipeline can't tell which backend ran.
+    """
+    logger = logger or EngineLogger(None)
+    on_log("Finding filler words (fast on-device model)...")
+    if not model or not Path(model).exists():
+        raise CleanError("Filler model not found — it may still be downloading.")
+    cmd = [filler_bin, "--model", str(model), "--audio", str(wav_path)]
+    logger.command("filler", cmd)
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    logger.tool_result("filler", res.returncode, res.stderr)
+    if res.returncode != 0:
+        raise CleanError("Filler detection failed.\n" + (res.stderr or "")[-800:])
+    try:
+        spans = json.loads(res.stdout).get("fillers", [])
+    except (ValueError, TypeError) as exc:
+        raise CleanError(f"Filler detector returned invalid output: {exc}")
+    on_progress(1.0, "Filler detection complete")
+    return [{"text": "um", "start": float(a), "end": float(b)} for a, b in spans]
