@@ -123,6 +123,11 @@ def main():
                         "review timeline. Skips analysis, transcription, and the model.")
     args = p.parse_args()
 
+    # The Core ML filler backend needs a model — fail fast at the CLI rather than
+    # deep in detection after audio extraction.
+    if args.filler_backend == "coreml" and not args.filler_model:
+        p.error("--filler-backend coreml requires --filler-model")
+
     # --analyze returns early (before the clean), so a --keep-file passed alongside it
     # would be silently ignored. Fail fast rather than behave ambiguously.
     if args.analyze and args.keep_file:

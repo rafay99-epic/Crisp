@@ -197,6 +197,17 @@ func logMel(_ signal: [Float], _ fe: Frontend) -> (mel: [Float], frames: Int) {
 
 // MARK: - Inference
 
+/// Fill an MLMultiArray with one transposed mel chunk and wrap it as a feature provider.
+func makeProvider(_ arr: MLMultiArray, mel: [Float], f0: Int, mels: Int, cf: Int) throws -> MLFeatureProvider {
+    let ptr = arr.dataPointer.assumingMemoryBound(to: Float.self)
+    for m in 0..<mels {
+        for fr in 0..<cf {
+            ptr[m * cf + fr] = mel[(f0 + fr) * mels + m]
+        }
+    }
+    return try MLDictionaryFeatureProvider(dictionary: ["chunk": arr])
+}
+
 func predictProbs(modelURL: URL, mel: [Float], frames T: Int) -> (probs: [Double], centers: [Double]) {
     let mels = Spec.nMels, cf = Spec.chunkFrames, chop = Spec.chunkHopFrames
     let cfg = MLModelConfiguration()
@@ -218,14 +229,12 @@ func predictProbs(modelURL: URL, mel: [Float], frames T: Int) -> (probs: [Double
     var centers: [Double] = []
     var f0 = 0
     while f0 + cf <= T {
-        let arr = try! MLMultiArray(shape: [1, 1, NSNumber(value: mels), NSNumber(value: cf)], dataType: .float32)
-        let ptr = arr.dataPointer.assumingMemoryBound(to: Float.self)
-        for m in 0..<mels {
-            for fr in 0..<cf {
-                ptr[m * cf + fr] = mel[(f0 + fr) * mels + m]
-            }
+        guard let arr = try? MLMultiArray(shape: [1, 1, NSNumber(value: mels), NSNumber(value: cf)],
+                                          dataType: .float32),
+              let provider = try? makeProvider(arr, mel: mel, f0: f0, mels: mels, cf: cf) else {
+            fail("could not build model input")
         }
-        providers.append(try! MLDictionaryFeatureProvider(dictionary: ["chunk": arr]))
+        providers.append(provider)
         centers.append((Double(f0) + Double(cf) / 2.0) * Spec.frameSec)
         f0 += chop
     }
@@ -245,12 +254,18 @@ func predictProbs(modelURL: URL, mel: [Float], frames T: Int) -> (probs: [Double
 func intervals(probs: [Double], centers: [Double], threshold: Double) -> [[Double]] {
     let half = Spec.chunkSec / 2.0
     var runs: [[Double]] = []
-    var cur: [Double]? = nil
+    var cur: [Double]?
     for i in 0..<centers.count {
         if probs[i] >= threshold {
-            if cur == nil { cur = [centers[i] - half, centers[i] + half] }
-            else { cur![1] = centers[i] + half }
-        } else if cur != nil { runs.append(cur!); cur = nil }
+            if cur == nil {
+                cur = [centers[i] - half, centers[i] + half]
+            } else {
+                cur![1] = centers[i] + half
+            }
+        } else if cur != nil {
+            runs.append(cur!)
+            cur = nil
+        }
     }
     if let c = cur { runs.append(c) }
     var merged: [[Double]] = []
@@ -289,6 +304,8 @@ let (mel, T) = logMel(signal, fe)
 let (probs, centers) = predictProbs(modelURL: URL(fileURLWithPath: modelPath), mel: mel, frames: T)
 let fillers = intervals(probs: probs, centers: centers, threshold: threshold)
 
-let json = try! JSONSerialization.data(withJSONObject: ["fillers": fillers], options: [])
+guard let json = try? JSONSerialization.data(withJSONObject: ["fillers": fillers], options: []) else {
+    fail("could not encode output")
+}
 FileHandle.standardOutput.write(json)
 FileHandle.standardOutput.write(Data("\n".utf8))

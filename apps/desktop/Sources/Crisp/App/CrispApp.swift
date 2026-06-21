@@ -25,7 +25,14 @@ struct CrispApp: App {
                 .task { logLaunch() }
                 .task { updater.checkOnLaunch() }
                 .task { await modelStore.refresh() }
-                .task { if settings.fillerModelEnabled { await fillerModelStore.refresh() } }
+                .task {
+                    if settings.fillerModelEnabled {
+                        // Apply the persisted selection (the store inits to the default),
+                        // then check disk so it's ready if already installed.
+                        fillerModelStore.use(FillerModelCatalog.spec(id: settings.selectedFillerModelID))
+                        await fillerModelStore.refresh()
+                    }
+                }
                 // When the filler model is ready: grab its config.json sibling (so the
                 // helper reads per-model values), then check Hugging Face for a newer
                 // model version (the in-app model updater).

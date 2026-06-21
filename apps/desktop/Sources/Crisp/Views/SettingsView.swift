@@ -214,7 +214,9 @@ struct SettingsView: View {
             if settings.fillerModelEnabled {
                 // Mutually exclusive with the on-device filler model: when Wren is on,
                 // whisper isn't used for fillers, so its picker is hidden here.
-                Label("The on-device filler model (below) is handling filler detection — the speech model isn't used.",
+                Label(settings.captionsFormat == "none"
+                      ? "The on-device filler model (below) is handling filler detection — the speech model isn't used."
+                      : "The on-device filler model (below) handles fillers; the speech model is still used for captions.",
                       systemImage: "bird")
                     .font(.callout).foregroundStyle(.secondary)
             } else {

@@ -129,6 +129,9 @@ final class CleanModel {
     /// Filler-model id to record anonymous feedback under for this batch, or nil to
     /// record nothing (the opt-in is off). Frozen for the whole run in `start`.
     private var activeFeedbackModelID: String?
+    /// Resolved filler-model path for this batch (coreml backend), or nil for whisper.
+    /// Frozen in `start` so it doesn't need threading through drain/runOne/cleanOne.
+    private var activeFillerModelPath: String?
 
     func start(modelPath: String?,
                fillerModelPath: String? = nil,
@@ -147,6 +150,7 @@ final class CleanModel {
         // afterward can't change files that are already in flight.
         let fillers = removeFillers
         let fillerModel = fillers ? fillerModelPath : nil   // coreml backend when present
+        activeFillerModelPath = fillerModel
         activeFeedbackModelID = fillerModel != nil ? feedbackModelID : nil   // record only classifier cleans
         var params: [QueueItem.ID: CleanParameters] = [:]
         for item in waiting { params[item.id] = resolveParameters(item) }
@@ -162,8 +166,7 @@ final class CleanModel {
         let lanes = max(1, concurrency)
         let work = Task { @MainActor in
             await self.drain(waitingIDs: waitingIDs, params: params,
-                             modelPath: model, fillerModelPath: fillerModel,
-                             removeFillers: fillers, lanes: lanes)
+                             modelPath: model, removeFillers: fillers, lanes: lanes)
         }
         runTask = work
         await work.value
@@ -177,7 +180,7 @@ final class CleanModel {
     /// lane as soon as one finishes (so overflow files start automatically). With
     /// `lanes == 1` this is a plain serial pass.
     private func drain(waitingIDs: [QueueItem.ID], params: [QueueItem.ID: CleanParameters],
-                       modelPath: String?, fillerModelPath: String?, removeFillers: Bool, lanes: Int) async {
+                       modelPath: String?, removeFillers: Bool, lanes: Int) async {
         await withTaskGroup(of: Void.self) { group in
             var next = 0
             func startNext() -> Bool {
@@ -186,7 +189,7 @@ final class CleanModel {
                     next += 1
                     guard let p = params[id] else { continue }
                     group.addTask { @MainActor in
-                        await self.runOne(id: id, modelPath: modelPath, fillerModelPath: fillerModelPath,
+                        await self.runOne(id: id, modelPath: modelPath,
                                           removeFillers: removeFillers, parameters: p)
                     }
                     return true
@@ -221,12 +224,12 @@ final class CleanModel {
     /// Clean a single queued file end to end, moving it through running →
     /// done/failed/cancelled. A single file failing marks just that item and lets
     /// the rest of the batch continue.
-    private func runOne(id: QueueItem.ID, modelPath: String?, fillerModelPath: String? = nil,
+    private func runOne(id: QueueItem.ID, modelPath: String?,
                         removeFillers: Bool, parameters: CleanParameters) async {
         update(id) { $0.status = .running; $0.progress = 0 }
         updateRunningStatus()
         do {
-            let result = try await cleanOne(id: id, modelPath: modelPath, fillerModelPath: fillerModelPath,
+            let result = try await cleanOne(id: id, modelPath: modelPath,
                                             removeFillers: removeFillers, parameters: parameters)
             update(id) { $0.result = result; $0.status = .done; $0.progress = 1 }
         } catch is CancellationError {
@@ -241,7 +244,7 @@ final class CleanModel {
         updateRunningStatus()
     }
 
-    private func cleanOne(id: QueueItem.ID, modelPath: String?, fillerModelPath: String? = nil,
+    private func cleanOne(id: QueueItem.ID, modelPath: String?,
                           removeFillers: Bool, parameters: CleanParameters) async throws -> CleanResult {
         guard let item = queue.first(where: { $0.id == id }) else { throw CancellationError() }
         let url = item.url
@@ -260,14 +263,14 @@ final class CleanModel {
 
         // Use the on-device classifier only for a normal (non-keep-file) clean that
         // has a filler model resolved; otherwise the engine defaults to whisper.
-        let useClassifier = keepFilePath == nil && fillerModelPath != nil
+        let useClassifier = keepFilePath == nil && activeFillerModelPath != nil
         let options = CleanRunner.Options(modelPath: keepFilePath == nil ? modelPath : nil,
                                           removeFillers: removeFillers,
                                           backupDirectory: backupDir,
                                           waveformBuckets: keepFilePath == nil ? 120 : 0,
                                           keepFilePath: keepFilePath,
                                           fillerBackend: useClassifier ? "coreml" : "whisper",
-                                          fillerModelPath: useClassifier ? fillerModelPath : nil)
+                                          fillerModelPath: useClassifier ? activeFillerModelPath : nil)
         let result = try await CleanRunner().run(input: url, parameters: parameters, options: options) { [weak self] event in
             guard case .progress(let fraction, _) = event else { return }
             Task { @MainActor in

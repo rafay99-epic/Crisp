@@ -140,7 +140,7 @@ struct ContentView: View {
             if needsFillerModel && (!fillerModelStore.state.isReady || fillerModelStore.state.isBusy) {
                 ModelStatusView(store: fillerModelStore)
                     .padding(.horizontal, 16).padding(.top, 10)
-            } else if (needsWhisper && !modelStore.state.isReady) || modelStore.state.isBusy {
+            } else if needsWhisper && (!modelStore.state.isReady || modelStore.state.isBusy) {
                 ModelStatusView(store: modelStore)
                     .padding(.horizontal, 16).padding(.top, 10)
             }

@@ -198,7 +198,10 @@ def filler_words(filler_bin, model, wav_path, on_log, on_progress, logger=None):
     if cfg.exists():
         cmd += ["--config", str(cfg)]
     logger.command("filler", cmd)
-    res = subprocess.run(cmd, capture_output=True, text=True)
+    try:
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+    except subprocess.TimeoutExpired:
+        raise CleanError("Filler detection timed out.")
     logger.tool_result("filler", res.returncode, res.stderr)
     if res.returncode != 0:
         raise CleanError("Filler detection failed.\n" + (res.stderr or "")[-800:])
