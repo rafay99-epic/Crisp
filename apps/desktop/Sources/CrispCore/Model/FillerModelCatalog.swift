@@ -16,7 +16,7 @@ public enum FillerModelCatalog {
     public static let wren = ModelSpec(
         id: "wren",
         fileName: "Wren.mlmodel",
-        url: URL(string: "https://huggingface.co/rafay99-epic/crisp-models/resolve/v0.0.6/Wren.mlmodel")!,
+        url: URL(string: "https://huggingface.co/rafay99-epic/crisp-models/resolve/v0.0.7/Wren.mlmodel")!,
         sha256: "548c8b09689eb4e2d8d2220a9be89f141c1a8f5591f81504c2f88267fa72a51d",
         approxBytes: 94_395,
         displayName: "Wren",

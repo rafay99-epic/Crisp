@@ -19,20 +19,40 @@ import Foundation
 // MARK: - Model spec (matches Wren.config.json)
 
 enum Spec {
-    static let sampleRate = 16000
-    static let nFFT = 400
-    static let hop = 160
-    static let nMels = 64
-    static let chunkFrames = 25
-    static let chunkHopFrames = 10
-    static let frameSec = 160.0 / 16000.0      // 0.01
-    static let chunkSec = 0.25
-    static let melMean: Float = -18.5658
-    static let melStd: Float = 17.9252
-    static let defaultThreshold = 0.85    // conservative: real video is word-dominated, so favor precision
-    static let mergeGap = 0.12
-    static let minFiller = 0.30           // drop fleeting fillers (a real "uhh" is longer)
-    static var nFreqs: Int { nFFT / 2 + 1 }     // 201
+    // Built-in defaults = Wren's values, so the helper works standalone. A model's
+    // config.json (--config) overrides them, so each model carries its OWN framing /
+    // normalization / tuning and nothing is hardcoded per-model.
+    static var sampleRate = 16000
+    static var nFFT = 400
+    static var hop = 160
+    static var nMels = 64
+    static var chunkFrames = 25
+    static var chunkHopFrames = 10
+    static var melMean: Float = -18.5658
+    static var melStd: Float = 17.9252
+    static var defaultThreshold = 0.85    // conservative: real video is word-dominated, so favor precision
+    static var minFiller = 0.30           // drop fleeting fillers (a real "uhh" is longer)
+    static let mergeGap = 0.12            // cut-merge spacing — model-agnostic
+    static var frameSec: Double { Double(hop) / Double(sampleRate) }   // 0.01
+    static var chunkSec: Double { Double(chunkFrames) * frameSec }      // 0.25
+    static var nFreqs: Int { nFFT / 2 + 1 }                            // 201
+
+    /// Override the defaults from a model's config.json (the file published next to
+    /// the model). Missing keys keep the default — robust to partial/old configs.
+    static func load(_ path: String) {
+        guard let data = FileManager.default.contents(atPath: path),
+              let j = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
+        if let v = j["sample_rate"] as? Int { sampleRate = v }
+        if let v = j["n_fft"] as? Int { nFFT = v }
+        if let v = j["hop_length"] as? Int { hop = v }
+        if let v = j["n_mels"] as? Int { nMels = v }
+        if let v = j["chunk_frames"] as? Int { chunkFrames = v }
+        if let v = j["chunk_hop_sec"] as? Double { chunkHopFrames = Int((v / frameSec).rounded()) }
+        if let v = j["mel_mean"] as? Double { melMean = Float(v) }
+        if let v = j["mel_std"] as? Double { melStd = Float(v) }
+        if let v = j["recommended_threshold"] as? Double { defaultThreshold = v }
+        if let v = j["min_filler"] as? Double { minFiller = v }
+    }
 }
 
 // MARK: - WAV (16-bit PCM mono, as the engine extracts)
@@ -257,8 +277,10 @@ func arg(_ name: String) -> String? {
 }
 
 guard let modelPath = arg("--model"), let audioPath = arg("--audio") else {
-    fail("usage: crisp-filler --model <Wren.mlmodel> --audio <in.wav> [--threshold 0.7]")
+    fail("usage: crisp-filler --model <model.mlmodel> --audio <in.wav> [--config <model.config.json>] [--threshold N]")
 }
+// Layered config: built-in defaults ← model's config.json ← explicit --threshold.
+if let cfg = arg("--config") { Spec.load(cfg) }
 let threshold = arg("--threshold").flatMap(Double.init) ?? Spec.defaultThreshold
 
 let signal = readWav(audioPath)

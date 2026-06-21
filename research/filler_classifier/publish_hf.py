@@ -62,7 +62,9 @@ def model_config(name: str, version: str, model_file: str) -> dict:
         "chunk_hop_sec": config.CHUNK_HOP_SEC,
         "mel_mean": config.MEL_MEAN,
         "mel_std": config.MEL_STD,
-        "recommended_threshold": 0.7,
+        # Per-model tuning, read by the crisp-filler helper (so values aren't hardcoded).
+        "recommended_threshold": 0.85,   # conservative for real, word-dominated footage
+        "min_filler": 0.30,              # drop fleeting fillers (a real "uhh" is longer)
     }
 
 

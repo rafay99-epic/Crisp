@@ -100,6 +100,16 @@ First real production-video test (a ~20-min talking-head recording in `~/Movies`
 - **Silence-gating** (`edit.gate_fillers_by_silence`, applied in `pipeline.py` only for the coreml backend): keep a filler **only if** it's clearly long (`FILLER_MIN_SOLO=0.5 s`) **or** sits at a pause boundary (`FILLER_PAUSE_PAD=0.2 s` from a silence edge). Drops brief fillers embedded mid-speech — the mid-sentence-hmm fix.
 - Effect on the (artificial, pause-free) demo: **64 → 16 fillers, 31 s → 11 s cut.** Real footage (with real pauses) should improve more.
 
+### Per-model values are config-driven (not hardcoded) — important
+- **Problem:** different models need different threshold / min-length / framing / norm. Hardcoding them in the `crisp-filler` helper breaks at model #2 (e.g. Kestrel).
+- **Design — three layers, each overrides the one above:**
+  1. **Built-in defaults** in the helper (= Wren's values; sensible baseline so it runs standalone).
+  2. **The model's `config.json`** (published next to the model on HF) — per-model recommended values, loaded WITH the model. `crisp-filler --config <model>.config.json`.
+  3. *(future)* per-clean user override (a "how aggressive" slider) for footage-level tuning.
+- **Flow:** app downloads `<name>.config.json` beside the model (`FillerModelConfig.fetchIfNeeded`) → engine (`detect.filler_words`) passes `--config` if present → helper `Spec.load()` overrides its defaults. The whole chain is model-agnostic; adding a model = upload `.mlmodel` + `config.json` with ITS values + one catalog entry.
+- `Wren.config.json` carries `recommended_threshold=0.85`, `min_filler=0.30` (the Tier-1 values). Republished as **v0.0.7** (model weights unchanged; catalog points there).
+- Silence-gate knobs (`FILLER_MIN_SOLO`/`FILLER_PAUSE_PAD`) are engine-side `config.py` (cut-smoothness, fairly model-agnostic) — could move into per-model config later if needed.
+
 ### Tier 2 — the real fix (TODO, retraining)
 - **Deployment-matched diet:** far more *negative* (normal-speech) examples + **hard negatives** (the exact mid-sentence hmms and filler-like words it confuses). Recalibrates the prior.
 - **Train on continuous audio**, not event-centered 1-s clips, so it learns context.

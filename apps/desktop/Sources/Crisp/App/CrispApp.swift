@@ -25,6 +25,13 @@ struct CrispApp: App {
                 .task { updater.checkOnLaunch() }
                 .task { await modelStore.refresh() }
                 .task { if settings.fillerModelEnabled { await fillerModelStore.refresh() } }
+                // When the filler model is ready, grab its config.json sibling so the
+                // helper reads per-model values (best-effort; falls back to defaults).
+                .task(id: fillerModelStore.readyModelPath) {
+                    if let path = fillerModelStore.readyModelPath {
+                        await FillerModelConfig.fetchIfNeeded(modelURL: fillerModelStore.spec.url, modelPath: path)
+                    }
+                }
                 .task { QuickActionInstaller.install() }
                 .task { reconcileWatchAgent() }
                 .task { Notifier.requestAuthorization() }

@@ -192,6 +192,11 @@ def filler_words(filler_bin, model, wav_path, on_log, on_progress, logger=None):
     if not model or not Path(model).exists():
         raise CleanError("Filler model not found — it may still be downloading.")
     cmd = [filler_bin, "--model", str(model), "--audio", str(wav_path)]
+    # Per-model framing/normalization/tuning travels in <model>.config.json (the app
+    # downloads it beside the model). Pass it so values aren't hardcoded in the helper.
+    cfg = Path(model).with_suffix(".config.json")
+    if cfg.exists():
+        cmd += ["--config", str(cfg)]
     logger.command("filler", cmd)
     res = subprocess.run(cmd, capture_output=True, text=True)
     logger.tool_result("filler", res.returncode, res.stderr)
