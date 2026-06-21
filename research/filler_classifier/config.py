@@ -29,3 +29,15 @@ MEL_STD = 17.9252
 DEFAULT_THRESHOLD = 0.5      # P(filler) above this = filler chunk
 MERGE_GAP_SEC = 0.12         # bridge filler runs separated by <= this
 MIN_FILLER_SEC = 0.08        # drop predicted fillers shorter than this
+
+# ---------------------------------------------------------------- Wren v2 (context)
+# v2 is a fully-convolutional temporal model: it reads a log-mel SEQUENCE and emits a
+# per-frame P(removable filler). Same mel framing/normalization as above (so train and
+# inference agree), but instead of one 0.25s chunk it sees a multi-second window for
+# context — the thing v0.0.8 lacked. Because it's fully convolutional, we train on
+# fixed windows but run inference over a whole recording in one pass.
+WINDOW_SEC = 4.0                                       # context window fed during training
+WINDOW_FRAMES = round(WINDOW_SEC / FRAME_SEC)          # 400 mel frames (10 ms each)
+NEG_PER_POS = 3                                        # negative windows per positive
+HARD_NEG_FRAC = 0.5                                    # of negatives, share centered on a
+                                                       # NATURAL/boundary filler (hard negatives)
