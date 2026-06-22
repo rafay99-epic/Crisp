@@ -66,4 +66,17 @@ final class FillerModelDevFlowTests: XCTestCase {
         XCTAssertNil(DevFillerModel.overridePath)
         DevFillerModel.pickedPath = nil
     }
+
+    // MARK: Model-type guard
+
+    func testCanRunOnlySupportedArchitectures() {
+        // What this build's helper actually runs…
+        XCTAssertTrue(FillerModelCatalog.canRun(modelType: "chunk"))
+        XCTAssertTrue(FillerModelCatalog.canRun(modelType: "sequence"))
+        XCTAssertTrue(FillerModelCatalog.canRun(modelType: nil))      // missing → original chunk model
+        // …and a future architecture this build can't, so the updater/picker skip it
+        // instead of downloading a model it would mis-run.
+        XCTAssertFalse(FillerModelCatalog.canRun(modelType: "transformer"))
+        XCTAssertFalse(FillerModelCatalog.canRun(modelType: "unknown"))
+    }
 }

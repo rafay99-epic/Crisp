@@ -41,6 +41,13 @@ final class FillerModelUpdater {
             state = .upToDate
             return
         }
+        // A newer model exists — but only offer it if this build's helper can run its
+        // architecture. Skip (treat as up to date) when the manifest's model_type isn't
+        // supported, so an older app never downloads a newer model it would mis-run.
+        guard FillerModelCatalog.canRun(modelType: j["model_type"] as? String) else {
+            state = .upToDate
+            return
+        }
         updateSpec = ModelSpec(id: baseSpec.id, fileName: file, url: url, sha256: sha,
                                approxBytes: baseSpec.approxBytes, displayName: baseSpec.displayName,
                                summary: baseSpec.summary, recommended: baseSpec.recommended)
