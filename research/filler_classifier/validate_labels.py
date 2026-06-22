@@ -65,7 +65,7 @@ def adjacent_pause(silences, start, end) -> bool:
     return False
 
 
-def run(data_dir, labels_path, limit, split, use_whisper):
+def run(data_dir, labels_path, limit, split, use_whisper, whisper_model=WHISPER_MODEL):
     data_dir = Path(data_dir)
     by_ep = load_fillers(labels_path)
     # Only episodes whose audio is actually on disk (the download is partial), so the
@@ -92,7 +92,7 @@ def run(data_dir, labels_path, limit, split, use_whisper):
 
             words = []
             if use_whisper:
-                words = transcribe(WHISPER_BIN, WHISPER_MODEL, wav, Path(tmp) / "out", _noop, _noop)
+                words = transcribe(WHISPER_BIN, whisper_model, wav, Path(tmp) / "out", _noop, _noop)
                 fillers_w = [(w["start"], w["end"]) for w in words if is_filler(w["text"])]
 
             for r in by_ep[(sp, ep)]:
@@ -106,8 +106,12 @@ def run(data_dir, labels_path, limit, split, use_whisper):
                            for fs, fe in fillers_w):
                         whisper_hits[b]["match"] += 1
             done += 1
-            print(f"  [{done}/{len(eps)}] {ep[:55]:55}  pauses={len(silences)}"
-                  + (f"  whisper_fillers={len(fillers_w)}" if use_whisper else ""))
+            # whisper_words shows whisper's TOTAL transcription: if it's in the
+            # thousands but whisper_fillers is tiny, whisper is dropping fillers (low
+            # recall) — a property of whisper, not a bug or a bad label.
+            print(f"  [{done}/{len(eps)}] {ep[:50]:50}  pauses={len(silences)}"
+                  + (f"  whisper_words={len(words)} whisper_fillers={len(fillers_w)}"
+                     if use_whisper else ""))
 
     print(f"\n=== pause-adjacency by bucket  ({done} episodes, {split}) ===")
     print("(does the engine's real pause detector agree a filler is at a pause?)")
@@ -133,8 +137,10 @@ def main():
     p.add_argument("--limit", type=int, default=8, help="episodes to validate")
     p.add_argument("--split", default="train")
     p.add_argument("--whisper", action="store_true", help="also run whisper (slow)")
+    p.add_argument("--whisper-model", default=WHISPER_MODEL,
+                   help="ggml whisper model (default base.en; try the large turbo for recall)")
     a = p.parse_args()
-    run(a.data, a.labels, a.limit, a.split, a.whisper)
+    run(a.data, a.labels, a.limit, a.split, a.whisper, a.whisper_model)
 
 
 if __name__ == "__main__":
