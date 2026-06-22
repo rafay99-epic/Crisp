@@ -248,6 +248,7 @@ struct SettingsView: View {
         Binding(get: { settings.fillerModelEnabled },
                 set: { on in
                     settings.fillerModelEnabled = on
+                    AppInfo.logger("model").info("filler model \(on ? "enabled" : "disabled")")
                     if on { Task { await fillerModelStore.refresh() } }
                 })
     }
@@ -255,6 +256,7 @@ struct SettingsView: View {
         Binding(get: { settings.selectedFillerModelID },
                 set: { id in
                     settings.selectedFillerModelID = id
+                    AppInfo.logger("model").info("filler model selected: \(id, privacy: .public)")
                     fillerModelStore.use(FillerModelCatalog.spec(id: id))
                 })
     }
@@ -353,6 +355,7 @@ struct SettingsView: View {
                     Menu("Choose…") {
                         ForEach(fillerVersions.versions, id: \.self) { v in
                             Button("v\(v)") {
+                                AppInfo.logger("model").info("installing filler model version v\(v, privacy: .public)")
                                 Task {
                                     await fillerVersions.install(version: v, baseSpec: fillerModelStore.spec,
                                                                  store: fillerModelStore)
@@ -384,6 +387,7 @@ struct SettingsView: View {
         if panel.runModal() == .OK, let url = panel.url {
             devLocalModel = url.path
             DevFillerModel.pickedPath = url.path
+            AppInfo.logger("model").info("sideloaded local filler model: \(url.path, privacy: .public)")
         }
     }
 

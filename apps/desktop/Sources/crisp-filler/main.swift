@@ -342,6 +342,12 @@ func fail(_ msg: String) -> Never {
     exit(1)
 }
 
+/// A diagnostic line to stderr (stdout stays clean JSON). The engine captures stderr
+/// and records these in the run log, so a successful clean isn't a black box.
+func diag(_ msg: String) {
+    FileHandle.standardError.write(Data("crisp-filler: \(msg)\n".utf8))
+}
+
 func arg(_ name: String) -> String? {
     let a = CommandLine.arguments
     guard let i = a.firstIndex(of: name), i + 1 < a.count else { return nil }
@@ -359,7 +365,11 @@ let signal = readWav(audioPath)
 let fe = Frontend()
 let (mel, T) = logMel(signal, fe)
 let model = loadModel(URL(fileURLWithPath: modelPath))
+diag("model=\((modelPath as NSString).lastPathComponent) type=\(Spec.modelType) "
+     + "threshold=\(threshold) minFiller=\(Spec.minFiller) mergeGap=\(Spec.mergeGap) "
+     + "nMels=\(Spec.nMels) frames=\(T) audio=\(String(format: "%.1f", Double(T) * Spec.frameSec))s")
 // One helper, two backends — picked from the model's config (defaults to chunk).
+let t0 = Date()
 let fillers: [[Double]]
 if Spec.modelType == "sequence" {
     let probs = predictSequence(model, mel: mel, frames: T)
@@ -368,6 +378,7 @@ if Spec.modelType == "sequence" {
     let (probs, centers) = predictChunk(model, mel: mel, frames: T)
     fillers = intervalsChunk(probs: probs, centers: centers, threshold: threshold)
 }
+diag("detected \(fillers.count) filler spans in \(Int(Date().timeIntervalSince(t0) * 1000))ms")
 
 guard let json = try? JSONSerialization.data(withJSONObject: ["fillers": fillers], options: []) else {
     fail("could not encode output")

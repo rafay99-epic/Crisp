@@ -152,6 +152,15 @@ final class CleanModel {
         let fillerModel = fillers ? fillerModelPath : nil   // coreml backend when present
         activeFillerModelPath = fillerModel
         activeFeedbackModelID = fillerModel != nil ? feedbackModelID : nil   // record only classifier cleans
+        // Record the filler backend up front, so the log says which model this clean used.
+        let cleanLog = AppInfo.logger("clean")
+        if !fillers {
+            cleanLog.info("filler removal: off")
+        } else if let fm = fillerModel {
+            cleanLog.info("filler backend: on-device model @ \(fm, privacy: .public)")
+        } else {
+            cleanLog.info("filler backend: whisper @ \(modelPath ?? "(none)", privacy: .public)")
+        }
         var params: [QueueItem.ID: CleanParameters] = [:]
         for item in waiting { params[item.id] = resolveParameters(item) }
         let waitingIDs = waiting.map(\.id)
