@@ -108,7 +108,9 @@ def export(checkpoint, out):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--checkpoint", default="checkpoints/wren_seq.pt")
-    p.add_argument("--out", default="checkpoints/Wren.mlmodel")
+    # Built models live under research/models/<name>/ — in the repo, gitignored,
+    # never pushed (published to Hugging Face via the dev flow instead).
+    p.add_argument("--out", default="models/wren-v2/Wren.mlmodel")
     a = p.parse_args()
     export(a.checkpoint, a.out)
 

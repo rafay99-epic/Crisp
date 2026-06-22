@@ -25,3 +25,6 @@ checkpoints/
 
 # validate-tool scratch (your hand labels for a window)
 labels.json
+
+# Built/exported models — kept in the repo, never pushed (published to HF instead).
+models/
