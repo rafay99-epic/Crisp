@@ -16,7 +16,7 @@ import argparse
 from pathlib import Path
 
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import ConcatDataset, DataLoader
 
 from .. import config
 from .dataset import SeqWindows
@@ -39,16 +39,31 @@ def evaluate(model, dl, device, threshold=0.5):
     return f1, prec, rec
 
 
-def run(data_dir, epochs, batch_size, lr, workers, out):
+def run(data_dir, epochs, batch_size, lr, workers, out, hard_neg=None):
     data_dir = Path(data_dir)
     device = "mps" if torch.backends.mps.is_available() else "cpu"
     train_ds = SeqWindows(data_dir / "windows_train.jsonl", data_dir / "mels")
     val_ds = SeqWindows(data_dir / "windows_validation.jsonl", data_dir / "mels")
-    pos_weight = train_ds.pos_weight().to(device)
-    print(f"device={device}  train={len(train_ds)} windows  val={len(val_ds)} windows  "
+
+    # Optionally mix in all-negative hard-negative windows (SEP-28k music/noise/non-filler)
+    # so the model learns what NOT to cut. They add only negatives → pos_weight rises.
+    sources = [train_ds]
+    if hard_neg:
+        hn = SeqWindows(Path(hard_neg) / "windows.jsonl", Path(hard_neg) / "mels")
+        sources.append(hn)
+        print(f"+ {len(hn)} hard-negative windows from {hard_neg}")
+    full_train = ConcatDataset(sources) if len(sources) > 1 else train_ds
+
+    pos = neg = 0
+    for ds in sources:
+        p = sum(b - a for w in ds.windows for a, b in w["spans"])
+        pos += p
+        neg += len(ds.windows) * config.WINDOW_FRAMES - p
+    pos_weight = torch.tensor(neg / pos if pos else 1.0).to(device)
+    print(f"device={device}  train={len(full_train)} windows  val={len(val_ds)} windows  "
           f"pos_weight={pos_weight.item():.1f}")
 
-    train_dl = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=workers)
+    train_dl = DataLoader(full_train, batch_size=batch_size, shuffle=True, num_workers=workers)
     val_dl = DataLoader(val_ds, batch_size=batch_size, num_workers=workers)
 
     torch.manual_seed(0)
@@ -88,8 +103,10 @@ def main():
     p.add_argument("--lr", type=float, default=1e-3)
     p.add_argument("--workers", type=int, default=4)
     p.add_argument("--out", default="checkpoints/wren_seq.pt")
+    p.add_argument("--hard-neg", default=None,
+                   help="dir with hard-negative windows (e.g. data/hardneg) to mix in")
     a = p.parse_args()
-    run(a.data, a.epochs, a.batch_size, a.lr, a.workers, a.out)
+    run(a.data, a.epochs, a.batch_size, a.lr, a.workers, a.out, a.hard_neg)
 
 
 if __name__ == "__main__":

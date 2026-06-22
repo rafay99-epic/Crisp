@@ -69,7 +69,10 @@ def make_windows(fillers, n_frames, rng):
     removable, others = [], []
     for f in fillers:
         a, b = sec_to_frame(f["start"]), sec_to_frame(f["end"])
-        (removable if f["bucket"] in REMOVABLE else others).append((a, b))
+        # Prefer an explicit `removable` label (v3 transcript-grounded labels); fall
+        # back to the v2 bucket rule (isolated == removable) when it's absent.
+        is_removable = f.get("removable", f["bucket"] in REMOVABLE)
+        (removable if is_removable else others).append((a, b))
 
     def window_around(a, b):
         center = (a + b) // 2

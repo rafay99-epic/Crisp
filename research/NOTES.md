@@ -176,6 +176,18 @@ The Tier-2 plan above, executed. `feature/wren-context-model`. **Verified on rea
 
 ---
 
+## 6c. v3 experiments — what moves accuracy (and what doesn't)
+
+Two cheap experiments to find the real accuracy lever — both on the SAME tiny model (architecture unchanged), to test "data/labels over architecture."
+
+**Re-labeling (transcript-grounded) — NO CLEAR WIN.** `v2/relabel.py` uses PodcastFillers' episode transcripts (Azure ASR, word-level timing) to define removability by *language*, not just VAD: a filler tightly bracketed by spoken words on both sides can't be cleanly cut → natural; one with a real word-gap → detachable → removable. The labeling *definition* swings the positive rate enormously — "detached on one side" = **72%** removable (over-cuts), "both sides" = **20%** (conservative, ~v2). At the conservative rate the transcript only rescued ~1,180 fillers VAD missed, and the retrained model was statistically indistinguishable from v2 on held-out episodes. **Lesson: label cleverness at the conservative point is not the lever; "should cut" is an editorial judgment, not a mechanical one.**
+
+**Hard negatives (SEP-28k) — WORKS, consistent win.** The behavioral test exposed the real error: on a music episode v2 cut ~30 spans, only ~1 a real filler (**3% on-filler**) — it fires on non-speech because it only trained on PodcastFillers (clean speech + fillers). `v2/hard_negatives.py` pulls SEP-28k non-interjection clips (Music, NoSpeech, other disfluencies, clean speech) as **all-negative** windows; `train --hard-neg` mixes them in. Result on 4 held-out episodes vs v2: **on-filler precision up on all four** (63→69, 47→55, 77→81%), **fewer spans on all four** (cuts less, more precisely). The music episode barely moved (3→4%) — only 156 Music + 239 NoSpeech clips available; **scaling non-speech negatives is the next iteration.** v2+hardneg is strictly better than shipped v2 → candidate **Wren v0.0.10** after scaling negs + footage validation. Built model: `research/models/wren-v2-hn/`.
+
+**Direction for v3.** (1) Scale hard negatives (music/noise/no-speech) — the proven lever. (2) Fine-tune on the user's own footage (domain). (3) Keep v2's conservative labels — proven near-optimal. (4) **Two tiers:** **Wren** (light, audio-only, fast) stays the daily driver; a heavier **Raven** (audio **+ transcript** → real language understanding, slower — runs ASR, learns the editorial removability decision, beats raw whisper which under-cuts) is where the intelligence lives. The data-driven helper (`model_type`) + catalog + `canRun` guard already support shipping both side by side.
+
+---
+
 ## 7. Quick reference
 
 - Branches: `feature/wren-backend` → PR #48 (merged into `nightly`); `feature/ml-dev-flow` = the model dev flow (channels + sideload + history).
