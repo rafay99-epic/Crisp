@@ -15,6 +15,7 @@ bleeding-edge-Python build. Prints a PyTorch-vs-CoreML parity check.
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 
 import torch
@@ -68,6 +69,27 @@ def export(checkpoint, out):
     Path(out).parent.mkdir(parents=True, exist_ok=True)
     mlmodel.save(out)
     print(f"saved {out}  (input='{IN_NAME}' [1,{config.N_MELS},T], output='{OUT_NAME}' [1,T])")
+
+    # Write the self-describing config.json sidecar (the helper reads model_type +
+    # framing from it; publish_hf later adds version + model_sha256 for the manifest).
+    cfg = {
+        "name": Path(out).stem,
+        "generation": 2,
+        "model_type": "sequence",
+        "input": IN_NAME,
+        "output": OUT_NAME,
+        "sample_rate": config.SAMPLE_RATE,
+        "n_fft": config.N_FFT,
+        "hop_length": config.HOP_LENGTH,
+        "n_mels": config.N_MELS,
+        "mel_mean": config.MEL_MEAN,
+        "mel_std": config.MEL_STD,
+        "recommended_threshold": 0.9,   # the sweep's F1 peak; favors precision (less over-cutting)
+        "min_filler": 0.08,
+    }
+    cfg_path = Path(out).with_suffix(".config.json")
+    cfg_path.write_text(json.dumps(cfg, indent=2))
+    print(f"saved {cfg_path}")
 
     # Parity: the helper relies on Core ML matching PyTorch. Check a few lengths.
     # Tolerance 2e-3: per-frame probabilities only ever feed a threshold + span merge,
