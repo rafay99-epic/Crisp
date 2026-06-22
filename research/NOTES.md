@@ -168,6 +168,10 @@ The Tier-2 plan above, executed. `feature/wren-context-model`. **Verified on rea
 
 **Shipping order (IMPORTANT — coupling).** v2 needs the new sequence-capable helper, so it is **not** a pure model-only update. Order: (1) merge `feature/wren-context-model` → nightly (app gets the helper), (2) `publish_hf` for v2 config, (3) publish v2 → HF nightly as `v0.0.9`, test in Crisp Nightly, (4) promote to stable. An old helper would mis-run a sequence model, so the model must not reach a channel before its helper does.
 
+**Capability tie — captions.** The custom model detects filler *audio* only; it can't transcribe, so **captions (SRT/VTT) are a whisper-only feature** — the single on-shelf-model tie (pauses via `silencedetect`, fillers, encoding all work with the custom model). When the fast filler model is on, captions are **hard-disabled** in Settings (warning: *"This feature might not be available with our custom fast model"*) and dropped in `CleanRunner` for *every* entry point (per-row presets, watcher, Shortcuts) — so the engine never silently bypasses the fast model to run whisper just for captions. Previously `pipeline.use_classifier = … and not want_captions` would do exactly that silently.
+
+**Logging.** Every model switch is logged (`AppInfo.logger("model")`: speech-model select, filler enable/disable/select/sideload/version-install) and every clean records its backend + the exact model identity (name + version + chunk/sequence + gen) across app → engine → helper, plus the helper's per-run diagnostics (threshold/frames/spans/ms). So the daily log answers *which model ran, with what settings, how fast*.
+
 **Next / iterate (real-life loop).** More footage → tune threshold (config `recommended_threshold`) or retrain folding boundary fillers in for recall; more episodes (we have 66/174) + FluencyBank (held-out test) + SEP-28k (hard-neg variety); the engine silence-gate (`FILLER_MIN_SOLO`/`PAUSE_PAD`) is now a light safety net on top of an already-precise model — could relax it.
 
 ---

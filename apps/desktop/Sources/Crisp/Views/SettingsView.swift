@@ -142,6 +142,18 @@ struct SettingsView: View {
             Picker("Subtitle files", selection: $settings.captionsFormat) {
                 ForEach(CaptionFormat.allCases) { Text($0.label).tag($0.rawValue) }
             }
+            // Captions are transcribed, which only the speech model can do — the custom
+            // fast filler model (Wren) detects filler audio but can't produce text. So
+            // captions are unavailable while the fast model is on (it's cleared on enable).
+            .disabled(settings.fillerModelEnabled)
+            if settings.fillerModelEnabled {
+                Label {
+                    Text("**This feature might not be available with our custom fast model.** Captions need the speech model to transcribe \u{2014} turn off the fast filler model (Cutting tab) to add them.")
+                        .font(.caption).foregroundStyle(.secondary)
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                }
+            }
         } header: {
             Text("Captions")
         } footer: {
@@ -209,6 +221,7 @@ struct SettingsView: View {
         Binding(get: { settings.selectedModelID },
                 set: { id in
                     settings.selectedModelID = id
+                    AppInfo.logger("model").info("speech model selected: \(id, privacy: .public)")
                     modelStore.use(ModelCatalog.spec(id: id))
                 })
     }
@@ -249,7 +262,16 @@ struct SettingsView: View {
                 set: { on in
                     settings.fillerModelEnabled = on
                     AppInfo.logger("model").info("filler model \(on ? "enabled" : "disabled")")
-                    if on { Task { await fillerModelStore.refresh() } }
+                    if on {
+                        // Hard-disable captions: they need whisper (the fast model can't
+                        // transcribe), so clear any caption setting rather than silently
+                        // falling back to the speech model and bypassing the fast model.
+                        if settings.captionsFormat != "none" {
+                            settings.captionsFormat = "none"
+                            AppInfo.logger("model").info("captions cleared — unavailable with the fast filler model")
+                        }
+                        Task { await fillerModelStore.refresh() }
+                    }
                 })
     }
     private var activeFillerModelBinding: Binding<String> {
