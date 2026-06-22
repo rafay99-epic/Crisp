@@ -1,6 +1,6 @@
 """Export Wren v2 (WrenSeq) to a single-file Core ML .mlmodel with a flexible length.
 
-    ./.venv-export/bin/python -m filler_classifier.export_coreml_v2 \
+    ./.venv-export/bin/python -m filler_classifier.v2.export_coreml \
         --checkpoint checkpoints/wren_seq.pt
 
 Unlike the chunk model (fixed [1,1,n_mels,25] input), v2 is fully convolutional, so
@@ -21,8 +21,8 @@ from pathlib import Path
 import torch
 from torch import nn
 
-from . import config
-from .model_v2 import WrenSeq
+from .. import config
+from .model import WrenSeq
 
 IN_NAME = "mel"
 OUT_NAME = "removable_prob"

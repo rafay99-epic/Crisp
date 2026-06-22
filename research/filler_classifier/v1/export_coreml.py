@@ -1,6 +1,6 @@
 """Export a trained checkpoint to a Core ML .mlpackage.
 
-    python -m filler_classifier.export_coreml --checkpoint checkpoints/filler_cnn.pt
+    python -m filler_classifier.v1.export_coreml --checkpoint checkpoints/filler_cnn.pt
 
 The shipped engine backend feeds one log-mel chunk [1, 1, n_mels, CHUNK_FRAMES]
 and reads back P(filler). Feature extraction (mel + chunking) stays in the host,
@@ -13,7 +13,7 @@ from pathlib import Path
 
 import torch
 
-from . import config
+from .. import config
 from .model import FillerCNN
 
 

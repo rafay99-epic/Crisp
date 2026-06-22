@@ -1,9 +1,9 @@
 """Train Wren v2 — the context-aware temporal filler model.
 
     # one-time: cache mels + build windows (slow, decodes audio once)
-    python -m filler_classifier.preprocess_v2 --splits train validation
+    python -m filler_classifier.v2.preprocess --splits train validation
     # then train (watch the per-frame P/R/F1 climb on the validation episodes)
-    python -m filler_classifier.train_v2 --data data/labels_v2 --epochs 40
+    python -m filler_classifier.v2.train --data data/labels_v2 --epochs 40
 
 Saves the best-val-F1 checkpoint to checkpoints/wren_seq.pt. Metrics are *per-frame*
 (at 10 ms): precision = of the frames we flag as removable, how many really are
@@ -18,9 +18,9 @@ from pathlib import Path
 import torch
 from torch.utils.data import DataLoader
 
-from . import config
-from .dataset_v2 import SeqWindows
-from .model_v2 import WrenSeq
+from .. import config
+from .dataset import SeqWindows
+from .model import WrenSeq
 
 
 @torch.no_grad()

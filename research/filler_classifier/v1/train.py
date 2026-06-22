@@ -1,10 +1,10 @@
 """Train the filler classifier.
 
     # public corpus (default) — uses PodcastFillers' own train/validation splits:
-    python -m filler_classifier.train --dataset podcastfillers --data data/PodcastFillers
+    python -m filler_classifier.v1.train --dataset podcastfillers --data data/PodcastFillers
 
     # your own hand-labeled recordings (*.wav + *.fillers.json):
-    python -m filler_classifier.train --dataset folder --data data/
+    python -m filler_classifier.v1.train --dataset folder --data data/
 
 Saves the best-val-F1 checkpoint to checkpoints/filler_cnn.pt.
 """

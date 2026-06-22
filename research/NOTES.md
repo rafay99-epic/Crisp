@@ -52,15 +52,15 @@ blog post. Bullet-point heavy on purpose.
 - **Commands:**
   ```sh
   cd research && source .venv/bin/activate
-  python -m filler_classifier.train --dataset podcastfillers --data data/PodcastFillers --epochs 30
-  python -m filler_classifier.evaluate --dataset podcastfillers --data data/PodcastFillers --split test
-  python -m filler_classifier.infer some.wav --threshold 0.7        # reference impl
+  python -m filler_classifier.v1.train --dataset podcastfillers --data data/PodcastFillers --epochs 30
+  python -m filler_classifier.v1.evaluate --dataset podcastfillers --data data/PodcastFillers --split test
+  python -m filler_classifier.v1.infer some.wav --threshold 0.7        # reference impl
   ```
 
 ### Export + hosting
 - Export to a **single-file Core ML `.mlmodel`** (neuralnetwork) in a **Python 3.10** env (`.venv-export`; coremltools' BlobWriter has no Py3.14 build).
   ```sh
-  ./.venv-export/bin/python -m filler_classifier.export_coreml   # → checkpoints/Wren.mlmodel
+  ./.venv-export/bin/python -m filler_classifier.v1.export_coreml   # → checkpoints/Wren.mlmodel
   ```
 - Published to **Hugging Face**: <https://huggingface.co/rafay99-epic/crisp-models> (`publish_hf.py`).
   - **Versioning = repo commit count** → `v0.0.N` tags. Pin: `.../resolve/v0.0.6/Wren.mlmodel`.
@@ -188,9 +188,9 @@ The Tier-2 plan above, executed. `feature/wren-context-model`. **Verified on rea
 - **One-time HF seed:** the `nightly` branch is auto-created on first `--channel nightly` publish (forked off `main`). Until then Nightly/Dev just see no update (manifest 404 → handled).
 
 ### Wren v2 (context model) — `feature/wren-context-model`
-- Labels: `python -m filler_classifier.derive_labels` then `… validate_labels --limit 20` (engine cross-check; `--whisper` for the recall insight).
+- Labels: `python -m filler_classifier.v2.derive_labels` then `… validate_labels --limit 20` (engine cross-check; `--whisper` for the recall insight).
 - Train: `… preprocess_v2 --splits train validation` (once, caches mels) → `… train_v2 --epochs 40` (best → `checkpoints/wren_seq.pt`). Use `.venv`.
 - Test on real footage: `… infer_v2 "/path/video.mp4" --compare` (v2 vs v0.0.8 cut time, side by side).
-- Export: `./.venv-export/bin/python -m filler_classifier.export_coreml_v2` → `research/models/wren-v2/Wren.mlmodel` + `Wren.config.json`.
+- Export: `./.venv-export/bin/python -m filler_classifier.v2.export_coreml` → `research/models/wren-v2/Wren.mlmodel` + `Wren.config.json`.
 - Try in app: Crisp Dev → ⌘, → Cutting → enable filler model → Developer → "Load local model…" → `research/models/wren-v2/Wren.mlmodel`.
 - Tunables: `WINDOW_SEC`/`NEG_PER_POS`/`HARD_NEG_FRAC` in `config.py`; per-model `recommended_threshold`/`min_filler` in the exported `config.json`.

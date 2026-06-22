@@ -17,6 +17,27 @@ train on your own footage.
 - **What it learns:** filler-vs-speech only. Pauses/silence stay with ffmpeg
   `silencedetect`, so this model has one narrow, learnable job.
 
+### Package layout (split by model generation)
+
+The shared audio frontend + publishing live at the top; each model generation is its
+own subpackage. Run modules with their version prefix
+(`python -m filler_classifier.v2.train`); publishing is version-agnostic.
+
+```
+filler_classifier/
+  config.py  features.py                          # SHARED — mel framing + log-mel transform
+  publish_hf.py  promote_model.py  MODEL_CARD.md  # SHARED — Hugging Face publish / promote
+  v1/   the original per-chunk classifier (chunk model, v0.0.x)
+        model · corpora · dataset · labeling · train · infer
+        export_coreml · evaluate · benchmark · validate · report
+  v2/   the context-aware temporal model (sequence TCN — Wren v2)
+        model · derive_labels · validate_labels · preprocess
+        dataset · train · infer · export_coreml
+```
+
+The **v1** workflow is documented below. The **v2** workflow (derive labels → preprocess
+→ train → infer → export) is in `NOTES.md` §6b.
+
 ### Setup
 ```sh
 cd research
@@ -53,19 +74,19 @@ Crisp's talking-head footage. Put `*.wav` (16 kHz mono) + `*.fillers.json`
 ### 2. Train
 ```sh
 # PodcastFillers, using its built-in train/validation splits:
-python -m filler_classifier.train --dataset podcastfillers --data data/PodcastFillers --epochs 30
+python -m filler_classifier.v1.train --dataset podcastfillers --data data/PodcastFillers --epochs 30
 ```
 Each epoch prints validation Precision / Recall / F1 so you can watch it learn;
 the best-F1 checkpoint is saved to `checkpoints/filler_cnn.pt`.
 
 ### 3. Evaluate (on the held-out test split)
 ```sh
-python -m filler_classifier.evaluate --dataset podcastfillers --data data/PodcastFillers --split test
+python -m filler_classifier.v1.evaluate --dataset podcastfillers --data data/PodcastFillers --split test
 ```
 
 ### 4. Try it on a clip
 ```sh
-python -m filler_classifier.infer some_clip.wav
+python -m filler_classifier.v1.infer some_clip.wav
 ```
 
 ### 5. Export for the app (Core ML)
@@ -76,7 +97,7 @@ audio stack:
 ```sh
 python3.10 -m venv .venv-export
 ./.venv-export/bin/pip install -r requirements-export.txt
-./.venv-export/bin/python -m filler_classifier.export_coreml   # → checkpoints/FillerClassifier.mlpackage
+./.venv-export/bin/python -m filler_classifier.v1.export_coreml   # → checkpoints/FillerClassifier.mlpackage
 ```
 The exported model is a pure `chunk [1,1,n_mels,CHUNK_FRAMES] → P(filler)` function;
 it matches the PyTorch model to ~1e-9 (parity-checked). Feature extraction (mel +
@@ -90,14 +111,14 @@ short window by ear, and it grades the model's predictions against your labels.
 
 ```sh
 # 1) cut a window to label (writes window.wav + an empty labels.json):
-python -m filler_classifier.validate prepare /tmp/test.wav --start 60 --end 240
+python -m filler_classifier.v1.validate prepare /tmp/test.wav --start 60 --end 240
 
 # 2) play window.wav; add every um/uh you hear as [start,end] (seconds) to labels.json:
 #    {"fillers": [[12.3, 12.6], [45.1, 45.8]]}
 #    Label by ear — recall depends on you catching what the model missed.
 
 # 3) grade it:
-python -m filler_classifier.validate score window.wav --labels labels.json --threshold 0.7
+python -m filler_classifier.v1.validate score window.wav --labels labels.json --threshold 0.7
 ```
 It reports precision (were the cuts real fillers?), recall (did it catch the real
 ones?), and lists the **false positives** (cut, but not a filler) and **misses** so

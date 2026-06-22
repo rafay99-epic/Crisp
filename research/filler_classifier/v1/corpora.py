@@ -25,7 +25,7 @@ from pathlib import Path
 import torch
 from torch.utils.data import Dataset
 
-from . import config, features
+from .. import config, features
 
 
 def _pos_weight(labels: torch.Tensor) -> torch.Tensor:

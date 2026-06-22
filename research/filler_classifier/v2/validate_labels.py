@@ -15,8 +15,8 @@ sees, on a subset of full episodes:
 This reuses the engine's own `crisp` package (the exact code that ships), so the
 validation matches production behavior rather than a re-implementation.
 
-    python -m filler_classifier.validate_labels --limit 8                 # fast (pauses)
-    python -m filler_classifier.validate_labels --whisper --limit 2       # + whisper
+    python -m filler_classifier.v2.validate_labels --limit 8                 # fast (pauses)
+    python -m filler_classifier.v2.validate_labels --whisper --limit 2       # + whisper
 """
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ import tempfile
 from collections import Counter, defaultdict
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[2]
+REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "apps" / "desktop" / "Resources" / "engine"))
 from crisp.config import DEFAULT_MAX_PAUSE, DEFAULT_NOISE_DB           # noqa: E402
 from crisp.detect import detect_silences, extract_audio, transcribe   # noqa: E402

@@ -1,10 +1,10 @@
 """Precision / recall / F1 of a trained checkpoint on held-out data.
 
     # a public-corpus split (chunk-level metric):
-    python -m filler_classifier.evaluate --dataset podcastfillers --data data/PodcastFillers --split test
+    python -m filler_classifier.v1.evaluate --dataset podcastfillers --data data/PodcastFillers --split test
 
     # your own labeled recordings (interval overlap on the chunk grid):
-    python -m filler_classifier.evaluate --dataset folder --data data/val
+    python -m filler_classifier.v1.evaluate --dataset folder --data data/val
 """
 from __future__ import annotations
 
@@ -12,7 +12,8 @@ import argparse
 
 from torch.utils.data import DataLoader
 
-from . import config, corpora, features
+from .. import config, features
+from . import corpora
 from .dataset import find_pairs
 from .infer import load_model, predict_intervals
 from .labeling import label_for_time, load_intervals

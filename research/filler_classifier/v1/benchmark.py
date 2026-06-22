@@ -11,7 +11,7 @@ Crisp-ready:
   - speed: chunks/sec and the real-time factor (how many seconds of audio it
     processes per second) — the model's whole selling point over whisper.
 
-    python -m filler_classifier.benchmark --data data/PodcastFillers
+    python -m filler_classifier.v1.benchmark --data data/PodcastFillers
 """
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ from pathlib import Path
 
 import torch
 
-from . import config, features
+from .. import config, features
 from .corpora import PF_FILLERS
 from .infer import load_model
 

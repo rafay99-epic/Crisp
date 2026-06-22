@@ -6,7 +6,7 @@ broken down by non-filler sound, and per-filler recall. Same numbers as
 `benchmark`, but as a single JSON object on stdout so Swift can render them
 natively instead of parsing console text.
 
-    python -m filler_classifier.report --data data/PodcastFillers --split test
+    python -m filler_classifier.v1.report --data data/PodcastFillers --split test
 """
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from collections import Counter
 
 import torch
 
-from . import config, features
+from .. import config, features
 from .benchmark import _prf, _test_examples
 from .corpora import PF_FILLERS
 from .infer import load_model

@@ -11,7 +11,7 @@ from pathlib import Path
 import torch
 from torch.utils.data import Dataset
 
-from . import features
+from .. import features
 from .labeling import label_for_time, load_intervals
 
 

@@ -14,7 +14,7 @@ Workflow
 1) Cut a window you're willing to label (a few minutes is plenty). Writes
    window.wav + an empty labels.json next to it:
 
-     python -m filler_classifier.validate prepare /tmp/test.wav --start 60 --end 240
+     python -m filler_classifier.v1.validate prepare /tmp/test.wav --start 60 --end 240
 
 2) Open window.wav in any player. For EVERY "um/uh" you hear, add its
    [start, end] in seconds (relative to window.wav, which starts at 0) to
@@ -27,7 +27,7 @@ Workflow
 
 3) Score the model against your labels:
 
-     python -m filler_classifier.validate score window.wav --labels labels.json --threshold 0.7
+     python -m filler_classifier.v1.validate score window.wav --labels labels.json --threshold 0.7
 """
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ import json
 import wave
 from pathlib import Path
 
-from . import features
+from .. import features
 from .infer import load_model, predict_intervals
 from .labeling import load_intervals
 

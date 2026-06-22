@@ -20,7 +20,7 @@ Output is a JSONL of every filler with its raw signals + bucket, consumed by the
 whisper validator and (later) the sequence-model trainer. This file is pure stdlib
 (csv only) — fast, no torch needed.
 
-    python -m filler_classifier.derive_labels --data data/PodcastFillers \
+    python -m filler_classifier.v2.derive_labels --data data/PodcastFillers \
         --out data/labels_v2
 """
 from __future__ import annotations

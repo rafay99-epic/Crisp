@@ -17,7 +17,7 @@ Window policy (this is where the removable-vs-natural signal is taught):
 Reuses the engine's ffmpeg to decode mp3 → 16 kHz wav and `features` for the mel, so
 the spectrogram matches inference exactly. Run with the torch env (.venv).
 
-    python -m filler_classifier.preprocess_v2 --data data/PodcastFillers \
+    python -m filler_classifier.v2.preprocess --data data/PodcastFillers \
         --labels data/labels_v2/fillers.jsonl --out data/labels_v2 --splits train validation
 """
 from __future__ import annotations
@@ -34,9 +34,9 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from . import config, features
+from .. import config, features
 
-REPO = Path(__file__).resolve().parents[2]
+REPO = Path(__file__).resolve().parents[3]
 FFMPEG = os.environ.get("CRISP_FFMPEG", "ffmpeg")
 
 REMOVABLE = {"isolated"}                 # the positive class for v1 of the trainer

@@ -5,10 +5,10 @@ chunks), thresholds the per-frame P(removable), and merges into spans. This mirr
 what the shipped helper will do, and doubles as the Phase-4 real-data test:
 
     # how much would each model cut on your footage? (the over-cutting check)
-    python -m filler_classifier.infer_v2 /path/to/your_video.mp4 --compare
+    python -m filler_classifier.v2.infer /path/to/your_video.mp4 --compare
 
     # just v2's spans (e.g. on a FluencyBank clip), at a chosen operating point:
-    python -m filler_classifier.infer_v2 clip.wav --threshold 0.9
+    python -m filler_classifier.v2.infer clip.wav --threshold 0.9
 
 `--compare` runs the old 0.25s chunk model (v0.0.8) on the same audio so you can see,
 side by side, whether v2 cuts *less* (and at better spots). Accepts mp4/mp3/wav/etc.
@@ -25,10 +25,10 @@ from pathlib import Path
 
 import torch
 
-from . import config, features
-from .infer import predict_intervals as predict_chunks   # old v0.0.8 path
-from .model import FillerCNN
-from .model_v2 import WrenSeq
+from .. import config, features
+from ..v1.infer import predict_intervals as predict_chunks   # old v0.0.8 path
+from ..v1.model import FillerCNN
+from .model import WrenSeq
 
 FFMPEG = os.environ.get("CRISP_FFMPEG", "ffmpeg")
 

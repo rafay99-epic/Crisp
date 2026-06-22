@@ -11,7 +11,7 @@ import json
 
 import torch
 
-from . import config, features
+from .. import config, features
 from .model import FillerCNN
 
 
