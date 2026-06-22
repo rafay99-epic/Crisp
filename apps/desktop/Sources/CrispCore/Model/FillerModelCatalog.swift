@@ -36,4 +36,18 @@ public enum FillerModelCatalog {
         guard let id else { return wren }
         return all.first { $0.id == id } ?? wren
     }
+
+    /// The model architectures this build's `crisp-filler` helper can actually run.
+    /// `chunk` = the original per-window classifier (v0.0.8); `sequence` = the
+    /// context-aware temporal model (Wren v2). Keep in sync with the helper's
+    /// `Spec.modelType` branches.
+    public static let supportedModelTypes: Set<String> = ["chunk", "sequence"]
+
+    /// Whether this app can run a model of the given `model_type` (from its
+    /// config.json manifest). A missing type means the original chunk model. Used to
+    /// **skip** a remote model this build can't execute — so an older app never
+    /// downloads a newer architecture it would mis-run.
+    public static func canRun(modelType: String?) -> Bool {
+        supportedModelTypes.contains(modelType ?? "chunk")
+    }
 }

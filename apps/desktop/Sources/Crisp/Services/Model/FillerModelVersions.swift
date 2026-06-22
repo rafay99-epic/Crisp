@@ -53,6 +53,8 @@ final class FillerModelVersions {
               (resp as? HTTPURLResponse)?.statusCode == 200,
               let j = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let sha = j["model_sha256"] as? String, !sha.isEmpty else { return false }
+        // Don't install a version whose architecture this build's helper can't run.
+        guard FillerModelCatalog.canRun(modelType: j["model_type"] as? String) else { return false }
         let file = (j["model_file"] as? String) ?? baseSpec.fileName
         guard let modelURL = FillerModelUpdater.versionedURL(
                 from: baseSpec.url, version: version, file: file) else { return false }
