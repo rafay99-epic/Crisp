@@ -39,18 +39,18 @@ final class WhatsNewController {
 
     /// Curated fallback for when release notes aren't available (offline / dev build).
     static let fallback: [WhatsNewItem] = [
+        WhatsNewItem(symbol: "bolt.fill",
+                     title: "New: fast on-device filler detection",
+                     detail: "Wren, our in-house model, finds filler words on-device in a fraction of the time — no transcription needed. Turn it on in Settings → Cutting. English, experimental."),
         WhatsNewItem(symbol: "number",
                      title: "See what got cut",
-                     detail: "Every cleaned video now shows how many filler words and pauses were removed."),
+                     detail: "Every cleaned video shows how many filler words and pauses were removed."),
         WhatsNewItem(symbol: "waveform",
                      title: "Preview cuts before you clean",
                      detail: "Click Preview on a queued video to see the exact cuts — and tune the strength live."),
         WhatsNewItem(symbol: "clock.arrow.circlepath",
                      title: "History",
-                     detail: "Find every clean — from the queue, the menu bar, Shortcuts, or the watch folder — in History (⌘Y)."),
-        WhatsNewItem(symbol: "menubar.rectangle",
-                     title: "Menu-bar quick-drop",
-                     detail: "Drop a video on the menu bar to clean it with your default recipe without opening the window.")
+                     detail: "Find every clean — from the queue, the menu bar, Shortcuts, or the watch folder — in History (⌘Y).")
     ]
 
     func presentIfNeeded(onboardingActive: Bool, onboardingAppearedOnLaunch: Bool) {
