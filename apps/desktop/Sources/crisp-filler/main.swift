@@ -37,6 +37,15 @@ enum Spec {
     static var chunkSec: Double { Double(chunkFrames) * frameSec }      // 0.25
     static var nFreqs: Int { nFFT / 2 + 1 }                            // 201
 
+    // How the model consumes the mel and what it returns — read from config.json so one
+    // helper runs every model. "chunk" (v0.0.8): per-0.25s-window P(filler), input
+    // "chunk" [1,1,mels,cf] → "filler_prob". "sequence" (Wren v2): the whole mel
+    // [1,mels,T] in one pass → per-frame "removable_prob" [1,T]. Defaults = the chunk
+    // model, so an old config with no model_type still works unchanged.
+    static var modelType = "chunk"
+    static var inputName = "chunk"
+    static var outputName = "filler_prob"
+
     /// Override the defaults from a model's config.json (the file published next to
     /// the model). Missing keys keep the default — robust to partial/old configs.
     static func load(_ path: String) {
@@ -52,6 +61,9 @@ enum Spec {
         if let v = j["mel_std"] as? Double { melStd = Float(v) }
         if let v = j["recommended_threshold"] as? Double { defaultThreshold = v }
         if let v = j["min_filler"] as? Double { minFiller = v }
+        if let v = j["model_type"] as? String { modelType = v }
+        if let v = j["input"] as? String { inputName = v }
+        if let v = j["output"] as? String { outputName = v }
     }
 }
 
@@ -197,20 +209,8 @@ func logMel(_ signal: [Float], _ fe: Frontend) -> (mel: [Float], frames: Int) {
 
 // MARK: - Inference
 
-/// Fill an MLMultiArray with one transposed mel chunk and wrap it as a feature provider.
-func makeProvider(_ arr: MLMultiArray, mel: [Float], f0: Int, mels: Int, cf: Int) throws -> MLFeatureProvider {
-    let ptr = arr.dataPointer.assumingMemoryBound(to: Float.self)
-    for m in 0..<mels {
-        for fr in 0..<cf {
-            ptr[m * cf + fr] = mel[(f0 + fr) * mels + m]
-        }
-    }
-    return try MLDictionaryFeatureProvider(dictionary: ["chunk": arr])
-}
-
-func predictProbs(modelURL: URL, mel: [Float], frames T: Int) -> (probs: [Double], centers: [Double]) {
-    let mels = Spec.nMels, cf = Spec.chunkFrames, chop = Spec.chunkHopFrames
-    let cfg = MLModelConfiguration()
+/// Compile (if needed) and load the Core ML model. Shared by both inference paths.
+func loadModel(_ modelURL: URL) -> MLModel {
     // MLModel needs a *compiled* model. Accept a ready .mlmodelc, else compile the
     // .mlmodel (the app can pre-compile after download to skip this per run).
     let compiled: URL
@@ -221,10 +221,26 @@ func predictProbs(modelURL: URL, mel: [Float], frames T: Int) -> (probs: [Double
     } else {
         fail("could not compile model at \(modelURL.path)")
     }
-    guard let model = try? MLModel(contentsOf: compiled, configuration: cfg) else {
+    guard let model = try? MLModel(contentsOf: compiled, configuration: MLModelConfiguration()) else {
         fail("could not load model at \(compiled.path)")
     }
-    // Build all chunk inputs [1,1,nMels,chunkFrames] (mel is [T, mels] → transpose slice).
+    return model
+}
+
+/// Fill an MLMultiArray with one transposed mel chunk and wrap it as a feature provider.
+func makeProvider(_ arr: MLMultiArray, mel: [Float], f0: Int, mels: Int, cf: Int) throws -> MLFeatureProvider {
+    let ptr = arr.dataPointer.assumingMemoryBound(to: Float.self)
+    for m in 0..<mels {
+        for fr in 0..<cf {
+            ptr[m * cf + fr] = mel[(f0 + fr) * mels + m]
+        }
+    }
+    return try MLDictionaryFeatureProvider(dictionary: [Spec.inputName: arr])
+}
+
+// v0.0.8 — slide a 0.25s window across the mel, one P(filler) per window.
+func predictChunk(_ model: MLModel, mel: [Float], frames T: Int) -> (probs: [Double], centers: [Double]) {
+    let mels = Spec.nMels, cf = Spec.chunkFrames, chop = Spec.chunkHopFrames
     var providers: [MLFeatureProvider] = []
     var centers: [Double] = []
     var f0 = 0
@@ -243,31 +259,39 @@ func predictProbs(modelURL: URL, mel: [Float], frames T: Int) -> (probs: [Double
     guard let out = try? model.predictions(fromBatch: batch) else { fail("model inference failed") }
     var probs = [Double](repeating: 0, count: out.count)
     for i in 0..<out.count {
-        let fv = out.features(at: i).featureValue(for: "filler_prob")
+        let fv = out.features(at: i).featureValue(for: Spec.outputName)
         probs[i] = fv?.multiArrayValue?[0].doubleValue ?? fv?.doubleValue ?? 0
     }
     return (probs, centers)
 }
 
-// MARK: - Threshold + merge  (mirrors infer.predict_intervals)
-
-func intervals(probs: [Double], centers: [Double], threshold: Double) -> [[Double]] {
-    let half = Spec.chunkSec / 2.0
-    var runs: [[Double]] = []
-    var cur: [Double]?
-    for i in 0..<centers.count {
-        if probs[i] >= threshold {
-            if cur == nil {
-                cur = [centers[i] - half, centers[i] + half]
-            } else {
-                cur![1] = centers[i] + half
-            }
-        } else if cur != nil {
-            runs.append(cur!)
-            cur = nil
-        }
+// Wren v2 — feed the whole mel [1, mels, T] in one pass; read per-frame P(removable) [1, T].
+// The model is fully convolutional, so the whole recording goes through at once (the mel
+// is [T, mels] row-major, transposed into the [1, mels, T] input the model expects).
+func predictSequence(_ model: MLModel, mel: [Float], frames T: Int) -> [Double] {
+    let mels = Spec.nMels
+    guard let arr = try? MLMultiArray(shape: [1, NSNumber(value: mels), NSNumber(value: T)],
+                                      dataType: .float32) else {
+        fail("could not build model input")
     }
-    if let c = cur { runs.append(c) }
+    let ptr = arr.dataPointer.assumingMemoryBound(to: Float.self)
+    for t in 0..<T {
+        for m in 0..<mels { ptr[m * T + t] = mel[t * mels + m] }
+    }
+    guard let provider = try? MLDictionaryFeatureProvider(dictionary: [Spec.inputName: arr]),
+          let out = try? model.prediction(from: provider),
+          let fv = out.featureValue(for: Spec.outputName)?.multiArrayValue else {
+        fail("model inference failed")
+    }
+    var probs = [Double](repeating: 0, count: T)
+    for t in 0..<min(T, fv.count) { probs[t] = fv[t].doubleValue }
+    return probs
+}
+
+// MARK: - Threshold + merge  (mirrors infer.predict_intervals / infer_v2.predict_spans)
+
+/// Bridge runs separated by <= mergeGap, drop fillers shorter than minFiller, round.
+func mergeAndFilter(_ runs: [[Double]]) -> [[Double]] {
     var merged: [[Double]] = []
     for r in runs {
         if var last = merged.last, r[0] - last[1] <= Spec.mergeGap {
@@ -278,11 +302,50 @@ func intervals(probs: [Double], centers: [Double], threshold: Double) -> [[Doubl
         .map { [($0[0] * 1000).rounded() / 1000, ($0[1] * 1000).rounded() / 1000] }
 }
 
+// v0.0.8 — group consecutive above-threshold chunks (each spans chunkSec) into runs.
+func intervalsChunk(probs: [Double], centers: [Double], threshold: Double) -> [[Double]] {
+    let half = Spec.chunkSec / 2.0
+    var runs: [[Double]] = []
+    var cur: [Double]?
+    for i in 0..<centers.count {
+        if probs[i] >= threshold {
+            if cur == nil { cur = [centers[i] - half, centers[i] + half] } else { cur![1] = centers[i] + half }
+        } else if cur != nil {
+            runs.append(cur!); cur = nil
+        }
+    }
+    if let c = cur { runs.append(c) }
+    return mergeAndFilter(runs)
+}
+
+// Wren v2 — group consecutive above-threshold frames (each 10 ms) into runs.
+func intervalsSequence(probs: [Double], threshold: Double) -> [[Double]] {
+    let step = Spec.frameSec
+    var runs: [[Double]] = []
+    var cur: [Double]?
+    for t in 0..<probs.count {
+        if probs[t] >= threshold {
+            let ts = Double(t) * step
+            if cur == nil { cur = [ts, ts + step] } else { cur![1] = ts + step }
+        } else if cur != nil {
+            runs.append(cur!); cur = nil
+        }
+    }
+    if let c = cur { runs.append(c) }
+    return mergeAndFilter(runs)
+}
+
 // MARK: - main
 
 func fail(_ msg: String) -> Never {
     FileHandle.standardError.write(Data("crisp-filler: \(msg)\n".utf8))
     exit(1)
+}
+
+/// A diagnostic line to stderr (stdout stays clean JSON). The engine captures stderr
+/// and records these in the run log, so a successful clean isn't a black box.
+func diag(_ msg: String) {
+    FileHandle.standardError.write(Data("crisp-filler: \(msg)\n".utf8))
 }
 
 func arg(_ name: String) -> String? {
@@ -301,8 +364,21 @@ let threshold = arg("--threshold").flatMap(Double.init) ?? Spec.defaultThreshold
 let signal = readWav(audioPath)
 let fe = Frontend()
 let (mel, T) = logMel(signal, fe)
-let (probs, centers) = predictProbs(modelURL: URL(fileURLWithPath: modelPath), mel: mel, frames: T)
-let fillers = intervals(probs: probs, centers: centers, threshold: threshold)
+let model = loadModel(URL(fileURLWithPath: modelPath))
+diag("model=\((modelPath as NSString).lastPathComponent) type=\(Spec.modelType) "
+     + "threshold=\(threshold) minFiller=\(Spec.minFiller) mergeGap=\(Spec.mergeGap) "
+     + "nMels=\(Spec.nMels) frames=\(T) audio=\(String(format: "%.1f", Double(T) * Spec.frameSec))s")
+// One helper, two backends — picked from the model's config (defaults to chunk).
+let t0 = Date()
+let fillers: [[Double]]
+if Spec.modelType == "sequence" {
+    let probs = predictSequence(model, mel: mel, frames: T)
+    fillers = intervalsSequence(probs: probs, threshold: threshold)
+} else {
+    let (probs, centers) = predictChunk(model, mel: mel, frames: T)
+    fillers = intervalsChunk(probs: probs, centers: centers, threshold: threshold)
+}
+diag("detected \(fillers.count) filler spans in \(Int(Date().timeIntervalSince(t0) * 1000))ms")
 
 guard let json = try? JSONSerialization.data(withJSONObject: ["fillers": fillers], options: []) else {
     fail("could not encode output")

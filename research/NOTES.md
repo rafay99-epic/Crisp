@@ -145,6 +145,37 @@ The same problem the app solves with dev/nightly/stable, for models: **don't pus
 
 ---
 
+## 6b. Wren v2 — the context-aware model (BUILT, works on real footage)
+
+The Tier-2 plan above, executed. `feature/wren-context-model`. **Verified on real footage: removed 4:04 of fillers, cuts spot-on, kept natural speech — whisper-free** (engine log confirms `filler exited 0`, zero whisper lines).
+
+**The reframe.** v0.0.8 answered "is there an um *sound* here?" (250 ms, no context) → over-cut (17.6% of audio). v2 answers "is this a **removable** filler?" — needs context, so it keeps natural mid-sentence "hmm"s.
+
+**Phase 0 — labels (`derive_labels.py`, `validate_labels.py`).** PodcastFillers gives per-episode filler timing + a 10 ms VAD signal. Bucket each Uh/Um by pause-adjacency: **isolated** (silence both sides → REMOVABLE), **boundary** (one side → gray), **embedded** (buried in speech → NATURAL). 34,985 labeled fillers. Acoustic gradient confirms separability: mean duration NATURAL 0.35 → boundary 0.39 → REMOVABLE 0.46 s. Cross-checked vs the real engine `silencedetect` on 20 episodes: pause-adjacency by bucket **46% / 21% / 1.7%** — the critical NATURAL "don't-cut" label agrees with the shipped pause logic **98.3%**. (whisper validation was a dead end — base.en/large both *drop* most fillers in transcription, i.e. whisper has low filler recall: that's *why* it feels smooth = it under-cuts.)
+
+**Phase 1+2 — model + pipeline.**
+- `model_v2.WrenSeq` — tiny **dilated TCN** (~129k params) over a log-mel sequence → per-frame P(removable). Fully convolutional (~2.5 s receptive field): trains on 4 s windows, runs over a whole recording in one pass. Chosen over GRU for clean Core ML export.
+- `preprocess_v2` — mp3 → cached float16 log-mel + a window index. Positives = windows around removable fillers; negatives include windows centered on NATURAL/boundary fillers as **hard negatives** (this is *how* it learns to keep natural fillers). `WINDOW_SEC=4`, `NEG_PER_POS=3`, `HARD_NEG_FRAC=0.5` in `config.py`.
+- `dataset_v2.SeqWindows` — serves (mel window, per-frame label) from the cache. `train_v2` — per-frame BCE + pos_weight, MPS-accelerated, val P/R/F1.
+
+**Results.** 66 train / 6 val episodes (partial download), 40 epochs. Best val **F1=0.74 @ thr 0.95** (P 0.67 / R 0.82); recall stays ~0.9 across thresholds. Precision is *pessimistic* — only isolated (17%) labeled positive, so firing on a boundary filler (a real cut) scores as a false positive. `infer_v2 --compare` on a 48-min episode: v0.0.8 cut **17.6%** (1386), v2 cut **1.0%** (86). Operating threshold **0.9**.
+
+**Phase 4+5 — inference + ship path.**
+- `infer_v2.py` — whole-recording inference → spans, `--compare` runs v0.0.8 on the same audio.
+- `export_coreml_v2.py` — flexible-length single-file `.mlmodel` (input `mel` [1,n_mels,T] → `removable_prob` [1,T], sigmoid folded). PyTorch↔CoreML parity ~1e-7. Also writes the self-describing `config.json` (`model_type:"sequence"`, `generation:2`).
+- **Helper (`crisp-filler/main.swift`) is now data-driven** — reads `model_type` from config and runs `chunk` (v0.0.8) or `sequence` (v2). Mel frontend shared; old config with no `model_type` → chunk, unchanged. **Swift helper ↔ PyTorch reference produce identical spans.**
+- Built models live in **`research/models/wren-v2/`** (in repo, gitignored, never pushed; published to HF instead).
+
+**Shipping order (IMPORTANT — coupling).** v2 needs the new sequence-capable helper, so it is **not** a pure model-only update. Order: (1) merge `feature/wren-context-model` → nightly (app gets the helper), (2) `publish_hf` for v2 config, (3) publish v2 → HF nightly as `v0.0.9`, test in Crisp Nightly, (4) promote to stable. An old helper would mis-run a sequence model, so the model must not reach a channel before its helper does.
+
+**Capability tie — captions.** The custom model detects filler *audio* only; it can't transcribe, so **captions (SRT/VTT) are a whisper-only feature** — the single on-shelf-model tie (pauses via `silencedetect`, fillers, encoding all work with the custom model). When the fast filler model is on, captions are **hard-disabled** in Settings (warning: *"This feature might not be available with our custom fast model"*) and dropped in `CleanRunner` for *every* entry point (per-row presets, watcher, Shortcuts) — so the engine never silently bypasses the fast model to run whisper just for captions. Previously `pipeline.use_classifier = … and not want_captions` would do exactly that silently.
+
+**Logging.** Every model switch is logged (`AppInfo.logger("model")`: speech-model select, filler enable/disable/select/sideload/version-install) and every clean records its backend + the exact model identity (name + version + chunk/sequence + gen) across app → engine → helper, plus the helper's per-run diagnostics (threshold/frames/spans/ms). So the daily log answers *which model ran, with what settings, how fast*.
+
+**Next / iterate (real-life loop).** More footage → tune threshold (config `recommended_threshold`) or retrain folding boundary fillers in for recall; more episodes (we have 66/174) + FluencyBank (held-out test) + SEP-28k (hard-neg variety); the engine silence-gate (`FILLER_MIN_SOLO`/`PAUSE_PAD`) is now a light safety net on top of an already-precise model — could relax it.
+
+---
+
 ## 7. Quick reference
 
 - Branches: `feature/wren-backend` → PR #48 (merged into `nightly`); `feature/ml-dev-flow` = the model dev flow (channels + sideload + history).
@@ -155,3 +186,11 @@ The same problem the app solves with dev/nightly/stable, for models: **don't pus
 - **Ship a new model:** `python -m filler_classifier.publish_hf --repo rafay99-epic/crisp-models --model …/Wren.mlmodel --weights …/filler_cnn.pt --card …/MODEL_CARD.md` (→ nightly) → test → `python -m filler_classifier.promote_model --repo rafay99-epic/crisp-models` (→ stable).
 - **Sideload (no publish):** `CRISP_FILLER_MODEL=…/Wren.mlmodel open 'Crisp Dev.app'`, or Settings → "Load local model…". Dev build only.
 - **One-time HF seed:** the `nightly` branch is auto-created on first `--channel nightly` publish (forked off `main`). Until then Nightly/Dev just see no update (manifest 404 → handled).
+
+### Wren v2 (context model) — `feature/wren-context-model`
+- Labels: `python -m filler_classifier.derive_labels` then `… validate_labels --limit 20` (engine cross-check; `--whisper` for the recall insight).
+- Train: `… preprocess_v2 --splits train validation` (once, caches mels) → `… train_v2 --epochs 40` (best → `checkpoints/wren_seq.pt`). Use `.venv`.
+- Test on real footage: `… infer_v2 "/path/video.mp4" --compare` (v2 vs v0.0.8 cut time, side by side).
+- Export: `./.venv-export/bin/python -m filler_classifier.export_coreml_v2` → `research/models/wren-v2/Wren.mlmodel` + `Wren.config.json`.
+- Try in app: Crisp Dev → ⌘, → Cutting → enable filler model → Developer → "Load local model…" → `research/models/wren-v2/Wren.mlmodel`.
+- Tunables: `WINDOW_SEC`/`NEG_PER_POS`/`HARD_NEG_FRAC` in `config.py`; per-model `recommended_threshold`/`min_filler` in the exported `config.json`.

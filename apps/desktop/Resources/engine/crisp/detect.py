@@ -197,12 +197,28 @@ def filler_words(filler_bin, model, wav_path, on_log, on_progress, logger=None):
     cfg = Path(model).with_suffix(".config.json")
     if cfg.exists():
         cmd += ["--config", str(cfg)]
+    # Record exactly which model is doing this clean — so the log always says what ran
+    # (name + version + chunk/sequence), not just that "a model" ran.
+    info = "built-in chunk model (no config)"
+    if cfg.exists():
+        try:
+            c = json.loads(cfg.read_text())
+            info = (f"{c.get('name', '?')} v{c.get('version', '?')} "
+                    f"[{c.get('model_type', 'chunk')}, gen {c.get('generation', 1)}]")
+        except (ValueError, OSError):
+            pass
+    logger.info(f"filler model: {info} @ {model}")
     logger.command("filler", cmd)
     try:
         res = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
     except subprocess.TimeoutExpired:
         raise CleanError("Filler detection timed out.")
     logger.tool_result("filler", res.returncode, res.stderr)
+    # The helper prints one-line diagnostics to stderr on success (model/threshold/
+    # frames/spans/timing). Record them so a normal run isn't a black box.
+    if res.returncode == 0:
+        for line in (res.stderr or "").strip().splitlines():
+            logger.debug(f"filler {line.removeprefix('crisp-filler: ')}")
     if res.returncode != 0:
         raise CleanError("Filler detection failed.\n" + (res.stderr or "")[-800:])
     try:

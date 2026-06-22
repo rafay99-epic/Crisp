@@ -137,8 +137,18 @@ def main():
     stage = Path(tempfile.mkdtemp())
     shutil.copy(model, stage / model_file)
     shutil.copy(a.weights, stage / f"{a.name}.pt")                      # open weights
-    (stage / f"{a.name}.config.json").write_text(
-        json.dumps(model_config(a.name, version, a.channel, model_file, digest), indent=2))
+    # Config: prefer the self-describing config.json the exporter wrote next to the
+    # model (it carries model_type/input/output/framing — essential for sequence
+    # models like Wren v2); just add the manifest fields. Fall back to generating the
+    # chunk-style config when there's no sidecar (older chunk models).
+    src_cfg = Path(a.model).with_suffix(".config.json")
+    if src_cfg.exists():
+        cfg = json.loads(src_cfg.read_text())
+        cfg.update({"name": a.name, "version": version, "channel": a.channel,
+                    "model_file": model_file, "model_sha256": digest})
+    else:
+        cfg = model_config(a.name, version, a.channel, model_file, digest)
+    (stage / f"{a.name}.config.json").write_text(json.dumps(cfg, indent=2))
     new_files = [model_file, f"{a.name}.pt", f"{a.name}.config.json"]
     if a.card:
         shutil.copy(a.card, stage / "README.md")

@@ -142,6 +142,18 @@ struct SettingsView: View {
             Picker("Subtitle files", selection: $settings.captionsFormat) {
                 ForEach(CaptionFormat.allCases) { Text($0.label).tag($0.rawValue) }
             }
+            // Captions are transcribed, which only the speech model can do — the custom
+            // fast filler model (Wren) detects filler audio but can't produce text. So
+            // captions are unavailable while the fast model is on (it's cleared on enable).
+            .disabled(settings.fillerModelEnabled)
+            if settings.fillerModelEnabled {
+                Label {
+                    Text("**This feature might not be available with our custom fast model.** Captions need the speech model to transcribe \u{2014} turn off the fast filler model (Cutting tab) to add them.")
+                        .font(.caption).foregroundStyle(.secondary)
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                }
+            }
         } header: {
             Text("Captions")
         } footer: {
@@ -209,6 +221,7 @@ struct SettingsView: View {
         Binding(get: { settings.selectedModelID },
                 set: { id in
                     settings.selectedModelID = id
+                    AppInfo.logger("model").info("speech model selected: \(id, privacy: .public)")
                     modelStore.use(ModelCatalog.spec(id: id))
                 })
     }
@@ -248,13 +261,24 @@ struct SettingsView: View {
         Binding(get: { settings.fillerModelEnabled },
                 set: { on in
                     settings.fillerModelEnabled = on
-                    if on { Task { await fillerModelStore.refresh() } }
+                    AppInfo.logger("model").info("filler model \(on ? "enabled" : "disabled")")
+                    if on {
+                        // Hard-disable captions: they need whisper (the fast model can't
+                        // transcribe), so clear any caption setting rather than silently
+                        // falling back to the speech model and bypassing the fast model.
+                        if settings.captionsFormat != "none" {
+                            settings.captionsFormat = "none"
+                            AppInfo.logger("model").info("captions cleared — unavailable with the fast filler model")
+                        }
+                        Task { await fillerModelStore.refresh() }
+                    }
                 })
     }
     private var activeFillerModelBinding: Binding<String> {
         Binding(get: { settings.selectedFillerModelID },
                 set: { id in
                     settings.selectedFillerModelID = id
+                    AppInfo.logger("model").info("filler model selected: \(id, privacy: .public)")
                     fillerModelStore.use(FillerModelCatalog.spec(id: id))
                 })
     }
@@ -353,6 +377,7 @@ struct SettingsView: View {
                     Menu("Choose…") {
                         ForEach(fillerVersions.versions, id: \.self) { v in
                             Button("v\(v)") {
+                                AppInfo.logger("model").info("installing filler model version v\(v, privacy: .public)")
                                 Task {
                                     await fillerVersions.install(version: v, baseSpec: fillerModelStore.spec,
                                                                  store: fillerModelStore)
@@ -384,6 +409,7 @@ struct SettingsView: View {
         if panel.runModal() == .OK, let url = panel.url {
             devLocalModel = url.path
             DevFillerModel.pickedPath = url.path
+            AppInfo.logger("model").info("sideloaded local filler model: \(url.path, privacy: .public)")
         }
     }
 
