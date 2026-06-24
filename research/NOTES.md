@@ -188,6 +188,25 @@ Two cheap experiments to find the real accuracy lever — both on the SAME tiny 
 
 ---
 
+## 6d. Tier-A training recipe (SpecAugment + focal loss + cosine LR) — WASH (PR #62)
+
+Trained **baseline vs Tier-A on the SAME data** (`labels_v2` + `data/hardneg`), 40 epochs each, as a clean A/B. The recipe flags live in `v2/train.py`/`v2/dataset.py` behind `--spec-augment --focal --cosine` (default off).
+
+**Result — essentially no win.**
+- Validation best-F1 (each at its own optimal threshold): **baseline 0.747 @thr 0.95** vs **Tier-A 0.754 @thr 0.80**. +0.007 is noise.
+- Focal loss **re-calibrated** the model (more confident/peaked): its operating point shifted 0.95→0.80, and it's **brittle** above 0.80 (recall collapses — R=0.36 @0.90, ~0 @0.95). Baseline's P/R curve is smoother/more forgiving.
+- Behavioral on the synthetic music/noise clips (`~/Movies/CrispModelTest`), each at its best threshold: both still over-fire ~equally (music 6 vs 5 cuts on 29 s; noise 6 vs 6 on 19 s). **Tier-A did NOT fix non-speech over-firing.**
+
+**Lesson — confirms "data over architecture" again.** SpecAugment/focal/cosine are *training-recipe* tweaks; the weakness (firing on music/noise) is a **data-coverage** problem — both runs used the same thin negative set (156 Music + 239 NoSpeech). No training trick teaches the model about audio it's barely seen. So: **keep the flags** (free, slightly tighter — turn them ON once data is scaled) but **don't ship a model from Tier-A alone.** The lever is still negative-class coverage, not the recipe.
+
+**Next — Tier B (the real lever): scale the negatives.** Two complementary routes, both permissively licensed:
+1. **Synthetic mixing** — overlay speech with music (FMA = CC, MUSDB18) + noise (ESC-50) at varied SNR → unlimited "don't-cut" negatives covering the exact failure mode. `v2/synth_negatives.py` (TODO).
+2. **Teacher-labeled data (distillation-flavored)** — use a big pretrained audio model (AudioSet tagger / PANNs, or Whisper's encoder) to auto-label oceans of *unlabeled* audio as speech/music/noise → generate vast negatives at scale, distill into tiny Wren. The scalable version of "more data" — the teacher *produces* the data. (See MODEL_RESEARCH §1 Tier-3, §3.4-I.)
+
+Then retrain **with the Tier-A flags on** (they're free) and re-measure on real footage. Right amount of data = watch the held-out val F1 for over/under-fit; the gap today is the negative class being *narrow*, not the dataset being too small.
+
+---
+
 ## 7. Quick reference
 
 - Branches: `feature/wren-backend` → PR #48 (merged into `nightly`); `feature/ml-dev-flow` = the model dev flow (channels + sideload + history).
