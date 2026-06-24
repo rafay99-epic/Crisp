@@ -11,7 +11,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from .config import FILLER_MIN_SOLO, FILLER_PAUSE_PAD, MIN_KEEP
+from .config import DEFAULT_SNAP_MS, FILLER_MIN_SOLO, FILLER_PAUSE_PAD, MIN_KEEP
 from .enginelog import EngineLogger
 from .errors import CleanError
 from .text import is_filler
@@ -209,17 +209,117 @@ def load_keep_segments(path, duration):
     return merged
 
 
-def render(src, keep, out_path, on_log, on_progress, video_opts, audio_opts, mux_opts=(), logger=None):
+def _nearest_zero_crossing(samples, center, max_off):
+    """Index nearest `center` (searching ±max_off) where the signal crosses zero;
+    returns `center` itself when there's no crossing in range. Pure arithmetic on a
+    sequence of signed ints, so it's unit-testable without any audio decode."""
+    n = len(samples)
+    if n == 0:
+        return center
+    center = max(0, min(n - 1, center))
+    for off in range(max_off + 1):
+        for idx in (center + off, center - off):   # expand outward, prefer the later side on ties
+            if 1 <= idx < n and (samples[idx - 1] <= 0 <= samples[idx]
+                                 or samples[idx - 1] >= 0 >= samples[idx]):
+                return idx
+    return center
+
+
+def snap_keep_to_zero_crossings(keep, wav_path, window_s=DEFAULT_SNAP_MS / 1000.0, logger=None):
+    """Nudge each interior cut boundary in `keep` to the nearest audio zero-crossing
+    within ±`window_s` (Phase 3). Cuts placed mid-waveform are the click source; a
+    boundary that lands where the signal is already ~0 splices silently. Reads only a
+    small window around each boundary from the analysis WAV (stdlib `wave`, 16-bit mono
+    as `extract_audio` produces). Best-effort: any read problem returns `keep` unchanged
+    (the Phase-1 fade still removes the click), and clip head/tail are left alone."""
+    logger = logger or EngineLogger(None)
+    if window_s <= 0 or len(keep) < 2:
+        return keep
+    import array
+    import wave
+    try:
+        with wave.open(str(wav_path), "rb") as w:
+            if w.getsampwidth() != 2 or w.getnchannels() != 1:
+                return keep
+            sr, nframes = w.getframerate(), w.getnframes()
+            win = max(1, int(window_s * sr))
+            audio_dur = nframes / sr if sr else 0.0
+
+            def snap(t):
+                if t <= window_s or t >= audio_dur - window_s:
+                    return t                       # don't trim the clip's own head/tail
+                center = int(round(t * sr))
+                lo, hi = max(0, center - win), min(nframes, center + win + 1)
+                if hi - lo < 2:
+                    return t
+                w.setpos(lo)
+                buf = array.array("h")
+                buf.frombytes(w.readframes(hi - lo))
+                return (lo + _nearest_zero_crossing(buf, center - lo, win)) / sr
+
+            snapped = [(snap(s), snap(e)) for s, e in keep]
+    except (OSError, wave.Error, ValueError, EOFError) as e:
+        logger.debug(f"zero-cross snap skipped: {e}")
+        return keep
+
+    # Re-validate: a tiny nudge must never invert ordering or overlap the previous keep.
+    out, prev_end = [], 0.0
+    for s, e in snapped:
+        s = max(s, prev_end)
+        if e - s > 0.01:
+            out.append((s, e))
+            prev_end = e
+    return out or keep
+
+
+def build_filter_graph(keep, fade=0.0, crossfade=0.0):
+    """The `-filter_complex_script` lines that trim `keep` (list of (start, end) secs)
+    out of input 0 and join the pieces into `[outv][outa]`. Factored out of `render`
+    so the cut-smoothing graph is pure and unit-testable (no ffmpeg needed).
+
+    fade>0       — a short audio fade in/out on every segment so hard joins don't click.
+    crossfade>0  — dissolve consecutive segments (matched video `xfade` + audio
+                   `acrossfade`, same duration → stays in A/V sync) instead of hard
+                   cuts; overrides `fade`. Clamped to the shortest segment so a brief
+                   kept sliver can't break the dissolve.
+    """
+    n = len(keep)
+    durs = [e - s for s, e in keep]
+    lines = []
+    for i, (s, e) in enumerate(keep):
+        lines.append(f"[0:v]trim=start={s:.3f}:end={e:.3f},setpts=PTS-STARTPTS[v{i}];")
+        a = f"[0:a]atrim=start={s:.3f}:end={e:.3f},asetpts=PTS-STARTPTS"
+        if crossfade <= 0 and fade > 0:
+            f = min(fade, durs[i] / 2)
+            a += (f",afade=t=in:st=0:d={f:.3f},afade=t=out:st={durs[i] - f:.3f}:d={f:.3f}")
+        lines.append(a + f"[a{i}];")
+
+    # Clamp the dissolve to the shortest segment; fall back to a hard concat if there's
+    # nothing long enough to dissolve (or only one segment).
+    c = min(crossfade, min(durs) * 0.5) if (crossfade > 0 and durs) else 0.0
+    if c <= 0.001 or n < 2:
+        labels = "".join(f"[v{i}][a{i}]" for i in range(n))
+        lines.append(labels + f"concat=n={n}:v=1:a=1[outv][outa]")
+        return lines
+
+    prev_v, prev_a, length = "v0", "a0", durs[0]
+    for i in range(1, n):
+        last = i == n - 1
+        ov, oa = ("outv", "outa") if last else (f"vx{i}", f"ax{i}")
+        offset = length - c
+        lines.append(f"[{prev_v}][v{i}]xfade=transition=fade:duration={c:.3f}:offset={offset:.3f}[{ov}];")
+        lines.append(f"[{prev_a}][a{i}]acrossfade=d={c:.3f}[{oa}]" + (";" if not last else ""))
+        prev_v, prev_a, length = ov, oa, length + durs[i] - c
+    return lines
+
+
+def render(src, keep, out_path, on_log, on_progress, video_opts, audio_opts, mux_opts=(),
+           fade=0.0, crossfade=0.0, logger=None):
     logger = logger or EngineLogger(None)
     on_log(f"Rendering cleaned video ({len(keep)} segments kept)...")
     total = sum(e - s for s, e in keep) or 1.0
 
-    lines, labels = [], []
-    for i, (s, e) in enumerate(keep):
-        lines.append(f"[0:v]trim=start={s:.3f}:end={e:.3f},setpts=PTS-STARTPTS[v{i}];")
-        lines.append(f"[0:a]atrim=start={s:.3f}:end={e:.3f},asetpts=PTS-STARTPTS[a{i}];")
-        labels.append(f"[v{i}][a{i}]")
-    lines.append("".join(labels) + f"concat=n={len(keep)}:v=1:a=1[outv][outa]")
+    lines = build_filter_graph(keep, fade=fade, crossfade=crossfade)
 
     with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False) as tf:
         tf.write("\n".join(lines))

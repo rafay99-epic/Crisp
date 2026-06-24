@@ -46,6 +46,12 @@ DEFAULT_NOISE_DB = -30        # audio below this loudness (dB) counts as silence
 DEFAULT_KEEP_PAUSE = 0.15     # breathing room left around each cut (seconds)
 MIN_KEEP = 0.05               # drop kept fragments shorter than this (seconds)
 
+# Cut smoothing (see crisp.edit). A hard splice clicks because the audio waveform
+# jumps from one amplitude to another at the join; these three knobs soften it.
+DEFAULT_FADE_MS = 10          # audio fade-in/out on each kept segment so joins don't click (ms; 0 = off)
+DEFAULT_CROSSFADE_MS = 0      # >0 dissolves consecutive segments (matched video xfade + audio acrossfade) instead of hard cuts (ms)
+DEFAULT_SNAP_MS = 12          # snap each cut boundary to the nearest zero-crossing within ±this window (ms; 0 = off)
+
 # Re-encode settings (see crisp.encode). Default to Apple hardware HEVC: every
 # Apple-Silicon Mac (all Crisp runs on) has a HEVC media engine, so it's the fast
 # default. If a hardware encode fails (e.g. a macOS VM with no media engine) the

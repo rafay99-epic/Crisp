@@ -46,9 +46,9 @@ def _enable_group_cancel():
 
 from crisp import CleanError, clean_video
 from crisp.config import (
-    DEFAULT_AUDIO_BITRATE, DEFAULT_AUDIO_CODEC, DEFAULT_CONTAINER, DEFAULT_FILLER_BACKEND,
-    DEFAULT_KEEP_PAUSE, DEFAULT_MAX_PAUSE, DEFAULT_MODEL, DEFAULT_NOISE_DB, DEFAULT_QUALITY,
-    DEFAULT_VIDEO_CODEC, MIN_KEEP,
+    DEFAULT_AUDIO_BITRATE, DEFAULT_AUDIO_CODEC, DEFAULT_CONTAINER, DEFAULT_CROSSFADE_MS,
+    DEFAULT_FADE_MS, DEFAULT_FILLER_BACKEND, DEFAULT_KEEP_PAUSE, DEFAULT_MAX_PAUSE, DEFAULT_MODEL,
+    DEFAULT_NOISE_DB, DEFAULT_QUALITY, DEFAULT_SNAP_MS, DEFAULT_VIDEO_CODEC, MIN_KEEP,
 )
 from crisp.encode import SUPPORTED_CONTAINERS
 from crisp.enginelog import logger_from_env
@@ -66,6 +66,15 @@ def main():
                    help=f"breathing room left around each cut, in seconds (default {DEFAULT_KEEP_PAUSE})")
     p.add_argument("--min-keep", type=float, default=MIN_KEEP,
                    help=f"drop kept fragments shorter than this many seconds (default {MIN_KEEP})")
+    p.add_argument("--fade-ms", type=float, default=DEFAULT_FADE_MS,
+                   help=f"audio fade in/out at each cut so joins don't click, in ms "
+                        f"(0 = off; default {DEFAULT_FADE_MS})")
+    p.add_argument("--crossfade-ms", type=float, default=DEFAULT_CROSSFADE_MS,
+                   help=f"dissolve consecutive segments (matched video+audio crossfade) "
+                        f"instead of hard cuts, in ms (0 = off; default {DEFAULT_CROSSFADE_MS})")
+    p.add_argument("--snap-ms", type=float, default=DEFAULT_SNAP_MS,
+                   help=f"snap each cut boundary to the nearest audio zero-crossing within "
+                        f"±this window, in ms (0 = off; default {DEFAULT_SNAP_MS})")
     p.add_argument("--video-codec", choices=["h264", "hevc", "vp9"], default=DEFAULT_VIDEO_CODEC,
                    help=f"video encoder; vp9 is for WebM (default {DEFAULT_VIDEO_CODEC})")
     p.add_argument("--hardware", action="store_true",
@@ -195,6 +204,7 @@ def main():
                              split_audio=args.split_audio, waveform_buckets=args.waveform,
                              keep_file=args.keep_file, captions=args.captions,
                              filler_backend=args.filler_backend, filler_model=args.filler_model,
+                             fade_ms=args.fade_ms, crossfade_ms=args.crossfade_ms, snap_ms=args.snap_ms,
                              on_log=on_log, on_progress=on_progress, logger=log)
         if args.ndjson:
             emit({"event": "result", **result})

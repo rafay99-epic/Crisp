@@ -2,14 +2,17 @@
 words into the list of segments to KEEP. This is the heart of the engine, and
 it's pure arithmetic, so it's the most valuable thing to pin down with tests."""
 
+import array
 import json
 import os
 import tempfile
 import unittest
+import wave
 from pathlib import Path
 
 from crisp.edit import (
-    _output_owner, build_keep_segments, load_keep_segments, tag_output_source, unique_output_path,
+    _nearest_zero_crossing, _output_owner, build_filter_graph, build_keep_segments,
+    load_keep_segments, snap_keep_to_zero_crossings, tag_output_source, unique_output_path,
 )
 from crisp.errors import CleanError
 
@@ -182,6 +185,94 @@ class LoadKeepSegmentsTests(unittest.TestCase):
     def test_unreadable_file_raises(self):
         with self.assertRaises(CleanError):
             load_keep_segments("/no/such/file.json", duration=10.0)
+
+
+class BuildFilterGraphTests(unittest.TestCase):
+    """The cut-smoothing filtergraph (Phase 1 fade / Phase 2 crossfade). Pure string
+    building, so we can pin the exact ffmpeg graph without running ffmpeg."""
+
+    def test_plain_cut_has_no_fades_and_concats(self):
+        lines = build_filter_graph([(0.0, 2.0), (3.0, 5.0)], fade=0.0, crossfade=0.0)
+        graph = "\n".join(lines)
+        self.assertNotIn("afade", graph)
+        self.assertNotIn("xfade", graph)
+        self.assertIn("concat=n=2:v=1:a=1[outv][outa]", graph)
+
+    def test_fade_adds_in_out_to_each_segment(self):
+        lines = build_filter_graph([(0.0, 2.0), (3.0, 5.0)], fade=0.010, crossfade=0.0)
+        graph = "\n".join(lines)
+        self.assertEqual(graph.count("afade=t=in:st=0:d=0.010"), 2)
+        # fade-out starts fade-length before the (reset) segment end (2.0 - 0.010).
+        self.assertIn("afade=t=out:st=1.990:d=0.010", graph)
+        self.assertIn("concat=n=2:v=1:a=1[outv][outa]", graph)
+
+    def test_fade_is_capped_at_half_a_short_segment(self):
+        lines = build_filter_graph([(0.0, 0.01)], fade=0.010, crossfade=0.0)
+        graph = "\n".join(lines)
+        self.assertIn("afade=t=in:st=0:d=0.005", graph)   # min(0.010, 0.01/2)
+
+    def test_crossfade_uses_matched_xfade_and_acrossfade(self):
+        lines = build_filter_graph([(0.0, 2.0), (3.0, 5.0), (6.0, 9.0)],
+                                   fade=0.010, crossfade=0.1)
+        graph = "\n".join(lines)
+        self.assertNotIn("afade", graph)                  # crossfade overrides per-segment fade
+        self.assertNotIn("concat=", graph)
+        # First dissolve offset = dur0 - c = 2.0 - 0.1; last lands on [outv]/[outa].
+        self.assertIn("xfade=transition=fade:duration=0.100:offset=1.900", graph)
+        self.assertIn("xfade=transition=fade:duration=0.100:offset=3.800[outv]", graph)
+        self.assertIn("acrossfade=d=0.100[outa]", graph)
+
+    def test_crossfade_falls_back_to_concat_for_single_segment(self):
+        lines = build_filter_graph([(0.0, 2.0)], fade=0.0, crossfade=0.1)
+        graph = "\n".join(lines)
+        self.assertIn("concat=n=1:v=1:a=1[outv][outa]", graph)
+        self.assertNotIn("xfade", graph)
+
+
+class ZeroCrossingTests(unittest.TestCase):
+    def test_finds_nearest_crossing(self):
+        # Sign flips between index 4 (+) and 5 (-): the crossing is at index 5.
+        samples = [100, 100, 100, 100, 100, -100, -100, -100]
+        self.assertEqual(_nearest_zero_crossing(samples, center=3, max_off=5), 5)
+
+    def test_returns_center_when_no_crossing_in_window(self):
+        samples = [100, 100, 100, 100, 100, -100, -100, -100]
+        self.assertEqual(_nearest_zero_crossing(samples, center=1, max_off=2), 1)
+
+    def test_empty_is_safe(self):
+        self.assertEqual(_nearest_zero_crossing([], center=3, max_off=5), 3)
+
+
+class SnapKeepTests(unittest.TestCase):
+    """Phase 3: snap cut boundaries onto zero-crossings, reading a real (tiny) WAV."""
+
+    def _wav(self, samples, sr=1000):
+        f = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+        f.close()
+        self.addCleanup(os.unlink, f.name)
+        with wave.open(f.name, "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(sr)
+            w.writeframes(array.array("h", samples).tobytes())
+        return f.name
+
+    def test_interior_boundary_snaps_to_crossing(self):
+        # +100 for the first half, -100 for the second → one crossing at sample 500.
+        path = self._wav([100] * 500 + [-100] * 500)
+        keep = [(0.0, 0.497), (0.6, 1.0)]      # 0.497 is 3 samples shy of the crossing
+        snapped = snap_keep_to_zero_crossings(keep, path, window_s=0.012)
+        self.assertAlmostEqual(snapped[0][1], 0.5, places=3)   # 0.497 → 0.500
+        self.assertAlmostEqual(snapped[1][0], 0.6, places=3)   # no crossing nearby → unchanged
+
+    def test_single_segment_is_left_alone(self):
+        path = self._wav([100] * 500 + [-100] * 500)
+        keep = [(0.0, 1.0)]
+        self.assertEqual(snap_keep_to_zero_crossings(keep, path, window_s=0.012), keep)
+
+    def test_missing_wav_returns_keep_unchanged(self):
+        keep = [(0.0, 0.5), (0.6, 1.0)]
+        self.assertEqual(snap_keep_to_zero_crossings(keep, "/no/such.wav", window_s=0.012), keep)
 
 
 if __name__ == "__main__":
