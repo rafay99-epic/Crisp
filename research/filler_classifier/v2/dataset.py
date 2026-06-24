@@ -8,6 +8,7 @@ log-mel, so __getitem__ is just a slice + building the 0/1 label vector. The lab
 from __future__ import annotations
 
 import json
+from collections import OrderedDict
 from pathlib import Path
 
 import numpy as np
@@ -26,11 +27,17 @@ TIME_MASKS = 2            # number of time masks per window
 
 
 class SeqWindows(Dataset):
+    # Bound the open memmaps. Hard-negative sets cache one .npy per window (thousands
+    # of files); without a cap each worker opens an fd per unique file and hits the OS
+    # limit ("Too many open files"). An LRU keeps the hot episodes mapped and closes
+    # the rest. Comfortably holds the ~66 PodcastFillers episodes without thrashing.
+    _MEL_CACHE_CAP = 256
+
     def __init__(self, index_path: str, mel_dir: str, augment: bool = False):
         self.windows = [json.loads(line) for line in open(index_path)]
         self.mel_dir = Path(mel_dir)
         self.augment = augment              # SpecAugment — train split only, never val
-        self._mels: dict[str, np.memmap] = {}
+        self._mels: "OrderedDict[str, np.memmap]" = OrderedDict()
 
     def __len__(self):
         return len(self.windows)
@@ -54,9 +61,16 @@ class SeqWindows(Dataset):
 
     def _mel(self, episode: str) -> np.memmap:
         m = self._mels.get(episode)
-        if m is None:
-            m = np.load(self.mel_dir / f"{episode}.npy", mmap_mode="r")
-            self._mels[episode] = m
+        if m is not None:
+            self._mels.move_to_end(episode)         # mark most-recently-used
+            return m
+        m = np.load(self.mel_dir / f"{episode}.npy", mmap_mode="r")
+        self._mels[episode] = m
+        if len(self._mels) > self._MEL_CACHE_CAP:   # evict LRU + close its fd
+            _, evicted = self._mels.popitem(last=False)
+            mm = getattr(evicted, "_mmap", None)
+            if mm is not None:
+                mm.close()  # safe: __getitem__ already copied the slice it needed
         return m
 
     def __getitem__(self, i):

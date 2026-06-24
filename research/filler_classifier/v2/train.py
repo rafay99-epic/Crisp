@@ -60,8 +60,23 @@ def evaluate(model, dl, device, threshold=0.5):
     return f1, prec, rec
 
 
+def _raise_fd_limit():
+    """Memmapped mels (esp. one-.npy-per-window hard negatives) open many files;
+    macOS defaults to a 256 soft fd limit, which DataLoader workers blow past. Raise
+    the soft limit toward the hard cap so the cache (now LRU-bounded too) has headroom."""
+    try:
+        import resource
+        soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+        target = 8192 if hard == resource.RLIM_INFINITY else min(8192, hard)
+        if target > soft:
+            resource.setrlimit(resource.RLIMIT_NOFILE, (target, hard))
+    except (ImportError, ValueError, OSError):
+        pass
+
+
 def run(data_dir, epochs, batch_size, lr, workers, out, hard_neg=None,
         spec_augment=False, focal=False, focal_gamma=2.0, cosine=False):
+    _raise_fd_limit()
     data_dir = Path(data_dir)
     device = "mps" if torch.backends.mps.is_available() else "cpu"
     # SpecAugment on the training split only — never on validation.
