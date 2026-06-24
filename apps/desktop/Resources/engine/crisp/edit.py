@@ -225,14 +225,19 @@ def _nearest_zero_crossing(samples, center, max_off):
     return center
 
 
-def snap_keep_to_zero_crossings(keep, wav_path, window_s=DEFAULT_SNAP_MS / 1000.0, logger=None):
+def snap_keep_to_zero_crossings(keep, wav_path, window_s=None, logger=None):
     """Nudge each interior cut boundary in `keep` to the nearest audio zero-crossing
     within ±`window_s` (Phase 3). Cuts placed mid-waveform are the click source; a
     boundary that lands where the signal is already ~0 splices silently. Reads only a
     small window around each boundary from the analysis WAV (stdlib `wave`, 16-bit mono
     as `extract_audio` produces). Best-effort: any read problem returns `keep` unchanged
-    (the Phase-1 fade still removes the click), and clip head/tail are left alone."""
+    (the Phase-1 fade still removes the click), and clip head/tail are left alone.
+
+    `window_s` is resolved from `DEFAULT_SNAP_MS` at call time (not bound at import),
+    so a future per-model override of the default is honored."""
     logger = logger or EngineLogger(None)
+    if window_s is None:
+        window_s = DEFAULT_SNAP_MS / 1000.0
     if window_s <= 0 or len(keep) < 2:
         return keep
     import array
@@ -263,12 +268,17 @@ def snap_keep_to_zero_crossings(keep, wav_path, window_s=DEFAULT_SNAP_MS / 1000.
         return keep
 
     # Re-validate: a tiny nudge must never invert ordering or overlap the previous keep.
+    # The 0.01s floor matches build_keep_segments' epsilon (a smaller value than
+    # MIN_KEEP — we only drop a segment a snap shrank to nothing, not a legitimately
+    # short kept one). Dropping is logged so it's never silent.
     out, prev_end = [], 0.0
     for s, e in snapped:
         s = max(s, prev_end)
         if e - s > 0.01:
             out.append((s, e))
             prev_end = e
+        else:
+            logger.debug(f"zero-cross snap dropped a {e - s:.4f}s sliver at {s:.3f}s")
     return out or keep
 
 
@@ -302,6 +312,8 @@ def build_filter_graph(keep, fade=0.0, crossfade=0.0):
         lines.append(labels + f"concat=n={n}:v=1:a=1[outv][outa]")
         return lines
 
+    # `length` is the accumulated output timeline so far = sum(durs[:i]) - (i-1)*c
+    # (each prior dissolve overlapped by `c`); the next xfade starts `c` before its end.
     prev_v, prev_a, length = "v0", "a0", durs[0]
     for i in range(1, n):
         last = i == n - 1

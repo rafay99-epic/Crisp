@@ -222,6 +222,14 @@ class BuildFilterGraphTests(unittest.TestCase):
         self.assertIn("xfade=transition=fade:duration=0.100:offset=3.800[outv]", graph)
         self.assertIn("acrossfade=d=0.100[outa]", graph)
 
+    def test_crossfade_is_clamped_to_half_the_shortest_segment(self):
+        # A 0.05s sliver with a 0.1s crossfade would over-run the segment; the dissolve
+        # is clamped to min(0.1, 0.05/2) = 0.025s so it can't break.
+        lines = build_filter_graph([(0.0, 2.0), (3.0, 3.05)], fade=0.0, crossfade=0.1)
+        graph = "\n".join(lines)
+        self.assertIn("xfade=transition=fade:duration=0.025", graph)
+        self.assertIn("acrossfade=d=0.025", graph)
+
     def test_crossfade_falls_back_to_concat_for_single_segment(self):
         lines = build_filter_graph([(0.0, 2.0)], fade=0.0, crossfade=0.1)
         graph = "\n".join(lines)
