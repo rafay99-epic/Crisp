@@ -82,6 +82,10 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
         raise CleanError(f"File not found: {src}")
 
     model = Path(model).expanduser().resolve() if model else DEFAULT_MODEL
+    # An explicit --out path is the caller's exact choice (overwrite it). A derived
+    # path (the default <name>_cleaned.<ext>) is de-duped + tagged below so we never
+    # clobber a *different* video's cleaned file.
+    explicit_out = bool(out_path)
     if out_path:
         # An explicit output path wins; its extension picks the container.
         out_path = Path(out_path).expanduser().resolve()
@@ -98,8 +102,12 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
             except OSError as e:
                 raise CleanError(f"Couldn't use the output folder \"{out_path.parent}\". "
                                  f"Is the drive connected and writable?\n{e}")
-            # In a shared folder, don't clobber a different source's cleaned file.
-            out_path = unique_output_path(out_path, src)
+        # Don't clobber a DIFFERENT source's cleaned file (same name, different video).
+        # Re-cleaning the SAME source overwrites its own output (matched by the source
+        # xattr); a different source — or a pre-existing file we didn't make — gets
+        # _1, _2…; where xattrs aren't supported we fall back to plain dedup. Applies
+        # whether the file lands beside the source or in a chosen folder.
+        out_path = unique_output_path(out_path, src)
 
     # The container dictates which codecs are legal (e.g. WebM forces VP9 + Opus);
     # coerce now and tell the user about any swap rather than letting ffmpeg fail.
@@ -239,9 +247,10 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
                video_args(video_codec, False, quality), audio, mux,
                fade=fade_s, crossfade=crossfade_s, logger=logger)
 
-    if out_dir:
-        # Tag the output so a later re-clean of this same source overwrites it,
-        # while a different same-named source gets its own _N copy.
+    if not explicit_out:
+        # Tag the derived output so a later re-clean of this same source overwrites it,
+        # while a different same-named source (or a file we didn't make) gets its own
+        # _N copy. Applies beside the source and in a chosen folder alike.
         tag_output_source(out_path, src)
 
     # Optionally demux the cleaned file into separate video-only / audio-only stems
