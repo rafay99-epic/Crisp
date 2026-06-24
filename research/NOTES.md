@@ -207,6 +207,31 @@ Then retrain **with the Tier-A flags on** (they're free) and re-measure on real 
 
 ---
 
+## 6e. v3 — synthetic negatives (BUILT, the data lever)
+
+`filler_classifier/v3/synth_negatives.py` — the download-free half of Tier B. It
+**synthesizes** a wide variety of non-speech audio (white/pink/brown noise, tonal
+beds & chords with vibrato+tremolo, AM/FM tones, mains hum, click trains, and
+mixes) directly as waveforms → the same all-negative log-mel windows the trainer
+mixes in. Output matches `v2/hard_negatives.py` exactly. `v2/train.py --hard-neg`
+now takes **multiple dirs**, so real + synthetic negatives combine.
+
+    python -m filler_classifier.v3.synth_negatives --out data/synthneg --count 5000   # ~10 s
+    python -m filler_classifier.v2.train --data data/labels_v2 \
+        --hard-neg data/hardneg data/synthneg --spec-augment --focal --cosine \
+        --epochs 40 --out checkpoints/wren_v3.pt
+
+This multiplies negative-class coverage from ~400 real clips to thousands of varied
+synthetic non-speech windows — directly attacking the music/noise over-firing the
+v3 A/B couldn't fix with recipe alone. **Honest limits:** synthesis covers *noise*
+and tonal sounds well but is a crude proxy for *real music timbre*; real corpora
+(FMA = CC, MUSDB18) and the planned **teacher-distillation** path
+(`v3/teacher_labels.py` — a pretrained audio tagger auto-labels unlabeled audio,
+distilled into Wren) are the next steps for realism + scale. Trains as **Wren
+v0.0.11**; validate on real footage (esp. music) before publishing.
+
+---
+
 ## 7. Quick reference
 
 - Branches: `feature/wren-backend` → PR #48 (merged into `nightly`); `feature/ml-dev-flow` = the model dev flow (channels + sideload + history).

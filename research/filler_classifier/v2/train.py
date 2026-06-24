@@ -88,10 +88,11 @@ def run(data_dir, epochs, batch_size, lr, workers, out, hard_neg=None,
     # Optionally mix in all-negative hard-negative windows (SEP-28k music/noise/non-filler)
     # so the model learns what NOT to cut. They add only negatives → pos_weight rises.
     sources = [train_ds]
-    if hard_neg:
-        hn = SeqWindows(Path(hard_neg) / "windows.jsonl", Path(hard_neg) / "mels", augment=spec_augment)
+    # `hard_neg` may be a single dir or a list of dirs (e.g. real SEP-28k + synthetic).
+    for hn_dir in ([hard_neg] if isinstance(hard_neg, (str, Path)) else (hard_neg or [])):
+        hn = SeqWindows(Path(hn_dir) / "windows.jsonl", Path(hn_dir) / "mels", augment=spec_augment)
         sources.append(hn)
-        print(f"+ {len(hn)} hard-negative windows from {hard_neg}")
+        print(f"+ {len(hn)} hard-negative windows from {hn_dir}")
     full_train = ConcatDataset(sources) if len(sources) > 1 else train_ds
 
     pos = neg = 0
@@ -158,8 +159,9 @@ def main():
     p.add_argument("--lr", type=float, default=1e-3)
     p.add_argument("--workers", type=int, default=4)
     p.add_argument("--out", default="checkpoints/wren_seq.pt")
-    p.add_argument("--hard-neg", default=None,
-                   help="dir with hard-negative windows (e.g. data/hardneg) to mix in")
+    p.add_argument("--hard-neg", nargs="+", default=None, metavar="DIR",
+                   help="one or more dirs with hard-negative windows to mix in "
+                        "(e.g. data/hardneg data/synthneg)")
     # Tier-A training improvements (default off so the current behavior stays the
     # baseline for A/B; the v0.0.11 run turns them on).
     p.add_argument("--spec-augment", action="store_true",
