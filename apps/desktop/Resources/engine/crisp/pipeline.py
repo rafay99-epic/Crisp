@@ -179,16 +179,20 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
             tmp = Path(tmp)
             wav = tmp / "audio.wav"
 
+            # Labels describe the CURRENT step (emitted before it) so the UI says what's
+            # happening now, not what just finished.
+            on_progress(0.05, "Reading audio…")
             extract_audio(src, wav, on_log, logger=logger)
-            on_progress(0.08, "Audio extracted")
 
+            on_progress(0.10, "Detecting pauses…")
             silences = detect_silences(wav, noise, pause, on_log, logger=logger)
-            on_progress(0.15, "Pauses detected")
 
             if need_transcript:
                 if use_classifier:
+                    # The fast model reports only when done, so name the step up front.
+                    on_progress(0.16, "Finding filler words…")
                     words = filler_words(which_filler(), filler_model, wav,
-                                         on_log, stage(0.15, 0.58), logger=logger)
+                                         on_log, stage(0.16, 0.58), logger=logger)
                     # Keep only fillers at a pause or clearly long — don't cut
                     # brief hesitations embedded mid-sentence (rough, removes flow).
                     before = len(words)
