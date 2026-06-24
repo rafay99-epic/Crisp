@@ -16,11 +16,32 @@ import argparse
 from pathlib import Path
 
 import torch
+from torch.nn import functional as F
 from torch.utils.data import ConcatDataset, DataLoader
 
 from .. import config
 from .dataset import SeqWindows
 from .model import WrenSeq
+
+
+class FocalLoss(torch.nn.Module):
+    """Per-frame focal loss with logits. Keeps the proven `pos_weight` class balancing
+    and adds a (1-pt)**gamma modulation so training focuses on the HARD frames —
+    boundary fillers, music, noise — instead of the easy speech/clear-filler majority
+    (the v3 failure modes). gamma=0 reduces to weighted BCE."""
+
+    def __init__(self, pos_weight=None, gamma=2.0):
+        super().__init__()
+        self.pos_weight = pos_weight
+        self.gamma = gamma
+
+    def forward(self, logits, targets):
+        bce = F.binary_cross_entropy_with_logits(logits, targets, reduction="none")
+        pt = torch.exp(-bce)                                # model confidence on the true class
+        loss = (1 - pt) ** self.gamma * bce                 # down-weight easy frames
+        if self.pos_weight is not None:                     # still up-weight rare removable frames
+            loss = loss * torch.where(targets > 0.5, self.pos_weight, torch.ones_like(targets))
+        return loss.mean()
 
 
 @torch.no_grad()
@@ -39,17 +60,19 @@ def evaluate(model, dl, device, threshold=0.5):
     return f1, prec, rec
 
 
-def run(data_dir, epochs, batch_size, lr, workers, out, hard_neg=None):
+def run(data_dir, epochs, batch_size, lr, workers, out, hard_neg=None,
+        spec_augment=False, focal=False, focal_gamma=2.0, cosine=False):
     data_dir = Path(data_dir)
     device = "mps" if torch.backends.mps.is_available() else "cpu"
-    train_ds = SeqWindows(data_dir / "windows_train.jsonl", data_dir / "mels")
+    # SpecAugment on the training split only — never on validation.
+    train_ds = SeqWindows(data_dir / "windows_train.jsonl", data_dir / "mels", augment=spec_augment)
     val_ds = SeqWindows(data_dir / "windows_validation.jsonl", data_dir / "mels")
 
     # Optionally mix in all-negative hard-negative windows (SEP-28k music/noise/non-filler)
     # so the model learns what NOT to cut. They add only negatives → pos_weight rises.
     sources = [train_ds]
     if hard_neg:
-        hn = SeqWindows(Path(hard_neg) / "windows.jsonl", Path(hard_neg) / "mels")
+        hn = SeqWindows(Path(hard_neg) / "windows.jsonl", Path(hard_neg) / "mels", augment=spec_augment)
         sources.append(hn)
         print(f"+ {len(hn)} hard-negative windows from {hard_neg}")
     full_train = ConcatDataset(sources) if len(sources) > 1 else train_ds
@@ -71,7 +94,13 @@ def run(data_dir, epochs, batch_size, lr, workers, out, hard_neg=None):
     n_params = sum(p.numel() for p in model.parameters())
     print(f"WrenSeq: {n_params:,} params")
     opt = torch.optim.Adam(model.parameters(), lr=lr)
-    loss_fn = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+    loss_fn = (FocalLoss(pos_weight=pos_weight, gamma=focal_gamma) if focal
+               else torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight))
+    sched = (torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=epochs, eta_min=1e-6)
+             if cosine else None)
+    active = [n for n, on in (("spec-augment", spec_augment),
+                              (f"focal(γ={focal_gamma})", focal), ("cosine-lr", cosine)) if on]
+    print(f"loss={'focal' if focal else 'BCE'}  techniques: {', '.join(active) or 'none (baseline)'}")
 
     Path(out).parent.mkdir(parents=True, exist_ok=True)
     best_f1 = -1.0
@@ -85,6 +114,8 @@ def run(data_dir, epochs, batch_size, lr, workers, out, hard_neg=None):
             loss.backward()
             opt.step()
             running += loss.item()
+        if sched:
+            sched.step()
         f1, prec, rec = evaluate(model, val_dl, device)
         print(f"epoch {epoch:3d}  loss={running/len(train_dl):.4f}  "
               f"val P={prec:.3f} R={rec:.3f} F1={f1:.3f}"
@@ -105,8 +136,17 @@ def main():
     p.add_argument("--out", default="checkpoints/wren_seq.pt")
     p.add_argument("--hard-neg", default=None,
                    help="dir with hard-negative windows (e.g. data/hardneg) to mix in")
+    # Tier-A training improvements (default off so the current behavior stays the
+    # baseline for A/B; the v0.0.11 run turns them on).
+    p.add_argument("--spec-augment", action="store_true",
+                   help="SpecAugment (freq+time masking) on the training split")
+    p.add_argument("--focal", action="store_true",
+                   help="focal loss instead of BCE — focuses on hard frames (music/boundary)")
+    p.add_argument("--focal-gamma", type=float, default=2.0, help="focal loss gamma (with --focal)")
+    p.add_argument("--cosine", action="store_true", help="cosine-annealing LR schedule")
     a = p.parse_args()
-    run(a.data, a.epochs, a.batch_size, a.lr, a.workers, a.out, a.hard_neg)
+    run(a.data, a.epochs, a.batch_size, a.lr, a.workers, a.out, a.hard_neg,
+        spec_augment=a.spec_augment, focal=a.focal, focal_gamma=a.focal_gamma, cosine=a.cosine)
 
 
 if __name__ == "__main__":

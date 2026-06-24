@@ -17,14 +17,40 @@ from torch.utils.data import Dataset
 from .. import config
 
 
+# SpecAugment defaults (masks applied to the normalized log-mel during training).
+# Masking to 0 is correct because the cached mels are mean-normalized (≈0 mean).
+FREQ_MASK_PARAM = 15      # max height of a frequency band to zero (of n_mels=64)
+TIME_MASK_PARAM = 35      # max width of a time band to zero (of WINDOW_FRAMES)
+FREQ_MASKS = 2            # number of frequency masks per window
+TIME_MASKS = 2            # number of time masks per window
+
+
 class SeqWindows(Dataset):
-    def __init__(self, index_path: str, mel_dir: str):
+    def __init__(self, index_path: str, mel_dir: str, augment: bool = False):
         self.windows = [json.loads(line) for line in open(index_path)]
         self.mel_dir = Path(mel_dir)
+        self.augment = augment              # SpecAugment — train split only, never val
         self._mels: dict[str, np.memmap] = {}
 
     def __len__(self):
         return len(self.windows)
+
+    def _spec_augment(self, x: np.ndarray) -> np.ndarray:
+        """In-place SpecAugment: zero a few random frequency bands + time bands. `x` is
+        a fresh float32 copy (the cached mel is float16), so this never touches the cache.
+        Mask sizes are random in [0, *_PARAM], so some masks are no-ops — that's intended."""
+        n_mels, w = x.shape
+        for _ in range(FREQ_MASKS):
+            f = np.random.randint(0, FREQ_MASK_PARAM + 1)
+            if f and n_mels > f:
+                f0 = np.random.randint(0, n_mels - f)
+                x[f0:f0 + f, :] = 0.0
+        for _ in range(TIME_MASKS):
+            t = np.random.randint(0, TIME_MASK_PARAM + 1)
+            if t and w > t:
+                t0 = np.random.randint(0, w - t)
+                x[:, t0:t0 + t] = 0.0
+        return x
 
     def _mel(self, episode: str) -> np.memmap:
         m = self._mels.get(episode)
@@ -41,6 +67,8 @@ class SeqWindows(Dataset):
         x = np.asarray(mel[:, f0:f0 + W], dtype=np.float32)
         if x.shape[1] < W:                          # right-pad short tail windows
             x = np.pad(x, ((0, 0), (0, W - x.shape[1])))
+        if self.augment:
+            x = self._spec_augment(x)
 
         y = np.zeros(W, dtype=np.float32)
         for a, b in w["spans"]:
