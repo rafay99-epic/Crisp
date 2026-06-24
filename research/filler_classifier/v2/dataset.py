@@ -34,7 +34,8 @@ class SeqWindows(Dataset):
     _MEL_CACHE_CAP = 256
 
     def __init__(self, index_path: str, mel_dir: str, augment: bool = False):
-        self.windows = [json.loads(line) for line in open(index_path)]
+        with open(index_path) as f:
+            self.windows = [json.loads(line) for line in f]
         self.mel_dir = Path(mel_dir)
         self.augment = augment              # SpecAugment — train split only, never val
         self._mels: "OrderedDict[str, np.memmap]" = OrderedDict()

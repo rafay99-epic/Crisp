@@ -32,6 +32,8 @@ class FocalLoss(torch.nn.Module):
 
     def __init__(self, pos_weight=None, gamma=2.0):
         super().__init__()
+        if gamma < 0:                       # (1-pt)**gamma explodes as pt→1 → NaN training
+            raise ValueError(f"FocalLoss gamma must be >= 0, got {gamma}")
         self.pos_weight = pos_weight
         self.gamma = gamma
 
@@ -141,6 +143,13 @@ def run(data_dir, epochs, batch_size, lr, workers, out, hard_neg=None,
     print(f"best val F1={best_f1:.3f}  → {out}")
 
 
+def _non_negative_float(v: str) -> float:
+    x = float(v)
+    if x < 0:
+        raise argparse.ArgumentTypeError(f"must be >= 0, got {x}")
+    return x
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--data", default="data/labels_v2", help="dir with windows_*.jsonl + mels/")
@@ -157,7 +166,8 @@ def main():
                    help="SpecAugment (freq+time masking) on the training split")
     p.add_argument("--focal", action="store_true",
                    help="focal loss instead of BCE — focuses on hard frames (music/boundary)")
-    p.add_argument("--focal-gamma", type=float, default=2.0, help="focal loss gamma (with --focal)")
+    p.add_argument("--focal-gamma", type=_non_negative_float, default=2.0,
+                   help="focal loss gamma >= 0 (with --focal)")
     p.add_argument("--cosine", action="store_true", help="cosine-annealing LR schedule")
     a = p.parse_args()
     run(a.data, a.epochs, a.batch_size, a.lr, a.workers, a.out, a.hard_neg,
