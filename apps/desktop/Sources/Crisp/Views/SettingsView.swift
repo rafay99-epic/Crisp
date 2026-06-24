@@ -40,7 +40,7 @@ struct SettingsView: View {
 
     var body: some View {
         TabView {
-            tab { cuttingSection; speechModelSection; fillerModelSection }
+            tab { cuttingSection; smoothingSection; speechModelSection; fillerModelSection }
                 .tabItem { Label("Cutting", systemImage: "scissors") }
 
             tab { encodingSection; captionsSection; outputLocationSection; originalsSection }
@@ -92,6 +92,22 @@ struct SettingsView: View {
             Text("Custom cutting")
         } footer: {
             Text("Applied when \u{201C}How much to cut\u{201D} is set to Custom.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder private var smoothingSection: some View {
+        Section {
+            row(Knob(title: "Audio fade", help: "A tiny fade in/out at each cut so joins don\u{2019}t click. 0 turns it off.",
+                     unit: "ms", range: 0...50, step: 1, decimals: 0), $settings.fadeMs)
+            row(Knob(title: "Crossfade", help: "Dissolve between segments instead of a hard cut. 0 keeps hard cuts.",
+                     unit: "ms", range: 0...500, step: 10, decimals: 0), $settings.crossfadeMs)
+            row(Knob(title: "Snap to silence", help: "Nudge each cut onto a silent point in the waveform. 0 turns it off.",
+                     unit: "ms", range: 0...30, step: 1, decimals: 0), $settings.snapMs)
+        } header: {
+            Text("Cut smoothing")
+        } footer: {
+            Text("Applied to every clean \u{2014} reduces the clicks and abrupt jumps at each cut.")
                 .font(.caption).foregroundStyle(.secondary)
         }
     }

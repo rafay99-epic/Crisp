@@ -94,6 +94,11 @@ public struct CleanRunner {
             "--container", parameters.outputContainer,
             "--ndjson"
         ]
+        // Cut smoothing — applied to every clean (kept out of the literal above so the
+        // Swift type-checker doesn't choke on an oversized array literal).
+        args += ["--fade-ms", String(parameters.fadeMs),
+                 "--crossfade-ms", String(parameters.crossfadeMs),
+                 "--snap-ms", String(parameters.snapMs)]
         if parameters.hardwareEncoding { args.append("--hardware") }
         if parameters.splitTracks {
             args.append("--split")

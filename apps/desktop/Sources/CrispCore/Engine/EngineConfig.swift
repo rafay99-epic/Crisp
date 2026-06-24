@@ -14,6 +14,12 @@ public struct EngineConfig: Codable, Equatable, Sendable {
     public var silenceFloorDB: Double
     public var breathingRoom: Double
     public var minKeep: Double
+    // Cut smoothing (applied to every clean) — soften the splice so jump-cuts don't
+    // click. fade = per-segment audio fade in/out; crossfade > 0 dissolves segments
+    // instead of hard-cutting; snap nudges cut points onto zero-crossings. All in ms.
+    public var fadeMs: Double
+    public var crossfadeMs: Double
+    public var snapMs: Double
     // Encoding
     public var videoCodec: String        // "h264" | "hevc"
     public var hardwareEncoding: Bool    // Apple VideoToolbox
@@ -74,6 +80,7 @@ public struct EngineConfig: Codable, Equatable, Sendable {
     public static let defaults = EngineConfig(
         version: 3,
         pauseThreshold: 0.35, silenceFloorDB: -30, breathingRoom: 0.10, minKeep: 0.05,
+        fadeMs: 10, crossfadeMs: 0, snapMs: 12,
         videoCodec: "hevc", hardwareEncoding: true, videoQuality: "high",
         audioCodec: "aac", audioBitrateKbps: 192, outputContainer: "auto", outputDirectory: "",
         splitTracks: false, splitAudioFormat: "match",
@@ -88,6 +95,7 @@ public struct EngineConfig: Codable, Equatable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case version, pauseThreshold, silenceFloorDB, breathingRoom, minKeep
+        case fadeMs, crossfadeMs, snapMs
         case videoCodec, hardwareEncoding, videoQuality, audioCodec, audioBitrateKbps
         case outputContainer, outputDirectory, splitTracks, splitAudioFormat, captionsFormat, backupOriginal
         case watchEnabled, watchFolderPath, watchRemoveFillers
@@ -98,7 +106,8 @@ public struct EngineConfig: Codable, Equatable, Sendable {
     }
 
     public init(version: Int, pauseThreshold: Double, silenceFloorDB: Double, breathingRoom: Double,
-                minKeep: Double, videoCodec: String, hardwareEncoding: Bool, videoQuality: String,
+                minKeep: Double, fadeMs: Double = 10, crossfadeMs: Double = 0, snapMs: Double = 12,
+                videoCodec: String, hardwareEncoding: Bool, videoQuality: String,
                 audioCodec: String, audioBitrateKbps: Int, outputContainer: String, outputDirectory: String,
                 splitTracks: Bool, splitAudioFormat: String, captionsFormat: String = "none",
                 backupOriginal: Bool,
@@ -114,6 +123,9 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         self.silenceFloorDB = silenceFloorDB
         self.breathingRoom = breathingRoom
         self.minKeep = minKeep
+        self.fadeMs = fadeMs
+        self.crossfadeMs = crossfadeMs
+        self.snapMs = snapMs
         self.videoCodec = videoCodec
         self.hardwareEncoding = hardwareEncoding
         self.videoQuality = videoQuality
@@ -148,6 +160,9 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         silenceFloorDB     = try c.decodeIfPresent(Double.self, forKey: .silenceFloorDB) ?? d.silenceFloorDB
         breathingRoom      = try c.decodeIfPresent(Double.self, forKey: .breathingRoom) ?? d.breathingRoom
         minKeep            = try c.decodeIfPresent(Double.self, forKey: .minKeep) ?? d.minKeep
+        fadeMs             = try c.decodeIfPresent(Double.self, forKey: .fadeMs) ?? d.fadeMs
+        crossfadeMs        = try c.decodeIfPresent(Double.self, forKey: .crossfadeMs) ?? d.crossfadeMs
+        snapMs             = try c.decodeIfPresent(Double.self, forKey: .snapMs) ?? d.snapMs
         videoCodec         = try c.decodeIfPresent(String.self, forKey: .videoCodec) ?? d.videoCodec
         hardwareEncoding   = try c.decodeIfPresent(Bool.self, forKey: .hardwareEncoding) ?? d.hardwareEncoding
         videoQuality       = try c.decodeIfPresent(String.self, forKey: .videoQuality) ?? d.videoQuality

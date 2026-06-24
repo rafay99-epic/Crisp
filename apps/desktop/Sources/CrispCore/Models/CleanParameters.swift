@@ -7,6 +7,10 @@ public struct CleanParameters: Equatable, Sendable {
     public let noiseDB: Double
     public let keepPause: Double
     public let minKeep: Double
+    // Cut smoothing — taken from the config for every clean (like the encoder choices)
+    public let fadeMs: Double
+    public let crossfadeMs: Double
+    public let snapMs: Double
     public let videoCodec: String
     public let hardwareEncoding: Bool
     public let videoQuality: String
@@ -20,6 +24,7 @@ public struct CleanParameters: Equatable, Sendable {
     public let backupOriginal: Bool
 
     public init(pause: Double, noiseDB: Double, keepPause: Double, minKeep: Double,
+                fadeMs: Double = 10, crossfadeMs: Double = 0, snapMs: Double = 12,
                 videoCodec: String, hardwareEncoding: Bool, videoQuality: String,
                 audioCodec: String, audioBitrateKbps: Int, outputContainer: String,
                 outputDirectory: String, splitTracks: Bool, splitAudioFormat: String,
@@ -28,6 +33,9 @@ public struct CleanParameters: Equatable, Sendable {
         self.noiseDB = noiseDB
         self.keepPause = keepPause
         self.minKeep = minKeep
+        self.fadeMs = fadeMs
+        self.crossfadeMs = crossfadeMs
+        self.snapMs = snapMs
         self.videoCodec = videoCodec
         self.hardwareEncoding = hardwareEncoding
         self.videoQuality = videoQuality
@@ -50,6 +58,9 @@ extension Strength {
             noiseDB: isCustom ? config.silenceFloorDB : EngineConfig.defaults.silenceFloorDB,
             keepPause: isCustom ? config.breathingRoom : keepPause,
             minKeep: isCustom ? config.minKeep : EngineConfig.defaults.minKeep,
+            fadeMs: config.fadeMs,
+            crossfadeMs: config.crossfadeMs,
+            snapMs: config.snapMs,
             videoCodec: config.videoCodec,
             hardwareEncoding: config.hardwareEncoding,
             videoQuality: config.videoQuality,

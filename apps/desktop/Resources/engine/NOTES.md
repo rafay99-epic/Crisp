@@ -53,15 +53,17 @@ Smoke-tested end-to-end against real footage: both the default fade path and the
 120 ms crossfade path render valid MP4s, and the crossfade output is shorter by
 exactly `(N-1)·c`.
 
-### Future / TODO
+### Settings wiring (DONE)
 
-- **Surface the knobs in the app's Settings.** Engine support is complete and the
-  defaults already apply; what's left is the Swift wiring so users can tune them:
-  `EngineConfig`/`EngineSettings.swift` fields + `settings.json` keys (mirror the
-  Python defaults), Settings UI controls under the "Custom" cutting knobs (a
-  "Smooth cuts" toggle that sets `crossfade_ms`, plus fade/snap sliders), and
-  passing the flags through `CleanRunner`. Same pattern as `--keep-pause` /
-  `--min-keep`.
+The three knobs are exposed in the app's Settings under a **"Cut smoothing"**
+section (its own section, not the "Custom cutting" one — they apply to *every*
+clean, like the encoder choices). Flow mirrors the encoder settings:
+`EngineConfig` fields (`fadeMs`/`crossfadeMs`/`snapMs`, ms, forward-compatible
+decode) → `EngineSettings` observable → `CleanParameters` (always from config) →
+`CleanRunner` argv (`--fade-ms`/`--crossfade-ms`/`--snap-ms`). Presets inherit the
+defaults via `Preset.parameters()` (built from `EngineConfig.defaults`).
+
+### Future / TODO
 - **Per-model config.** Fade/crossfade/snap could move into the model's
   `config.json` later if a model wants different cut feel (like
   `recommended_threshold`).
