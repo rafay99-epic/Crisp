@@ -12,6 +12,10 @@ public struct QueueItem: Identifiable, Sendable {
     public var status: Status
     /// 0…1 for this file alone, while it's running.
     public var progress: Double
+    /// What the engine is doing right now (e.g. "Reading audio…", "Finding filler
+    /// words…", "Rendering video… 45%"). Shown under the progress bar so a long
+    /// re-encode reads as working, not stuck. Empty when not running.
+    public var stage: String
     /// Set once the file finishes cleaning.
     public var result: CleanResult?
     /// A human-readable failure message when `status == .failed`.
@@ -32,6 +36,7 @@ public struct QueueItem: Identifiable, Sendable {
         self.presetID = presetID
         self.status = .waiting
         self.progress = 0
+        self.stage = ""
         self.result = nil
         self.error = nil
         self.editedKeep = nil

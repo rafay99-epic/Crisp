@@ -235,7 +235,7 @@ final class CleanModel {
     /// the rest of the batch continue.
     private func runOne(id: QueueItem.ID, modelPath: String?,
                         removeFillers: Bool, parameters: CleanParameters) async {
-        update(id) { $0.status = .running; $0.progress = 0 }
+        update(id) { $0.status = .running; $0.progress = 0; $0.stage = "Starting…" }
         updateRunningStatus()
         do {
             let result = try await cleanOne(id: id, modelPath: modelPath,
@@ -281,12 +281,15 @@ final class CleanModel {
                                           fillerBackend: useClassifier ? "coreml" : "whisper",
                                           fillerModelPath: useClassifier ? activeFillerModelPath : nil)
         let result = try await CleanRunner().run(input: url, parameters: parameters, options: options) { [weak self] event in
-            guard case .progress(let fraction, _) = event else { return }
+            guard case .progress(let fraction, let label) = event else { return }
             Task { @MainActor in
                 // Ignore a late callback for a file that's already finished.
                 guard let self, self.isRunning,
                       self.queue.first(where: { $0.id == id })?.status == .running else { return }
-                self.update(id) { $0.progress = max(0, fraction) }
+                self.update(id) {
+                    $0.progress = max(0, fraction)
+                    if !label.isEmpty { $0.stage = label }   // keep the last stage if a tick has none
+                }
             }
         }
         // Opt-in, anonymous, on-device: record a tiny feedback line for a classifier clean.

@@ -387,7 +387,7 @@ def render(src, keep, out_path, on_log, on_progress, video_opts, audio_opts, mux
                     val = int(line.split("=")[1])
                     secs = val / 1_000_000.0  # both keys are microseconds in practice
                     frac = max(0.0, min(1.0, secs / total))
-                    on_progress(frac, f"Rendering… {int(frac * 100)}%")
+                    on_progress(frac, f"Rendering video… {int(frac * 100)}%")
                 except (IndexError, ValueError):
                     pass
         proc.wait()
