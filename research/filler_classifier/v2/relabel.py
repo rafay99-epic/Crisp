@@ -11,7 +11,7 @@ The v2 labels called a filler removable only if VAD found silence on BOTH sides
   detachable (a leading/trailing/standalone hesitation) → REMOVABLE.
 
 We fuse two signals per side: a transcript word-gap (>= WORD_GAP) OR a VAD pause. A
-filler is removable if it's detached on either side. This is the language context the
+filler is removable if it's detached on both sides. This is the language context the
 v2 VAD-only rule lacked — and it's free (transcripts + VAD already on disk, stdlib).
 
     python -m filler_classifier.v2.relabel --data data/PodcastFillers --out data/labels_v3
@@ -88,13 +88,15 @@ def run(data_dir, out_dir):
                 for r in csv.DictReader(f):
                     if r["label_consolidated_vocab"] not in FILLERS:
                         continue
-                    fs = float(r["event_start_inepisode"]); fe = float(r["event_end_inepisode"])
+                    fs = float(r["event_start_inepisode"])
+                    fe = float(r["event_end_inepisode"])
                     sil_b = has_pause(vad, fs - GAP_SEC, fs)
                     sil_a = has_pause(vad, fe, fe + GAP_SEC)
                     if bounds:
                         gb, ga = word_gaps(bounds, fs, fe)
                     else:                                   # no transcript → fall back to VAD only
-                        gb = ga = 99.0 if (sil_b or sil_a) else 0.0
+                        gb = 99.0 if sil_b else 0.0
+                        ga = 99.0 if sil_a else 0.0
                     detached_before = gb >= WORD_GAP or sil_b
                     detached_after = ga >= WORD_GAP or sil_a
                     # Conservative "should cut" rule: removable only if genuinely

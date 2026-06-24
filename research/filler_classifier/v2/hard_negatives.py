@@ -73,6 +73,8 @@ def clip_mel(wav_path: Path, start: int, stop: int) -> np.ndarray | None:
 
 def run(data_dir, out_dir, limit, seed=0):
     data_dir, out_dir = Path(data_dir), Path(out_dir)
+    if limit <= 0:
+        raise SystemExit("--limit must be > 0")
     rng = random.Random(seed)
     rows = list(csv.DictReader(open(data_dir / "SEP-28k_labels.csv")))
 
@@ -91,6 +93,8 @@ def run(data_dir, out_dir, limit, seed=0):
 
     # Sample to `limit`, weighted by QUOTA.
     wsum = sum(QUOTA[c] * min(len(pool[c]), limit) for c in pool)
+    if wsum == 0:
+        raise SystemExit("No quota-eligible clips for the requested --limit.")
     picks = []
     for cat, items in pool.items():
         k = min(len(items), int(limit * QUOTA[cat] * min(len(items), limit) / wsum))

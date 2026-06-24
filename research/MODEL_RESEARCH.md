@@ -117,6 +117,7 @@ The bottleneck is data quantity (156 Music + 239 NoSpeech clips). Scaling plan:
 1. Download remaining SEP-28k episodes (Kaggle mirror: `ikrbasak/sep-28k`)
 2. Add FluencyBank episodes (different speakers, more disfluency types)
 3. Generate synthetic hard negatives from ESC-50 + MUSDB18:
+
    ```python
    # Pseudocode: synthetic music hard negatives
    speech_clip = load_random_speech()
