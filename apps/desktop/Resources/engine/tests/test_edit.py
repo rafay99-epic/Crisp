@@ -201,15 +201,15 @@ class BuildFilterGraphTests(unittest.TestCase):
     def test_fade_adds_in_out_to_each_segment(self):
         lines = build_filter_graph([(0.0, 2.0), (3.0, 5.0)], fade=0.010, crossfade=0.0)
         graph = "\n".join(lines)
-        self.assertEqual(graph.count("afade=t=in:st=0:d=0.010"), 2)
+        self.assertEqual(graph.count("afade=t=in:st=0:d=0.010000"), 2)
         # fade-out starts fade-length before the (reset) segment end (2.0 - 0.010).
-        self.assertIn("afade=t=out:st=1.990:d=0.010", graph)
+        self.assertIn("afade=t=out:st=1.990000:d=0.010000", graph)
         self.assertIn("concat=n=2:v=1:a=1[outv][outa]", graph)
 
     def test_fade_is_capped_at_half_a_short_segment(self):
         lines = build_filter_graph([(0.0, 0.01)], fade=0.010, crossfade=0.0)
         graph = "\n".join(lines)
-        self.assertIn("afade=t=in:st=0:d=0.005", graph)   # min(0.010, 0.01/2)
+        self.assertIn("afade=t=in:st=0:d=0.005000", graph)   # min(0.010, 0.01/2)
 
     def test_crossfade_uses_matched_xfade_and_acrossfade(self):
         lines = build_filter_graph([(0.0, 2.0), (3.0, 5.0), (6.0, 9.0)],
@@ -218,23 +218,28 @@ class BuildFilterGraphTests(unittest.TestCase):
         self.assertNotIn("afade", graph)                  # crossfade overrides per-segment fade
         self.assertNotIn("concat=", graph)
         # First dissolve offset = dur0 - c = 2.0 - 0.1; last lands on [outv]/[outa].
-        self.assertIn("xfade=transition=fade:duration=0.100:offset=1.900", graph)
-        self.assertIn("xfade=transition=fade:duration=0.100:offset=3.800[outv]", graph)
-        self.assertIn("acrossfade=d=0.100[outa]", graph)
+        self.assertIn("xfade=transition=fade:duration=0.100000:offset=1.900000", graph)
+        self.assertIn("xfade=transition=fade:duration=0.100000:offset=3.800000[outv]", graph)
+        self.assertIn("acrossfade=d=0.100000[outa]", graph)
 
     def test_crossfade_is_clamped_to_half_the_shortest_segment(self):
         # A 0.05s sliver with a 0.1s crossfade would over-run the segment; the dissolve
         # is clamped to min(0.1, 0.05/2) = 0.025s so it can't break.
         lines = build_filter_graph([(0.0, 2.0), (3.0, 3.05)], fade=0.0, crossfade=0.1)
         graph = "\n".join(lines)
-        self.assertIn("xfade=transition=fade:duration=0.025", graph)
-        self.assertIn("acrossfade=d=0.025", graph)
+        self.assertIn("xfade=transition=fade:duration=0.025000", graph)
+        self.assertIn("acrossfade=d=0.025000", graph)
 
     def test_crossfade_falls_back_to_concat_for_single_segment(self):
         lines = build_filter_graph([(0.0, 2.0)], fade=0.0, crossfade=0.1)
         graph = "\n".join(lines)
         self.assertIn("concat=n=1:v=1:a=1[outv][outa]", graph)
         self.assertNotIn("xfade", graph)
+
+    def test_empty_keep_raises(self):
+        # An empty keep list would emit concat=n=0 (invalid ffmpeg) — guard it.
+        with self.assertRaises(ValueError):
+            build_filter_graph([], fade=0.010, crossfade=0.0)
 
 
 class ZeroCrossingTests(unittest.TestCase):
@@ -281,6 +286,20 @@ class SnapKeepTests(unittest.TestCase):
     def test_missing_wav_returns_keep_unchanged(self):
         keep = [(0.0, 0.5), (0.6, 1.0)]
         self.assertEqual(snap_keep_to_zero_crossings(keep, "/no/such.wav", window_s=0.012), keep)
+
+    def test_snap_never_drops_a_segment_it_would_shrink(self):
+        # All +100 except samples 505-507 = -100 → zero-crossings at index 505 and 508.
+        samples = [100] * 1000
+        for i in (505, 506, 507):
+            samples[i] = -100
+        path = self._wav(samples)
+        # The short middle segment's start (0.500) snaps to 0.505 and end (0.515) to
+        # 0.508 → 3ms, below the floor. The fix must keep its ORIGINAL bounds, not drop it.
+        keep = [(0.0, 0.4), (0.5, 0.515), (0.7, 1.0)]
+        snapped = snap_keep_to_zero_crossings(keep, path, window_s=0.012)
+        self.assertEqual(len(snapped), 3)                  # nothing dropped
+        self.assertAlmostEqual(snapped[1][0], 0.5, places=3)
+        self.assertAlmostEqual(snapped[1][1], 0.515, places=3)
 
 
 if __name__ == "__main__":

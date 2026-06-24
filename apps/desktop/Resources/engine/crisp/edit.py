@@ -267,18 +267,20 @@ def snap_keep_to_zero_crossings(keep, wav_path, window_s=None, logger=None):
         logger.debug(f"zero-cross snap skipped: {e}")
         return keep
 
-    # Re-validate: a tiny nudge must never invert ordering or overlap the previous keep.
-    # The 0.01s floor matches build_keep_segments' epsilon (a smaller value than
-    # MIN_KEEP — we only drop a segment a snap shrank to nothing, not a legitimately
-    # short kept one). Dropping is logged so it's never silent.
+    # Re-validate. Snapping is only a refinement, so it must NEVER lose content: if a
+    # nudge shrank a segment below the 0.01s epsilon, fall back to that segment's
+    # ORIGINAL (un-snapped) boundaries rather than drop it. Then clamp so a nudge can't
+    # invert ordering or overlap the previous kept segment.
     out, prev_end = [], 0.0
-    for s, e in snapped:
+    for (orig_s, orig_e), (s, e) in zip(keep, snapped):
+        if e - s <= 0.01:
+            logger.notice(f"zero-cross snap shrank a segment at {orig_s:.3f}s below 0.01s; "
+                          f"keeping its original boundaries (no content dropped)")
+            s, e = orig_s, orig_e
         s = max(s, prev_end)
         if e - s > 0.01:
             out.append((s, e))
             prev_end = e
-        else:
-            logger.debug(f"zero-cross snap dropped a {e - s:.4f}s sliver at {s:.3f}s")
     return out or keep
 
 
@@ -293,15 +295,19 @@ def build_filter_graph(keep, fade=0.0, crossfade=0.0):
                    cuts; overrides `fade`. Clamped to the shortest segment so a brief
                    kept sliver can't break the dissolve.
     """
+    if not keep:
+        raise ValueError("build_filter_graph: keep must not be empty")
     n = len(keep)
     durs = [e - s for s, e in keep]
     lines = []
+    # Microsecond precision (.6f): millisecond rounding would re-round the
+    # zero-crossing snap away (8 samples at 16 kHz) and let cut positions drift.
     for i, (s, e) in enumerate(keep):
-        lines.append(f"[0:v]trim=start={s:.3f}:end={e:.3f},setpts=PTS-STARTPTS[v{i}];")
-        a = f"[0:a]atrim=start={s:.3f}:end={e:.3f},asetpts=PTS-STARTPTS"
+        lines.append(f"[0:v]trim=start={s:.6f}:end={e:.6f},setpts=PTS-STARTPTS[v{i}];")
+        a = f"[0:a]atrim=start={s:.6f}:end={e:.6f},asetpts=PTS-STARTPTS"
         if crossfade <= 0 and fade > 0:
             f = min(fade, durs[i] / 2)
-            a += (f",afade=t=in:st=0:d={f:.3f},afade=t=out:st={durs[i] - f:.3f}:d={f:.3f}")
+            a += (f",afade=t=in:st=0:d={f:.6f},afade=t=out:st={durs[i] - f:.6f}:d={f:.6f}")
         lines.append(a + f"[a{i}];")
 
     # Clamp the dissolve to the shortest segment; fall back to a hard concat if there's
@@ -319,8 +325,8 @@ def build_filter_graph(keep, fade=0.0, crossfade=0.0):
         last = i == n - 1
         ov, oa = ("outv", "outa") if last else (f"vx{i}", f"ax{i}")
         offset = length - c
-        lines.append(f"[{prev_v}][v{i}]xfade=transition=fade:duration={c:.3f}:offset={offset:.3f}[{ov}];")
-        lines.append(f"[{prev_a}][a{i}]acrossfade=d={c:.3f}[{oa}]" + (";" if not last else ""))
+        lines.append(f"[{prev_v}][v{i}]xfade=transition=fade:duration={c:.6f}:offset={offset:.6f}[{ov}];")
+        lines.append(f"[{prev_a}][a{i}]acrossfade=d={c:.6f}[{oa}]" + (";" if not last else ""))
         prev_v, prev_a, length = ov, oa, length + durs[i] - c
     return lines
 

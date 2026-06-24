@@ -71,6 +71,11 @@ defaults via `Preset.parameters()` (built from `EngineConfig.defaults`).
   zero-crossing there is only *near*-zero at the source's 48 kHz. With the Phase-1
   fade this is already inaudible, but snapping against the source audio directly
   would be exact.
+- **Cut-position precision.** The filtergraph formats all times with `%.6f`
+  (microseconds), not milliseconds — ms rounding would re-round the zero-crossing
+  snap away and let absolute cut positions drift. Video and audio are trimmed at the
+  *same* timestamps, so there is no A/V *desync* (no lip-sync error); the only
+  residual is absolute cut position, now sub-microsecond.
 - **Consider a small default crossfade.** If user feedback says hard jump-cuts
   still feel abrupt even without clicks, a tiny default `crossfade_ms` (~40–60 ms)
   would soften the picture too — but measure first; dissolves change the look.
