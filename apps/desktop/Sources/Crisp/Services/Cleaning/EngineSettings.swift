@@ -97,9 +97,11 @@ final class EngineSettings {
         silenceFloorDB = cfg.silenceFloorDB
         breathingRoom = cfg.breathingRoom
         minKeep = cfg.minKeep
-        fadeMs = cfg.fadeMs
-        crossfadeMs = cfg.crossfadeMs
-        snapMs = cfg.snapMs
+        // Clamp persisted smoothing values to the Settings slider bounds, so a stale
+        // or hand-edited config can't drive the engine past the UI limits.
+        fadeMs = min(max(cfg.fadeMs, 0), 50)
+        crossfadeMs = min(max(cfg.crossfadeMs, 0), 500)
+        snapMs = min(max(cfg.snapMs, 0), 30)
         videoCodec = cfg.videoCodec
         hardwareEncoding = cfg.hardwareEncoding
         videoQuality = cfg.videoQuality

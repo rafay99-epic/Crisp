@@ -102,7 +102,7 @@ struct SettingsView: View {
                      unit: "ms", range: 0...50, step: 1, decimals: 0), $settings.fadeMs)
             row(Knob(title: "Crossfade", help: "Dissolve between segments instead of a hard cut. 0 keeps hard cuts.",
                      unit: "ms", range: 0...500, step: 10, decimals: 0), $settings.crossfadeMs)
-            row(Knob(title: "Snap to silence", help: "Nudge each cut onto a silent point in the waveform. 0 turns it off.",
+            row(Knob(title: "Snap to zero-crossing", help: "Nudge each cut onto a nearby point where the audio waveform crosses zero, for a cleaner splice. 0 turns it off.",
                      unit: "ms", range: 0...30, step: 1, decimals: 0), $settings.snapMs)
         } header: {
             Text("Cut smoothing")

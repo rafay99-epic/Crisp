@@ -9,8 +9,8 @@ from .config import (
     DEFAULT_NOISE_DB, DEFAULT_QUALITY, DEFAULT_SNAP_MS, DEFAULT_VIDEO_CODEC, MIN_KEEP,
 )
 from .detect import detect_silences, extract_audio, filler_words, transcribe
-from .edit import (build_keep_segments, gate_fillers_by_silence, make_backup, render,
-                   snap_keep_to_zero_crossings, tag_output_source, unique_output_path)
+from .edit import (build_keep_segments, gate_fillers_by_silence, make_backup, output_duration,
+                   render, snap_keep_to_zero_crossings, tag_output_source, unique_output_path)
 from .encode import (
     audio_args, container_args, default_output_path, resolve_codecs, resolve_container, video_args,
 )
@@ -213,7 +213,9 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
                 from .waveform import waveform_summary
                 wave_summary = waveform_summary(wav, duration, keep, waveform_buckets)
 
-    kept_dur = sum(e - s for s, e in keep)
+    # Effective output length: a crossfade overlaps each join, so the reported
+    # new/saved seconds match the file render() actually writes (not the raw sum).
+    kept_dur = output_duration(keep, crossfade_ms / 1000.0)
     logger.info(f"keep {len(keep)} segments, kept {kept_dur:.2f}s, "
                 f"fillers={stats['fillers']} pauses={stats['pauses']}")
     on_log(f"Removing {stats['fillers']} filler words and {stats['pauses']} pauses.")

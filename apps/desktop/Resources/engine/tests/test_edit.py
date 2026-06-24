@@ -12,7 +12,8 @@ from pathlib import Path
 
 from crisp.edit import (
     _nearest_zero_crossing, _output_owner, build_filter_graph, build_keep_segments,
-    load_keep_segments, snap_keep_to_zero_crossings, tag_output_source, unique_output_path,
+    load_keep_segments, output_duration, snap_keep_to_zero_crossings, tag_output_source,
+    unique_output_path,
 )
 from crisp.errors import CleanError
 
@@ -242,6 +243,18 @@ class BuildFilterGraphTests(unittest.TestCase):
             build_filter_graph([], fade=0.010, crossfade=0.0)
 
 
+class OutputDurationTests(unittest.TestCase):
+    def test_no_crossfade_is_raw_sum(self):
+        self.assertAlmostEqual(output_duration([(0.0, 2.0), (3.0, 5.0), (6.0, 9.0)]), 7.0)
+
+    def test_crossfade_overlaps_each_join(self):
+        # c = min(0.1, min(2,2,3)/2) = 0.1; 2 joins → 7.0 - 2*0.1 = 6.8
+        self.assertAlmostEqual(output_duration([(0.0, 2.0), (3.0, 5.0), (6.0, 9.0)], crossfade=0.1), 6.8)
+
+    def test_single_segment_has_no_overlap(self):
+        self.assertAlmostEqual(output_duration([(0.0, 5.0)], crossfade=0.1), 5.0)
+
+
 class ZeroCrossingTests(unittest.TestCase):
     def test_finds_nearest_crossing(self):
         # Sign flips between index 4 (+) and 5 (-): the crossing is at index 5.
@@ -286,6 +299,21 @@ class SnapKeepTests(unittest.TestCase):
     def test_missing_wav_returns_keep_unchanged(self):
         keep = [(0.0, 0.5), (0.6, 1.0)]
         self.assertEqual(snap_keep_to_zero_crossings(keep, "/no/such.wav", window_s=0.012), keep)
+
+    def test_snap_end_encroaching_a_narrow_gap_never_drops_the_next_segment(self):
+        # One zero-crossing region at samples 412-414. The first segment's end (0.40)
+        # snaps forward toward it and the next segment (0.41-0.425) would collapse —
+        # the end-cap + original-fallback must keep the next segment whole.
+        samples = [100] * 800
+        for i in (412, 413, 414):
+            samples[i] = -100
+        path = self._wav(samples)
+        keep = [(0.0, 0.40), (0.41, 0.425)]
+        snapped = snap_keep_to_zero_crossings(keep, path, window_s=0.012)
+        self.assertEqual(len(snapped), 2)                       # nothing dropped
+        self.assertAlmostEqual(snapped[1][0], 0.41, places=3)   # kept its original span
+        self.assertAlmostEqual(snapped[1][1], 0.425, places=3)
+        self.assertLessEqual(snapped[0][1], snapped[1][0])      # no overlap
 
     def test_snap_never_drops_a_segment_it_would_shrink(self):
         # All +100 except samples 505-507 = -100 → zero-crossings at index 505 and 508.

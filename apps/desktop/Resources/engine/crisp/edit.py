@@ -267,21 +267,47 @@ def snap_keep_to_zero_crossings(keep, wav_path, window_s=None, logger=None):
         logger.debug(f"zero-cross snap skipped: {e}")
         return keep
 
-    # Re-validate. Snapping is only a refinement, so it must NEVER lose content: if a
-    # nudge shrank a segment below the 0.01s epsilon, fall back to that segment's
-    # ORIGINAL (un-snapped) boundaries rather than drop it. Then clamp so a nudge can't
-    # invert ordering or overlap the previous kept segment.
+    # Re-validate. Snapping is only a refinement, so it must NEVER lose content.
+    # Two guards make that airtight: (a) a snapped END can't move past the NEXT
+    # segment's original start — so a forward nudge can't eat into the next kept
+    # segment, which keeps `prev_end` <= the next segment's original start; (b) if a
+    # nudge still shrank a segment below the epsilon, fall back to its ORIGINAL span.
+    # Because of (a), that fallback's `max(orig_s, prev_end)` is always `orig_s`, so
+    # the original segment survives whole.
     out, prev_end = [], 0.0
-    for (orig_s, orig_e), (s, e) in zip(keep, snapped):
-        if e - s <= 0.01:
+    for i, ((orig_s, orig_e), (snap_s, snap_e)) in enumerate(zip(keep, snapped, strict=True)):
+        next_orig_s = keep[i + 1][0] if i + 1 < len(keep) else math.inf
+        cs = max(snap_s, prev_end)
+        ce = min(snap_e, next_orig_s)
+        if ce - cs <= 0.01:                              # snap degraded it → keep original
             logger.notice(f"zero-cross snap shrank a segment at {orig_s:.3f}s below 0.01s; "
-                          f"keeping its original boundaries (no content dropped)")
-            s, e = orig_s, orig_e
-        s = max(s, prev_end)
-        if e - s > 0.01:
-            out.append((s, e))
-            prev_end = e
+                          f"kept its original boundaries (no content dropped)")
+            cs, ce = max(orig_s, prev_end), orig_e
+        if ce - cs > 0.01:
+            out.append((cs, ce))
+            prev_end = ce
     return out or keep
+
+
+def _clamped_crossfade(durs, crossfade):
+    """The crossfade actually applied: clamped to half the shortest segment so a
+    brief sliver can't break the dissolve (0 = hard cuts). The single source of truth
+    shared by build_filter_graph (the graph), render (progress), and the pipeline
+    (duration accounting)."""
+    return min(crossfade, min(durs) * 0.5) if (crossfade > 0 and durs) else 0.0
+
+
+def output_duration(keep, crossfade=0.0):
+    """Rendered length of `keep`. With a real crossfade each of the (n-1) joins
+    overlaps by `c`, so the output is shorter than the raw sum of kept spans by
+    (n-1)*c — mirrors exactly what build_filter_graph emits, so progress and the
+    reported new/saved seconds match the actual file."""
+    durs = [e - s for s, e in keep]
+    total = sum(durs)
+    c = _clamped_crossfade(durs, crossfade)
+    if len(keep) >= 2 and c > 0.001:
+        total -= (len(keep) - 1) * c
+    return total
 
 
 def build_filter_graph(keep, fade=0.0, crossfade=0.0):
@@ -312,7 +338,7 @@ def build_filter_graph(keep, fade=0.0, crossfade=0.0):
 
     # Clamp the dissolve to the shortest segment; fall back to a hard concat if there's
     # nothing long enough to dissolve (or only one segment).
-    c = min(crossfade, min(durs) * 0.5) if (crossfade > 0 and durs) else 0.0
+    c = _clamped_crossfade(durs, crossfade)
     if c <= 0.001 or n < 2:
         labels = "".join(f"[v{i}][a{i}]" for i in range(n))
         lines.append(labels + f"concat=n={n}:v=1:a=1[outv][outa]")
@@ -335,7 +361,9 @@ def render(src, keep, out_path, on_log, on_progress, video_opts, audio_opts, mux
            fade=0.0, crossfade=0.0, logger=None):
     logger = logger or EngineLogger(None)
     on_log(f"Rendering cleaned video ({len(keep)} segments kept)...")
-    total = sum(e - s for s, e in keep) or 1.0
+    # Progress denominator = the actual output length (a crossfade shortens it by
+    # (n-1)*c), so out_time_* reaches 100% instead of stalling under it.
+    total = output_duration(keep, crossfade) or 1.0
 
     lines = build_filter_graph(keep, fade=fade, crossfade=crossfade)
 
