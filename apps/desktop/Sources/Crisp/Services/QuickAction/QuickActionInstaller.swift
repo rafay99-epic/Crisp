@@ -26,8 +26,19 @@ enum QuickActionInstaller {
         Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS/CrispClean").path
     }
 
+    /// POSIX single-quote a string for embedding in the shell command: wrap in single
+    /// quotes (which suppress *all* expansion) and rewrite any embedded `'` as `'\''`
+    /// (close, escaped quote, reopen). Defense-in-depth — the only value spliced into
+    /// the command is our own bundle path (no remote attacker controls it), but
+    /// single-quoting means even a pathological install location (a folder literally
+    /// named with `$(…)` or a backtick) can't expand. The selected files are NOT
+    /// spliced here; they arrive at runtime as separate, already-quoted `"$@"` args.
+    private static func singleQuoted(_ s: String) -> String {
+        "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
+
     static func install() {
-        let command = "\"\(cleanerPath)\" \"$@\""
+        let command = "\(singleQuoted(cleanerPath)) \"$@\""
         let contents = workflowURL.appendingPathComponent("Contents", isDirectory: true)
         let docURL = contents.appendingPathComponent("document.wflow")
         let infoURL = contents.appendingPathComponent("Info.plist")
