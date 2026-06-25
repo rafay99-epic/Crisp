@@ -232,6 +232,38 @@ v0.0.11**; validate on real footage (esp. music) before publishing.
 
 ---
 
+## 6f. The actual goal (north star) — 2026-06-25
+
+In the user's words: make the model **better at detecting "um / uh / hmm" and all
+their variants in the audio**, and move beyond a simple acoustic yes/no to being
+**aware of human language and context** — knowing *when* a hesitation is removable,
+not just whether a sound resembles a filler. The model is already fast enough; the
+need is **accuracy on the filler vocabulary + language/context awareness.**
+
+**This reframes the recent effort.** v0.0.10 hard negatives, Tier-A, and v3
+synthetic negatives all chased **precision on non-speech (music/noise)**. But the
+user's real recordings are talking-head + room noise (fan, keyboard), **no music**,
+and the shipped model already handles those: on a real 21-min recording it cut
+**0.8%** — 24 sparse, filler-length cuts (~1/min), the fingerprint of catching real
+fillers, *not* firing on fan/keyboard. So precision-on-noise was the **wrong axis**
+for this user; the synthetic/music-negative direction is a documented dead-end here.
+
+The goal splits cleanly across the two tiers:
+- **Wren (fast, audio-only) → improve RECALL on filler variants.** Lever = more
+  varied filler **POSITIVES** (hmm / er / mm / elongations, more speakers + mics) and
+  broadening the labeled filler vocabulary — **not** more negatives. PodcastFillers
+  labels mostly Uh/Um, so the hmm/er/mm long tail is under-represented — that's the
+  gap behind "detect more variants."
+- **Raven (heavier, audio + transcript) → the only path to real "language + context
+  awareness."** A per-frame acoustic classifier is *inherently* yes/no; deciding
+  which "hmm" is load-bearing vs removable needs the **words**. "Aware of human
+  language, with context, not yes/no" = Raven, by definition.
+
+Direction: (1) for Wren, scale **filler-positive variety** (recall); (2) Raven for
+the context/language understanding.
+
+---
+
 ## 7. Quick reference
 
 - Branches: `feature/wren-backend` → PR #48 (merged into `nightly`); `feature/ml-dev-flow` = the model dev flow (channels + sideload + history).
