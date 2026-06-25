@@ -4,18 +4,19 @@ import tempfile
 from pathlib import Path
 
 from .config import (
-    DEFAULT_AUDIO_BITRATE, DEFAULT_AUDIO_CODEC, DEFAULT_BACKUP, DEFAULT_CONTAINER, DEFAULT_HARDWARE,
-    DEFAULT_KEEP_PAUSE, DEFAULT_MAX_PAUSE, DEFAULT_MODEL, DEFAULT_NOISE_DB, DEFAULT_QUALITY,
-    DEFAULT_VIDEO_CODEC, MIN_KEEP,
+    DEFAULT_AUDIO_BITRATE, DEFAULT_AUDIO_CODEC, DEFAULT_BACKUP, DEFAULT_CONTAINER, DEFAULT_CROSSFADE_MS,
+    DEFAULT_FADE_MS, DEFAULT_HARDWARE, DEFAULT_KEEP_PAUSE, DEFAULT_MAX_PAUSE, DEFAULT_MODEL,
+    DEFAULT_NOISE_DB, DEFAULT_QUALITY, DEFAULT_SNAP_MS, DEFAULT_VIDEO_CODEC, MIN_KEEP,
 )
-from .detect import detect_silences, extract_audio, transcribe
-from .edit import build_keep_segments, make_backup, render, tag_output_source, unique_output_path
+from .detect import detect_silences, extract_audio, filler_words, transcribe
+from .edit import (build_keep_segments, gate_fillers_by_silence, make_backup, output_duration,
+                   render, snap_keep_to_zero_crossings, tag_output_source, unique_output_path)
 from .encode import (
     audio_args, container_args, default_output_path, resolve_codecs, resolve_container, video_args,
 )
 from .enginelog import EngineLogger
 from .errors import CleanError
-from .tools import ffprobe_duration, which_whisper
+from .tools import ffprobe_duration, which_filler, which_whisper
 
 
 def _noop(*_a, **_k):
@@ -62,6 +63,8 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
                 container=DEFAULT_CONTAINER, remove_fillers=True, backup=DEFAULT_BACKUP,
                 backup_dir=None, out_dir=None, split_tracks=False, split_audio="match",
                 waveform_buckets=0, keep_file=None, captions="none",
+                filler_backend="whisper", filler_model=None,
+                fade_ms=DEFAULT_FADE_MS, crossfade_ms=DEFAULT_CROSSFADE_MS, snap_ms=DEFAULT_SNAP_MS,
                 on_log=None, on_progress=None, logger=None):
     """
     Clean one video. Returns a dict with results.
@@ -79,6 +82,10 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
         raise CleanError(f"File not found: {src}")
 
     model = Path(model).expanduser().resolve() if model else DEFAULT_MODEL
+    # An explicit --out path is the caller's exact choice (overwrite it). A derived
+    # path (the default <name>_cleaned.<ext>) is de-duped + tagged below so we never
+    # clobber a *different* video's cleaned file.
+    explicit_out = bool(out_path)
     if out_path:
         # An explicit output path wins; its extension picks the container.
         out_path = Path(out_path).expanduser().resolve()
@@ -95,8 +102,12 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
             except OSError as e:
                 raise CleanError(f"Couldn't use the output folder \"{out_path.parent}\". "
                                  f"Is the drive connected and writable?\n{e}")
-            # In a shared folder, don't clobber a different source's cleaned file.
-            out_path = unique_output_path(out_path, src)
+        # Don't clobber a DIFFERENT source's cleaned file (same name, different video).
+        # Re-cleaning the SAME source overwrites its own output (matched by the source
+        # xattr); a different source — or a pre-existing file we didn't make — gets
+        # _1, _2…; where xattrs aren't supported we fall back to plain dedup. Applies
+        # whether the file lands beside the source or in a chosen folder.
+        out_path = unique_output_path(out_path, src)
 
     # The container dictates which codecs are legal (e.g. WebM forces VP9 + Opus);
     # coerce now and tell the user about any swap rather than letting ffmpeg fail.
@@ -115,8 +126,11 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
     # analysis, transcription, or model — so we render exactly the approved segments.
     want_captions = captions != "none"
     need_transcript = (remove_fillers or want_captions) and not keep_file
+    # The Core ML filler classifier finds fillers but can't transcribe, so captions
+    # still need whisper — use the classifier only when captions aren't requested.
+    use_classifier = need_transcript and filler_backend == "coreml" and not want_captions
     whisper_bin = None
-    if need_transcript:
+    if need_transcript and not use_classifier:
         if not model.exists():
             raise CleanError(f"Speech model not found: {model}\nRun setup.sh to download it.")
         whisper_bin = which_whisper()
@@ -165,15 +179,28 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
             tmp = Path(tmp)
             wav = tmp / "audio.wav"
 
+            # Labels describe the CURRENT step (emitted before it) so the UI says what's
+            # happening now, not what just finished.
+            on_progress(0.05, "Reading audio…")
             extract_audio(src, wav, on_log, logger=logger)
-            on_progress(0.08, "Audio extracted")
 
+            on_progress(0.10, "Detecting pauses…")
             silences = detect_silences(wav, noise, pause, on_log, logger=logger)
-            on_progress(0.15, "Pauses detected")
 
             if need_transcript:
-                words = transcribe(whisper_bin, model, wav, tmp / "transcript",
-                                   on_log, stage(0.15, 0.58), logger=logger)
+                if use_classifier:
+                    # The fast model reports only when done, so name the step up front.
+                    on_progress(0.16, "Finding filler words…")
+                    words = filler_words(which_filler(), filler_model, wav,
+                                         on_log, stage(0.16, 0.58), logger=logger)
+                    # Keep only fillers at a pause or clearly long — don't cut
+                    # brief hesitations embedded mid-sentence (rough, removes flow).
+                    before = len(words)
+                    words = gate_fillers_by_silence(words, silences)
+                    logger.debug(f"silence-gate: kept {len(words)}/{before} fillers")
+                else:
+                    words = transcribe(whisper_bin, model, wav, tmp / "transcript",
+                                       on_log, stage(0.15, 0.58), logger=logger)
                 on_log(f"Found {len(words)} spoken words.")
             on_progress(0.58, "Planning cuts…")
 
@@ -186,6 +213,11 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
                 raise CleanError("Everything looked like silence — nothing to keep. "
                                  "Try a larger pause value.")
 
+            # Phase 3: nudge cut boundaries onto zero-crossings while the analysis WAV
+            # still exists, so the splices land where the waveform is already ~0.
+            if snap_ms > 0:
+                keep = snap_keep_to_zero_crossings(keep, wav, snap_ms / 1000.0, logger=logger)
+
             # Build the UI waveform now, while the analysis WAV still exists (it's
             # deleted when this temp dir closes). Opt-in via waveform_buckets so the
             # bare CLI / watcher don't pay for data nothing renders.
@@ -193,7 +225,9 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
                 from .waveform import waveform_summary
                 wave_summary = waveform_summary(wav, duration, keep, waveform_buckets)
 
-    kept_dur = sum(e - s for s, e in keep)
+    # Effective output length: a crossfade overlaps each join, so the reported
+    # new/saved seconds match the file render() actually writes (not the raw sum).
+    kept_dur = output_duration(keep, crossfade_ms / 1000.0)
     logger.info(f"keep {len(keep)} segments, kept {kept_dur:.2f}s, "
                 f"fillers={stats['fillers']} pauses={stats['pauses']}")
     on_log(f"Removing {stats['fillers']} filler words and {stats['pauses']} pauses.")
@@ -201,9 +235,11 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
 
     audio = audio_args(audio_codec, audio_bitrate)
     mux = container_args(container)
+    fade_s, crossfade_s = fade_ms / 1000.0, crossfade_ms / 1000.0
     try:
         render(src, keep, out_path, on_log, stage(0.60, 1.0),
-               video_args(video_codec, hardware, quality), audio, mux, logger=logger)
+               video_args(video_codec, hardware, quality), audio, mux,
+               fade=fade_s, crossfade=crossfade_s, logger=logger)
     except CleanError:
         if not hardware:
             raise
@@ -212,11 +248,13 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
         logger.notice("Hardware encoding failed — retrying in software")
         on_log("Hardware encoding failed — falling back to software encoding…")
         render(src, keep, out_path, on_log, stage(0.60, 1.0),
-               video_args(video_codec, False, quality), audio, mux, logger=logger)
+               video_args(video_codec, False, quality), audio, mux,
+               fade=fade_s, crossfade=crossfade_s, logger=logger)
 
-    if out_dir:
-        # Tag the output so a later re-clean of this same source overwrites it,
-        # while a different same-named source gets its own _N copy.
+    if not explicit_out:
+        # Tag the derived output so a later re-clean of this same source overwrites it,
+        # while a different same-named source (or a file we didn't make) gets its own
+        # _N copy. Applies beside the source and in a chosen folder alike.
         tag_output_source(out_path, src)
 
     # Optionally demux the cleaned file into separate video-only / audio-only stems

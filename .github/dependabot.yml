@@ -4,11 +4,17 @@ updates:
     directory: "/apps/desktop"
     schedule:
       interval: "weekly"
+    # nightly is the integration branch; main is the protected Stable branch that
+    # only the promotion flow writes to. Without this, Dependabot opens PRs against
+    # the default branch (main) — which the next promotion would then wipe.
+    target-branch: "nightly"
   - package-ecosystem: "bun"
     directory: "/"
     schedule:
       interval: "weekly"
+    target-branch: "nightly"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    target-branch: "nightly"

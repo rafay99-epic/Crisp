@@ -21,6 +21,11 @@ on:
   pull_request:
     types: [opened, reopened, synchronize, ready_for_review]
 
+# Only the newest trigger per PR runs; rapid pushes cancel stale in-flight ones.
+concurrency:
+  group: scarlet-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   trigger-review:
     runs-on: ubuntu-latest
@@ -30,24 +35,30 @@ jobs:
         env:
           WEBHOOK_URL: ${{ secrets.HERMES_WEBHOOK_URL }}
           WEBHOOK_SECRET: ${{ secrets.HERMES_WEBHOOK_SECRET }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           if [ -z "$WEBHOOK_URL" ]; then
             echo "HERMES_WEBHOOK_URL secret not set — skipping review trigger"
             exit 0
           fi
 
-          # Compute HMAC signature
-          PAYLOAD_BODY=$(cat "$GITHUB_EVENT_PATH")
+          if [ -z "$WEBHOOK_SECRET" ]; then
+            echo "HERMES_WEBHOOK_SECRET secret not set — skipping review trigger"
+            exit 0
+          fi
 
-          SIGNATURE=$(echo -n "$PAYLOAD_BODY" | openssl dgst -sha256 -hmac "$WEBHOOK_SECRET" -binary | xxd -p | sed 's/^/sha256=/')
+          # Sign the exact event bytes and send those same bytes, so the HMAC the
+          # Hermes server recomputes over the request body matches. xxd -p -c 256
+          # keeps the 64-char digest on one line (default wraps → a broken header).
+          SIGNATURE="sha256=$(openssl dgst -sha256 -hmac "$WEBHOOK_SECRET" -binary "$GITHUB_EVENT_PATH" | xxd -p -c 256)"
 
-          echo "Triggering review for PR #${{ github.event.pull_request.number }} in $GITHUB_REPOSITORY"
+          echo "Triggering review for PR #${PR_NUMBER} in $GITHUB_REPOSITORY"
 
           RESPONSE=$(curl -s -w "\n%{http_code}" --max-time 10 --connect-timeout 5 -X POST \
             -H "Content-Type: application/json" \
             -H "X-GitHub-Event: pull_request" \
             -H "X-Hub-Signature-256: $SIGNATURE" \
-            -d "$PAYLOAD_BODY" \
+            --data-binary @"$GITHUB_EVENT_PATH" \
             "$WEBHOOK_URL")
 
           HTTP_CODE=$(echo "$RESPONSE" | tail -1)

@@ -40,6 +40,7 @@ BIN_DIR="$(swift build -c release --arch arm64 --show-bin-path)"
 BINARY="$BIN_DIR/Crisp"
 WATCHER="$BIN_DIR/CrispWatcher"
 CLEANER="$BIN_DIR/CrispClean"
+FILLER="$BIN_DIR/crisp-filler"
 
 APP="build/$APP_NAME.app"
 rm -rf "$APP"
@@ -67,6 +68,10 @@ cp Resources/engine/clean_video.py "$APP/Contents/Resources/engine/clean_video.p
 cp -R Resources/engine/crisp "$APP/Contents/Resources/engine/crisp"
 find "$APP/Contents/Resources/engine/crisp" -name __pycache__ -type d -prune -exec rm -rf {} +
 cp -R .vendor/bin "$APP/Contents/Resources/engine/bin"
+# The on-device filler detector (swift-built, not vendored). Lives beside
+# whisper-cli in engine/bin so the engine-bin signing loop below covers it and
+# CleanEngine.bundledTool("crisp-filler") finds it.
+cp "$FILLER" "$APP/Contents/Resources/engine/bin/crisp-filler"
 
 PB=/usr/libexec/PlistBuddy
 # Version is 0.<total commit count> — 10 commits → 0.10. CI passes

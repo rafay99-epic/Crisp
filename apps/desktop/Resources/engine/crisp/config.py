@@ -46,6 +46,12 @@ DEFAULT_NOISE_DB = -30        # audio below this loudness (dB) counts as silence
 DEFAULT_KEEP_PAUSE = 0.15     # breathing room left around each cut (seconds)
 MIN_KEEP = 0.05               # drop kept fragments shorter than this (seconds)
 
+# Cut smoothing (see crisp.edit). A hard splice clicks because the audio waveform
+# jumps from one amplitude to another at the join; these three knobs soften it.
+DEFAULT_FADE_MS = 10          # audio fade-in/out on each kept segment so joins don't click (ms; 0 = off)
+DEFAULT_CROSSFADE_MS = 0      # >0 dissolves consecutive segments (matched video xfade + audio acrossfade) instead of hard cuts (ms)
+DEFAULT_SNAP_MS = 12          # snap each cut boundary to the nearest zero-crossing within ±this window (ms; 0 = off)
+
 # Re-encode settings (see crisp.encode). Default to Apple hardware HEVC: every
 # Apple-Silicon Mac (all Crisp runs on) has a HEVC media engine, so it's the fast
 # default. If a hardware encode fails (e.g. a macOS VM with no media engine) the
@@ -56,6 +62,12 @@ DEFAULT_QUALITY = "high"      # maximum | high | balanced | smaller
 DEFAULT_AUDIO_CODEC = "aac"   # aac | opus
 DEFAULT_AUDIO_BITRATE = 192   # kbps
 DEFAULT_CONTAINER = "auto"    # auto (match input) | mp4 | mkv | mov | m4v | ts | webm
+DEFAULT_FILLER_BACKEND = "whisper"  # whisper | coreml (fast on-device classifier)
+# Silence-gating for the coreml backend: only cut a detected filler if it's clearly
+# long (a deliberate "uhh") OR sits right at a pause boundary. Brief fillers embedded
+# mid-speech are kept — cutting those breaks sentences and looks rough.
+FILLER_MIN_SOLO = 0.5    # seconds: cut a non-pause filler only if at least this long
+FILLER_PAUSE_PAD = 0.2   # seconds: a filler within this of a silence edge counts as "at a pause"
 
 # The engine dir is the package's parent (…/engine/crisp → …/engine).
 HERE = Path(__file__).resolve().parent.parent

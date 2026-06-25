@@ -1,0 +1,6 @@
+# Training-only dependencies. NEVER shipped — the desktop engine stays
+# stdlib-only and only ever loads an exported Core ML artifact.
+torch>=2.2
+torchaudio>=2.2
+coremltools>=8.0
+numpy>=1.26

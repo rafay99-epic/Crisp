@@ -126,7 +126,16 @@ final class CleanModel {
     /// `modelPath` is given, the model is fetched first (progress shown in the
     /// window). The normal in-app path passes a ready `modelPath` and no
     /// provisioner, so this step is skipped.
+    /// Filler-model id to record anonymous feedback under for this batch, or nil to
+    /// record nothing (the opt-in is off). Frozen for the whole run in `start`.
+    private var activeFeedbackModelID: String?
+    /// Resolved filler-model path for this batch (coreml backend), or nil for whisper.
+    /// Frozen in `start` so it doesn't need threading through drain/runOne/cleanOne.
+    private var activeFillerModelPath: String?
+
     func start(modelPath: String?,
+               fillerModelPath: String? = nil,
+               feedbackModelID: String? = nil,
                concurrency: Int = 1,
                resolveParameters: (QueueItem) -> CleanParameters,
                provisioner: ModelProvisioner? = nil) async {
@@ -140,6 +149,18 @@ final class CleanModel {
         // filler/model choice are all snapshotted now, so flipping a control
         // afterward can't change files that are already in flight.
         let fillers = removeFillers
+        let fillerModel = fillers ? fillerModelPath : nil   // coreml backend when present
+        activeFillerModelPath = fillerModel
+        activeFeedbackModelID = fillerModel != nil ? feedbackModelID : nil   // record only classifier cleans
+        // Record the filler backend up front, so the log says which model this clean used.
+        let cleanLog = AppInfo.logger("clean")
+        if !fillers {
+            cleanLog.info("filler removal: off")
+        } else if let fm = fillerModel {
+            cleanLog.info("filler backend: on-device model @ \(fm, privacy: .public)")
+        } else {
+            cleanLog.info("filler backend: whisper @ \(modelPath ?? "(none)", privacy: .public)")
+        }
         var params: [QueueItem.ID: CleanParameters] = [:]
         for item in waiting { params[item.id] = resolveParameters(item) }
         let waitingIDs = waiting.map(\.id)
@@ -214,7 +235,7 @@ final class CleanModel {
     /// the rest of the batch continue.
     private func runOne(id: QueueItem.ID, modelPath: String?,
                         removeFillers: Bool, parameters: CleanParameters) async {
-        update(id) { $0.status = .running; $0.progress = 0 }
+        update(id) { $0.status = .running; $0.progress = 0; $0.stage = "Starting…" }
         updateRunningStatus()
         do {
             let result = try await cleanOne(id: id, modelPath: modelPath,
@@ -249,20 +270,34 @@ final class CleanModel {
         let keepFilePath = tempKeepURL?.path
         defer { if let tempKeepURL { try? FileManager.default.removeItem(at: tempKeepURL) } }
 
+        // Use the on-device classifier only for a normal (non-keep-file) clean that
+        // has a filler model resolved; otherwise the engine defaults to whisper.
+        let useClassifier = keepFilePath == nil && activeFillerModelPath != nil
         let options = CleanRunner.Options(modelPath: keepFilePath == nil ? modelPath : nil,
                                           removeFillers: removeFillers,
                                           backupDirectory: backupDir,
                                           waveformBuckets: keepFilePath == nil ? 120 : 0,
-                                          keepFilePath: keepFilePath)
-        return try await CleanRunner().run(input: url, parameters: parameters, options: options) { [weak self] event in
-            guard case .progress(let fraction, _) = event else { return }
+                                          keepFilePath: keepFilePath,
+                                          fillerBackend: useClassifier ? "coreml" : "whisper",
+                                          fillerModelPath: useClassifier ? activeFillerModelPath : nil)
+        let result = try await CleanRunner().run(input: url, parameters: parameters, options: options) { [weak self] event in
+            guard case .progress(let fraction, let label) = event else { return }
             Task { @MainActor in
                 // Ignore a late callback for a file that's already finished.
                 guard let self, self.isRunning,
                       self.queue.first(where: { $0.id == id })?.status == .running else { return }
-                self.update(id) { $0.progress = max(0, fraction) }
+                self.update(id) {
+                    $0.progress = max(0, fraction)
+                    if !label.isEmpty { $0.stage = label }   // keep the last stage if a tick has none
+                }
             }
         }
+        // Opt-in, anonymous, on-device: record a tiny feedback line for a classifier clean.
+        if useClassifier, let mid = activeFeedbackModelID {
+            FillerFeedback.record(modelID: mid, fillers: result.fillers,
+                                  origSeconds: result.origSeconds, savedSeconds: result.savedSeconds)
+        }
+        return result
     }
 
     /// Clean a single reviewed file with the user's hand-edited keep-list — the

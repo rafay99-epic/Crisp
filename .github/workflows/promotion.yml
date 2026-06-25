@@ -56,7 +56,7 @@ jobs:
     outputs:
       promote: ${{ steps.diff.outputs.promote }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           ref: nightly
@@ -102,7 +102,7 @@ jobs:
       run:
         working-directory: apps/desktop
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: nightly
       - name: Swift build (release config)
@@ -130,7 +130,7 @@ jobs:
       run:
         working-directory: apps/web
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: nightly
       - name: Install bun
@@ -159,7 +159,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # full history — the scripts walk every commit in main..nightly
           ref: nightly # always promote nightly's tip regardless of dispatch ref

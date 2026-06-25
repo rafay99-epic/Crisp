@@ -59,6 +59,19 @@ settings): **Stable** (`Crisp.app`), **Nightly** (`Crisp Nightly.app`), and
 **Dev** (`Crisp Dev.app`, local only). Stable and Nightly auto-update from GitHub
 Releases; Dev never does. See [`CLAUDE.md`](CLAUDE.md) for the full layout.
 
+## Research — custom models (experimental)
+
+Crisp is experimenting with its own small, **on-device** ML models for filler
+detection — a fast, opt-in alternative to running full speech-to-text. The first,
+**Wren** 🐦, is a tiny CNN trained on
+[PodcastFillers](https://podcastfillers.github.io/) that spots "um"/"uh" at ~600×
+real-time (0.94 precision on held-out speakers).
+
+All the training code, benchmarks, and a native eval dashboard live in
+**[`research/`](research/README.md)** — kept separate from the shipped app, which
+is unchanged. Trained models are published to
+**[Hugging Face](https://huggingface.co/rafay99-epic/crisp-models)**.
+
 ## License
 
 [GPL-3.0](LICENSE) · © Syntax Lab Technology / Abdul Rafay ([rafay99.com](https://rafay99.com))

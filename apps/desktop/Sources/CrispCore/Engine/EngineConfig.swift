@@ -14,6 +14,12 @@ public struct EngineConfig: Codable, Equatable, Sendable {
     public var silenceFloorDB: Double
     public var breathingRoom: Double
     public var minKeep: Double
+    // Cut smoothing (applied to every clean) — soften the splice so jump-cuts don't
+    // click. fade = per-segment audio fade in/out; crossfade > 0 dissolves segments
+    // instead of hard-cutting; snap nudges cut points onto zero-crossings. All in ms.
+    public var fadeMs: Double
+    public var crossfadeMs: Double
+    public var snapMs: Double
     // Encoding
     public var videoCodec: String        // "h264" | "hevc"
     public var hardwareEncoding: Bool    // Apple VideoToolbox
@@ -58,10 +64,23 @@ public struct EngineConfig: Codable, Equatable, Sendable {
     // the default recipe without opening the main window. Opt-in; off by default so
     // it never adds a menu-bar icon a user didn't ask for.
     public var menuBarEnabled: Bool
+    // Filler model (experimental, opt-in) — a fast on-device Core ML alternative to
+    // whisper for filler detection. `fillerModelEnabled` gates the whole feature
+    // (off by default, so default behavior is unchanged); `selectedFillerModelID`
+    // picks which FillerModelCatalog model to download + run. App-side state like
+    // `selectedModelID`: the engine receives the resolved model path via a flag.
+    public var fillerModelEnabled: Bool
+    public var selectedFillerModelID: String
+    // Opt-in (off by default): when the on-device filler model is used, record
+    // ANONYMOUS feedback locally (model version, counts, durations — never audio,
+    // never filenames) under ~/.crisp*/feedback/, to help improve the model. Stays
+    // on-device; nothing is uploaded.
+    public var shareFillerData: Bool
 
     public static let defaults = EngineConfig(
         version: 3,
         pauseThreshold: 0.35, silenceFloorDB: -30, breathingRoom: 0.10, minKeep: 0.05,
+        fadeMs: 10, crossfadeMs: 0, snapMs: 12,
         videoCodec: "hevc", hardwareEncoding: true, videoQuality: "high",
         audioCodec: "aac", audioBitrateKbps: 192, outputContainer: "auto", outputDirectory: "",
         splitTracks: false, splitAudioFormat: "match",
@@ -70,32 +89,43 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         watchEnabled: false, watchFolderPath: "", watchRemoveFillers: true,
         presets: [], defaultPresetID: "",
         concurrencyMode: "auto", manualConcurrency: 2, perJobMemoryBudgetMB: 2048,
-        selectedModelID: ModelCatalog.defaultID, menuBarEnabled: false)
+        selectedModelID: ModelCatalog.defaultID, menuBarEnabled: false,
+        fillerModelEnabled: false, selectedFillerModelID: FillerModelCatalog.defaultID,
+        shareFillerData: false)
 
     enum CodingKeys: String, CodingKey {
         case version, pauseThreshold, silenceFloorDB, breathingRoom, minKeep
+        case fadeMs, crossfadeMs, snapMs
         case videoCodec, hardwareEncoding, videoQuality, audioCodec, audioBitrateKbps
         case outputContainer, outputDirectory, splitTracks, splitAudioFormat, captionsFormat, backupOriginal
         case watchEnabled, watchFolderPath, watchRemoveFillers
         case presets, defaultPresetID
         case concurrencyMode, manualConcurrency, perJobMemoryBudgetMB
         case selectedModelID, menuBarEnabled
+        case fillerModelEnabled, selectedFillerModelID, shareFillerData
     }
 
     public init(version: Int, pauseThreshold: Double, silenceFloorDB: Double, breathingRoom: Double,
-                minKeep: Double, videoCodec: String, hardwareEncoding: Bool, videoQuality: String,
+                minKeep: Double, fadeMs: Double = 10, crossfadeMs: Double = 0, snapMs: Double = 12,
+                videoCodec: String, hardwareEncoding: Bool, videoQuality: String,
                 audioCodec: String, audioBitrateKbps: Int, outputContainer: String, outputDirectory: String,
                 splitTracks: Bool, splitAudioFormat: String, captionsFormat: String = "none",
                 backupOriginal: Bool,
                 watchEnabled: Bool, watchFolderPath: String, watchRemoveFillers: Bool,
                 presets: [Preset], defaultPresetID: String,
                 concurrencyMode: String, manualConcurrency: Int, perJobMemoryBudgetMB: Int,
-                selectedModelID: String = ModelCatalog.defaultID, menuBarEnabled: Bool = false) {
+                selectedModelID: String = ModelCatalog.defaultID, menuBarEnabled: Bool = false,
+                fillerModelEnabled: Bool = false,
+                selectedFillerModelID: String = FillerModelCatalog.defaultID,
+                shareFillerData: Bool = false) {
         self.version = version
         self.pauseThreshold = pauseThreshold
         self.silenceFloorDB = silenceFloorDB
         self.breathingRoom = breathingRoom
         self.minKeep = minKeep
+        self.fadeMs = fadeMs
+        self.crossfadeMs = crossfadeMs
+        self.snapMs = snapMs
         self.videoCodec = videoCodec
         self.hardwareEncoding = hardwareEncoding
         self.videoQuality = videoQuality
@@ -117,6 +147,9 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         self.perJobMemoryBudgetMB = perJobMemoryBudgetMB
         self.selectedModelID = selectedModelID
         self.menuBarEnabled = menuBarEnabled
+        self.fillerModelEnabled = fillerModelEnabled
+        self.selectedFillerModelID = selectedFillerModelID
+        self.shareFillerData = shareFillerData
     }
 
     public init(from decoder: Decoder) throws {
@@ -127,6 +160,9 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         silenceFloorDB     = try c.decodeIfPresent(Double.self, forKey: .silenceFloorDB) ?? d.silenceFloorDB
         breathingRoom      = try c.decodeIfPresent(Double.self, forKey: .breathingRoom) ?? d.breathingRoom
         minKeep            = try c.decodeIfPresent(Double.self, forKey: .minKeep) ?? d.minKeep
+        fadeMs             = try c.decodeIfPresent(Double.self, forKey: .fadeMs) ?? d.fadeMs
+        crossfadeMs        = try c.decodeIfPresent(Double.self, forKey: .crossfadeMs) ?? d.crossfadeMs
+        snapMs             = try c.decodeIfPresent(Double.self, forKey: .snapMs) ?? d.snapMs
         videoCodec         = try c.decodeIfPresent(String.self, forKey: .videoCodec) ?? d.videoCodec
         hardwareEncoding   = try c.decodeIfPresent(Bool.self, forKey: .hardwareEncoding) ?? d.hardwareEncoding
         videoQuality       = try c.decodeIfPresent(String.self, forKey: .videoQuality) ?? d.videoQuality
@@ -148,6 +184,9 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         perJobMemoryBudgetMB = try c.decodeIfPresent(Int.self, forKey: .perJobMemoryBudgetMB) ?? d.perJobMemoryBudgetMB
         selectedModelID    = try c.decodeIfPresent(String.self, forKey: .selectedModelID) ?? d.selectedModelID
         menuBarEnabled     = try c.decodeIfPresent(Bool.self, forKey: .menuBarEnabled) ?? d.menuBarEnabled
+        fillerModelEnabled = try c.decodeIfPresent(Bool.self, forKey: .fillerModelEnabled) ?? d.fillerModelEnabled
+        selectedFillerModelID = try c.decodeIfPresent(String.self, forKey: .selectedFillerModelID) ?? d.selectedFillerModelID
+        shareFillerData    = try c.decodeIfPresent(Bool.self, forKey: .shareFillerData) ?? d.shareFillerData
     }
 }
 

@@ -51,14 +51,21 @@ public struct CleanRunner {
         /// `{"keep": [[start, end], ...]}` JSON. When set, the engine renders exactly
         /// those segments and skips detection/transcription/model entirely.
         public var keepFilePath: String?
+        /// Filler-detection backend: "whisper" (default) or "coreml" (the on-device
+        /// classifier). For "coreml", `fillerModelPath` is the .mlmodel to run.
+        public var fillerBackend: String
+        public var fillerModelPath: String?
         public init(modelPath: String? = nil, removeFillers: Bool,
                     backupDirectory: URL? = nil, waveformBuckets: Int = 0,
-                    keepFilePath: String? = nil) {
+                    keepFilePath: String? = nil,
+                    fillerBackend: String = "whisper", fillerModelPath: String? = nil) {
             self.modelPath = modelPath
             self.removeFillers = removeFillers
             self.backupDirectory = backupDirectory
             self.waveformBuckets = waveformBuckets
             self.keepFilePath = keepFilePath
+            self.fillerBackend = fillerBackend
+            self.fillerModelPath = fillerModelPath
         }
     }
 
@@ -87,6 +94,11 @@ public struct CleanRunner {
             "--container", parameters.outputContainer,
             "--ndjson"
         ]
+        // Cut smoothing — applied to every clean (kept out of the literal above so the
+        // Swift type-checker doesn't choke on an oversized array literal).
+        args += ["--fade-ms", String(parameters.fadeMs),
+                 "--crossfade-ms", String(parameters.crossfadeMs),
+                 "--snap-ms", String(parameters.snapMs)]
         if parameters.hardwareEncoding { args.append("--hardware") }
         if parameters.splitTracks {
             args.append("--split")
@@ -98,11 +110,22 @@ public struct CleanRunner {
         if let keepFile = options.keepFilePath {
             args += ["--keep-file", keepFile]
         } else {
-            if parameters.captionsFormat != "none" { args += ["--captions", parameters.captionsFormat] }
+            // The fast on-device filler model can't transcribe, so captions can't be
+            // produced alongside it. Settings hard-disables captions while it's on; this
+            // guards every other entry point (per-row presets, the watcher, Shortcuts) so
+            // the fast model is never silently bypassed to run whisper just for captions.
+            let usingFastFiller = options.removeFillers && options.fillerBackend == "coreml"
+                && options.fillerModelPath != nil
+            let wantCaptions = parameters.captionsFormat != "none" && !usingFastFiller
+            if wantCaptions { args += ["--captions", parameters.captionsFormat] }
             // The model is needed for the transcript — for filler removal *or* captions
             // (which re-time the same transcription onto the cut timeline).
-            let needsTranscript = options.removeFillers || parameters.captionsFormat != "none"
+            let needsTranscript = options.removeFillers || wantCaptions
             if needsTranscript, let model = options.modelPath { args += ["--model", model] }
+            // Opt-in: detect fillers with the on-device classifier instead of whisper.
+            if usingFastFiller, let fillerModel = options.fillerModelPath {
+                args += ["--filler-backend", "coreml", "--filler-model", fillerModel]
+            }
             if !options.removeFillers { args.append("--no-fillers") }
             if options.waveformBuckets > 0 { args += ["--waveform", String(options.waveformBuckets)] }
         }

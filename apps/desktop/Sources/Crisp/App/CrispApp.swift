@@ -6,6 +6,11 @@ struct CrispApp: App {
     @State private var model = CleanModel()
     @State private var updater = Updater()
     @State private var modelStore = ModelStore()
+    // The opt-in on-device filler model (Wren), downloaded separately from whisper.
+    @State private var fillerModelStore = ModelStore(spec: FillerModelCatalog.wren)
+    @State private var fillerUpdater = FillerModelUpdater()
+    // Dev build only: lists/install published model versions (the model "history").
+    @State private var fillerVersions = FillerModelVersions()
     @State private var settings = EngineSettings()
     @State private var watchAgent = WatchAgentController()
     @State private var onboarding = OnboardingController()
@@ -16,11 +21,30 @@ struct CrispApp: App {
     var body: some Scene {
         Window(Channel.current.displayName, id: "main") {
             ContentView(model: model, updater: updater, modelStore: modelStore,
+                        fillerModelStore: fillerModelStore, fillerUpdater: fillerUpdater,
                         settings: settings, watchAgent: watchAgent, onboarding: onboarding,
                         player: player, whatsNew: whatsNew)
                 .task { logLaunch() }
                 .task { updater.checkOnLaunch() }
                 .task { await modelStore.refresh() }
+                .task {
+                    if settings.fillerModelEnabled {
+                        // Apply the persisted selection (the store inits to the default),
+                        // then check disk so it's ready if already installed.
+                        fillerModelStore.use(FillerModelCatalog.spec(id: settings.selectedFillerModelID))
+                        await fillerModelStore.refresh()
+                    }
+                }
+                // When the filler model is ready: grab its config.json sibling (so the
+                // helper reads per-model values), then check Hugging Face for a newer
+                // model version (the in-app model updater).
+                .task(id: fillerModelStore.readyModelPath) {
+                    guard let path = fillerModelStore.readyModelPath else { return }
+                    await FillerModelConfig.fetchIfNeeded(modelURL: fillerModelStore.spec.url, modelPath: path)
+                    await fillerUpdater.check(
+                        baseSpec: FillerModelCatalog.spec(id: settings.selectedFillerModelID),
+                        installedVersion: FillerModelConfig.installedVersion(modelPath: path))
+                }
                 .task { QuickActionInstaller.install() }
                 .task { reconcileWatchAgent() }
                 .task { Notifier.requestAuthorization() }
@@ -47,7 +71,8 @@ struct CrispApp: App {
 
         Settings {
             SettingsView(settings: settings, updater: updater, watchAgent: watchAgent,
-                         modelStore: modelStore, model: model)
+                         modelStore: modelStore, fillerModelStore: fillerModelStore,
+                         fillerUpdater: fillerUpdater, fillerVersions: fillerVersions, model: model)
         }
 
         // A library of past cleans (every surface records to it). Opened from the

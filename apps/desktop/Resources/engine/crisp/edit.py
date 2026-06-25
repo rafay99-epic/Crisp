@@ -11,11 +11,32 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from .config import MIN_KEEP
+from .config import DEFAULT_SNAP_MS, FILLER_MIN_SOLO, FILLER_PAUSE_PAD, MIN_KEEP
 from .enginelog import EngineLogger
 from .errors import CleanError
 from .text import is_filler
 from .tools import ffmpeg_bin
+
+
+def gate_fillers_by_silence(words, silences, min_solo=FILLER_MIN_SOLO, pad=FILLER_PAUSE_PAD):
+    """Keep only the on-device classifier's fillers worth cutting.
+
+    A filler is removable if it's a clearly long, deliberate hesitation OR sits right
+    at a pause boundary (silence just before or after it). Brief fillers embedded in
+    continuous speech are dropped — cutting those mid-sentence removes natural delivery
+    and makes a rough jump-cut. Whisper fillers don't need this (it only flags sounds
+    it actually transcribes as "um"/"uh").
+    """
+    if not words or not silences:
+        return words
+    kept = []
+    for w in words:
+        long_enough = (w["end"] - w["start"]) >= min_solo
+        at_pause = any(abs(se - w["start"]) <= pad or abs(ss - w["end"]) <= pad
+                       for ss, se in silences)
+        if long_enough or at_pause:
+            kept.append(w)
+    return kept
 
 
 def make_backup(src: Path, on_log, backup_dir: Path | None = None, logger=None) -> Path:
@@ -188,17 +209,163 @@ def load_keep_segments(path, duration):
     return merged
 
 
-def render(src, keep, out_path, on_log, on_progress, video_opts, audio_opts, mux_opts=(), logger=None):
+def _nearest_zero_crossing(samples, center, max_off):
+    """Index nearest `center` (searching ±max_off) where the signal crosses zero;
+    returns `center` itself when there's no crossing in range. Pure arithmetic on a
+    sequence of signed ints, so it's unit-testable without any audio decode."""
+    n = len(samples)
+    if n == 0:
+        return center
+    center = max(0, min(n - 1, center))
+    for off in range(max_off + 1):
+        for idx in (center + off, center - off):   # expand outward, prefer the later side on ties
+            if 1 <= idx < n and (samples[idx - 1] <= 0 <= samples[idx]
+                                 or samples[idx - 1] >= 0 >= samples[idx]):
+                return idx
+    return center
+
+
+def snap_keep_to_zero_crossings(keep, wav_path, window_s=None, logger=None):
+    """Nudge each interior cut boundary in `keep` to the nearest audio zero-crossing
+    within ±`window_s` (Phase 3). Cuts placed mid-waveform are the click source; a
+    boundary that lands where the signal is already ~0 splices silently. Reads only a
+    small window around each boundary from the analysis WAV (stdlib `wave`, 16-bit mono
+    as `extract_audio` produces). Best-effort: any read problem returns `keep` unchanged
+    (the Phase-1 fade still removes the click), and clip head/tail are left alone.
+
+    `window_s` is resolved from `DEFAULT_SNAP_MS` at call time (not bound at import),
+    so a future per-model override of the default is honored."""
+    logger = logger or EngineLogger(None)
+    if window_s is None:
+        window_s = DEFAULT_SNAP_MS / 1000.0
+    if window_s <= 0 or len(keep) < 2:
+        return keep
+    import array
+    import wave
+    try:
+        with wave.open(str(wav_path), "rb") as w:
+            if w.getsampwidth() != 2 or w.getnchannels() != 1:
+                return keep
+            sr, nframes = w.getframerate(), w.getnframes()
+            win = max(1, int(window_s * sr))
+            audio_dur = nframes / sr if sr else 0.0
+
+            def snap(t):
+                if t <= window_s or t >= audio_dur - window_s:
+                    return t                       # don't trim the clip's own head/tail
+                center = int(round(t * sr))
+                lo, hi = max(0, center - win), min(nframes, center + win + 1)
+                if hi - lo < 2:
+                    return t
+                w.setpos(lo)
+                buf = array.array("h")
+                buf.frombytes(w.readframes(hi - lo))
+                return (lo + _nearest_zero_crossing(buf, center - lo, win)) / sr
+
+            snapped = [(snap(s), snap(e)) for s, e in keep]
+    except (OSError, wave.Error, ValueError, EOFError) as e:
+        logger.debug(f"zero-cross snap skipped: {e}")
+        return keep
+
+    # Re-validate. Snapping is only a refinement, so it must NEVER lose content.
+    # Two guards make that airtight: (a) a snapped END can't move past the NEXT
+    # segment's original start — so a forward nudge can't eat into the next kept
+    # segment, which keeps `prev_end` <= the next segment's original start; (b) if a
+    # nudge still shrank a segment below the epsilon, fall back to its ORIGINAL span.
+    # Because of (a), that fallback's `max(orig_s, prev_end)` is always `orig_s`, so
+    # the original segment survives whole.
+    out, prev_end = [], 0.0
+    for i, ((orig_s, orig_e), (snap_s, snap_e)) in enumerate(zip(keep, snapped, strict=True)):
+        next_orig_s = keep[i + 1][0] if i + 1 < len(keep) else math.inf
+        cs = max(snap_s, prev_end)
+        ce = min(snap_e, next_orig_s)
+        if ce - cs <= 0.01:                              # snap degraded it → keep original
+            logger.notice(f"zero-cross snap shrank a segment at {orig_s:.3f}s below 0.01s; "
+                          f"kept its original boundaries (no content dropped)")
+            cs, ce = max(orig_s, prev_end), orig_e
+        if ce - cs > 0.01:
+            out.append((cs, ce))
+            prev_end = ce
+    return out or keep
+
+
+def _clamped_crossfade(durs, crossfade):
+    """The crossfade actually applied: clamped to half the shortest segment so a
+    brief sliver can't break the dissolve (0 = hard cuts). The single source of truth
+    shared by build_filter_graph (the graph), render (progress), and the pipeline
+    (duration accounting)."""
+    return min(crossfade, min(durs) * 0.5) if (crossfade > 0 and durs) else 0.0
+
+
+def output_duration(keep, crossfade=0.0):
+    """Rendered length of `keep`. With a real crossfade each of the (n-1) joins
+    overlaps by `c`, so the output is shorter than the raw sum of kept spans by
+    (n-1)*c — mirrors exactly what build_filter_graph emits, so progress and the
+    reported new/saved seconds match the actual file."""
+    durs = [e - s for s, e in keep]
+    total = sum(durs)
+    c = _clamped_crossfade(durs, crossfade)
+    if len(keep) >= 2 and c > 0.001:
+        total -= (len(keep) - 1) * c
+    return total
+
+
+def build_filter_graph(keep, fade=0.0, crossfade=0.0):
+    """The `-filter_complex_script` lines that trim `keep` (list of (start, end) secs)
+    out of input 0 and join the pieces into `[outv][outa]`. Factored out of `render`
+    so the cut-smoothing graph is pure and unit-testable (no ffmpeg needed).
+
+    fade>0       — a short audio fade in/out on every segment so hard joins don't click.
+    crossfade>0  — dissolve consecutive segments (matched video `xfade` + audio
+                   `acrossfade`, same duration → stays in A/V sync) instead of hard
+                   cuts; overrides `fade`. Clamped to the shortest segment so a brief
+                   kept sliver can't break the dissolve.
+    """
+    if not keep:
+        raise ValueError("build_filter_graph: keep must not be empty")
+    n = len(keep)
+    durs = [e - s for s, e in keep]
+    lines = []
+    # Microsecond precision (.6f): millisecond rounding would re-round the
+    # zero-crossing snap away (8 samples at 16 kHz) and let cut positions drift.
+    for i, (s, e) in enumerate(keep):
+        lines.append(f"[0:v]trim=start={s:.6f}:end={e:.6f},setpts=PTS-STARTPTS[v{i}];")
+        a = f"[0:a]atrim=start={s:.6f}:end={e:.6f},asetpts=PTS-STARTPTS"
+        if crossfade <= 0 and fade > 0:
+            f = min(fade, durs[i] / 2)
+            a += (f",afade=t=in:st=0:d={f:.6f},afade=t=out:st={durs[i] - f:.6f}:d={f:.6f}")
+        lines.append(a + f"[a{i}];")
+
+    # Clamp the dissolve to the shortest segment; fall back to a hard concat if there's
+    # nothing long enough to dissolve (or only one segment).
+    c = _clamped_crossfade(durs, crossfade)
+    if c <= 0.001 or n < 2:
+        labels = "".join(f"[v{i}][a{i}]" for i in range(n))
+        lines.append(labels + f"concat=n={n}:v=1:a=1[outv][outa]")
+        return lines
+
+    # `length` is the accumulated output timeline so far = sum(durs[:i]) - (i-1)*c
+    # (each prior dissolve overlapped by `c`); the next xfade starts `c` before its end.
+    prev_v, prev_a, length = "v0", "a0", durs[0]
+    for i in range(1, n):
+        last = i == n - 1
+        ov, oa = ("outv", "outa") if last else (f"vx{i}", f"ax{i}")
+        offset = length - c
+        lines.append(f"[{prev_v}][v{i}]xfade=transition=fade:duration={c:.6f}:offset={offset:.6f}[{ov}];")
+        lines.append(f"[{prev_a}][a{i}]acrossfade=d={c:.6f}[{oa}]" + (";" if not last else ""))
+        prev_v, prev_a, length = ov, oa, length + durs[i] - c
+    return lines
+
+
+def render(src, keep, out_path, on_log, on_progress, video_opts, audio_opts, mux_opts=(),
+           fade=0.0, crossfade=0.0, logger=None):
     logger = logger or EngineLogger(None)
     on_log(f"Rendering cleaned video ({len(keep)} segments kept)...")
-    total = sum(e - s for s, e in keep) or 1.0
+    # Progress denominator = the actual output length (a crossfade shortens it by
+    # (n-1)*c), so out_time_* reaches 100% instead of stalling under it.
+    total = output_duration(keep, crossfade) or 1.0
 
-    lines, labels = [], []
-    for i, (s, e) in enumerate(keep):
-        lines.append(f"[0:v]trim=start={s:.3f}:end={e:.3f},setpts=PTS-STARTPTS[v{i}];")
-        lines.append(f"[0:a]atrim=start={s:.3f}:end={e:.3f},asetpts=PTS-STARTPTS[a{i}];")
-        labels.append(f"[v{i}][a{i}]")
-    lines.append("".join(labels) + f"concat=n={len(keep)}:v=1:a=1[outv][outa]")
+    lines = build_filter_graph(keep, fade=fade, crossfade=crossfade)
 
     with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False) as tf:
         tf.write("\n".join(lines))
@@ -220,7 +387,7 @@ def render(src, keep, out_path, on_log, on_progress, video_opts, audio_opts, mux
                     val = int(line.split("=")[1])
                     secs = val / 1_000_000.0  # both keys are microseconds in practice
                     frac = max(0.0, min(1.0, secs / total))
-                    on_progress(frac, f"Rendering… {int(frac * 100)}%")
+                    on_progress(frac, f"Rendering video… {int(frac * 100)}%")
                 except (IndexError, ValueError):
                     pass
         proc.wait()

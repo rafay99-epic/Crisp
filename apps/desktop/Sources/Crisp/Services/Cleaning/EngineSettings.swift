@@ -15,6 +15,10 @@ final class EngineSettings {
     var silenceFloorDB: Double { didSet { save() } }
     var breathingRoom: Double { didSet { save() } }
     var minKeep: Double { didSet { save() } }
+    // Cut smoothing (applied to every clean) — soften the splice so cuts don't click
+    var fadeMs: Double { didSet { save() } }
+    var crossfadeMs: Double { didSet { save() } }
+    var snapMs: Double { didSet { save() } }
     // Encoding (applied to every clean)
     var videoCodec: String { didSet { save() } }
     var hardwareEncoding: Bool { didSet { save() } }
@@ -43,6 +47,12 @@ final class EngineSettings {
     var selectedModelID: String { didSet { save() } }
     // Menu bar — show a quick-drop menu-bar item (opt-in)
     var menuBarEnabled: Bool { didSet { save() } }
+    // Filler model — experimental, opt-in fast on-device backend for filler
+    // detection (off by default; whisper stays the default when off)
+    var fillerModelEnabled: Bool { didSet { save() } }
+    var selectedFillerModelID: String { didSet { save() } }
+    // Opt-in: record anonymous local feedback to help improve the filler model
+    var shareFillerData: Bool { didSet { save() } }
 
     /// Whether the user arrived with a real saved configuration — a `settings.json`
     /// that differs from the defaults. Captured once at launch (so it stays stable
@@ -56,6 +66,7 @@ final class EngineSettings {
         EngineConfig(version: EngineConfig.defaults.version,
                      pauseThreshold: pauseThreshold, silenceFloorDB: silenceFloorDB,
                      breathingRoom: breathingRoom, minKeep: minKeep,
+                     fadeMs: fadeMs, crossfadeMs: crossfadeMs, snapMs: snapMs,
                      videoCodec: videoCodec, hardwareEncoding: hardwareEncoding,
                      videoQuality: videoQuality, audioCodec: audioCodec,
                      audioBitrateKbps: audioBitrateKbps, outputContainer: outputContainer,
@@ -68,7 +79,10 @@ final class EngineSettings {
                      presets: presets, defaultPresetID: defaultPresetID,
                      concurrencyMode: concurrencyMode, manualConcurrency: manualConcurrency,
                      perJobMemoryBudgetMB: perJobMemoryBudgetMB,
-                     selectedModelID: selectedModelID, menuBarEnabled: menuBarEnabled)
+                     selectedModelID: selectedModelID, menuBarEnabled: menuBarEnabled,
+                     fillerModelEnabled: fillerModelEnabled,
+                     selectedFillerModelID: selectedFillerModelID,
+                     shareFillerData: shareFillerData)
     }
 
     init() {
@@ -83,6 +97,11 @@ final class EngineSettings {
         silenceFloorDB = cfg.silenceFloorDB
         breathingRoom = cfg.breathingRoom
         minKeep = cfg.minKeep
+        // Clamp persisted smoothing values to the Settings slider bounds, so a stale
+        // or hand-edited config can't drive the engine past the UI limits.
+        fadeMs = min(max(cfg.fadeMs, 0), 50)
+        crossfadeMs = min(max(cfg.crossfadeMs, 0), 500)
+        snapMs = min(max(cfg.snapMs, 0), 30)
         videoCodec = cfg.videoCodec
         hardwareEncoding = cfg.hardwareEncoding
         videoQuality = cfg.videoQuality
@@ -109,6 +128,11 @@ final class EngineSettings {
         // Settings picker always has a valid selection (and the engine a real model).
         selectedModelID = ModelCatalog.spec(id: cfg.selectedModelID).id
         menuBarEnabled = cfg.menuBarEnabled
+        fillerModelEnabled = cfg.fillerModelEnabled
+        // Clamp a removed/unknown filler-model id to the catalog fallback, so the
+        // Settings picker always has a valid selection.
+        selectedFillerModelID = FillerModelCatalog.spec(id: cfg.selectedFillerModelID).id
+        shareFillerData = cfg.shareFillerData
         if !existed { EngineConfigStore.save(config) }  // materialize the file on first launch
     }
 
@@ -121,6 +145,9 @@ final class EngineSettings {
         silenceFloorDB = d.silenceFloorDB
         breathingRoom = d.breathingRoom
         minKeep = d.minKeep
+        fadeMs = d.fadeMs
+        crossfadeMs = d.crossfadeMs
+        snapMs = d.snapMs
         videoCodec = d.videoCodec
         hardwareEncoding = d.hardwareEncoding
         videoQuality = d.videoQuality

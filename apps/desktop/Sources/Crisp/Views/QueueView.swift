@@ -122,7 +122,17 @@ private struct QueueRow: View {
     @ViewBuilder private var secondaryLine: some View {
         switch item.status {
         case .running:
-            ProgressView(value: item.progress).controlSize(.small)
+            VStack(alignment: .leading, spacing: 3) {
+                ProgressView(value: item.progress).controlSize(.small)
+                if !item.stage.isEmpty {
+                    Text(item.stage)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .contentTransition(.numericText())
+                        .lineLimit(1)
+                        .transition(.opacity)
+                }
+            }
         case .done:
             VStack(alignment: .leading, spacing: 3) {
                 if let r = item.result, !r.peaks.isEmpty {
