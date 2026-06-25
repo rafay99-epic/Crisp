@@ -11,14 +11,19 @@ import Foundation
 /// Models live at huggingface.co/rafay99-epic/crisp-models, pinned by version tag
 /// and verified by content hash. Named after birds (Wren, then Kestrel…).
 public enum FillerModelCatalog {
-    /// Wren — the fast, lightweight model. A tiny CNN; ~0.94 precision at ~600×
-    /// real-time. English only.
+    /// Wren — the fast, lightweight model. The context-aware temporal model (v2,
+    /// `sequence`) at the current Stable version. Fast on-device, English only.
+    ///
+    /// Pinned to the version promoted to Stable on Hugging Face (`main`). When a new
+    /// model is promoted (`promote_model.py`), bump this url + sha256 + approxBytes so
+    /// FRESH installs fetch the current model directly instead of an old one + an
+    /// immediate update. (Existing installs update via the manifest regardless.)
     public static let wren = ModelSpec(
         id: "wren",
         fileName: "Wren.mlmodel",
-        url: URL(string: "https://huggingface.co/rafay99-epic/crisp-models/resolve/v0.0.8/Wren.mlmodel")!,
-        sha256: "548c8b09689eb4e2d8d2220a9be89f141c1a8f5591f81504c2f88267fa72a51d",
-        approxBytes: 94_395,
+        url: URL(string: "https://huggingface.co/rafay99-epic/crisp-models/resolve/v0.0.10/Wren.mlmodel")!,
+        sha256: "f2cacdff9165a945c47da0634e6cf847e082754094f4c2838fc90956b38a1035",
+        approxBytes: 514_188,
         displayName: "Wren",
         summary: "Fast on-device filler detection. English, experimental.",
         recommended: true)
