@@ -123,10 +123,14 @@ def tag_output_source(out_path: Path, src: Path) -> None:
     _libc.setxattr(os.fsencode(out_path), SOURCE_XATTR.encode(), value, len(value), 0, 0)
 
 
-def build_keep_segments(words, silences, duration, keep_pause, min_keep=MIN_KEEP):
-    """Return (keep, stats): list of (start, end) seconds to KEEP, plus counts."""
+def build_keep_segments(words, silences, duration, keep_pause, min_keep=MIN_KEEP, retakes=None):
+    """Return (keep, stats): list of (start, end) seconds to KEEP, plus counts.
+
+    `retakes` is an optional list of (start, end) spans for flubbed takes the speaker
+    immediately repeated (see crisp.retake) — removed wholesale alongside pauses and
+    fillers."""
     remove = []
-    stats = {"fillers": 0, "pauses": 0}
+    stats = {"fillers": 0, "pauses": 0, "retakes": 0}
 
     for s, e in silences:                       # long pauses (trim middle of silence)
         inner_s, inner_e = s + keep_pause, e - keep_pause
@@ -138,6 +142,11 @@ def build_keep_segments(words, silences, duration, keep_pause, min_keep=MIN_KEEP
         if is_filler(w["text"]):
             remove.append((w["start"], w["end"]))
             stats["fillers"] += 1
+
+    for s, e in (retakes or []):                # repeated takes (cut the first attempt)
+        if e - s > 0.01:
+            remove.append((s, e))
+            stats["retakes"] += 1
 
     cleaned = []
     for s, e in remove:

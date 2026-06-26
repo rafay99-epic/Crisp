@@ -15,6 +15,10 @@ final class CleanModel {
     var queue: [QueueItem] = []
     var strength: Strength = .aggressive
     var removeFillers = true
+    /// Remove repeated takes — a phrase you flubbed and immediately said again. Needs
+    /// the whisper transcript, so it's skipped when the fast on-device filler
+    /// classifier is the active backend (see `start`).
+    var removeRetakes = true
     /// The preset stamped onto newly added files (the user's "default for new
     /// files"); kept in sync with settings by the view. `nil` ⇒ new files use the
     /// live global strength.
@@ -150,10 +154,15 @@ final class CleanModel {
         // afterward can't change files that are already in flight.
         let fillers = removeFillers
         let fillerModel = fillers ? fillerModelPath : nil   // coreml backend when present
+        // Retakes need a whisper transcript; if the fast on-device classifier is the
+        // active filler backend, honor that speed choice and skip retake detection
+        // (rather than silently dragging the run back onto slow whisper).
+        let retakes = removeRetakes && fillerModel == nil
         activeFillerModelPath = fillerModel
         activeFeedbackModelID = fillerModel != nil ? feedbackModelID : nil   // record only classifier cleans
         // Record the filler backend up front, so the log says which model this clean used.
         let cleanLog = AppInfo.logger("clean")
+        cleanLog.info("retake removal: \(retakes ? "on" : "off", privacy: .public)")
         if !fillers {
             cleanLog.info("filler removal: off")
         } else if let fm = fillerModel {
@@ -166,16 +175,17 @@ final class CleanModel {
         let waitingIDs = waiting.map(\.id)
 
         var resolvedModel = modelPath
-        if fillers, resolvedModel == nil, let provisioner {
+        // Both filler removal (whisper backend) and retake removal need the speech
+        // model, so provision it whenever either is on.
+        if fillers || retakes, resolvedModel == nil, let provisioner {
             guard let m = await provisionModel(provisioner) else { return }
             resolvedModel = m
         }
 
-        let model = resolvedModel
+        let recipe = Recipe(modelPath: resolvedModel, removeFillers: fillers, removeRetakes: retakes)
         let lanes = max(1, concurrency)
         let work = Task { @MainActor in
-            await self.drain(waitingIDs: waitingIDs, params: params,
-                             modelPath: model, removeFillers: fillers, lanes: lanes)
+            await self.drain(waitingIDs: waitingIDs, params: params, recipe: recipe, lanes: lanes)
         }
         runTask = work
         await work.value
@@ -189,7 +199,7 @@ final class CleanModel {
     /// lane as soon as one finishes (so overflow files start automatically). With
     /// `lanes == 1` this is a plain serial pass.
     private func drain(waitingIDs: [QueueItem.ID], params: [QueueItem.ID: CleanParameters],
-                       modelPath: String?, removeFillers: Bool, lanes: Int) async {
+                       recipe: Recipe, lanes: Int) async {
         await withTaskGroup(of: Void.self) { group in
             var next = 0
             func startNext() -> Bool {
@@ -198,8 +208,7 @@ final class CleanModel {
                     next += 1
                     guard let p = params[id] else { continue }
                     group.addTask { @MainActor in
-                        await self.runOne(id: id, modelPath: modelPath,
-                                          removeFillers: removeFillers, parameters: p)
+                        await self.runOne(id: id, recipe: recipe, parameters: p)
                     }
                     return true
                 }
@@ -230,16 +239,23 @@ final class CleanModel {
 
     // MARK: - One file
 
+    /// The run-wide detection recipe, snapshotted in `start` so flipping a control
+    /// mid-batch can't change files already in flight. The encoder/backup/caption
+    /// choices travel per file in `CleanParameters`; this is just what detection runs.
+    private struct Recipe {
+        let modelPath: String?
+        let removeFillers: Bool
+        let removeRetakes: Bool
+    }
+
     /// Clean a single queued file end to end, moving it through running →
     /// done/failed/cancelled. A single file failing marks just that item and lets
     /// the rest of the batch continue.
-    private func runOne(id: QueueItem.ID, modelPath: String?,
-                        removeFillers: Bool, parameters: CleanParameters) async {
+    private func runOne(id: QueueItem.ID, recipe: Recipe, parameters: CleanParameters) async {
         update(id) { $0.status = .running; $0.progress = 0; $0.stage = "Starting…" }
         updateRunningStatus()
         do {
-            let result = try await cleanOne(id: id, modelPath: modelPath,
-                                            removeFillers: removeFillers, parameters: parameters)
+            let result = try await cleanOne(id: id, recipe: recipe, parameters: parameters)
             update(id) { $0.result = result; $0.status = .done; $0.progress = 1 }
         } catch is CancellationError {
             update(id) { $0.status = .cancelled }
@@ -253,8 +269,8 @@ final class CleanModel {
         updateRunningStatus()
     }
 
-    private func cleanOne(id: QueueItem.ID, modelPath: String?,
-                          removeFillers: Bool, parameters: CleanParameters) async throws -> CleanResult {
+    private func cleanOne(id: QueueItem.ID, recipe: Recipe,
+                          parameters: CleanParameters) async throws -> CleanResult {
         guard let item = queue.first(where: { $0.id == id }) else { throw CancellationError() }
         let url = item.url
         let backupDir = parameters.backupOriginal ? CleanRunner.backupDirectory() : nil
@@ -273,8 +289,9 @@ final class CleanModel {
         // Use the on-device classifier only for a normal (non-keep-file) clean that
         // has a filler model resolved; otherwise the engine defaults to whisper.
         let useClassifier = keepFilePath == nil && activeFillerModelPath != nil
-        let options = CleanRunner.Options(modelPath: keepFilePath == nil ? modelPath : nil,
-                                          removeFillers: removeFillers,
+        let options = CleanRunner.Options(modelPath: keepFilePath == nil ? recipe.modelPath : nil,
+                                          removeFillers: recipe.removeFillers,
+                                          removeRetakes: keepFilePath == nil && recipe.removeRetakes,
                                           backupDirectory: backupDir,
                                           waveformBuckets: keepFilePath == nil ? 120 : 0,
                                           keepFilePath: keepFilePath,
@@ -314,7 +331,8 @@ final class CleanModel {
         cancelled = false
         errorMessage = nil
         let work = Task { @MainActor in
-            await self.runOne(id: id, modelPath: nil, removeFillers: false, parameters: parameters)
+            await self.runOne(id: id, recipe: Recipe(modelPath: nil, removeFillers: false,
+                                                     removeRetakes: false), parameters: parameters)
         }
         runTask = work
         await work.value

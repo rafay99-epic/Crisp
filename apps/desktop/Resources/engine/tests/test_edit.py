@@ -66,7 +66,7 @@ class BuildKeepSegmentsTests(unittest.TestCase):
             words=[word("hello", 0.0, 1.0)], silences=[], duration=10.0,
             keep_pause=0.15, min_keep=0.05)
         self.assertEqual(keep, [(0.0, 10.0)])
-        self.assertEqual(stats, {"fillers": 0, "pauses": 0})
+        self.assertEqual(stats, {"fillers": 0, "pauses": 0, "retakes": 0})
 
     def test_single_pause_is_trimmed_with_breathing_room(self):
         # A 3–5s silence with 0.15s breathing room removes only (3.15, 4.85),
@@ -128,6 +128,15 @@ class BuildKeepSegmentsTests(unittest.TestCase):
             silences=[(3.0, 4.0)], duration=10.0, keep_pause=0.1, min_keep=0.05)
         self.assertEqual(stats["fillers"], 2)
         self.assertEqual(stats["pauses"], 1)
+        self.assertEqual(stats["retakes"], 0)
+
+    def test_retake_span_is_removed_and_counted(self):
+        # A retake span (the flubbed first take) is cut wholesale, like a pause.
+        keep, stats = build_keep_segments(
+            words=[], silences=[], duration=10.0, keep_pause=0.1, min_keep=0.05,
+            retakes=[(2.0, 4.0)])
+        self.assertEqual(keep, [(0.0, 2.0), (4.0, 10.0)])
+        self.assertEqual(stats["retakes"], 1)
 
 
 class LoadKeepSegmentsTests(unittest.TestCase):

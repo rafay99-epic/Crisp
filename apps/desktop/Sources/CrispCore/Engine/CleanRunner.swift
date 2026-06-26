@@ -22,6 +22,7 @@ public struct CleanRunner {
         var saved_seconds: Double?
         var pauses: Int?
         var fillers: Int?
+        var retakes: Int?
         var peaks: [Double]?
         var removed: [Bool]?
         var video_output: String?
@@ -43,6 +44,11 @@ public struct CleanRunner {
     public struct Options: Sendable {
         public var modelPath: String?
         public var removeFillers: Bool
+        /// Remove repeated takes: a phrase you flubbed and immediately said again, which
+        /// shows up as a repeated run of words in the transcript (see crisp.retake). On
+        /// by default; needs a whisper transcript (the on-device filler model can't
+        /// transcribe, so the engine falls back to whisper when this is on).
+        public var removeRetakes: Bool
         public var backupDirectory: URL?
         /// >0 asks the engine to emit an N-bucket waveform for the UI (the bare
         /// CLI / watcher leave it 0 so they don't pay for data nothing renders).
@@ -56,11 +62,13 @@ public struct CleanRunner {
         public var fillerBackend: String
         public var fillerModelPath: String?
         public init(modelPath: String? = nil, removeFillers: Bool,
+                    removeRetakes: Bool = true,
                     backupDirectory: URL? = nil, waveformBuckets: Int = 0,
                     keepFilePath: String? = nil,
                     fillerBackend: String = "whisper", fillerModelPath: String? = nil) {
             self.modelPath = modelPath
             self.removeFillers = removeFillers
+            self.removeRetakes = removeRetakes
             self.backupDirectory = backupDirectory
             self.waveformBuckets = waveformBuckets
             self.keepFilePath = keepFilePath
@@ -118,15 +126,19 @@ public struct CleanRunner {
                 && options.fillerModelPath != nil
             let wantCaptions = parameters.captionsFormat != "none" && !usingFastFiller
             if wantCaptions { args += ["--captions", parameters.captionsFormat] }
-            // The model is needed for the transcript — for filler removal *or* captions
-            // (which re-time the same transcription onto the cut timeline).
-            let needsTranscript = options.removeFillers || wantCaptions
+            // The model is needed for the transcript — for filler removal, captions
+            // (which re-time the same transcription onto the cut timeline), *or* retake
+            // detection (which matches repeated runs in that transcript).
+            let needsTranscript = options.removeFillers || wantCaptions || options.removeRetakes
             if needsTranscript, let model = options.modelPath { args += ["--model", model] }
             // Opt-in: detect fillers with the on-device classifier instead of whisper.
+            // (Retake removal needs a real transcript, so the engine ignores the
+            // classifier and runs whisper when --no-retakes isn't passed.)
             if usingFastFiller, let fillerModel = options.fillerModelPath {
                 args += ["--filler-backend", "coreml", "--filler-model", fillerModel]
             }
             if !options.removeFillers { args.append("--no-fillers") }
+            if !options.removeRetakes { args.append("--no-retakes") }
             if options.waveformBuckets > 0 { args += ["--waveform", String(options.waveformBuckets)] }
         }
         if let dir = options.backupDirectory {
@@ -155,7 +167,7 @@ public struct CleanRunner {
         proc.standardOutput = outPipe
         proc.standardError = errPipe
 
-        Self.log.info("Clean start: \(input.lastPathComponent) [\(parameters.videoCodec)/\(parameters.audioCodec) q=\(parameters.videoQuality) hw=\(parameters.hardwareEncoding) fillers=\(options.removeFillers)]")
+        Self.log.info("Clean start: \(input.lastPathComponent) [\(parameters.videoCodec)/\(parameters.audioCodec) q=\(parameters.videoQuality) hw=\(parameters.hardwareEncoding) fillers=\(options.removeFillers) retakes=\(options.removeRetakes)]")
 
         // Drain the engine's stderr via a readabilityHandler (NOT a second
         // `bytes.lines`): two concurrent FileHandle.AsyncBytes readers contend on a
@@ -203,6 +215,7 @@ public struct CleanRunner {
                             savedSeconds: ev.saved_seconds ?? 0,
                             pauses: ev.pauses ?? 0,
                             fillers: ev.fillers ?? 0,
+                            retakes: ev.retakes ?? 0,
                             peaks: ev.peaks ?? [],
                             removed: ev.removed ?? [],
                             videoOutput: ev.video_output ?? "",
@@ -232,7 +245,7 @@ public struct CleanRunner {
                 if proc.isRunning { proc.terminate() }
             }
             Self.logEngineStderr(stderrDrain.finish())
-            Self.log.info("Clean done: \(input.lastPathComponent) → \(URL(fileURLWithPath: result.output).lastPathComponent) (saved \(Int(result.savedSeconds))s, \(result.fillers) fillers, \(result.pauses) pauses)")
+            Self.log.info("Clean done: \(input.lastPathComponent) → \(URL(fileURLWithPath: result.output).lastPathComponent) (saved \(Int(result.savedSeconds))s, \(result.fillers) fillers, \(result.pauses) pauses, \(result.retakes) retakes)")
             // Record to History from this shared path, so the queue, watch-folder
             // agent, App Intent, and menu-bar drop all land in one timeline.
             if !result.output.isEmpty {

@@ -6,7 +6,8 @@ from pathlib import Path
 from .config import (
     DEFAULT_AUDIO_BITRATE, DEFAULT_AUDIO_CODEC, DEFAULT_BACKUP, DEFAULT_CONTAINER, DEFAULT_CROSSFADE_MS,
     DEFAULT_FADE_MS, DEFAULT_HARDWARE, DEFAULT_KEEP_PAUSE, DEFAULT_MAX_PAUSE, DEFAULT_MODEL,
-    DEFAULT_NOISE_DB, DEFAULT_QUALITY, DEFAULT_SNAP_MS, DEFAULT_VIDEO_CODEC, MIN_KEEP,
+    DEFAULT_NOISE_DB, DEFAULT_QUALITY, DEFAULT_REMOVE_RETAKES, DEFAULT_SNAP_MS, DEFAULT_VIDEO_CODEC,
+    MIN_KEEP,
 )
 from .detect import detect_silences, extract_audio, filler_words, transcribe
 from .edit import (build_keep_segments, gate_fillers_by_silence, make_backup, output_duration,
@@ -60,7 +61,8 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
                 noise=DEFAULT_NOISE_DB, keep_pause=DEFAULT_KEEP_PAUSE, min_keep=MIN_KEEP,
                 video_codec=DEFAULT_VIDEO_CODEC, hardware=DEFAULT_HARDWARE, quality=DEFAULT_QUALITY,
                 audio_codec=DEFAULT_AUDIO_CODEC, audio_bitrate=DEFAULT_AUDIO_BITRATE,
-                container=DEFAULT_CONTAINER, remove_fillers=True, backup=DEFAULT_BACKUP,
+                container=DEFAULT_CONTAINER, remove_fillers=True,
+                remove_retakes=DEFAULT_REMOVE_RETAKES, backup=DEFAULT_BACKUP,
                 backup_dir=None, out_dir=None, split_tracks=False, split_audio="match",
                 waveform_buckets=0, keep_file=None, captions="none",
                 filler_backend="whisper", filler_model=None,
@@ -117,18 +119,19 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
     logger.info(f"src={src}")
     logger.info(f"out={out_path} container={container} video={video_codec} "
                 f"audio={audio_codec} hw={hardware} quality={quality} "
-                f"remove_fillers={remove_fillers} captions={captions} "
-                f"keep_file={bool(keep_file)} backup={backup}")
+                f"remove_fillers={remove_fillers} remove_retakes={remove_retakes} "
+                f"captions={captions} keep_file={bool(keep_file)} backup={backup}")
 
     # Captions also need the transcript (and the speech model), so we transcribe
     # whenever fillers are removed OR captions are requested. But an explicit reviewed
     # keep-list (the app's edit-timeline output) bypasses detection entirely — no audio
     # analysis, transcription, or model — so we render exactly the approved segments.
     want_captions = captions != "none"
-    need_transcript = (remove_fillers or want_captions) and not keep_file
-    # The Core ML filler classifier finds fillers but can't transcribe, so captions
-    # still need whisper — use the classifier only when captions aren't requested.
-    use_classifier = need_transcript and filler_backend == "coreml" and not want_captions
+    need_transcript = (remove_fillers or want_captions or remove_retakes) and not keep_file
+    # The Core ML filler classifier finds fillers but can't transcribe, so anything that
+    # needs real words — captions or retake detection — forces the whisper path.
+    use_classifier = (need_transcript and filler_backend == "coreml"
+                      and not want_captions and not remove_retakes)
     whisper_bin = None
     if need_transcript and not use_classifier:
         if not model.exists():
@@ -171,7 +174,7 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
             cuts += 1
         if keep[-1][1] < duration - 0.01:
             cuts += 1
-        stats = {"fillers": 0, "pauses": cuts}
+        stats = {"fillers": 0, "pauses": cuts, "retakes": 0}
         on_log(f"Using {len(keep)} reviewed segment(s).")
         on_progress(0.58, "Rendering reviewed cuts…")
     else:
@@ -208,7 +211,15 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
             # for captions, every word stays in the cut plan (fillers are still
             # excluded from the caption text below).
             cut_words = words if remove_fillers else []
-            keep, stats = build_keep_segments(cut_words, silences, duration, keep_pause, min_keep)
+            # Retakes need the real transcript; the classifier doesn't produce one, so
+            # this is empty unless whisper ran (gating above forces whisper when on).
+            retakes = []
+            if remove_retakes and not use_classifier and words:
+                from .retake import detect_retakes
+                retakes = detect_retakes(words)
+                logger.debug(f"retake detection found {len(retakes)} repeated take(s)")
+            keep, stats = build_keep_segments(cut_words, silences, duration, keep_pause,
+                                              min_keep, retakes=retakes)
             if not keep:
                 raise CleanError("Everything looked like silence — nothing to keep. "
                                  "Try a larger pause value.")
@@ -229,8 +240,9 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
     # new/saved seconds match the file render() actually writes (not the raw sum).
     kept_dur = output_duration(keep, crossfade_ms / 1000.0)
     logger.info(f"keep {len(keep)} segments, kept {kept_dur:.2f}s, "
-                f"fillers={stats['fillers']} pauses={stats['pauses']}")
-    on_log(f"Removing {stats['fillers']} filler words and {stats['pauses']} pauses.")
+                f"fillers={stats['fillers']} pauses={stats['pauses']} retakes={stats['retakes']}")
+    retake_note = f", {stats['retakes']} repeated takes" if stats["retakes"] else ""
+    on_log(f"Removing {stats['fillers']} filler words and {stats['pauses']} pauses{retake_note}.")
     on_log(f"{duration:.0f}s  →  {kept_dur:.0f}s  (saved {duration - kept_dur:.0f}s)")
 
     audio = audio_args(audio_codec, audio_bitrate)
@@ -292,6 +304,7 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
         "saved_seconds": duration - kept_dur,
         "fillers": stats["fillers"],
         "pauses": stats["pauses"],
+        "retakes": stats["retakes"],
         "peaks": wave_summary["peaks"],
         "removed": wave_summary["removed"],
         "video_output": video_out,

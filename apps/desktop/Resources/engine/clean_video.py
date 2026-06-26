@@ -90,6 +90,9 @@ def main():
                    help=f"output container; 'auto' matches the input, 'webm' uses VP9+Opus "
                         f"(default {DEFAULT_CONTAINER})")
     p.add_argument("--no-fillers", action="store_true", help="only remove pauses, keep um/uh")
+    p.add_argument("--no-retakes", action="store_true",
+                   help="don't remove repeated takes (a flubbed phrase you immediately "
+                        "said again); on by default, needs a whisper transcript")
     p.add_argument("--no-backup", action="store_true",
                    help="don't copy the original aside before cutting")
     p.add_argument("--split", action="store_true",
@@ -199,6 +202,7 @@ def main():
                              video_codec=args.video_codec, hardware=args.hardware, quality=args.quality,
                              audio_codec=args.audio_codec, audio_bitrate=args.audio_bitrate,
                              container=args.container, remove_fillers=not args.no_fillers,
+                             remove_retakes=not args.no_retakes,
                              backup=not args.no_backup, backup_dir=args.backup_dir,
                              out_dir=args.out_dir, split_tracks=args.split,
                              split_audio=args.split_audio, waveform_buckets=args.waveform,

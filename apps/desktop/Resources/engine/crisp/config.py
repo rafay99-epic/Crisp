@@ -63,6 +63,17 @@ DEFAULT_AUDIO_CODEC = "aac"   # aac | opus
 DEFAULT_AUDIO_BITRATE = 192   # kbps
 DEFAULT_CONTAINER = "auto"    # auto (match input) | mp4 | mkv | mov | m4v | ts | webm
 DEFAULT_FILLER_BACKEND = "whisper"  # whisper | coreml (fast on-device classifier)
+
+# Retake removal (see crisp.retake): when you misspeak and immediately say a phrase
+# again, the first attempt is a repeated run of words in the transcript — cut it and
+# keep the corrected take. Conservative defaults so it can run automatically. Needs a
+# real whisper transcript (the coreml filler backend doesn't transcribe).
+DEFAULT_REMOVE_RETAKES = True
+RETAKE_MIN_RUN = 2          # words that must match to count as a phrase retake (full/false restart)
+RETAKE_MAX_GAP = 3.0        # seconds: a retake follows its flubbed take within this gap
+RETAKE_MAX_ABANDON = 12     # words: longest abandoned take to look across (bounds the search)
+RETAKE_STUTTER = True       # also cut a single word repeated back to back ("the the the")
+RETAKE_STUTTER_MAX_GAP = 1.0  # seconds: how close the repeated single word must be
 # Silence-gating for the coreml backend: only cut a detected filler if it's clearly
 # long (a deliberate "uhh") OR sits right at a pause boundary. Brief fillers embedded
 # mid-speech are kept — cutting those breaks sentences and looks rough.

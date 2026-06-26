@@ -418,15 +418,38 @@ final class CrispTests: XCTestCase {
 
     func testCleanRunnerArgumentsForPausesOnlyNoBackup() {
         let params = Strength.gentle.parameters(using: .defaults)
-        let opts = CleanRunner.Options(modelPath: nil, removeFillers: false, backupDirectory: nil)
+        // Pauses only: both detection passes off, so neither needs the transcript.
+        let opts = CleanRunner.Options(modelPath: nil, removeFillers: false,
+                                       removeRetakes: false, backupDirectory: nil)
         let args = CleanRunner.arguments(scriptPath: "/eng/clean_video.py",
                                          input: URL(fileURLWithPath: "/v/in.mov"),
                                          parameters: params, options: opts)
         XCTAssertTrue(args.contains("--no-fillers"))               // fillers off
+        XCTAssertTrue(args.contains("--no-retakes"))               // retakes off
         XCTAssertFalse(args.contains("--model"))                   // ⇒ no model flag
         XCTAssertTrue(args.contains("--no-backup"))                // no backup dir
         XCTAssertFalse(args.contains("--backup-dir"))
         XCTAssertFalse(args.contains("--out-dir"))                 // default ⇒ beside source
+    }
+
+    func testRetakeRemovalFlagMapping() {
+        let params = Strength.aggressive.parameters(using: .defaults)
+        // Retakes on (default) with fillers off: no --no-retakes, and the transcript
+        // model is still required (retake detection matches the whisper transcript).
+        let on = CleanRunner.Options(modelPath: "/models/ggml.bin", removeFillers: false)
+        let onArgs = CleanRunner.arguments(scriptPath: "/eng/clean_video.py",
+                                           input: URL(fileURLWithPath: "/v/in.mp4"),
+                                           parameters: params, options: on)
+        XCTAssertFalse(onArgs.contains("--no-retakes"))
+        XCTAssertEqual(valueAfter("--model", in: onArgs), "/models/ggml.bin")
+
+        // Retakes off: the flag is passed.
+        let off = CleanRunner.Options(modelPath: "/models/ggml.bin", removeFillers: true,
+                                      removeRetakes: false)
+        let offArgs = CleanRunner.arguments(scriptPath: "/eng/clean_video.py",
+                                            input: URL(fileURLWithPath: "/v/in.mp4"),
+                                            parameters: params, options: off)
+        XCTAssertTrue(offArgs.contains("--no-retakes"))
     }
 
     func testSplitFlagOnlyWhenEnabled() {

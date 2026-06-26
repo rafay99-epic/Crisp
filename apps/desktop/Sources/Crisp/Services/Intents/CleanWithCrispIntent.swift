@@ -44,9 +44,15 @@ struct CleanWithCrispIntent: AppIntent {
     @Parameter(title: "Remove filler words", default: true)
     var removeFillers: Bool
 
+    @Parameter(title: "Remove repeated takes",
+               description: "Remove a phrase you flubbed and immediately said again, keeping the corrected take.",
+               default: true)
+    var removeRetakes: Bool
+
     static var parameterSummary: some ParameterSummary {
         Summary("Clean \(\.$files) at \(\.$strength) strength") {
             \.$removeFillers
+            \.$removeRetakes
         }
     }
 
@@ -63,6 +69,7 @@ struct CleanWithCrispIntent: AppIntent {
         for url in inputs {
             let result = try await quick.clean(url, strength: strength.strength,
                                                removeFillers: removeFillers,
+                                               removeRetakes: removeRetakes,
                                                provisioner: provisioner)
             let outURL = URL(fileURLWithPath: result.output)
             outputs.append(IntentFile(fileURL: outURL))

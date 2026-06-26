@@ -9,6 +9,8 @@ public struct CleanResult: Identifiable, Sendable {
     public let savedSeconds: Double
     public let pauses: Int
     public let fillers: Int
+    /// Repeated takes removed — a flubbed phrase the speaker immediately said again.
+    public let retakes: Int
     /// Compact audio waveform for the UI: normalized peak per bucket over the
     /// original audio, and a parallel flag for whether that slice was cut. Empty
     /// unless the engine was asked for it (`--waveform N`).
@@ -26,7 +28,7 @@ public struct CleanResult: Identifiable, Sendable {
     public let backup: String
 
     public init(output: String, origSeconds: Double, newSeconds: Double,
-                savedSeconds: Double, pauses: Int, fillers: Int,
+                savedSeconds: Double, pauses: Int, fillers: Int, retakes: Int = 0,
                 peaks: [Double] = [], removed: [Bool] = [],
                 videoOutput: String = "", audioOutput: String = "",
                 srtOutput: String = "", vttOutput: String = "", backup: String = "") {
@@ -36,6 +38,7 @@ public struct CleanResult: Identifiable, Sendable {
         self.savedSeconds = savedSeconds
         self.pauses = pauses
         self.fillers = fillers
+        self.retakes = retakes
         self.peaks = peaks
         self.removed = removed
         self.videoOutput = videoOutput
@@ -49,13 +52,14 @@ public struct CleanResult: Identifiable, Sendable {
     /// pluralized, or `nil` when nothing was removed. Used in the queue row, its
     /// context menu, and (summed) the bottom bar so the phrasing stays in one place.
     public var cutsSummary: String? {
-        Self.cutsSummary(fillers: fillers, pauses: pauses)
+        Self.cutsSummary(fillers: fillers, pauses: pauses, retakes: retakes)
     }
 
-    public static func cutsSummary(fillers: Int, pauses: Int) -> String? {
+    public static func cutsSummary(fillers: Int, pauses: Int, retakes: Int = 0) -> String? {
         var parts: [String] = []
         if fillers > 0 { parts.append("\(fillers) filler\(fillers == 1 ? "" : "s")") }
         if pauses > 0 { parts.append("\(pauses) pause\(pauses == 1 ? "" : "s")") }
+        if retakes > 0 { parts.append("\(retakes) retake\(retakes == 1 ? "" : "s")") }
         return parts.isEmpty ? nil : parts.joined(separator: " \u{00B7} ")
     }
 }

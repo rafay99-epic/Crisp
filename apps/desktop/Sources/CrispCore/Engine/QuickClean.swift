@@ -17,17 +17,19 @@ public struct QuickClean {
     public func clean(_ input: URL,
                       strength: Strength,
                       removeFillers: Bool,
+                      removeRetakes: Bool = true,
                       provisioner: ModelProvisioner = .forSelectedModel(),
                       onEvent: (@Sendable (CleanRunner.Progress) -> Void)? = nil) async throws -> CleanResult {
         let config = EngineConfigStore.load()
-        // Captions are transcribed from speech, so they need the model too — bring it
-        // online whenever the run will transcribe, not only for filler removal.
-        let needsTranscript = removeFillers || config.captionsFormat != "none"
+        // Anything that reads the transcript needs the model online first: filler
+        // removal, caption export, *and* retake detection (which matches the words).
+        let needsTranscript = removeFillers || removeRetakes || config.captionsFormat != "none"
         let modelPath: String? = needsTranscript ? try await provisioner.ensureModel() : nil
         let params = strength.parameters(using: config)
         let backupDir = params.backupOriginal ? CleanRunner.backupDirectory() : nil
         let options = CleanRunner.Options(modelPath: modelPath,
                                           removeFillers: removeFillers,
+                                          removeRetakes: removeRetakes,
                                           backupDirectory: backupDir)
         return try await CleanRunner().run(input: input, parameters: params,
                                            options: options, onEvent: onEvent ?? { _ in })

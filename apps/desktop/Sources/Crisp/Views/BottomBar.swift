@@ -53,6 +53,10 @@ struct BottomBar: View {
                     }
                     Toggle("Remove fillers", isOn: $model.removeFillers)
                         .toggleStyle(.checkbox)
+                    Toggle("Remove repeated takes", isOn: $model.removeRetakes)
+                        .toggleStyle(.checkbox)
+                        .help("Remove a phrase you flubbed and immediately said again, "
+                              + "keeping the corrected take.")
                 }
                 .fixedSize()        // keep the whole recipe row on one line
                 estimateRow
@@ -112,8 +116,9 @@ struct BottomBar: View {
     private var summaryText: String {
         let fillers = model.results.reduce(0) { $0 + $1.fillers }
         let pauses = model.results.reduce(0) { $0 + $1.pauses }
+        let retakes = model.results.reduce(0) { $0 + $1.retakes }
         var line = "Cleaned \(doneCount) \u{00B7} saved \(formatTime(totalSaved))"
-        if let cuts = CleanResult.cutsSummary(fillers: fillers, pauses: pauses) {
+        if let cuts = CleanResult.cutsSummary(fillers: fillers, pauses: pauses, retakes: retakes) {
             line += " \u{00B7} \(cuts)"
         }
         return line

@@ -35,21 +35,25 @@ func notify(_ title: String, _ body: String) {
 }
 
 Task {
-    // Use fillers only if the model is already downloaded — a right-click shouldn't
-    // silently kick off a 148 MB download. Open the app once to get the model.
+    // Use fillers / retakes only if the model is already downloaded — a right-click
+    // shouldn't silently kick off a 148 MB download (both read the transcript). Open
+    // the app once to get the model.
     let provisioner = ModelProvisioner.forSelectedModel()
-    let removeFillers = await provisioner.existingVerifiedPath() != nil
+    let modelReady = await provisioner.existingVerifiedPath() != nil
+    let removeFillers = modelReady
+    let removeRetakes = modelReady
     let quick = QuickClean()
 
     notify(inputs.count == 1 ? "Cleaning \(inputs[0].lastPathComponent)…"
                              : "Cleaning \(inputs.count) videos…",
-           "Crisp is removing pauses\(removeFillers ? " and filler words" : "").")
+           "Crisp is removing pauses\(removeFillers ? ", filler words, and repeated takes" : "").")
 
     var cleaned = 0
     for input in inputs {
         do {
             let result = try await quick.clean(input, strength: .aggressive,
-                                               removeFillers: removeFillers, provisioner: provisioner)
+                                               removeFillers: removeFillers,
+                                               removeRetakes: removeRetakes, provisioner: provisioner)
             cleaned += 1
             log.info("Cleaned \(input.lastPathComponent, privacy: .public)")
             if inputs.count == 1 {

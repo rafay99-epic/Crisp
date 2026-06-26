@@ -12,13 +12,16 @@ public struct HistoryEntry: Codable, Identifiable, Sendable, Equatable {
     public let savedSeconds: Double
     public let fillers: Int
     public let pauses: Int
+    /// Repeated takes removed. Optional so history lines written before this field
+    /// still decode (treated as 0).
+    public let retakes: Int?
     /// Where the pristine original was backed up (or nil/"" when backup was off).
     /// Optional so history lines written before this field still decode.
     public let backup: String?
 
     public init(id: UUID = UUID(), date: Date, inputPath: String, outputPath: String,
                 origSeconds: Double, newSeconds: Double, savedSeconds: Double,
-                fillers: Int, pauses: Int, backup: String? = nil) {
+                fillers: Int, pauses: Int, retakes: Int? = nil, backup: String? = nil) {
         self.id = id
         self.date = date
         self.inputPath = inputPath
@@ -28,6 +31,7 @@ public struct HistoryEntry: Codable, Identifiable, Sendable, Equatable {
         self.savedSeconds = savedSeconds
         self.fillers = fillers
         self.pauses = pauses
+        self.retakes = retakes
         self.backup = backup
     }
 
@@ -36,7 +40,7 @@ public struct HistoryEntry: Codable, Identifiable, Sendable, Equatable {
         self.init(date: date, inputPath: input.path, outputPath: result.output,
                   origSeconds: result.origSeconds, newSeconds: result.newSeconds,
                   savedSeconds: result.savedSeconds, fillers: result.fillers, pauses: result.pauses,
-                  backup: result.backup.isEmpty ? nil : result.backup)
+                  retakes: result.retakes, backup: result.backup.isEmpty ? nil : result.backup)
     }
 
     public var inputURL: URL { URL(fileURLWithPath: inputPath) }
@@ -47,6 +51,8 @@ public struct HistoryEntry: Codable, Identifiable, Sendable, Equatable {
     }
     public var inputName: String { inputURL.lastPathComponent }
 
-    /// "12 fillers · 47 pauses" (or nil) — same phrasing as the result row.
-    public var cutsSummary: String? { CleanResult.cutsSummary(fillers: fillers, pauses: pauses) }
+    /// "12 fillers · 47 pauses · 3 retakes" (or nil) — same phrasing as the result row.
+    public var cutsSummary: String? {
+        CleanResult.cutsSummary(fillers: fillers, pauses: pauses, retakes: retakes ?? 0)
+    }
 }
