@@ -76,6 +76,7 @@ struct BottomBar: View {
                     }
                 }
                 .fixedSize()        // keep the whole recipe row on one line
+                if retakesUnavailable { retakeUnavailableNote }
                 estimateRow
             }
         } else {
@@ -99,6 +100,18 @@ struct BottomBar: View {
             Text("Crisp only writes a cleaned copy \u{2014} your originals are untouched.")
                 .font(.caption).foregroundStyle(.secondary).lineLimit(1)
         }
+    }
+
+    /// Visible reason the "Repeated takes" toggle is greyed out (a tooltip alone
+    /// isn't discoverable) — plus a direct link to Settings to switch models.
+    @ViewBuilder private var retakeUnavailableNote: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "info.circle").imageScale(.small)
+            Text("\u{201C}Repeated takes\u{201D} needs the speech model.")
+            SettingsLink { Text("Open Settings") }
+                .buttonStyle(.link)
+        }
+        .font(.caption).foregroundStyle(.secondary).fixedSize()
     }
 
     /// Pre-flight estimate: a button to predict the time saved before cleaning, or
