@@ -46,7 +46,7 @@ Task {
 
     notify(inputs.count == 1 ? "Cleaning \(inputs[0].lastPathComponent)…"
                              : "Cleaning \(inputs.count) videos…",
-           "Crisp is removing pauses\(removeFillers ? ", filler words, and repeated takes" : "").")
+           "Crisp is removing pauses\(removeFillers ? " and filler words" : "").")
 
     var cleaned = 0
     for input in inputs {

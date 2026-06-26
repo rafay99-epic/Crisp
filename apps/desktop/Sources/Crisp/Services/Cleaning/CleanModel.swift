@@ -177,9 +177,10 @@ final class CleanModel {
         let waitingIDs = waiting.map(\.id)
 
         var resolvedModel = modelPath
-        // Both filler removal (whisper backend) and retake removal need the speech
-        // model, so provision it whenever either is on.
-        if fillers || retakes, resolvedModel == nil, let provisioner {
+        // Provision the speech model only when whisper will actually run: retake removal
+        // always needs it, and filler removal needs it unless the Core ML classifier is
+        // doing the fillers (fillerModel != nil). A classifier-only run needs no whisper.
+        if retakes || (fillers && fillerModel == nil), resolvedModel == nil, let provisioner {
             guard let m = await provisionModel(provisioner) else { return }
             resolvedModel = m
         }

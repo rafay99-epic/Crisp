@@ -39,6 +39,7 @@ class FullRestartTests(unittest.TestCase):
                      "the", "API", "is", "fast"], breaks={3, 7})
         spans = detect_retakes(words)
         self.assertEqual(len(spans), 2)
+        self.assertAlmostEqual(spans[0][0], words[0]["start"])  # first take's onset
         self.assertAlmostEqual(spans[0][1], words[4]["start"])
         self.assertAlmostEqual(spans[1][0], words[4]["start"])
         self.assertAlmostEqual(spans[1][1], words[8]["start"])
@@ -61,7 +62,9 @@ class StutterTests(unittest.TestCase):
         words = seq(["the", "the", "the", "parser"])
         spans = detect_retakes(words, stutter=True)
         self.assertEqual(len(spans), 2)
+        self.assertAlmostEqual(spans[0][0], words[0]["start"])  # first "the" onset
         self.assertAlmostEqual(spans[0][1], words[1]["start"])
+        self.assertAlmostEqual(spans[1][0], words[1]["start"])  # second "the" onset
         self.assertAlmostEqual(spans[1][1], words[2]["start"])  # third "the" survives
 
     def test_stutter_off_by_default(self):

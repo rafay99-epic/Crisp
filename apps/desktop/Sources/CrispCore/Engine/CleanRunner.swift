@@ -47,7 +47,7 @@ public struct CleanRunner {
         /// Remove repeated takes: a phrase you flubbed and immediately said again, which
         /// shows up as a repeated run of words in the transcript (see crisp.retake). On
         /// by default; needs a whisper transcript (the on-device filler model can't
-        /// transcribe, so the engine falls back to whisper when this is on).
+        /// transcribe, so retakes are skipped when the Core ML filler backend is active).
         public var removeRetakes: Bool
         public var backupDirectory: URL?
         /// >0 asks the engine to emit an N-bucket waveform for the UI (the bare
