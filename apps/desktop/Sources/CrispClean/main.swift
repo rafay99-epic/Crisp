@@ -53,7 +53,8 @@ Task {
         do {
             let result = try await quick.clean(input, strength: .aggressive,
                                                removeFillers: removeFillers,
-                                               removeRetakes: removeRetakes, provisioner: provisioner)
+                                               removeRetakes: removeRetakes,
+                                               allowDownload: false, provisioner: provisioner)
             cleaned += 1
             log.info("Cleaned \(input.lastPathComponent, privacy: .public)")
             if inputs.count == 1 {

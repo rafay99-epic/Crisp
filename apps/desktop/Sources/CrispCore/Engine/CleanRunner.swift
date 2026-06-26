@@ -132,8 +132,9 @@ public struct CleanRunner {
             let needsTranscript = options.removeFillers || wantCaptions || options.removeRetakes
             if needsTranscript, let model = options.modelPath { args += ["--model", model] }
             // Opt-in: detect fillers with the on-device classifier instead of whisper.
-            // (Retake removal needs a real transcript, so the engine ignores the
-            // classifier and runs whisper when --no-retakes isn't passed.)
+            // Retake removal needs a real transcript the classifier can't produce, so
+            // the engine simply skips retakes on the coreml backend (the caller sends
+            // removeRetakes=false here); it never silently switches back to whisper.
             if usingFastFiller, let fillerModel = options.fillerModelPath {
                 args += ["--filler-backend", "coreml", "--filler-model", fillerModel]
             }

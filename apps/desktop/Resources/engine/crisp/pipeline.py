@@ -127,11 +127,15 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
     # keep-list (the app's edit-timeline output) bypasses detection entirely — no audio
     # analysis, transcription, or model — so we render exactly the approved segments.
     want_captions = captions != "none"
-    need_transcript = (remove_fillers or want_captions or remove_retakes) and not keep_file
-    # The Core ML filler classifier finds fillers but can't transcribe, so anything that
-    # needs real words — captions or retake detection — forces the whisper path.
-    use_classifier = (need_transcript and filler_backend == "coreml"
-                      and not want_captions and not remove_retakes)
+    # Retake detection needs a real transcript, which the Core ML classifier can't
+    # produce. Rather than silently switch a classifier run onto whisper, the engine
+    # owns the invariant: retakes are skipped whenever the classifier is the backend.
+    # (The app disables the toggle in that case; the CLI just gets pauses+fillers.)
+    do_retakes = remove_retakes and filler_backend != "coreml"
+    need_transcript = (remove_fillers or want_captions or do_retakes) and not keep_file
+    # Captions still need whisper to transcribe, so the classifier only applies when
+    # captions are off (retakes no longer force whisper — they're skipped above).
+    use_classifier = need_transcript and filler_backend == "coreml" and not want_captions
     whisper_bin = None
     if need_transcript and not use_classifier:
         if not model.exists():
@@ -211,10 +215,11 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
             # for captions, every word stays in the cut plan (fillers are still
             # excluded from the caption text below).
             cut_words = words if remove_fillers else []
-            # Retakes need the real transcript; the classifier doesn't produce one, so
-            # this is empty unless whisper ran (gating above forces whisper when on).
+            # Retakes need the real transcript; `do_retakes` is already false for the
+            # classifier backend (which produces no transcript), so this only runs when
+            # whisper supplied `words`.
             retakes = []
-            if remove_retakes and not use_classifier and words:
+            if do_retakes and words:
                 from .retake import detect_retakes
                 retakes = detect_retakes(words)
                 logger.debug(f"retake detection found {len(retakes)} repeated take(s)")

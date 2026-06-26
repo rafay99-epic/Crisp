@@ -18,9 +18,12 @@ struct BottomBar: View {
     private var pending: Int { model.waitingCount }
     private var doneCount: Int { model.doneCount }
     /// Repeated-take removal needs the speech model to transcribe, which the fast
-    /// on-device filler model can't — so the toggle is unavailable while it's on
-    /// (same reason captions are disabled, see SettingsView).
-    private var retakesUnavailable: Bool { settings.fillerModelEnabled }
+    /// on-device filler model can't — so the toggle is unavailable only when that model
+    /// is the *active* backend (filler removal on and the model enabled). With fillers
+    /// off, whisper runs and retakes are available again. Matches `CleanModel.start`.
+    private var retakesUnavailable: Bool {
+        model.removeFillers && settings.fillerModelEnabled
+    }
 
     var body: some View {
         HStack(spacing: 14) {

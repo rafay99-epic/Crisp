@@ -72,8 +72,11 @@ DEFAULT_REMOVE_RETAKES = True
 RETAKE_MIN_RUN = 2          # words that must match to count as a phrase retake (full/false restart)
 RETAKE_MAX_GAP = 3.0        # seconds: a retake follows its flubbed take within this gap
 RETAKE_MAX_ABANDON = 12     # words: longest abandoned take to look across (bounds the search)
-RETAKE_STUTTER = True       # also cut a single word repeated back to back ("the the the")
-RETAKE_STUTTER_MAX_GAP = 1.0  # seconds: how close the repeated single word must be
+# Single-word stutter ("the the the") trimming is OFF by default: a back-to-back word
+# repeat is ambiguous — intentional emphasis ("very very", "no no") looks identical to a
+# stumble, so cutting it risks deleting real speech. Opt in per-call when desired.
+RETAKE_STUTTER = False
+RETAKE_STUTTER_MAX_GAP = 1.0  # seconds: how close the repeated single word must be (when enabled)
 # Silence-gating for the coreml backend: only cut a detected filler if it's clearly
 # long (a deliberate "uhh") OR sits right at a pause boundary. Brief fillers embedded
 # mid-speech are kept — cutting those breaks sentences and looks rough.

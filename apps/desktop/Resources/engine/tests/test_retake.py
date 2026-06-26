@@ -56,16 +56,19 @@ class FalseStartTests(unittest.TestCase):
 
 
 class StutterTests(unittest.TestCase):
-    def test_single_word_stutter_keeps_the_last(self):
+    def test_single_word_stutter_keeps_the_last_when_enabled(self):
+        # Opt-in only (stutter is off by default — see test below).
         words = seq(["the", "the", "the", "parser"])
-        spans = detect_retakes(words)
+        spans = detect_retakes(words, stutter=True)
         self.assertEqual(len(spans), 2)
         self.assertAlmostEqual(spans[0][1], words[1]["start"])
         self.assertAlmostEqual(spans[1][1], words[2]["start"])  # third "the" survives
 
-    def test_stutter_can_be_disabled(self):
+    def test_stutter_off_by_default(self):
+        # A back-to-back word repeat is ambiguous (stumble vs. emphasis), so the
+        # default leaves single-word repeats alone — only ≥2-word phrases are cut.
         words = seq(["the", "the", "the", "parser"])
-        self.assertEqual(detect_retakes(words, stutter=False), [])
+        self.assertEqual(detect_retakes(words), [])
 
 
 class MustNotCutTests(unittest.TestCase):
@@ -78,6 +81,12 @@ class MustNotCutTests(unittest.TestCase):
     def test_ordinary_recurring_word_is_kept(self):
         # "the cat the dog" — one matching word, not adjacent: below min_run, no cut.
         words = seq(["the", "cat", "the", "dog"])
+        self.assertEqual(detect_retakes(words), [])
+
+    def test_intentional_emphasis_repeat_is_kept_by_default(self):
+        # "that is very very important" — emphasis, not a stumble. With stutter off by
+        # default the adjacent "very very" is preserved.
+        words = seq(["that", "is", "very", "very", "important"])
         self.assertEqual(detect_retakes(words), [])
 
     def test_no_repeats_returns_nothing(self):
