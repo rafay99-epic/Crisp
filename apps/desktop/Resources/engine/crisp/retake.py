@@ -23,9 +23,11 @@ repeats far apart survive), and the abandoned span is length-bounded so a phrase
 merely recurs later in the video is never mistaken for a retake.
 """
 
+import bisect
+
 from .config import (
-    RETAKE_MAX_ABANDON, RETAKE_MAX_GAP, RETAKE_MIN_RUN, RETAKE_STUTTER,
-    RETAKE_STUTTER_MAX_GAP,
+    RETAKE_MAX_ABANDON, RETAKE_MAX_GAP, RETAKE_MIN_RUN, RETAKE_PAUSE_PAD,
+    RETAKE_REQUIRE_PAUSE, RETAKE_STUTTER, RETAKE_STUTTER_MAX_GAP,
 )
 from .text import normalize_word
 
@@ -45,7 +47,8 @@ def _common_run(norm, i, j, n):
 
 def detect_retakes(words, *, min_run=RETAKE_MIN_RUN, max_gap=RETAKE_MAX_GAP,
                    max_abandon=RETAKE_MAX_ABANDON, stutter=RETAKE_STUTTER,
-                   stutter_max_gap=RETAKE_STUTTER_MAX_GAP):
+                   stutter_max_gap=RETAKE_STUTTER_MAX_GAP, silences=None,
+                   require_pause=RETAKE_REQUIRE_PAUSE, pause_pad=RETAKE_PAUSE_PAD):
     """Spans (start, end) seconds to REMOVE — each a flubbed take the speaker redid.
 
     `words` is the whisper transcript: a list of ``{"text", "start", "end"}`` in
@@ -60,9 +63,25 @@ def detect_retakes(words, *, min_run=RETAKE_MIN_RUN, max_gap=RETAKE_MAX_GAP,
                         that simply recurs later isn't read as a retake.
       stutter         — also catch a single repeated word said back to back…
       stutter_max_gap — …when the two are within this many seconds.
+      silences        — list of (start, end) pause spans (from silencedetect). When
+                        given with `require_pause`, the corrected take must begin right
+                        after a silence — the strongest signal that the speaker stopped
+                        and redid the line, not just repeated a phrase mid-sentence.
+      require_pause   — enforce that anchor (no-op when `silences` is None).
+      pause_pad       — how close (seconds) the retake onset must sit to a silence edge.
     """
     norm = [normalize_word(w["text"]) for w in words]
     n = len(words)
+    # Pause anchor: the corrected take begins just after a detected silence. Only
+    # applied when silence data is supplied (the bare library call may omit it).
+    anchored = require_pause and silences is not None
+    sil_ends = sorted(se for _s, se in silences) if anchored else []
+
+    def begins_after_pause(onset):
+        # Is there a silence whose END lands within ±pause_pad of this word onset?
+        k = bisect.bisect_left(sil_ends, onset - pause_pad)
+        return k < len(sil_ends) and sil_ends[k] <= onset + pause_pad
+
     spans = []
     i = 0
     while i < n:
@@ -87,7 +106,11 @@ def detect_retakes(words, *, min_run=RETAKE_MIN_RUN, max_gap=RETAKE_MAX_GAP,
                 need, limit = 1, stutter_max_gap
             else:
                 need, limit = min_run, max_gap
-            if run >= need and gap <= limit and run > best_len:
+            if run < need or gap > limit:
+                continue
+            if anchored and not begins_after_pause(words[j]["start"]):
+                continue            # no pause before the redo → not a retake
+            if run > best_len:
                 best_j, best_len = j, run
         if best_j is not None:
             spans.append((words[i]["start"], words[best_j]["start"]))

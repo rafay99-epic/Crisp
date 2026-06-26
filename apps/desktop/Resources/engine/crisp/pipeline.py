@@ -6,8 +6,8 @@ from pathlib import Path
 from .config import (
     DEFAULT_AUDIO_BITRATE, DEFAULT_AUDIO_CODEC, DEFAULT_BACKUP, DEFAULT_CONTAINER, DEFAULT_CROSSFADE_MS,
     DEFAULT_FADE_MS, DEFAULT_HARDWARE, DEFAULT_KEEP_PAUSE, DEFAULT_MAX_PAUSE, DEFAULT_MODEL,
-    DEFAULT_NOISE_DB, DEFAULT_QUALITY, DEFAULT_REMOVE_RETAKES, DEFAULT_SNAP_MS, DEFAULT_VIDEO_CODEC,
-    MIN_KEEP,
+    DEFAULT_NOISE_DB, DEFAULT_QUALITY, DEFAULT_REMOVE_RETAKES, DEFAULT_RETAKE_SENSITIVITY, DEFAULT_SNAP_MS,
+    DEFAULT_VIDEO_CODEC, MIN_KEEP, RETAKE_ANCHOR_PAUSE, RETAKE_MIN_RUN, RETAKE_SENSITIVITY_MIN_RUN,
 )
 from .detect import detect_silences, extract_audio, filler_words, transcribe
 from .edit import (build_keep_segments, gate_fillers_by_silence, make_backup, output_duration,
@@ -62,7 +62,8 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
                 video_codec=DEFAULT_VIDEO_CODEC, hardware=DEFAULT_HARDWARE, quality=DEFAULT_QUALITY,
                 audio_codec=DEFAULT_AUDIO_CODEC, audio_bitrate=DEFAULT_AUDIO_BITRATE,
                 container=DEFAULT_CONTAINER, remove_fillers=True,
-                remove_retakes=DEFAULT_REMOVE_RETAKES, backup=DEFAULT_BACKUP,
+                remove_retakes=DEFAULT_REMOVE_RETAKES,
+                retake_sensitivity=DEFAULT_RETAKE_SENSITIVITY, backup=DEFAULT_BACKUP,
                 backup_dir=None, out_dir=None, split_tracks=False, split_audio="match",
                 waveform_buckets=0, keep_file=None, captions="none",
                 filler_backend="whisper", filler_model=None,
@@ -120,6 +121,7 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
     logger.info(f"out={out_path} container={container} video={video_codec} "
                 f"audio={audio_codec} hw={hardware} quality={quality} "
                 f"remove_fillers={remove_fillers} remove_retakes={remove_retakes} "
+                f"retake_sensitivity={retake_sensitivity} "
                 f"captions={captions} keep_file={bool(keep_file)} backup={backup}")
 
     # Captions also need the transcript (and the speech model), so we transcribe
@@ -221,8 +223,16 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
             retakes = []
             if do_retakes and words:
                 from .retake import detect_retakes
-                retakes = detect_retakes(words)
-                logger.debug(f"retake detection found {len(retakes)} repeated take(s)")
+                # Anchor pauses are detected at a SHORT threshold (a redo pause is brief),
+                # separate from the cut silences above — this is what keeps detection from
+                # firing on natural mid-sentence repetition. Sensitivity sets how many
+                # matched words count as a redo.
+                min_run = RETAKE_SENSITIVITY_MIN_RUN.get(retake_sensitivity, RETAKE_MIN_RUN)
+                anchor_silences = detect_silences(wav, noise, RETAKE_ANCHOR_PAUSE,
+                                                  _noop, logger=logger)
+                retakes = detect_retakes(words, min_run=min_run, silences=anchor_silences)
+                logger.debug(f"retake detection ({retake_sensitivity}, min_run={min_run}) "
+                             f"found {len(retakes)} repeated take(s)")
             keep, stats = build_keep_segments(cut_words, silences, duration, keep_pause,
                                               min_keep, retakes=retakes)
             if not keep:

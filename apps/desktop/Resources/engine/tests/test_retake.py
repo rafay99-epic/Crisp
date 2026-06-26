@@ -29,7 +29,7 @@ class FullRestartTests(unittest.TestCase):
         # "the API is slow — the API is fast": the run "the API is" repeats, so the
         # first take (up to the corrected take's onset) is removed.
         words = seq(["the", "API", "is", "slow", "the", "API", "is", "fast"], breaks={3})
-        spans = detect_retakes(words)
+        spans = detect_retakes(words, min_run=3)
         self.assertEqual(len(spans), 1)
         self.assertAlmostEqual(spans[0][0], words[0]["start"])
         self.assertAlmostEqual(spans[0][1], words[4]["start"])  # corrected take's onset
@@ -37,7 +37,7 @@ class FullRestartTests(unittest.TestCase):
     def test_three_takes_keep_only_the_last(self):
         words = seq(["the", "API", "is", "slow", "the", "API", "is", "bad",
                      "the", "API", "is", "fast"], breaks={3, 7})
-        spans = detect_retakes(words)
+        spans = detect_retakes(words, min_run=3)
         self.assertEqual(len(spans), 2)
         self.assertAlmostEqual(spans[0][0], words[0]["start"])  # first take's onset
         self.assertAlmostEqual(spans[0][1], words[4]["start"])
@@ -50,10 +50,21 @@ class FalseStartTests(unittest.TestCase):
         # "so today we're— so today we're going to build"
         words = seq(["so", "today", "we're", "so", "today", "we're", "going", "to", "build"],
                     breaks={2})
-        spans = detect_retakes(words)
+        spans = detect_retakes(words, min_run=3)
         self.assertEqual(len(spans), 1)
         self.assertAlmostEqual(spans[0][0], words[0]["start"])
         self.assertAlmostEqual(spans[0][1], words[3]["start"])
+
+
+class SensitivityTests(unittest.TestCase):
+    def test_balanced_default_needs_four_word_run(self):
+        # The default (balanced) min_run is 4: a 3-word repeat isn't enough…
+        three = seq(["the", "API", "is", "slow", "the", "API", "is", "fast"], breaks={3})
+        self.assertEqual(detect_retakes(three), [])
+        # …a 4-word run is.
+        four = seq(["the", "API", "is", "really", "slow",
+                    "the", "API", "is", "really", "fast"], breaks={4})
+        self.assertEqual(len(detect_retakes(four)), 1)
 
 
 class StutterTests(unittest.TestCase):
@@ -99,11 +110,45 @@ class MustNotCutTests(unittest.TestCase):
     def test_spans_are_ordered_and_non_overlapping(self):
         words = seq(["the", "API", "is", "slow", "the", "API", "is", "bad",
                      "the", "API", "is", "fast"], breaks={3, 7})
-        spans = detect_retakes(words)
+        spans = detect_retakes(words, min_run=3)
         for a, b in spans:
             self.assertLess(a, b)
         for (_, e), (s, _) in zip(spans, spans[1:]):
             self.assertLessEqual(e, s)
+
+
+class PauseAnchorTests(unittest.TestCase):
+    """With silence data, the corrected take must begin right after a pause — the
+    strongest filter against natural mid-sentence repetition."""
+
+    def _words(self):
+        # "the API is slow / the API is fast" laid out continuously (no built-in gap).
+        return seq(["the", "API", "is", "slow", "the", "API", "is", "fast"])
+
+    def test_repeat_without_a_pause_is_rejected(self):
+        words = self._words()
+        # silences=[] → there is no pause anywhere, so the repeat is not a retake.
+        self.assertEqual(detect_retakes(words, min_run=3, silences=[]), [])
+
+    def test_repeat_right_after_a_pause_is_cut(self):
+        words = self._words()
+        onset = words[4]["start"]                      # the corrected take's first word
+        silences = [(words[3]["start"], onset)]        # a pause ending at that onset
+        spans = detect_retakes(words, min_run=3, silences=silences)
+        self.assertEqual(len(spans), 1)
+        self.assertAlmostEqual(spans[0][1], onset)
+
+    def test_pause_far_from_onset_does_not_anchor(self):
+        words = self._words()
+        # A silence that ends nowhere near the corrected take's onset doesn't count.
+        spans = detect_retakes(words, min_run=3, silences=[(0.0, 0.2)])
+        self.assertEqual(spans, [])
+
+    def test_silences_omitted_skips_anchoring(self):
+        # A bare call without silence data falls back to run-length only (the pipeline
+        # always supplies silences; library users may not).
+        words = self._words()
+        self.assertEqual(len(detect_retakes(words, min_run=3)), 1)
 
 
 if __name__ == "__main__":

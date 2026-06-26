@@ -69,9 +69,24 @@ DEFAULT_FILLER_BACKEND = "whisper"  # whisper | coreml (fast on-device classifie
 # keep the corrected take. Conservative defaults so it can run automatically. Needs a
 # real whisper transcript (the coreml filler backend doesn't transcribe).
 DEFAULT_REMOVE_RETAKES = True
-RETAKE_MIN_RUN = 2          # words that must match to count as a phrase retake (full/false restart)
-RETAKE_MAX_GAP = 3.0        # seconds: a retake follows its flubbed take within this gap
+# Sensitivity presets → the minimum matched-word run to treat a repeat as a redo.
+# Lower catches shorter retakes but risks cutting intentional repetition; the pause
+# anchor below keeps even "aggressive" from firing mid-sentence. The Swift UI exposes
+# these by name; tune the numbers against real retake-heavy footage.
+DEFAULT_RETAKE_SENSITIVITY = "balanced"        # gentle | balanced | aggressive
+RETAKE_SENSITIVITY_MIN_RUN = {"gentle": 5, "balanced": 4, "aggressive": 3}
+RETAKE_MIN_RUN = RETAKE_SENSITIVITY_MIN_RUN[DEFAULT_RETAKE_SENSITIVITY]  # bare-call default
+RETAKE_MAX_GAP = 2.0        # seconds: a retake follows its flubbed take within this gap
 RETAKE_MAX_ABANDON = 12     # words: longest abandoned take to look across (bounds the search)
+# A real retake is preceded by a pause (you stop, then redo). Requiring the corrected
+# take to begin right after a detected silence is the strongest filter against natural
+# mid-sentence repetition — on real footage it cut false positives ~64 → a handful.
+RETAKE_REQUIRE_PAUSE = True
+# Detect anchor pauses at this SHORT silence threshold — separate from the cut threshold
+# (DEFAULT_MAX_PAUSE) — because a redo pause is brief (~0.3s); the longer cut threshold
+# misses it entirely.
+RETAKE_ANCHOR_PAUSE = 0.3
+RETAKE_PAUSE_PAD = 0.35     # seconds: how close the retake onset must sit to a silence edge
 # Single-word stutter ("the the the") trimming is OFF by default: a back-to-back word
 # repeat is ambiguous — intentional emphasis ("very very", "no no") looks identical to a
 # stumble, so cutting it risks deleting real speech. Opt in per-call when desired.

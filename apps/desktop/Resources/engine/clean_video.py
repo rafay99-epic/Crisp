@@ -48,7 +48,8 @@ from crisp import CleanError, clean_video
 from crisp.config import (
     DEFAULT_AUDIO_BITRATE, DEFAULT_AUDIO_CODEC, DEFAULT_CONTAINER, DEFAULT_CROSSFADE_MS,
     DEFAULT_FADE_MS, DEFAULT_FILLER_BACKEND, DEFAULT_KEEP_PAUSE, DEFAULT_MAX_PAUSE, DEFAULT_MODEL,
-    DEFAULT_NOISE_DB, DEFAULT_QUALITY, DEFAULT_SNAP_MS, DEFAULT_VIDEO_CODEC, MIN_KEEP,
+    DEFAULT_NOISE_DB, DEFAULT_QUALITY, DEFAULT_RETAKE_SENSITIVITY, DEFAULT_SNAP_MS, DEFAULT_VIDEO_CODEC,
+    MIN_KEEP,
 )
 from crisp.encode import SUPPORTED_CONTAINERS
 from crisp.enginelog import logger_from_env
@@ -93,6 +94,11 @@ def main():
     p.add_argument("--no-retakes", action="store_true",
                    help="don't remove repeated takes (a flubbed phrase you immediately "
                         "said again); on by default, needs a whisper transcript")
+    p.add_argument("--retake-sensitivity", choices=["gentle", "balanced", "aggressive"],
+                   default=DEFAULT_RETAKE_SENSITIVITY,
+                   help=f"how eagerly to cut repeated takes: gentle (only long, "
+                        f"unmistakable redos) … aggressive (shorter redos too) "
+                        f"(default {DEFAULT_RETAKE_SENSITIVITY})")
     p.add_argument("--no-backup", action="store_true",
                    help="don't copy the original aside before cutting")
     p.add_argument("--split", action="store_true",
@@ -203,6 +209,7 @@ def main():
                              audio_codec=args.audio_codec, audio_bitrate=args.audio_bitrate,
                              container=args.container, remove_fillers=not args.no_fillers,
                              remove_retakes=not args.no_retakes,
+                             retake_sensitivity=args.retake_sensitivity,
                              backup=not args.no_backup, backup_dir=args.backup_dir,
                              out_dir=args.out_dir, split_tracks=args.split,
                              split_audio=args.split_audio, waveform_buckets=args.waveform,
