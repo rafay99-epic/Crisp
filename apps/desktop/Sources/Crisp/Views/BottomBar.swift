@@ -43,7 +43,7 @@ struct BottomBar: View {
         } else if pending > 0 {
             // There's something to clean → show the default recipe + a hint line.
             VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 14) {
+                HStack(spacing: 16) {
                     HStack(spacing: 6) {
                         Text("Cut").font(.callout).foregroundStyle(.secondary).fixedSize()
                         Picker("Cut", selection: $model.strength) {
@@ -51,12 +51,17 @@ struct BottomBar: View {
                         }
                         .labelsHidden().pickerStyle(.menu).fixedSize()
                     }
-                    Toggle("Remove fillers", isOn: $model.removeFillers)
-                        .toggleStyle(.checkbox)
-                    Toggle("Remove repeated takes", isOn: $model.removeRetakes)
-                        .toggleStyle(.checkbox)
-                        .help("Remove a phrase you flubbed and immediately said again, "
-                              + "keeping the corrected take.")
+                    // One "Remove" label shared by both toggles — compact, and avoids
+                    // repeating the verb (keeps the bar on one line in a narrow window).
+                    HStack(spacing: 10) {
+                        Text("Remove").font(.callout).foregroundStyle(.secondary).fixedSize()
+                        Toggle("Fillers", isOn: $model.removeFillers)
+                            .toggleStyle(.checkbox)
+                        Toggle("Repeated takes", isOn: $model.removeRetakes)
+                            .toggleStyle(.checkbox)
+                            .help("Remove a phrase you flubbed and immediately said again, "
+                                  + "keeping the corrected take.")
+                    }
                 }
                 .fixedSize()        // keep the whole recipe row on one line
                 estimateRow
@@ -131,7 +136,7 @@ struct BottomBar: View {
             Button(role: .cancel) { model.cancel() } label: {
                 Label("Cancel", systemImage: "xmark.circle.fill")
             }
-            .controlSize(.large).tint(.red)
+            .controlSize(.large).tint(.red).fixedSize()
             .keyboardShortcut(.cancelAction)
         } else if pending > 0 {
             Button(action: onStart) {
@@ -139,18 +144,19 @@ struct BottomBar: View {
                     .padding(.horizontal, 6)
             }
             .buttonStyle(.borderedProminent).controlSize(.large)
+            .fixedSize()        // always show the full label — never clip to "Cle…"
             .disabled(modelBlocks)
             .keyboardShortcut(.return, modifiers: .command)
         } else if !model.results.isEmpty {
             Button { model.reset() } label: { Text("Clear") }
-                .controlSize(.large)
+                .controlSize(.large).fixedSize()
             Button {
                 // Reveal every cleaned file, not just one — they may span folders.
                 let urls = model.results.filter { !$0.output.isEmpty }
                     .map { URL(fileURLWithPath: $0.output) }
                 if !urls.isEmpty { NSWorkspace.shared.activateFileViewerSelecting(urls) }
             } label: { Label("Show in Finder", systemImage: "folder") }
-            .buttonStyle(.borderedProminent).controlSize(.large)
+            .buttonStyle(.borderedProminent).controlSize(.large).fixedSize()
         }
     }
 }
