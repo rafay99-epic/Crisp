@@ -40,7 +40,7 @@ struct SettingsView: View {
 
     var body: some View {
         TabView {
-            tab { cuttingSection; smoothingSection; speechModelSection; fillerModelSection }
+            tab { cuttingSection; retakeSection; smoothingSection; speechModelSection; fillerModelSection }
                 .tabItem { Label("Cutting", systemImage: "scissors") }
 
             tab { encodingSection; captionsSection; outputLocationSection; originalsSection }
@@ -92,6 +92,22 @@ struct SettingsView: View {
             Text("Custom cutting")
         } footer: {
             Text("Applied when \u{201C}How much to cut\u{201D} is set to Custom.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder private var retakeSection: some View {
+        Section {
+            Picker("Sensitivity", selection: $settings.retakeSensitivity) {
+                ForEach(RetakeSensitivity.allCases) { Text($0.label).tag($0.rawValue) }
+            }
+            .pickerStyle(.segmented)
+            Text(RetakeSensitivity(rawValue: settings.retakeSensitivity)?.detail ?? "")
+                .font(.caption).foregroundStyle(.secondary)
+        } header: {
+            Text("Repeated takes")
+        } footer: {
+            Text("When you flub a line and immediately say it again, Crisp keeps the corrected take and cuts the first. Turn it on/off per clean with \u{201C}Remove repeated takes.\u{201D} Needs the speech model.")
                 .font(.caption).foregroundStyle(.secondary)
         }
     }

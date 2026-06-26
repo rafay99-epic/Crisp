@@ -442,14 +442,35 @@ final class CrispTests: XCTestCase {
                                            parameters: params, options: on)
         XCTAssertFalse(onArgs.contains("--no-retakes"))
         XCTAssertEqual(valueAfter("--model", in: onArgs), "/models/ggml.bin")
+        // …and the sensitivity (from config, default balanced) is forwarded.
+        XCTAssertEqual(valueAfter("--retake-sensitivity", in: onArgs), "balanced")
 
-        // Retakes off: the flag is passed.
+        // Retakes off: --no-retakes is passed and no sensitivity flag.
         let off = CleanRunner.Options(modelPath: "/models/ggml.bin", removeFillers: true,
                                       removeRetakes: false)
         let offArgs = CleanRunner.arguments(scriptPath: "/eng/clean_video.py",
                                             input: URL(fileURLWithPath: "/v/in.mp4"),
                                             parameters: params, options: off)
         XCTAssertTrue(offArgs.contains("--no-retakes"))
+        XCTAssertFalse(offArgs.contains("--retake-sensitivity"))
+    }
+
+    func testRetakeSensitivityCarriesThrough() {
+        var cfg = EngineConfig.defaults
+        cfg.retakeSensitivity = "aggressive"
+        let params = Strength.aggressive.parameters(using: cfg)
+        let opts = CleanRunner.Options(modelPath: "/models/ggml.bin", removeFillers: true)
+        let args = CleanRunner.arguments(scriptPath: "/eng/clean_video.py",
+                                         input: URL(fileURLWithPath: "/v/in.mp4"),
+                                         parameters: params, options: opts)
+        XCTAssertEqual(valueAfter("--retake-sensitivity", in: args), "aggressive")
+    }
+
+    func testRetakeSensitivityForwardCompatDefaultsToBalanced() throws {
+        // A config predating the key decodes with the balanced default.
+        let legacy = Data(#"{ "version": 3, "pauseThreshold": 0.4 }"#.utf8)
+        let cfg = try JSONDecoder().decode(EngineConfig.self, from: legacy)
+        XCTAssertEqual(cfg.retakeSensitivity, "balanced")
     }
 
     func testSplitFlagOnlyWhenEnabled() {

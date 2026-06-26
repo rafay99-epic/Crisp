@@ -37,6 +37,7 @@ public struct EngineConfig: Codable, Equatable, Sendable {
     // Captions — write re-timed subtitle sidecars (.srt/.vtt) beside the cleaned
     // video. "none" writes nothing; any other value needs the speech model.
     public var captionsFormat: String    // "none" | "srt" | "vtt" | "both"
+    public var retakeSensitivity: String // "gentle" | "balanced" | "aggressive"
     // Backup
     public var backupOriginal: Bool      // copy the source aside before cutting
     // Watch folder — auto-clean recordings dropped into a chosen folder. Driven by
@@ -85,6 +86,7 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         audioCodec: "aac", audioBitrateKbps: 192, outputContainer: "auto", outputDirectory: "",
         splitTracks: false, splitAudioFormat: "match",
         captionsFormat: "none",
+        retakeSensitivity: "balanced",
         backupOriginal: true,
         watchEnabled: false, watchFolderPath: "", watchRemoveFillers: true,
         presets: [], defaultPresetID: "",
@@ -97,7 +99,8 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         case version, pauseThreshold, silenceFloorDB, breathingRoom, minKeep
         case fadeMs, crossfadeMs, snapMs
         case videoCodec, hardwareEncoding, videoQuality, audioCodec, audioBitrateKbps
-        case outputContainer, outputDirectory, splitTracks, splitAudioFormat, captionsFormat, backupOriginal
+        case outputContainer, outputDirectory, splitTracks, splitAudioFormat, captionsFormat
+        case retakeSensitivity, backupOriginal
         case watchEnabled, watchFolderPath, watchRemoveFillers
         case presets, defaultPresetID
         case concurrencyMode, manualConcurrency, perJobMemoryBudgetMB
@@ -110,6 +113,7 @@ public struct EngineConfig: Codable, Equatable, Sendable {
                 videoCodec: String, hardwareEncoding: Bool, videoQuality: String,
                 audioCodec: String, audioBitrateKbps: Int, outputContainer: String, outputDirectory: String,
                 splitTracks: Bool, splitAudioFormat: String, captionsFormat: String = "none",
+                retakeSensitivity: String = "balanced",
                 backupOriginal: Bool,
                 watchEnabled: Bool, watchFolderPath: String, watchRemoveFillers: Bool,
                 presets: [Preset], defaultPresetID: String,
@@ -136,6 +140,7 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         self.splitTracks = splitTracks
         self.splitAudioFormat = splitAudioFormat
         self.captionsFormat = captionsFormat
+        self.retakeSensitivity = retakeSensitivity
         self.backupOriginal = backupOriginal
         self.watchEnabled = watchEnabled
         self.watchFolderPath = watchFolderPath
@@ -173,6 +178,7 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         splitTracks        = try c.decodeIfPresent(Bool.self, forKey: .splitTracks) ?? d.splitTracks
         splitAudioFormat   = try c.decodeIfPresent(String.self, forKey: .splitAudioFormat) ?? d.splitAudioFormat
         captionsFormat     = try c.decodeIfPresent(String.self, forKey: .captionsFormat) ?? d.captionsFormat
+        retakeSensitivity  = try c.decodeIfPresent(String.self, forKey: .retakeSensitivity) ?? d.retakeSensitivity
         backupOriginal     = try c.decodeIfPresent(Bool.self, forKey: .backupOriginal) ?? d.backupOriginal
         watchEnabled       = try c.decodeIfPresent(Bool.self, forKey: .watchEnabled) ?? d.watchEnabled
         watchFolderPath    = try c.decodeIfPresent(String.self, forKey: .watchFolderPath) ?? d.watchFolderPath

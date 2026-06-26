@@ -139,7 +139,11 @@ public struct CleanRunner {
                 args += ["--filler-backend", "coreml", "--filler-model", fillerModel]
             }
             if !options.removeFillers { args.append("--no-fillers") }
-            if !options.removeRetakes { args.append("--no-retakes") }
+            if options.removeRetakes {
+                args += ["--retake-sensitivity", parameters.retakeSensitivity]
+            } else {
+                args.append("--no-retakes")
+            }
             if options.waveformBuckets > 0 { args += ["--waveform", String(options.waveformBuckets)] }
         }
         if let dir = options.backupDirectory {

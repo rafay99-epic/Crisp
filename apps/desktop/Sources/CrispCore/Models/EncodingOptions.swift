@@ -82,6 +82,29 @@ public enum CaptionFormat: String, CaseIterable, Identifiable {
     public var needsTranscript: Bool { self != .none }
 }
 
+/// How eagerly to remove repeated takes (a phrase you flubbed and redid). Lower
+/// sensitivity requires a longer matched run before cutting — fewer, safer cuts;
+/// higher catches shorter redos. Each `rawValue` is the engine's `--retake-sensitivity`
+/// value. (On/off is the separate "Remove repeated takes" toggle.)
+public enum RetakeSensitivity: String, CaseIterable, Identifiable {
+    case gentle, balanced, aggressive
+    public var id: String { rawValue }
+    public var label: String {
+        switch self {
+        case .gentle:     return "Gentle"
+        case .balanced:   return "Balanced"
+        case .aggressive: return "Aggressive"
+        }
+    }
+    public var detail: String {
+        switch self {
+        case .gentle:     return "Only long, unmistakable redos. Safest — never cuts intentional repetition."
+        case .balanced:   return "The sweet spot for most recordings."
+        case .aggressive: return "Catches shorter redos too, but may cut a repeated phrase you meant."
+        }
+    }
+}
+
 /// Format for the separate audio track when "split tracks" is on. `match` copies
 /// the cleaned audio stream as-is (lossless, no re-encode — `.m4a` for AAC, Ogg
 /// `.opus` for Opus); `wav` re-encodes it to uncompressed PCM, the format most

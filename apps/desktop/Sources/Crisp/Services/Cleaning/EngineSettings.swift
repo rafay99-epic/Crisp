@@ -30,6 +30,7 @@ final class EngineSettings {
     var splitTracks: Bool { didSet { save() } }          // also write separate video/audio files
     var splitAudioFormat: String { didSet { save() } }   // "match" | "wav"
     var captionsFormat: String { didSet { save() } }     // "none" | "srt" | "vtt" | "both"
+    var retakeSensitivity: String { didSet { save() } }  // "gentle" | "balanced" | "aggressive"
     // Backup (applied to every clean)
     var backupOriginal: Bool { didSet { save() } }
     // Watch folder (drives the background agent)
@@ -73,6 +74,7 @@ final class EngineSettings {
                      outputDirectory: outputDirectory,
                      splitTracks: splitTracks, splitAudioFormat: splitAudioFormat,
                      captionsFormat: captionsFormat,
+                     retakeSensitivity: retakeSensitivity,
                      backupOriginal: backupOriginal,
                      watchEnabled: watchEnabled, watchFolderPath: watchFolderPath,
                      watchRemoveFillers: watchRemoveFillers,
@@ -115,6 +117,8 @@ final class EngineSettings {
         // always has a valid selection and the engine never gets a bogus --captions.
         captionsFormat = CaptionFormat(rawValue: cfg.captionsFormat)?.rawValue
             ?? EngineConfig.defaults.captionsFormat
+        retakeSensitivity = RetakeSensitivity(rawValue: cfg.retakeSensitivity)?.rawValue
+            ?? EngineConfig.defaults.retakeSensitivity
         backupOriginal = cfg.backupOriginal
         watchEnabled = cfg.watchEnabled
         watchFolderPath = cfg.watchFolderPath
@@ -158,6 +162,7 @@ final class EngineSettings {
         splitTracks = d.splitTracks
         splitAudioFormat = d.splitAudioFormat
         captionsFormat = d.captionsFormat
+        retakeSensitivity = d.retakeSensitivity
         backupOriginal = d.backupOriginal
     }
 
