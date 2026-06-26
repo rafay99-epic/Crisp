@@ -27,18 +27,17 @@ struct ContentView: View {
             item.status == .waiting && resolveParameters(item).captionsFormat != "none"
         }
     }
-    /// The fast on-device classifier is the active filler backend: filler removal on,
-    /// the user opted into it, and retakes are off (retakes force the whole detection
-    /// pass onto whisper, since the classifier can't transcribe). When active it
-    /// handles fillers without whisper.
+    /// The fast on-device classifier is the active filler backend (filler removal on
+    /// and the user opted into it). When active it handles fillers without whisper —
+    /// and both captions and retake removal are unavailable (they need a transcript it
+    /// can't produce).
     private var classifierActive: Bool {
-        model.removeFillers && settings.fillerModelEnabled && !model.removeRetakes
+        model.removeFillers && settings.fillerModelEnabled
     }
-    /// Whisper is needed for captions, for filler removal unless the classifier is
-    /// active, and for retake removal (which always reads the transcript).
+    /// Whisper is needed for captions and for filler/retake removal — but not when the
+    /// classifier is active (it does the fillers, and retakes are disabled then).
     private var needsWhisper: Bool {
-        (model.removeFillers && !classifierActive)
-            || model.removeRetakes
+        ((model.removeFillers || model.removeRetakes) && !settings.fillerModelEnabled)
             || anyCaptions
     }
     /// The on-device filler model is needed when filler removal is on and the user

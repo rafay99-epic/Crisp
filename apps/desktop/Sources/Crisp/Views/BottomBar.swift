@@ -17,6 +17,10 @@ struct BottomBar: View {
 
     private var pending: Int { model.waitingCount }
     private var doneCount: Int { model.doneCount }
+    /// Repeated-take removal needs the speech model to transcribe, which the fast
+    /// on-device filler model can't — so the toggle is unavailable while it's on
+    /// (same reason captions are disabled, see SettingsView).
+    private var retakesUnavailable: Bool { settings.fillerModelEnabled }
 
     var body: some View {
         HStack(spacing: 14) {
@@ -57,10 +61,18 @@ struct BottomBar: View {
                         Text("Remove").font(.callout).foregroundStyle(.secondary).fixedSize()
                         Toggle("Fillers", isOn: $model.removeFillers)
                             .toggleStyle(.checkbox)
-                        Toggle("Repeated takes", isOn: $model.removeRetakes)
+                        // Retake removal needs the speech model to transcribe, which the
+                        // fast on-device filler model can't do — so it's unavailable while
+                        // that model is on (mirrors how captions are disabled), shown off
+                        // and greyed rather than silently falling back to whisper.
+                        Toggle("Repeated takes", isOn: Binding(
+                            get: { model.removeRetakes && !retakesUnavailable },
+                            set: { model.removeRetakes = $0 }))
                             .toggleStyle(.checkbox)
-                            .help("Remove a phrase you flubbed and immediately said again, "
-                                  + "keeping the corrected take.")
+                            .disabled(retakesUnavailable)
+                            .help(retakesUnavailable
+                                  ? "Unavailable with the fast on-device filler model — finding repeated takes needs the speech model to transcribe. Turn the fast model off in Settings to use this."
+                                  : "Remove a phrase you flubbed and immediately said again, keeping the corrected take.")
                     }
                 }
                 .fixedSize()        // keep the whole recipe row on one line

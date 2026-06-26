@@ -153,12 +153,13 @@ final class CleanModel {
         // filler/model choice are all snapshotted now, so flipping a control
         // afterward can't change files that are already in flight.
         let fillers = removeFillers
-        let retakes = removeRetakes
-        // Retakes need a whisper transcript, and whisper detects fillers too — so when
-        // the user wants retakes, run the whole detection pass on whisper and reserve
-        // the fast on-device classifier for runs where retakes are off (its speed only
-        // helps then). This way turning on retakes never silently does nothing.
-        let fillerModel = (fillers && !retakes) ? fillerModelPath : nil
+        let fillerModel = fillers ? fillerModelPath : nil   // coreml backend when present
+        // Retakes need a whisper transcript, which the fast on-device classifier can't
+        // produce. Rather than silently override the user's model choice, retake removal
+        // is unavailable while the classifier is the active backend (the UI disables the
+        // toggle the same way captions are — see ContentView/BottomBar). So it only runs
+        // when the classifier isn't doing the fillers.
+        let retakes = removeRetakes && fillerModel == nil
         activeFillerModelPath = fillerModel
         activeFeedbackModelID = fillerModel != nil ? feedbackModelID : nil   // record only classifier cleans
         // Record the filler backend up front, so the log says which model this clean used.

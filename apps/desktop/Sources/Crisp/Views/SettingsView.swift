@@ -305,7 +305,7 @@ struct SettingsView: View {
                 .disabled(model.isRunning)
             if settings.fillerModelEnabled {
                 Label {
-                    Text("**English only.** Experimental — built for clear English speech. It can occasionally cut a real word, and it won't work on other languages. For non-English audio or captions, turn this off and use the speech model.")
+                    Text("**English only.** Experimental — built for clear English speech. It can occasionally cut a real word, and it won't work on other languages. For non-English audio, captions, or removing repeated takes, turn this off and use the speech model.")
                         .font(.caption).foregroundStyle(.secondary)
                 } icon: {
                     Image(systemName: "exclamationmark.triangle.fill")
@@ -335,7 +335,7 @@ struct SettingsView: View {
         } header: {
             Text("Filler detection (experimental)")
         } footer: {
-            Text("A tiny on-device model that spots um/uh much faster than transcribing — used instead of the speech model above when removing fillers. English only; off by default. Captions still use the speech model.")
+            Text("A tiny on-device model that spots um/uh much faster than transcribing — used instead of the speech model above when removing fillers. English only; off by default. Captions and repeated-take removal still need the speech model.")
                 .font(.caption).foregroundStyle(.secondary)
         }
         // Dev build: load the published version history so the picker can offer old models.
