@@ -97,8 +97,9 @@ def main():
                         "'constant' always forces --fps "
                         f"(default {DEFAULT_FPS_MODE})")
     p.add_argument("--fps", type=float, default=DEFAULT_FPS,
-                   help="target constant frame rate used when --fps-mode=constant "
-                        "(e.g. 30, 60); 0 lets 'auto' pick the source's own rate")
+                   help="target constant frame rate for --fps-mode=constant (e.g. 30, 60) "
+                        "— required in that mode (0 is unset and errors). 'auto' ignores "
+                        "this and uses the source's own rate")
     p.add_argument("--no-fillers", action="store_true", help="only remove pauses, keep um/uh")
     p.add_argument("--no-retakes", action="store_true",
                    help="don't remove repeated takes (a flubbed phrase you immediately "
