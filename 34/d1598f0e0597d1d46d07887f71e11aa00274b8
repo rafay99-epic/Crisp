@@ -1,0 +1,23 @@
+retake-research.md
+  s_390b1826d61e77::t_c4e04756b8bd88 61-64
+apps/desktop/Resources/engine/crisp/pipeline.py
+  s_390b1826d61e77::t_c1ed8426f18ae0 261-266
+apps/desktop/Sources/CrispCore/Engine/CleanRunner.swift
+  s_390b1826d61e77::t_cc1127ccc6191c 167-168,171,180-184
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "34d1598f0e0597d1d46d07887f71e11aa00274b8",
+  "prompts": {},
+  "sessions": {
+    "s_390b1826d61e77": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "47d2ffe9-ceff-4aa9-8f1c-d2e02dd230cc",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
