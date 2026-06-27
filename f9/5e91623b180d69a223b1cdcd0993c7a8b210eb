@@ -1,0 +1,31 @@
+apps/desktop/Resources/engine/crisp/config.py
+  s_390b1826d61e77::t_eeb5bfe75b75f0 118-120
+  s_390b1826d61e77::t_edf704fc7b37f9 98-105
+apps/desktop/Resources/engine/crisp/retake.py
+  s_390b1826d61e77::t_9def5129bec36f 134-135
+  s_390b1826d61e77::t_511ea498b8e2d9 163-164
+  s_390b1826d61e77::t_08d3e480288c04 48-50
+apps/desktop/Resources/engine/tests/test_retake.py
+  s_390b1826d61e77::t_e86106e801d201 66-70,72-77
+  s_390b1826d61e77::t_3d44253818c648 71
+apps/desktop/Resources/engine/crisp/semantic.py
+  s_390b1826d61e77::t_f01adb85656c5f 80
+  s_390b1826d61e77::t_e573f94e5f738f 92
+  s_390b1826d61e77::t_6d0df0aa035e88 27-33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "f95e91623b180d69a223b1cdcd0993c7a8b210eb",
+  "prompts": {},
+  "sessions": {
+    "s_390b1826d61e77": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "47d2ffe9-ceff-4aa9-8f1c-d2e02dd230cc",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
