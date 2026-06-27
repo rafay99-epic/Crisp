@@ -17,6 +17,8 @@ public struct CleanParameters: Equatable, Sendable {
     public let audioCodec: String
     public let audioBitrateKbps: Int
     public let outputContainer: String
+    public let frameRateMode: String     // "auto" | "passthrough" | "constant"
+    public let frameRateValue: Double    // fps used when mode == "constant"
     public let outputDirectory: String   // "" ⇒ beside the source
     public let splitTracks: Bool         // also write separate video/audio files
     public let splitAudioFormat: String  // "match" | "wav" — audio stem format
@@ -28,6 +30,7 @@ public struct CleanParameters: Equatable, Sendable {
                 fadeMs: Double = 10, crossfadeMs: Double = 0, snapMs: Double = 12,
                 videoCodec: String, hardwareEncoding: Bool, videoQuality: String,
                 audioCodec: String, audioBitrateKbps: Int, outputContainer: String,
+                frameRateMode: String = "auto", frameRateValue: Double = 30,
                 outputDirectory: String, splitTracks: Bool, splitAudioFormat: String,
                 captionsFormat: String = "none", retakeSensitivity: String = "aggressive",
                 backupOriginal: Bool) {
@@ -44,6 +47,8 @@ public struct CleanParameters: Equatable, Sendable {
         self.audioCodec = audioCodec
         self.audioBitrateKbps = audioBitrateKbps
         self.outputContainer = outputContainer
+        self.frameRateMode = frameRateMode
+        self.frameRateValue = frameRateValue
         self.outputDirectory = outputDirectory
         self.splitTracks = splitTracks
         self.splitAudioFormat = splitAudioFormat
@@ -70,6 +75,9 @@ extension Strength {
             audioCodec: config.audioCodec,
             audioBitrateKbps: config.audioBitrateKbps,
             outputContainer: config.outputContainer,
+            frameRateMode: FrameRateMode(rawValue: config.frameRateMode)?.rawValue
+                ?? FrameRateMode.auto.rawValue,
+            frameRateValue: config.frameRateValue,
             outputDirectory: config.outputDirectory,
             splitTracks: config.splitTracks,
             splitAudioFormat: config.splitAudioFormat,

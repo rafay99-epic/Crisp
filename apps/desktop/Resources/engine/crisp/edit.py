@@ -367,7 +367,7 @@ def build_filter_graph(keep, fade=0.0, crossfade=0.0):
 
 
 def render(src, keep, out_path, on_log, on_progress, video_opts, audio_opts, mux_opts=(),
-           fade=0.0, crossfade=0.0, logger=None):
+           fade=0.0, crossfade=0.0, fps=None, logger=None):
     logger = logger or EngineLogger(None)
     on_log(f"Rendering cleaned video ({len(keep)} segments kept)...")
     # Progress denominator = the actual output length (a crossfade shortens it by
@@ -382,10 +382,14 @@ def render(src, keep, out_path, on_log, on_progress, video_opts, audio_opts, mux
     err_file = tempfile.NamedTemporaryFile("w+", suffix=".log", delete=False)
 
     try:
+        # `-r` on the OUTPUT conforms the cut video to a constant frame rate
+        # (dup/drop frames to even spacing). Set only when normalizing a VFR source
+        # (or an explicit constant); a CFR source passes None and keeps its timing.
+        fps_opts = ["-r", str(fps)] if fps else []
         cmd = [ffmpeg_bin(), "-y", "-i", str(src),
                "-filter_complex_script", graph_path,
                "-map", "[outv]", "-map", "[outa]",
-               *video_opts, *audio_opts, *mux_opts,
+               *video_opts, *fps_opts, *audio_opts, *mux_opts,
                "-progress", "pipe:1", "-nostats", str(out_path)]
         logger.command("ffmpeg render", cmd)
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=err_file, text=True)

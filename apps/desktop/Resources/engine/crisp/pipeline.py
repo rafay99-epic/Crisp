@@ -5,9 +5,9 @@ from pathlib import Path
 
 from .config import (
     DEFAULT_AUDIO_BITRATE, DEFAULT_AUDIO_CODEC, DEFAULT_BACKUP, DEFAULT_CONTAINER, DEFAULT_CROSSFADE_MS,
-    DEFAULT_FADE_MS, DEFAULT_HARDWARE, DEFAULT_KEEP_PAUSE, DEFAULT_MAX_PAUSE, DEFAULT_MODEL,
-    DEFAULT_NOISE_DB, DEFAULT_QUALITY, DEFAULT_REMOVE_RETAKES, DEFAULT_RETAKE_SENSITIVITY, DEFAULT_SNAP_MS,
-    DEFAULT_VIDEO_CODEC, MIN_KEEP, RETAKE_ANCHOR_PAUSE, RETAKE_SENSITIVITY,
+    DEFAULT_FADE_MS, DEFAULT_FPS, DEFAULT_FPS_MODE, DEFAULT_HARDWARE, DEFAULT_KEEP_PAUSE, DEFAULT_MAX_PAUSE,
+    DEFAULT_MODEL, DEFAULT_NOISE_DB, DEFAULT_QUALITY, DEFAULT_REMOVE_RETAKES, DEFAULT_RETAKE_SENSITIVITY,
+    DEFAULT_SNAP_MS, DEFAULT_VIDEO_CODEC, MIN_KEEP, RETAKE_ANCHOR_PAUSE, RETAKE_SENSITIVITY,
 )
 from .detect import detect_silences, extract_audio, filler_words, filter_silences, transcribe
 from .edit import (build_keep_segments, gate_fillers_by_silence, make_backup, output_duration,
@@ -17,7 +17,8 @@ from .encode import (
 )
 from .enginelog import EngineLogger
 from .errors import CleanError
-from .tools import ffprobe_duration, which_filler, which_whisper
+from .framerate import resolve_target_fps
+from .tools import ffprobe_duration, probe_video_fps, which_filler, which_whisper
 
 
 def _noop(*_a, **_k):
@@ -68,6 +69,7 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
                 filler_backend="whisper", filler_model=None,
                 fade_ms=DEFAULT_FADE_MS, crossfade_ms=DEFAULT_CROSSFADE_MS, snap_ms=DEFAULT_SNAP_MS,
                 retake_sensitivity=DEFAULT_RETAKE_SENSITIVITY,
+                fps_mode=DEFAULT_FPS_MODE, fps=DEFAULT_FPS,
                 on_log=None, on_progress=None, logger=None):
     """
     Clean one video. Returns a dict with results.
@@ -162,6 +164,23 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
     if duration <= 0:
         raise CleanError("Could not read the video's duration — is it a valid video file?")
     logger.info(f"duration={duration:.2f}s")
+
+    # Frame-rate normalization. Screen recorders emit variable-frame-rate video,
+    # which the trim→concat render can drift A/V on; force the render to a constant
+    # rate when needed. Probed once here so it covers both the detection and the
+    # reviewed keep-file render paths below. Falls through to "no change" on any
+    # probe failure (unknown rates are never normalized), so a clean is never broken.
+    target_fps = None
+    if fps_mode != "passthrough":
+        r_text, avg_text = probe_video_fps(src, logger=logger)
+        target_fps = resolve_target_fps(fps_mode, fps, r_text, avg_text)
+        logger.info(f"fps mode={fps_mode} requested={fps} r={r_text!r} avg={avg_text!r} "
+                    f"-> target={target_fps!r}")
+        if target_fps:
+            on_log(f"Constant frame rate: normalizing to {target_fps} fps."
+                   if fps_mode == "constant"
+                   else f"Variable frame rate detected — normalizing to {target_fps} fps "
+                        f"so audio and video stay in sync.")
 
     # The waveform (peaks + cut mask) is built from the analysis WAV; the reviewed
     # keep-list path skips analysis, so it has no waveform (the done row falls back to
@@ -315,7 +334,7 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
     try:
         render(src, keep, out_path, on_log, stage(0.60, 1.0),
                video_args(video_codec, hardware, quality), audio, mux,
-               fade=fade_s, crossfade=crossfade_s, logger=logger)
+               fade=fade_s, crossfade=crossfade_s, fps=target_fps, logger=logger)
     except CleanError:
         if not hardware:
             raise
@@ -325,7 +344,7 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
         on_log("Hardware encoding failed — falling back to software encoding…")
         render(src, keep, out_path, on_log, stage(0.60, 1.0),
                video_args(video_codec, False, quality), audio, mux,
-               fade=fade_s, crossfade=crossfade_s, logger=logger)
+               fade=fade_s, crossfade=crossfade_s, fps=target_fps, logger=logger)
 
     if not explicit_out:
         # Tag the derived output so a later re-clean of this same source overwrites it,

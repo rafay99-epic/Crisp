@@ -60,6 +60,36 @@ public enum OutputContainer: String, CaseIterable, Identifiable {
     public var forcesOwnCodecs: Bool { self == .webm }
 }
 
+/// How Crisp handles the source's frame rate on render. Screen recorders (OBS,
+/// macOS screen capture) emit variable-frame-rate (VFR) video, which the
+/// trim→concat render can drift audio/video apart on; normalizing to a constant
+/// rate fixes it. Each `rawValue` is exactly the engine's `--fps-mode` value.
+public enum FrameRateMode: String, CaseIterable, Identifiable {
+    case auto, passthrough, constant
+    public var id: String { rawValue }
+    public var label: String {
+        switch self {
+        case .auto:        return "Automatic"
+        case .passthrough: return "Keep source timing"
+        case .constant:    return "Constant rate"
+        }
+    }
+    public var detail: String {
+        switch self {
+        case .auto:        return "Detects variable-frame-rate recordings (screen captures, OBS) and normalizes them to a constant rate so audio and video stay in sync. Leaves normal footage untouched. Recommended."
+        case .passthrough: return "Never changes frame timing. Fastest, but a variable-frame-rate source may drift out of sync after cutting."
+        case .constant:    return "Always re-times the output to the exact rate you choose below — for matching a specific delivery spec."
+        }
+    }
+    /// The chosen rate only applies in `.constant` mode; the other modes ignore it.
+    public var usesValue: Bool { self == .constant }
+}
+
+/// Common constant frame rates offered in Settings when "Constant rate" is picked.
+/// Editors and delivery specs cluster on these; a power user can still hand-edit
+/// `settings.json` to anything the engine's `--fps` accepts.
+public let commonFrameRates: [Double] = [23.976, 24, 25, 29.97, 30, 50, 59.94, 60]
+
 /// Subtitle sidecars to write beside the cleaned video, re-timed onto the cut
 /// timeline. `none` writes nothing; `srt` is SubRip (the universal format every
 /// editor and YouTube accepts); `vtt` is WebVTT (the web/HTML5 `<track>` format);

@@ -432,6 +432,39 @@ final class CrispTests: XCTestCase {
         XCTAssertFalse(args.contains("--out-dir"))                 // default ⇒ beside source
     }
 
+    func testCleanRunnerEmitsFrameRateModeAutoByDefault() {
+        let params = Strength.balanced.parameters(using: .defaults)
+        let opts = CleanRunner.Options(modelPath: nil, removeFillers: false, removeRetakes: false)
+        let args = CleanRunner.arguments(scriptPath: "/eng/clean_video.py",
+                                         input: URL(fileURLWithPath: "/v/in.mp4"),
+                                         parameters: params, options: opts)
+        XCTAssertEqual(valueAfter("--fps-mode", in: args), "auto")
+        XCTAssertFalse(args.contains("--fps"))                     // auto lets the engine pick
+    }
+
+    func testCleanRunnerEmitsConstantFrameRate() {
+        var cfg = EngineConfig.defaults
+        cfg.frameRateMode = "constant"
+        cfg.frameRateValue = 60
+        let params = Strength.balanced.parameters(using: cfg)
+        let opts = CleanRunner.Options(modelPath: nil, removeFillers: false, removeRetakes: false)
+        let args = CleanRunner.arguments(scriptPath: "/eng/clean_video.py",
+                                         input: URL(fileURLWithPath: "/v/in.mp4"),
+                                         parameters: params, options: opts)
+        XCTAssertEqual(valueAfter("--fps-mode", in: args), "constant")
+        XCTAssertEqual(valueAfter("--fps", in: args), String(60.0))
+    }
+
+    func testFrameRateConfigDefaultsAndForwardCompat() throws {
+        XCTAssertEqual(EngineConfig.defaults.frameRateMode, "auto")
+        XCTAssertEqual(EngineConfig.defaults.frameRateValue, 30)
+        // A file predating the frame-rate keys fills them with defaults (forward-compat).
+        let legacy = Data(#"{ "version": 2 }"#.utf8)
+        let decoded = try JSONDecoder().decode(EngineConfig.self, from: legacy)
+        XCTAssertEqual(decoded.frameRateMode, "auto")
+        XCTAssertEqual(decoded.frameRateValue, 30)
+    }
+
     func testRetakeRemovalFlagMapping() {
         let params = Strength.aggressive.parameters(using: .defaults)
         // Retakes on (default) with fillers off: no --no-retakes, and the transcript

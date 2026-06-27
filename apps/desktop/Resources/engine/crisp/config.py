@@ -62,6 +62,13 @@ DEFAULT_QUALITY = "high"      # maximum | high | balanced | smaller
 DEFAULT_AUDIO_CODEC = "aac"   # aac | opus
 DEFAULT_AUDIO_BITRATE = 192   # kbps
 DEFAULT_CONTAINER = "auto"    # auto (match input) | mp4 | mkv | mov | m4v | ts | webm
+
+# Frame-rate handling (see crisp.framerate + render). Screen recorders emit
+# variable-frame-rate (VFR) video, which the trim→concat render can drift A/V on.
+# "auto" normalizes a detected VFR source to a constant rate (its nominal base);
+# "passthrough" never touches timing; "constant" always forces DEFAULT_FPS.
+DEFAULT_FPS_MODE = "auto"     # auto | passthrough | constant
+DEFAULT_FPS = 0               # used when mode=constant (fps); 0 ⇒ auto picks the source's rate
 DEFAULT_FILLER_BACKEND = "whisper"  # whisper | coreml (fast on-device classifier)
 
 # Retake removal (see crisp.retake): when you misspeak and immediately say a phrase

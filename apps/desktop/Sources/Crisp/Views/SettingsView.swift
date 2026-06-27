@@ -174,12 +174,32 @@ struct SettingsView: View {
             Picker("Audio bitrate", selection: $settings.audioBitrateKbps) {
                 ForEach([128, 160, 192, 256], id: \.self) { Text("\($0) kbps").tag($0) }
             }
+
+            // Frame rate — screen recordings (OBS, macOS capture) are often variable
+            // frame rate, which the cut render can drift A/V on. "Automatic" fixes that.
+            Picker("Frame rate", selection: $settings.frameRateMode) {
+                ForEach(FrameRateMode.allCases) { Text($0.label).tag($0.rawValue) }
+            }
+            if let mode = FrameRateMode(rawValue: settings.frameRateMode) {
+                Text(mode.detail).font(.caption).foregroundStyle(.secondary)
+                if mode.usesValue {
+                    Picker("Constant rate", selection: $settings.frameRateValue) {
+                        ForEach(commonFrameRates, id: \.self) { Text(Self.frameRateLabel($0)).tag($0) }
+                    }
+                }
+            }
         } header: {
             Text("Encoding")
         } footer: {
             Text("Applied to every clean. Cuts are always re-encoded, so these set the output quality.")
                 .font(.caption).foregroundStyle(.secondary)
         }
+    }
+
+    /// "30 fps" for whole rates, "29.97 fps" for the broadcast fractional ones.
+    static func frameRateLabel(_ fps: Double) -> String {
+        let whole = fps.rounded() == fps
+        return whole ? "\(Int(fps)) fps" : String(format: "%.2f fps", fps)
     }
 
     @ViewBuilder private var captionsSection: some View {

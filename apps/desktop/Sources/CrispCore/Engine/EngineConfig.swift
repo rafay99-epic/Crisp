@@ -27,6 +27,12 @@ public struct EngineConfig: Codable, Equatable, Sendable {
     public var audioCodec: String        // "aac" | "opus"
     public var audioBitrateKbps: Int
     public var outputContainer: String   // "auto" | "mp4" | "mkv" | "mov" | "m4v" | "ts" | "webm"
+    // Frame-rate handling — screen recorders emit variable-frame-rate video that the
+    // cut render can drift A/V on. "auto" normalizes a detected VFR source to a
+    // constant rate; "passthrough" keeps source timing; "constant" forces
+    // `frameRateValue`. (See FrameRateMode + crisp/framerate.py.)
+    public var frameRateMode: String     // "auto" | "passthrough" | "constant"
+    public var frameRateValue: Double    // fps used when mode == "constant"
     // Output location — folder to write the cleaned file into ("" ⇒ beside the
     // source, the default). Lets users send cleaned files to e.g. a NAS.
     public var outputDirectory: String
@@ -83,7 +89,9 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         pauseThreshold: 0.35, silenceFloorDB: -30, breathingRoom: 0.10, minKeep: 0.05,
         fadeMs: 10, crossfadeMs: 0, snapMs: 12,
         videoCodec: "hevc", hardwareEncoding: true, videoQuality: "high",
-        audioCodec: "aac", audioBitrateKbps: 192, outputContainer: "auto", outputDirectory: "",
+        audioCodec: "aac", audioBitrateKbps: 192, outputContainer: "auto",
+        frameRateMode: "auto", frameRateValue: 30,
+        outputDirectory: "",
         splitTracks: false, splitAudioFormat: "match",
         captionsFormat: "none",
         // Aggressive by default — validated on real footage to catch natural
@@ -101,7 +109,8 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         case version, pauseThreshold, silenceFloorDB, breathingRoom, minKeep
         case fadeMs, crossfadeMs, snapMs
         case videoCodec, hardwareEncoding, videoQuality, audioCodec, audioBitrateKbps
-        case outputContainer, outputDirectory, splitTracks, splitAudioFormat, captionsFormat
+        case outputContainer, frameRateMode, frameRateValue
+        case outputDirectory, splitTracks, splitAudioFormat, captionsFormat
         case retakeSensitivity, backupOriginal
         case watchEnabled, watchFolderPath, watchRemoveFillers
         case presets, defaultPresetID
@@ -113,7 +122,9 @@ public struct EngineConfig: Codable, Equatable, Sendable {
     public init(version: Int, pauseThreshold: Double, silenceFloorDB: Double, breathingRoom: Double,
                 minKeep: Double, fadeMs: Double = 10, crossfadeMs: Double = 0, snapMs: Double = 12,
                 videoCodec: String, hardwareEncoding: Bool, videoQuality: String,
-                audioCodec: String, audioBitrateKbps: Int, outputContainer: String, outputDirectory: String,
+                audioCodec: String, audioBitrateKbps: Int, outputContainer: String,
+                frameRateMode: String = "auto", frameRateValue: Double = 30,
+                outputDirectory: String,
                 splitTracks: Bool, splitAudioFormat: String, captionsFormat: String = "none",
                 retakeSensitivity: String = "aggressive",
                 backupOriginal: Bool,
@@ -138,6 +149,8 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         self.audioCodec = audioCodec
         self.audioBitrateKbps = audioBitrateKbps
         self.outputContainer = outputContainer
+        self.frameRateMode = frameRateMode
+        self.frameRateValue = frameRateValue
         self.outputDirectory = outputDirectory
         self.splitTracks = splitTracks
         self.splitAudioFormat = splitAudioFormat
@@ -176,6 +189,8 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         audioCodec         = try c.decodeIfPresent(String.self, forKey: .audioCodec) ?? d.audioCodec
         audioBitrateKbps   = try c.decodeIfPresent(Int.self, forKey: .audioBitrateKbps) ?? d.audioBitrateKbps
         outputContainer    = try c.decodeIfPresent(String.self, forKey: .outputContainer) ?? d.outputContainer
+        frameRateMode      = try c.decodeIfPresent(String.self, forKey: .frameRateMode) ?? d.frameRateMode
+        frameRateValue     = try c.decodeIfPresent(Double.self, forKey: .frameRateValue) ?? d.frameRateValue
         outputDirectory    = try c.decodeIfPresent(String.self, forKey: .outputDirectory) ?? d.outputDirectory
         splitTracks        = try c.decodeIfPresent(Bool.self, forKey: .splitTracks) ?? d.splitTracks
         splitAudioFormat   = try c.decodeIfPresent(String.self, forKey: .splitAudioFormat) ?? d.splitAudioFormat

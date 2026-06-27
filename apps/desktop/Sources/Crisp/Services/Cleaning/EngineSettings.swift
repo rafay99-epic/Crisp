@@ -26,6 +26,8 @@ final class EngineSettings {
     var audioCodec: String { didSet { save() } }
     var audioBitrateKbps: Int { didSet { save() } }
     var outputContainer: String { didSet { save() } }
+    var frameRateMode: String { didSet { save() } }     // "auto" | "passthrough" | "constant"
+    var frameRateValue: Double { didSet { save() } }    // fps used when mode == "constant"
     var outputDirectory: String { didSet { save() } }   // "" ⇒ beside the source
     var splitTracks: Bool { didSet { save() } }          // also write separate video/audio files
     var splitAudioFormat: String { didSet { save() } }   // "match" | "wav"
@@ -71,6 +73,7 @@ final class EngineSettings {
                      videoCodec: videoCodec, hardwareEncoding: hardwareEncoding,
                      videoQuality: videoQuality, audioCodec: audioCodec,
                      audioBitrateKbps: audioBitrateKbps, outputContainer: outputContainer,
+                     frameRateMode: frameRateMode, frameRateValue: frameRateValue,
                      outputDirectory: outputDirectory,
                      splitTracks: splitTracks, splitAudioFormat: splitAudioFormat,
                      captionsFormat: captionsFormat,
@@ -110,6 +113,11 @@ final class EngineSettings {
         audioCodec = cfg.audioCodec
         audioBitrateKbps = cfg.audioBitrateKbps
         outputContainer = cfg.outputContainer
+        // Normalize a hand-edited/unknown mode to the default so the Settings picker
+        // always has a valid selection (and the engine a legal --fps-mode).
+        frameRateMode = FrameRateMode(rawValue: cfg.frameRateMode)?.rawValue
+            ?? EngineConfig.defaults.frameRateMode
+        frameRateValue = cfg.frameRateValue
         outputDirectory = cfg.outputDirectory
         splitTracks = cfg.splitTracks
         splitAudioFormat = cfg.splitAudioFormat
@@ -158,6 +166,8 @@ final class EngineSettings {
         audioCodec = d.audioCodec
         audioBitrateKbps = d.audioBitrateKbps
         outputContainer = d.outputContainer
+        frameRateMode = d.frameRateMode
+        frameRateValue = d.frameRateValue
         outputDirectory = d.outputDirectory
         splitTracks = d.splitTracks
         splitAudioFormat = d.splitAudioFormat

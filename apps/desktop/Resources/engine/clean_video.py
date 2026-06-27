@@ -47,9 +47,9 @@ def _enable_group_cancel():
 from crisp import CleanError, clean_video
 from crisp.config import (
     DEFAULT_AUDIO_BITRATE, DEFAULT_AUDIO_CODEC, DEFAULT_CONTAINER, DEFAULT_CROSSFADE_MS,
-    DEFAULT_FADE_MS, DEFAULT_FILLER_BACKEND, DEFAULT_KEEP_PAUSE, DEFAULT_MAX_PAUSE, DEFAULT_MODEL,
-    DEFAULT_NOISE_DB, DEFAULT_QUALITY, DEFAULT_RETAKE_SENSITIVITY, DEFAULT_SNAP_MS, DEFAULT_VIDEO_CODEC,
-    MIN_KEEP, RETAKE_SENSITIVITY_MIN_RUN,
+    DEFAULT_FADE_MS, DEFAULT_FILLER_BACKEND, DEFAULT_FPS, DEFAULT_FPS_MODE, DEFAULT_KEEP_PAUSE,
+    DEFAULT_MAX_PAUSE, DEFAULT_MODEL, DEFAULT_NOISE_DB, DEFAULT_QUALITY, DEFAULT_RETAKE_SENSITIVITY,
+    DEFAULT_SNAP_MS, DEFAULT_VIDEO_CODEC, MIN_KEEP, RETAKE_SENSITIVITY_MIN_RUN,
 )
 from crisp.encode import SUPPORTED_CONTAINERS
 from crisp.enginelog import logger_from_env
@@ -90,6 +90,15 @@ def main():
                    default=DEFAULT_CONTAINER,
                    help=f"output container; 'auto' matches the input, 'webm' uses VP9+Opus "
                         f"(default {DEFAULT_CONTAINER})")
+    p.add_argument("--fps-mode", choices=["auto", "passthrough", "constant"], default=DEFAULT_FPS_MODE,
+                   help="frame-rate handling: 'auto' normalizes a variable-frame-rate "
+                        "(VFR) source — e.g. a screen recording — to a constant rate so "
+                        "A/V stays in sync; 'passthrough' keeps the source timing; "
+                        "'constant' always forces --fps "
+                        f"(default {DEFAULT_FPS_MODE})")
+    p.add_argument("--fps", type=float, default=DEFAULT_FPS,
+                   help="target constant frame rate used when --fps-mode=constant "
+                        "(e.g. 30, 60); 0 lets 'auto' pick the source's own rate")
     p.add_argument("--no-fillers", action="store_true", help="only remove pauses, keep um/uh")
     p.add_argument("--no-retakes", action="store_true",
                    help="don't remove repeated takes (a flubbed phrase you immediately "
@@ -216,6 +225,7 @@ def main():
                              keep_file=args.keep_file, captions=args.captions,
                              filler_backend=args.filler_backend, filler_model=args.filler_model,
                              fade_ms=args.fade_ms, crossfade_ms=args.crossfade_ms, snap_ms=args.snap_ms,
+                             fps_mode=args.fps_mode, fps=args.fps,
                              on_log=on_log, on_progress=on_progress, logger=log)
         if args.ndjson:
             emit({"event": "result", **result})

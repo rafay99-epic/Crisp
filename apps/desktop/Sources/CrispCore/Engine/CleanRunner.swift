@@ -107,6 +107,13 @@ public struct CleanRunner {
         args += ["--fade-ms", String(parameters.fadeMs),
                  "--crossfade-ms", String(parameters.crossfadeMs),
                  "--snap-ms", String(parameters.snapMs)]
+        // Frame-rate handling — applies to every render (incl. a reviewed keep-list),
+        // so it lives outside the keep-file branch. The chosen fps is only meaningful
+        // in "constant" mode; "auto" lets the engine pick the source's own rate.
+        args += ["--fps-mode", parameters.frameRateMode]
+        if parameters.frameRateMode == FrameRateMode.constant.rawValue {
+            args += ["--fps", String(parameters.frameRateValue)]
+        }
         if parameters.hardwareEncoding { args.append("--hardware") }
         if parameters.splitTracks {
             args.append("--split")
