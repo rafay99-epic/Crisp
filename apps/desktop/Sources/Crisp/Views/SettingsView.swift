@@ -102,8 +102,21 @@ struct SettingsView: View {
                 ForEach(RetakeSensitivity.allCases) { Text($0.label).tag($0.rawValue) }
             }
             .pickerStyle(.segmented)
-            Text(RetakeSensitivity(rawValue: settings.retakeSensitivity)?.detail ?? "")
-                .font(.caption).foregroundStyle(.secondary)
+            // Retake detection reads the transcript, which the fast on-device filler
+            // model can't produce — so it's unavailable while that model is on, the
+            // same way captions are. Disable the control and say so clearly.
+            .disabled(settings.fillerModelEnabled)
+            if settings.fillerModelEnabled {
+                Label {
+                    Text("**Not available with our custom fast model.** Finding repeated takes needs the speech model to read your words \u{2014} the fast filler model can't transcribe. Turn it off (below) to use the more powerful speech model.")
+                        .font(.caption).foregroundStyle(.secondary)
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                }
+            } else {
+                Text(RetakeSensitivity(rawValue: settings.retakeSensitivity)?.detail ?? "")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
         } header: {
             Text("Repeated takes")
         } footer: {

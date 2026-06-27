@@ -106,12 +106,14 @@ struct BottomBar: View {
     }
 
     /// Visible reason the "Repeated takes" toggle is greyed out (a tooltip alone
-    /// isn't discoverable) — plus a direct link to Settings to switch models.
+    /// isn't discoverable): the fast filler model can't transcribe, so it can't find
+    /// retakes — point the user to the more powerful speech model.
     @ViewBuilder private var retakeUnavailableNote: some View {
         HStack(spacing: 4) {
-            Image(systemName: "info.circle").imageScale(.small)
-            Text("\u{201C}Repeated takes\u{201D} needs the speech model.")
-            SettingsLink { Text("Open Settings") }
+            Image(systemName: "exclamationmark.triangle.fill")
+                .imageScale(.small).foregroundStyle(.orange)
+            Text("The fast filler model can't find repeated takes.")
+            SettingsLink { Text("Switch to the speech model") }
                 .buttonStyle(.link)
         }
         .font(.caption).foregroundStyle(.secondary).fixedSize()
