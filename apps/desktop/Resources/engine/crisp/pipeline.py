@@ -227,7 +227,6 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
                     words = transcribe(whisper_bin, model, wav, tmp / "transcript",
                                        on_log, stage(0.15, 0.58), logger=logger)
                 on_log(f"Found {len(words)} spoken words.")
-            on_progress(0.58, "Planning cuts…")
 
             # Only cut filler words when the user asked to; if we transcribed purely
             # for captions, every word stays in the cut plan (fillers are still
@@ -238,6 +237,10 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
             # whisper supplied `words`.
             retakes = []
             if do_retakes and words:
+                # Its own visible step (after "Detecting pauses" / "Transcribing"), so
+                # the UI shows that repeated-take detection is happening.
+                on_log("Finding repeated takes...")
+                on_progress(0.57, "Finding repeated takes…")
                 from .retake import detect_retakes
                 # `anchor_silences` (the short-threshold pauses computed above) keep
                 # detection from firing on natural mid-sentence repetition; sensitivity
@@ -246,6 +249,7 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
                 retakes = detect_retakes(words, min_run=min_run, silences=anchor_silences)
                 logger.debug(f"retake detection ({retake_sensitivity}, min_run={min_run}) "
                              f"found {len(retakes)} repeated take(s)")
+            on_progress(0.58, "Planning cuts…")
             keep, stats = build_keep_segments(cut_words, silences, duration, keep_pause,
                                               min_keep, retakes=retakes)
             if not keep:

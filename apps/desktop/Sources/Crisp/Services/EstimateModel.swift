@@ -12,7 +12,7 @@ final class EstimateModel {
         case idle
         case estimating(done: Int, total: Int)
         /// `partial` = at least one file couldn't be analyzed.
-        case done(removedSeconds: Double, origSeconds: Double, partial: Bool)
+        case done(removedSeconds: Double, origSeconds: Double, pauseCount: Int, partial: Bool)
         case failed
     }
 
@@ -33,7 +33,7 @@ final class EstimateModel {
         guard !items.isEmpty else { state = .idle; return }
         state = .estimating(done: 0, total: items.count)
         task = Task {
-            var removed = 0.0, orig = 0.0, failures = 0, done = 0
+            var removed = 0.0, orig = 0.0, pauses = 0, failures = 0, done = 0
             for item in items {
                 if Task.isCancelled { return }
                 do {
@@ -43,6 +43,7 @@ final class EstimateModel {
                                                  minKeep: item.params.minKeep)
                     removed += cut.removedSeconds
                     orig += analysis.duration
+                    pauses += cut.pauseCount
                 } catch is CancellationError {
                     return
                 } catch {
@@ -53,7 +54,8 @@ final class EstimateModel {
                 state = .estimating(done: done, total: items.count)
             }
             if Task.isCancelled { return }
-            state = orig > 0 ? .done(removedSeconds: removed, origSeconds: orig, partial: failures > 0)
+            state = orig > 0 ? .done(removedSeconds: removed, origSeconds: orig,
+                                     pauseCount: pauses, partial: failures > 0)
                              : .failed
         }
     }

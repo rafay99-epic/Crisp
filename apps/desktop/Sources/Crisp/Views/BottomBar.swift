@@ -131,11 +131,13 @@ struct BottomBar: View {
                 ProgressView().controlSize(.small)
                 Text("Estimating\u{2026} \(done)/\(total)").font(.caption).foregroundStyle(.secondary)
             }
-        case .done(let removed, let orig, let partial):
+        case .done(let removed, let orig, let pauseCount, let partial):
             let pct = orig > 0 ? Int((removed / orig) * 100) : 0
-            Text("\u{2248} \(formatTime(removed)) would be removed (\(pct)% shorter)"
+            // The estimate is a fast, no-transcription pass, so it can count pauses but
+            // not fillers/retakes (those need whisper) — say where those are counted.
+            Text("\u{2248} \(formatTime(removed)) \u{00B7} \(pauseCount) pause\(pauseCount == 1 ? "" : "s") (\(pct)% shorter)"
                  + (partial ? " \u{00B7} some files couldn\u{2019}t be read" : "")
-                 + " \u{00B7} pauses only")
+                 + " \u{00B7} fillers & repeated takes counted while cleaning")
                 .font(.caption).foregroundStyle(.secondary).lineLimit(1)
         case .failed:
             Text("Couldn\u{2019}t estimate those videos.")
