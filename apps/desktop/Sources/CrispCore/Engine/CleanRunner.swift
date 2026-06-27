@@ -141,9 +141,6 @@ public struct CleanRunner {
             if !options.removeFillers { args.append("--no-fillers") }
             if options.removeRetakes {
                 args += ["--retake-sensitivity", parameters.retakeSensitivity]
-                // The engine logs the per-candidate decisions; record the chosen mode
-                // here too so the merged log shows what the run was configured to do.
-                Self.log.debug("Retake detection on: sensitivity=\(parameters.retakeSensitivity, privacy: .public)")
             } else {
                 args.append("--no-retakes")
             }
@@ -175,7 +172,7 @@ public struct CleanRunner {
         proc.standardOutput = outPipe
         proc.standardError = errPipe
 
-        Self.log.info("Clean start: \(input.lastPathComponent) [\(parameters.videoCodec)/\(parameters.audioCodec) q=\(parameters.videoQuality) hw=\(parameters.hardwareEncoding) fillers=\(options.removeFillers) retakes=\(options.removeRetakes)]")
+        Self.log.info("Clean start: \(input.lastPathComponent) [\(parameters.videoCodec)/\(parameters.audioCodec) q=\(parameters.videoQuality) hw=\(parameters.hardwareEncoding) fillers=\(options.removeFillers) retakes=\(options.removeRetakes ? parameters.retakeSensitivity : "off", privacy: .public)]")
 
         // Drain the engine's stderr via a readabilityHandler (NOT a second
         // `bytes.lines`): two concurrent FileHandle.AsyncBytes readers contend on a

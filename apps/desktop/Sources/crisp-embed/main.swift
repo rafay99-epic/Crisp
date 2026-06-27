@@ -35,9 +35,10 @@ guard let embedding = NLEmbedding.sentenceEmbedding(for: .english) else {
 var similarities: [Double] = []
 similarities.reserveCapacity(rawPairs.count)
 for raw in rawPairs {
-    let strings = raw.compactMap { $0 as? String }
-    guard strings.count == 2 else { fail("each pair needs exactly two strings") }
-    let (a, b) = (strings[0], strings[1])
+    // Fail fast on a malformed pair rather than silently dropping non-string elements.
+    guard raw.count == 2, let a = raw[0] as? String, let b = raw[1] as? String else {
+        fail("each pair needs exactly two strings")
+    }
     if a.isEmpty || b.isEmpty {
         similarities.append(0)
         continue

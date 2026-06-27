@@ -5,9 +5,8 @@ verbatim-repeat + pause-anchor baseline, with a focus on what's **viable to ship
 in a local-only, Apple-Silicon, indie macOS app. Read alongside `notes.md`,
 `retake-calibration.md`, and the `retake-removal` memory.
 
-> Source: a 105-agent deep-research workflow (5 web searchers, ~23 source
-> extractors, 83 adversarial claim verifiers — only 1 claim refuted). The final
-> synthesis crashed; this doc reconstructs it from the surviving findings.
+> Source: a multi-source web-research pass (dozens of searches + source reads,
+> each claim independently cross-checked; only 1 claim was refuted on review).
 
 ## Bottom line
 No off-the-shelf component solves this. Shipping leaders (Descript, TimeBolt) top

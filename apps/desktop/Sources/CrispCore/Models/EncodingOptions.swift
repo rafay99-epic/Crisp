@@ -98,7 +98,7 @@ public enum RetakeSensitivity: String, CaseIterable, Identifiable {
     }
     public var detail: String {
         switch self {
-        case .gentle:     return "Only long redos that begin after a clear pause. Safest — never cuts intentional repetition."
+        case .gentle:     return "Only long redos that begin after a clear pause. Safest — least likely to cut intentional repetition."
         case .balanced:   return "The sweet spot for most recordings."
         case .aggressive: return "Also catches mid-sentence restarts with no pause — for heavy retakers. May cut a repeated phrase you meant."
         }
