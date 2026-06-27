@@ -24,6 +24,13 @@ from pathlib import Path
 # the embedding model is loaded before we trust it during detection.
 _PROBE = ["the quick brown fox", "the quick brown fox"]
 
+# The probe may pay the model's first cold load, so it gets a generous timeout. Each
+# per-candidate judge call is bounded much tighter: an embedding is sub-second, so a
+# short cap means a hung crisp-embed degrades fast instead of stalling detection for
+# 30s × every candidate.
+_PROBE_TIMEOUT = 30
+_JUDGE_TIMEOUT = 8
+
 
 def _embed_bin():
     """Absolute path to `crisp-embed` from CRISP_EMBED, or None. (Unlike ffmpeg there
@@ -70,7 +77,7 @@ def make_judge(logger=None):
                          "(word-matching + pause anchor only)")
         return None
     try:
-        sim = _run(binp, [_PROBE])[0]
+        sim = _run(binp, [_PROBE], timeout=_PROBE_TIMEOUT)[0]
     except Exception as e:                                   # noqa: BLE001 — log + disable
         if logger is not None:
             logger.debug(f"retake semantic gate: probe failed ({e}) — gate disabled")
@@ -82,7 +89,7 @@ def make_judge(logger=None):
         if not flubbed or not corrected:
             return None
         try:
-            return _run(binp, [[flubbed, corrected]])[0]
+            return _run(binp, [[flubbed, corrected]], timeout=_JUDGE_TIMEOUT)[0]
         except Exception as e:                              # noqa: BLE001 — log + skip
             if logger is not None:
                 logger.debug(f"retake semantic judge error ({e}) — skipping this pair")

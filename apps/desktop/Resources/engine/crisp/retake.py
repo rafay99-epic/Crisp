@@ -45,9 +45,9 @@ import bisect
 from difflib import SequenceMatcher
 
 from .config import (
-    RETAKE_MAX_ABANDON, RETAKE_MAX_GAP, RETAKE_MIN_RUN, RETAKE_PAUSE_PAD,
-    RETAKE_REQUIRE_PAUSE, RETAKE_SEM_MIN, RETAKE_STUTTER, RETAKE_STUTTER_MAX_GAP,
-    RETAKE_TOKEN_SIM,
+    RETAKE_MAX_ABANDON, RETAKE_MAX_GAP, RETAKE_MIN_RUN, RETAKE_MIN_RUN_NO_PAUSE,
+    RETAKE_PAUSE_PAD, RETAKE_REQUIRE_PAUSE, RETAKE_SEM_MIN, RETAKE_STUTTER,
+    RETAKE_STUTTER_MAX_GAP, RETAKE_TOKEN_SIM,
 )
 from .text import normalize_word
 
@@ -131,8 +131,8 @@ def detect_retakes(words, *, min_run=RETAKE_MIN_RUN, max_gap=RETAKE_MAX_GAP,
                    max_abandon=RETAKE_MAX_ABANDON, stutter=RETAKE_STUTTER,
                    stutter_max_gap=RETAKE_STUTTER_MAX_GAP, silences=None,
                    require_pause=RETAKE_REQUIRE_PAUSE, pause_pad=RETAKE_PAUSE_PAD,
-                   token_sim=RETAKE_TOKEN_SIM, min_run_no_pause=None, judge=None,
-                   sem_min=RETAKE_SEM_MIN, logger=None):
+                   token_sim=RETAKE_TOKEN_SIM, min_run_no_pause=RETAKE_MIN_RUN_NO_PAUSE,
+                   judge=None, sem_min=RETAKE_SEM_MIN, logger=None):
     """Spans (start, end) seconds to REMOVE — each a flubbed take the speaker redid.
 
     `words` is the whisper transcript: a list of ``{"text", "start", "end"}`` in
@@ -160,8 +160,8 @@ def detect_retakes(words, *, min_run=RETAKE_MIN_RUN, max_gap=RETAKE_MAX_GAP,
                         ("we're"/"were"); short tokens still need an exact match.
       min_run_no_pause— accept a pause-less verbatim repeat once its run reaches this
                         (the precision lever for mid-sentence restarts). None ⇒ a pause
-                        is always required (prior behaviour; preserves the bare-call and
-                        gentle defaults).
+                        is always required (what gentle passes). Bare-call default mirrors
+                        the default preset (see config.RETAKE_MIN_RUN_NO_PAUSE).
       judge           — optional `judge(flubbed_text, corrected_text) -> float|None`
                         scoring how alike the two takes are in meaning (0–1). A high
                         score can rescue a shorter pause-less repeat; it NEVER vetoes

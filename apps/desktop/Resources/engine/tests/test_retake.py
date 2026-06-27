@@ -63,6 +63,18 @@ class FalseStartTests(unittest.TestCase):
 
 
 class SensitivityTests(unittest.TestCase):
+    def test_bare_defaults_mirror_the_default_preset(self):
+        # A direct detect_retakes() call must behave like the app's default preset, not
+        # a hybrid of aggressive's run floor and gentle's pause policy.
+        from crisp.config import (DEFAULT_RETAKE_SENSITIVITY, RETAKE_MIN_RUN,
+                                  RETAKE_MIN_RUN_NO_PAUSE, RETAKE_REQUIRE_PAUSE,
+                                  RETAKE_SEM_MIN, RETAKE_SENSITIVITY)
+        p = RETAKE_SENSITIVITY[DEFAULT_RETAKE_SENSITIVITY]
+        self.assertEqual(RETAKE_MIN_RUN, p["min_run"])
+        self.assertEqual(RETAKE_REQUIRE_PAUSE, p["require_pause"])
+        self.assertEqual(RETAKE_MIN_RUN_NO_PAUSE, p["min_run_no_pause"])
+        self.assertEqual(RETAKE_SEM_MIN, p["sem_min"])
+
     def test_default_is_aggressive_three_word_run(self):
         # The default sensitivity is now aggressive → min_run 3: a 3-word repeat cuts…
         three = seq(["the", "API", "is", "slow", "the", "API", "is", "fast"], breaks={3})

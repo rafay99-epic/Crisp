@@ -95,10 +95,16 @@ RETAKE_SENSITIVITY = {
 # run-length lever holds precision. gentle/balanced stay available for list-heavy
 # content where a shorter run can over-cut intentional parallel structure.
 DEFAULT_RETAKE_SENSITIVITY = "aggressive"      # gentle | balanced | aggressive
+# Bare `detect_retakes()` defaults mirror the WHOLE default preset (not just min_run),
+# so a direct library call behaves exactly like the app's default rather than a hybrid
+# of aggressive's run floor and gentle's pause policy.
+_DEFAULT_RETAKE_POLICY = RETAKE_SENSITIVITY[DEFAULT_RETAKE_SENSITIVITY]
+RETAKE_MIN_RUN = _DEFAULT_RETAKE_POLICY["min_run"]
+RETAKE_REQUIRE_PAUSE = _DEFAULT_RETAKE_POLICY["require_pause"]
+RETAKE_MIN_RUN_NO_PAUSE = _DEFAULT_RETAKE_POLICY["min_run_no_pause"]
+RETAKE_SEM_MIN = _DEFAULT_RETAKE_POLICY["sem_min"]
 # Back-compat: the per-name min-run map other callers still read.
 RETAKE_SENSITIVITY_MIN_RUN = {k: v["min_run"] for k, v in RETAKE_SENSITIVITY.items()}
-RETAKE_MIN_RUN = RETAKE_SENSITIVITY[DEFAULT_RETAKE_SENSITIVITY]["min_run"]  # bare-call default
-RETAKE_SEM_MIN = RETAKE_SENSITIVITY[DEFAULT_RETAKE_SENSITIVITY]["sem_min"]
 RETAKE_MAX_GAP = 2.0        # seconds: a retake follows its flubbed take within this gap
 RETAKE_MAX_ABANDON = 12     # words: longest abandoned take to look across (bounds the search)
 # Two takes of the same line rarely transcribe identically — whisper varies
@@ -109,10 +115,9 @@ RETAKE_MAX_ABANDON = 12     # words: longest abandoned take to look across (boun
 # match — so genuinely different words ("startup"/"enterprise", "the"/"they") never
 # merge: the precision guard against intentional parallel structure stays intact.
 RETAKE_TOKEN_SIM = 0.85
-# A real retake is preceded by a pause (you stop, then redo). Requiring the corrected
-# take to begin right after a detected silence is the strongest filter against natural
-# mid-sentence repetition — on real footage it cut false positives ~64 → a handful.
-RETAKE_REQUIRE_PAUSE = True
+# (RETAKE_REQUIRE_PAUSE / RETAKE_MIN_RUN_NO_PAUSE are derived from the default preset
+# above — a real retake is normally preceded by a pause, which gentle/balanced require;
+# aggressive relaxes it and leans on the run-length floor instead.)
 # Detect anchor pauses at this SHORT silence threshold — separate from the cut threshold
 # (DEFAULT_MAX_PAUSE) — because a redo pause is brief (~0.3s); the longer cut threshold
 # misses it entirely.
