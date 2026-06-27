@@ -62,12 +62,12 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
                 video_codec=DEFAULT_VIDEO_CODEC, hardware=DEFAULT_HARDWARE, quality=DEFAULT_QUALITY,
                 audio_codec=DEFAULT_AUDIO_CODEC, audio_bitrate=DEFAULT_AUDIO_BITRATE,
                 container=DEFAULT_CONTAINER, remove_fillers=True,
-                remove_retakes=DEFAULT_REMOVE_RETAKES,
-                retake_sensitivity=DEFAULT_RETAKE_SENSITIVITY, backup=DEFAULT_BACKUP,
+                remove_retakes=DEFAULT_REMOVE_RETAKES, backup=DEFAULT_BACKUP,
                 backup_dir=None, out_dir=None, split_tracks=False, split_audio="match",
                 waveform_buckets=0, keep_file=None, captions="none",
                 filler_backend="whisper", filler_model=None,
                 fade_ms=DEFAULT_FADE_MS, crossfade_ms=DEFAULT_CROSSFADE_MS, snap_ms=DEFAULT_SNAP_MS,
+                retake_sensitivity=DEFAULT_RETAKE_SENSITIVITY,
                 on_log=None, on_progress=None, logger=None):
     """
     Clean one video. Returns a dict with results.
@@ -194,7 +194,23 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
             extract_audio(src, wav, on_log, logger=logger)
 
             on_progress(0.10, "Detecting pauses…")
-            silences = detect_silences(wav, noise, pause, on_log, logger=logger)
+            # One silencedetect pass. Retake anchoring needs a shorter pause than the
+            # cut threshold (a redo pause is brief), so when retakes are on we scan at
+            # the lower of the two and derive the cut set by filtering on duration:
+            # silencedetect's `d=` only gates which silences are *reported*, not their
+            # boundaries, so the filtered set is identical to a direct scan at `pause`
+            # (verified on real audio). Avoids a second full ffmpeg pass on long videos.
+            anchor_silences = []
+            if do_retakes:
+                found = detect_silences(wav, noise, min(pause, RETAKE_ANCHOR_PAUSE),
+                                        on_log, logger=logger)
+                silences = [s for s in found if (s[1] - s[0]) >= pause - 1e-9]
+                anchor_silences = [s for s in found if (s[1] - s[0]) >= RETAKE_ANCHOR_PAUSE - 1e-9]
+                logger.debug(f"from {len(found)} pauses: {len(silences)} cut "
+                             f"(≥{pause}s) + {len(anchor_silences)} retake-anchor "
+                             f"(≥{RETAKE_ANCHOR_PAUSE}s)")
+            else:
+                silences = detect_silences(wav, noise, pause, on_log, logger=logger)
 
             if need_transcript:
                 if use_classifier:
@@ -223,13 +239,10 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
             retakes = []
             if do_retakes and words:
                 from .retake import detect_retakes
-                # Anchor pauses are detected at a SHORT threshold (a redo pause is brief),
-                # separate from the cut silences above — this is what keeps detection from
-                # firing on natural mid-sentence repetition. Sensitivity sets how many
-                # matched words count as a redo.
+                # `anchor_silences` (the short-threshold pauses computed above) keep
+                # detection from firing on natural mid-sentence repetition; sensitivity
+                # sets how many matched words count as a redo.
                 min_run = RETAKE_SENSITIVITY_MIN_RUN.get(retake_sensitivity, RETAKE_MIN_RUN)
-                anchor_silences = detect_silences(wav, noise, RETAKE_ANCHOR_PAUSE,
-                                                  _noop, logger=logger)
                 retakes = detect_retakes(words, min_run=min_run, silences=anchor_silences)
                 logger.debug(f"retake detection ({retake_sensitivity}, min_run={min_run}) "
                              f"found {len(retakes)} repeated take(s)")

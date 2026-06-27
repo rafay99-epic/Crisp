@@ -473,6 +473,20 @@ final class CrispTests: XCTestCase {
         XCTAssertEqual(cfg.retakeSensitivity, "balanced")
     }
 
+    func testCorruptRetakeSensitivityIsClampedNotForwarded() {
+        // A hand-edited/garbage value must not reach the engine's fixed --choices and
+        // hard-fail the clean; it's clamped to balanced when building parameters.
+        var cfg = EngineConfig.defaults
+        cfg.retakeSensitivity = "ludicrous"
+        let params = Strength.aggressive.parameters(using: cfg)
+        XCTAssertEqual(params.retakeSensitivity, "balanced")
+        let args = CleanRunner.arguments(scriptPath: "/eng/clean_video.py",
+                                         input: URL(fileURLWithPath: "/v/in.mp4"),
+                                         parameters: params,
+                                         options: CleanRunner.Options(modelPath: "/m.bin", removeFillers: true))
+        XCTAssertEqual(valueAfter("--retake-sensitivity", in: args), "balanced")
+    }
+
     func testSplitFlagOnlyWhenEnabled() {
         // Off by default → no --split; on → the flag is passed for every strength.
         XCTAssertFalse(EngineConfig.defaults.splitTracks)

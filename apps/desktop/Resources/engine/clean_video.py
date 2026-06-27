@@ -49,7 +49,7 @@ from crisp.config import (
     DEFAULT_AUDIO_BITRATE, DEFAULT_AUDIO_CODEC, DEFAULT_CONTAINER, DEFAULT_CROSSFADE_MS,
     DEFAULT_FADE_MS, DEFAULT_FILLER_BACKEND, DEFAULT_KEEP_PAUSE, DEFAULT_MAX_PAUSE, DEFAULT_MODEL,
     DEFAULT_NOISE_DB, DEFAULT_QUALITY, DEFAULT_RETAKE_SENSITIVITY, DEFAULT_SNAP_MS, DEFAULT_VIDEO_CODEC,
-    MIN_KEEP,
+    MIN_KEEP, RETAKE_SENSITIVITY_MIN_RUN,
 )
 from crisp.encode import SUPPORTED_CONTAINERS
 from crisp.enginelog import logger_from_env
@@ -94,7 +94,7 @@ def main():
     p.add_argument("--no-retakes", action="store_true",
                    help="don't remove repeated takes (a flubbed phrase you immediately "
                         "said again); on by default, needs a whisper transcript")
-    p.add_argument("--retake-sensitivity", choices=["gentle", "balanced", "aggressive"],
+    p.add_argument("--retake-sensitivity", choices=list(RETAKE_SENSITIVITY_MIN_RUN),
                    default=DEFAULT_RETAKE_SENSITIVITY,
                    help=f"how eagerly to cut repeated takes: gentle (only long, "
                         f"unmistakable redos) … aggressive (shorter redos too) "

@@ -113,7 +113,7 @@ struct BottomBar: View {
             Image(systemName: "exclamationmark.triangle.fill")
                 .imageScale(.small).foregroundStyle(.orange)
             Text("The fast filler model can't find repeated takes.")
-            SettingsLink { Text("Switch to the speech model") }
+            SettingsLink { Text("Switch in Settings") }
                 .buttonStyle(.link)
         }
         .font(.caption).foregroundStyle(.secondary).fixedSize()
