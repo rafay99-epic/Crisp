@@ -1,67 +1,99 @@
-# Notes — retake detection: the hard problems (don't forget)
+# Notes — Retake feature: state, problems, plan (living handoff)
 
-Captured while testing PR #73 (retake calibration) on Abdul's real YouTube footage.
-The feature works well on *clean* retakes but has two real limits. These are NOT
-threshold bugs — they're the ceiling of transcript-only detection.
+Living doc for the "remove repeated takes" feature's next arc. Started while Abdul
+tested PR #73 (calibration) on his real YouTube footage. Read this first if you're a
+fresh session picking this up. See also: `retake-calibration.md`, `analytics-dashboard.md`,
+and the `retake-removal` memory.
 
-## How it works today (baseline that's solid)
-- whisper transcript → find a repeated run of words (≥ `min_run`) → cut the first take.
-- **Pause-anchoring**: the corrected take must begin right after a detected silence
-  (found at a short 0.3s threshold). This is what gives precision — it kills the big
-  false-positive class (see #2). Sensitivity = gentle(5)/balanced(4)/aggressive(3).
-- On conversational footage (the 8-min "Deploying" clip), **balanced = 1 cut, the one
-  real retake, 0 false positives.** This part is good.
+## Where it stands
+- **PR #72** (transcript-matching retake removal) — merged to nightly (`cd4426a`).
+- **PR #73** (pause-anchoring + gentle/balanced/aggressive sensitivity + UX) — merged to
+  nightly (`753f84d`). This is the **solid baseline**.
+- Engine: `crisp/retake.py` (`detect_retakes`), `crisp/pipeline.py` wires it; sensitivity
+  in `crisp/config.py` (`RETAKE_SENSITIVITY_MIN_RUN = {gentle:5, balanced:4, aggressive:3}`).
+- App: Settings ▸ Cutting ▸ Repeated takes (sensitivity picker); bottom-bar on/off toggle;
+  disabled + clear warning when the Wren fast-filler model is on (retakes need whisper).
+- Progress shows: Detecting pauses → Transcribing → Finding repeated takes → Planning cuts.
+- Estimate shows pause count (retakes/fillers counted while cleaning — need whisper).
 
-## Problem 1 — pause-less stumbling restarts (MISSED)
-Real example, "Idea→Code→App" clip @ ~801s:
+## How it works (the baseline that IS good)
+whisper transcript → find a repeated run of words (≥ `min_run`) → cut the first take.
+**Pause-anchoring**: the corrected take must begin right after a detected silence (found
+at a short 0.3s threshold). That anchor is what gives precision. On conversational
+footage (8-min "Deploying" clip), **balanced = 1 cut = the one real retake, 0 false
+positives.** That part works well.
+
+## Abdul's experience & feedback (his words, paraphrased)
+- Verdict: **"the retake functionality is kind of mid."** Fair — it nails clean retakes,
+  misses messy real-world ones.
+- He **does a lot of retakes** when recording; his footage is the real test (the polished
+  test clips have ~none, so they only prove we don't over-cut, not that we catch his).
+- Concrete miss he flagged ("open source" correction): he said something like *"it'll be
+  open… and it is open… no, I said it'll be open source."* → not caught.
+- He wants it to handle **chained / merging retakes**: *"this is a retake, this is another
+  retake, and this retake is merging into another sentence — cut these so the audio and
+  the cut are completely seamless."* I.e. multiple stacked restarts, cut cleanly.
+- He was testing on: **balanced** sensitivity, **whisper** model, **remove fillers on**,
+  **repeated takes enabled**. (Note: the dev build force-enables Wren, which disables
+  retakes — he had to turn Wren off to test, which he did.)
+- Cut **seamlessness** matters to him a lot — non-editors must trust it; janky cuts kill it.
+
+## The core problems (NOT threshold bugs — the ceiling of transcript-only detection)
+
+### Problem 1 — pause-less stumbling restarts (MISSED)
+"Idea→Code→App" clip @ ~801s:
 > "I'm using this notepad to, **you can see**, I was using this notepad to work…"
 
-Abdul fumbled and restarted **without pausing**. The repeat ("using this notepad to")
-IS in the transcript, run length is fine, gap is fine. The ONLY reason it's rejected:
-**pause-anchoring** — there's no silence before the corrected take, because he never
-stopped, he just barreled through with "you can see" wedged in.
+He fumbled and restarted **without pausing**. The repeat IS in the transcript; run/gap are
+fine. Rejected purely by **pause-anchoring** — no silence before the corrected take.
 
-Data (idea clip):
-| config | total cuts | catches the 801s retake? |
+| config | total cuts (idea clip) | catches 801s retake? |
 |---|---|---|
 | balanced (anchored) | 3 (clean) | ❌ |
 | anchoring OFF | 23 (noisy) | ✅ but +20 false cuts |
 
-**The tension in one line:** the pause anchor is what makes balanced clean AND what
-makes it miss continuous stumbles. Can't fix with a knob — loosening brings back the
-false positives.
+**The tension:** the pause anchor is what makes balanced clean AND what makes it miss
+continuous stumbles. Can't fix with a knob.
 
-## Problem 2 — semantic corrections with NO verbatim repeat (INVISIBLE)
-Abdul described saying (paraphrase): "it will be open… and it is open… no, I said it
-will be open source." Whisper **smooths disfluencies away** — it transcribes the
-*intended* sentence and drops the false start. At his timestamps the verbatim repeat
-isn't in the transcript at all. **If the repeat isn't in the text, matching can't see
-it.** This is the "no, I said X" correction class.
+### Problem 2 — semantic "no, I said X" corrections with NO verbatim repeat (INVISIBLE)
+whisper **smooths disfluencies away** — transcribes the intended sentence, drops the false
+start. At Abdul's "open source" timestamps the repeat isn't in the transcript at all. **No
+text repeat → matching has nothing to catch.** Only a semantic model can touch this.
 
-## Problem 3 — parallel structure looks identical to a redo (the false-positive class)
-"at the startup level, at the enterprise level" / "how it's gonna run, how it's gonna
-come together" — intentional, but textually identical to a retake. Pause-anchoring
-filters most (they're usually continuous), which is why we need it. On list-heavy
-technical footage even balanced over-cuts a bit (gentle is safer there).
+### Problem 3 — parallel structure looks identical to a redo (the false-positive class)
+"at the startup level, at the enterprise level" / "how it's gonna run, how it's gonna come
+together" — intentional, textually identical to a retake. Pause-anchoring filters most
+(they're continuous), which is WHY we need the anchor. On list-heavy technical footage
+even balanced over-cuts a little (gentle safer there).
 
-## Candidate fixes (need a real test set before building — don't overfit to one clip)
-1. **Discourse-stumble markers between the takes** — Abdul's notepad case has "you can
-   see"; real restarts often have "um", "uh", "I mean", "sorry", "you know". Parallel
-   structure never does. Use as an ADDITIONAL catch path on top of pause-anchoring
-   (catch more without losing precision). Best near-term bet.
-2. **Repeat bursts** — same phrase 3× in a row ("using this" ×3) = stumble. Genuine
-   parallel structure repeats exactly twice.
-3. **"Retake-judge" model** — a small semantic/text classifier (or tiny local LLM)
-   that reads the two phrases and decides "correction vs. intentional repeat." The only
-   thing that can touch Problem 2. Research project ([[ml-custom-models]] territory),
-   NOT Wren (Wren is an audio→filler classifier, can't read words).
+### Problem 4 — seamless cuts on chained/merging retakes (cut-quality)
+When several restarts stack ("A… A… A-and-then"), the cut boundaries must land so the kept
+take flows naturally. `detect_retakes` already resumes at the kept take (`i = best_j`) so
+chained restarts cut in sequence — but only if each is *detected* (Problem 1 blocks that).
+Need to confirm boundaries are clean when multiple cut spans merge (build_keep_segments
+merges overlapping removals; zero-cross snap + fade smooth the splice).
 
-## Process note
-Build a small test set from Abdul's OWN footage: each entry = (clip, timestamp, what he
-actually said, should-cut?). One example shows the problem; 5–6 show the fix and guard
-against overfitting/regressions. Ask him to flag misses (timestamp + rough words) as he
-tests.
+## Decision — next step (agreed direction)
+**#1: discourse-stumble markers as an ADDITIONAL catch-path on top of pause-anchoring.**
+Highest value, lowest risk. Idea: a retake is valid if the corrected take begins after a
+pause **OR** the gap between takes contains a stumble marker — "um", "uh", "I mean",
+"sorry", "you know", "you can see" (Abdul's notepad case has "you can see"). Parallel
+structure never has these, so it should catch more (Problem 1) without reintroducing the
+Problem 3 false positives.
 
-## Status
-PR #73 ships the solid baseline (clean retakes + sensitivity + honest UX). Problems
-1–3 are the next research arc, tracked here. See also retake-calibration.md.
+**Hard prerequisite — don't overfit:** build a small **test set from Abdul's own footage**
+before tuning. Each entry = `(clip, timestamp, what he actually said, should-cut?)`. One
+example (notepad) shows the problem; **need ~5–6 flagged misses** to design a signal that
+generalizes and guard against regressions. Ask Abdul to flag misses as he tests:
+timestamp + roughly what he said + should-it-have-cut.
+
+Other candidates (later): repeat-bursts (same phrase 3×); the **"retake-judge" model** (a
+small semantic/text classifier or tiny local LLM — the only thing that can touch Problem
+2; NOT Wren, which is an audio→filler classifier and can't read words → `ml-custom-models`).
+
+## For a fresh session
+1. Read this + the `retake-removal` memory.
+2. Get Abdul's flagged misses (the test set) before changing detection.
+3. Prototype #1 (stumble-marker catch-path) against the test set; verify precision doesn't
+   regress on the "Deploying" (8-min) clip (should stay ~1 clean cut).
+4. Keep cuts seamless (Problem 4) and the sensitivity presets meaningful.
