@@ -4,6 +4,7 @@ Pure transcript matching (no audio/model), so these assert the three patterns we
 cut (full restart, false start, single-word stutter) and the cases we must leave
 alone (rhetorical repeats far apart, ordinary recurring words)."""
 
+import threading
 import unittest
 
 from crisp.retake import _decide, detect_retakes
@@ -62,14 +63,12 @@ class FalseStartTests(unittest.TestCase):
 
 
 class SensitivityTests(unittest.TestCase):
-    def test_balanced_default_needs_four_word_run(self):
-        # The default (balanced) min_run is 4: a 3-word repeat isn't enough…
+    def test_default_is_aggressive_three_word_run(self):
+        # The default sensitivity is now aggressive → min_run 3: a 3-word repeat cuts…
         three = seq(["the", "API", "is", "slow", "the", "API", "is", "fast"], breaks={3})
-        self.assertEqual(detect_retakes(three), [])
-        # …a 4-word run is.
-        four = seq(["the", "API", "is", "really", "slow",
-                    "the", "API", "is", "really", "fast"], breaks={4})
-        self.assertEqual(len(detect_retakes(four)), 1)
+        self.assertEqual(len(detect_retakes(three)), 1)
+        # …while explicitly choosing balanced (min_run 4) leaves a 3-word repeat alone.
+        self.assertEqual(detect_retakes(three, min_run=4), [])
 
 
 class FuzzyMatchTests(unittest.TestCase):
@@ -275,6 +274,44 @@ class DecideTests(unittest.TestCase):
     def test_strong_semantic_rescues_a_short_no_pause_run(self):
         self.assertTrue(_decide(True, False, 3, 9, False, 0.9, 0.7)[0])     # sim>=bar
         self.assertFalse(_decide(True, False, 3, 9, False, 0.5, 0.7)[0])    # sim<bar
+
+
+class ConcurrencyTests(unittest.TestCase):
+    """Each clean runs in its own process, but detection must ALSO be safe to call
+    concurrently — no shared mutable state — so several parallel cleans can never
+    corrupt each other's results."""
+
+    def test_detect_retakes_is_reentrant_across_threads(self):
+        words = seq(["I", "was", "using", "this", "notepad", "to",
+                     "you", "can", "see",
+                     "I", "was", "using", "this", "notepad", "to", "work"])
+        kwargs = dict(min_run=3, require_pause=False, min_run_no_pause=5,
+                      sem_min=0.7, silences=[], judge=const_judge(0.5))
+        expected = detect_retakes(words, **kwargs)
+        self.assertEqual(len(expected), 1)            # sanity: it does cut
+
+        results, errors, lock = [], [], threading.Lock()
+
+        def worker():
+            try:
+                r = detect_retakes(words, **kwargs)
+            except Exception as e:                    # noqa: BLE001 — record, don't swallow
+                with lock:
+                    errors.append(e)
+                return
+            with lock:
+                results.append(r)
+
+        threads = [threading.Thread(target=worker) for _ in range(16)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        self.assertEqual(errors, [])                  # no thread blew up
+        self.assertEqual(len(results), 16)
+        for r in results:
+            self.assertEqual(r, expected)             # identical, deterministic
 
 
 if __name__ == "__main__":

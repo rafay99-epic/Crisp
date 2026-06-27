@@ -90,7 +90,11 @@ RETAKE_SENSITIVITY = {
     "balanced":   {"min_run": 4, "require_pause": True,  "min_run_no_pause": 7,    "sem_min": 0.78},
     "aggressive": {"min_run": 3, "require_pause": False, "min_run_no_pause": 5,    "sem_min": 0.70},
 }
-DEFAULT_RETAKE_SENSITIVITY = "balanced"        # gentle | balanced | aggressive
+# Default is AGGRESSIVE: validated on real talking-head footage to catch the natural
+# mid-sentence restarts most speakers actually make (no pause, no marker) while the
+# run-length lever holds precision. gentle/balanced stay available for list-heavy
+# content where a shorter run can over-cut intentional parallel structure.
+DEFAULT_RETAKE_SENSITIVITY = "aggressive"      # gentle | balanced | aggressive
 # Back-compat: the per-name min-run map other callers still read.
 RETAKE_SENSITIVITY_MIN_RUN = {k: v["min_run"] for k, v in RETAKE_SENSITIVITY.items()}
 RETAKE_MIN_RUN = RETAKE_SENSITIVITY[DEFAULT_RETAKE_SENSITIVITY]["min_run"]  # bare-call default
