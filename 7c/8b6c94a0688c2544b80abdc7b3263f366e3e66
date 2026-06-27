@@ -1,0 +1,65 @@
+apps/desktop/Resources/engine/crisp/edit.py
+  s_1c9eefb4447eda::t_d78e4b8ef8ba49 385-388,392
+  s_1c9eefb4447eda::t_a7eb68e47c2190 370
+apps/desktop/Resources/engine/crisp/framerate.py
+  s_1c9eefb4447eda::t_c1b13d429228b7 50
+  s_1c9eefb4447eda::t_85294e62f9dabb 1-49,51-89
+apps/desktop/Sources/CrispCore/Models/CleanParameters.swift
+  s_1c9eefb4447eda::t_548cc0c156856b 20-21
+  s_1c9eefb4447eda::t_caa0d6e38cc1e2 33
+  s_1c9eefb4447eda::t_2232fea6078d96 50-51
+  s_1c9eefb4447eda::t_a1de0cb2de11b6 78-80
+apps/desktop/Sources/Crisp/Services/Cleaning/EngineSettings.swift
+  s_1c9eefb4447eda::t_02098fda8a712c 116-120
+  s_1c9eefb4447eda::t_4b0789468ea9b0 169-170
+  s_1c9eefb4447eda::t_72a99f27b00ce1 29-30
+  s_1c9eefb4447eda::t_37c4b27cd76f55 76
+apps/desktop/Sources/Crisp/Views/SettingsView.swift
+  s_1c9eefb4447eda::t_46f312df36d11c 199-204
+  s_1c9eefb4447eda::t_11c3e761310148 177-190
+apps/desktop/Sources/CrispCore/Models/EncodingOptions.swift
+  s_1c9eefb4447eda::t_5c06dc1aa3ba0a 63-92
+apps/desktop/Resources/engine/tests/test_framerate.py
+  s_1c9eefb4447eda::t_70239d1e5b78c3 1-69
+apps/desktop/Resources/engine/clean_video.py
+  s_1c9eefb4447eda::t_f6b2bbb2d1f744 93-101
+  s_1c9eefb4447eda::t_f861f4451d19fe 50-52
+  s_1c9eefb4447eda::t_353f58e1b02b54 228
+apps/desktop/Resources/engine/crisp/pipeline.py
+  s_1c9eefb4447eda::t_552c8e7b88bfb5 20-21
+  s_1c9eefb4447eda::t_0ba9fba16aec0c 168-184
+  s_1c9eefb4447eda::t_7cce5a81a2c175 337,347
+  s_1c9eefb4447eda::t_bd898d48bae95c 72
+  s_1c9eefb4447eda::t_7e0af48a2a789a 8-10
+apps/desktop/Resources/engine/crisp/tools.py
+  s_1c9eefb4447eda::t_7bce918f4e5fc7 47-72
+apps/desktop/Resources/engine/crisp/config.py
+  s_1c9eefb4447eda::t_ae16b92a658ada 65-71
+apps/desktop/Sources/CrispCore/Engine/EngineConfig.swift
+  s_1c9eefb4447eda::t_03e866b16dbbe3 92-94
+  s_1c9eefb4447eda::t_666fc3d1602604 30-35
+  s_1c9eefb4447eda::t_6d9dc11b6ad9fa 125-127
+  s_1c9eefb4447eda::t_d0d6dfe9c0a1c2 152-153
+  s_1c9eefb4447eda::t_b1dc084d655367 192-193
+  s_1c9eefb4447eda::t_76fe4224d926be 112-113
+apps/desktop/Sources/CrispCore/Engine/CleanRunner.swift
+  s_1c9eefb4447eda::t_9db379d4bb4c54 110-116
+apps/desktop/Tests/CrispTests/CrispTests.swift
+  s_1c9eefb4447eda::t_3052f64b6e5379 435-467
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "7c8b6c94a0688c2544b80abdc7b3263f366e3e66",
+  "prompts": {},
+  "sessions": {
+    "s_1c9eefb4447eda": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e19c83fe-6f19-40d2-8102-46ce01d7fa72",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
