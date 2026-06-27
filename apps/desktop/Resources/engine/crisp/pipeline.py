@@ -1,13 +1,16 @@
 """The public engine entry point — orchestrates detect → edit into a clean video."""
 
+import shutil
+import subprocess
 import tempfile
 from pathlib import Path
 
 from .config import (
     DEFAULT_AUDIO_BITRATE, DEFAULT_AUDIO_CODEC, DEFAULT_BACKUP, DEFAULT_CONTAINER, DEFAULT_CROSSFADE_MS,
-    DEFAULT_FADE_MS, DEFAULT_FPS, DEFAULT_FPS_MODE, DEFAULT_HARDWARE, DEFAULT_KEEP_PAUSE, DEFAULT_MAX_PAUSE,
-    DEFAULT_MODEL, DEFAULT_NOISE_DB, DEFAULT_QUALITY, DEFAULT_REMOVE_RETAKES, DEFAULT_RETAKE_SENSITIVITY,
-    DEFAULT_SNAP_MS, DEFAULT_VIDEO_CODEC, MIN_KEEP, RETAKE_ANCHOR_PAUSE, RETAKE_SENSITIVITY,
+    DEFAULT_EXPORT_TIMELINE, DEFAULT_FADE_MS, DEFAULT_FPS, DEFAULT_FPS_MODE, DEFAULT_HARDWARE,
+    DEFAULT_KEEP_PAUSE, DEFAULT_MAX_PAUSE, DEFAULT_MODEL, DEFAULT_NOISE_DB, DEFAULT_QUALITY,
+    DEFAULT_REMOVE_RETAKES, DEFAULT_RETAKE_SENSITIVITY, DEFAULT_SNAP_MS, DEFAULT_VIDEO_CODEC,
+    MIN_KEEP, RETAKE_ANCHOR_PAUSE, RETAKE_SENSITIVITY,
 )
 from .detect import detect_silences, extract_audio, filler_words, filter_silences, transcribe
 from .edit import (build_keep_segments, gate_fillers_by_silence, make_backup, output_duration,
@@ -18,11 +21,59 @@ from .encode import (
 from .enginelog import EngineLogger
 from .errors import CleanError
 from .framerate import resolve_target_fps
-from .tools import ffprobe_duration, probe_video_fps, which_filler, which_whisper
+from .timeline import build_fcpxml, project_paths
+from .tools import (
+    ffmpeg_bin, ffprobe_duration, probe_stream_meta, probe_video_fps, which_filler, which_whisper,
+)
 
 
 def _noop(*_a, **_k):
     pass
+
+
+def _export_editor_project(src, keep, out_dir, project_dir, target_fps,
+                           video_codec, hardware, quality, audio_codec, audio_bitrate,
+                           on_log, on_progress, logger):
+    """Model-A editor handoff: drop a copy of the ORIGINAL plus a non-destructive
+    FCPXML timeline into a project folder, so an editor (DaVinci Resolve) can open the
+    already-cut footage and still adjust every cut. Returns (fcpxml_path, project_dir,
+    media_copy_path). The original is never touched.
+
+    A CFR source is copied byte-for-byte (zero re-encode — the whole point). A source
+    that needs normalization (VFR, or an explicit constant rate) is re-encoded to CFR
+    once, because FCPXML can't represent variable timing frame-accurately."""
+    pdir, media_copy, fcpxml_path = project_paths(src, project_dir or out_dir)
+    pdir.mkdir(parents=True, exist_ok=True)
+
+    on_progress(0.65, "Copying footage for the editor…")
+    if target_fps:
+        # The one re-encode exception: a VFR/constant source must become CFR so the
+        # timeline lands frame-accurately. Logged so it's never a silent transcode.
+        on_log(f"Preparing a constant-frame-rate copy for the editor ({target_fps} fps)…")
+        cmd = [ffmpeg_bin(), "-y", "-i", str(src),
+               *video_args(video_codec, hardware, quality), "-r", str(target_fps),
+               *audio_args(audio_codec, audio_bitrate), str(media_copy)]
+        logger.command("ffmpeg editor-copy (normalize)", cmd)
+        res = subprocess.run(cmd, capture_output=True, text=True)
+        logger.tool_result("ffmpeg editor-copy", res.returncode, res.stderr)
+        if res.returncode != 0 or not media_copy.exists():
+            raise CleanError(f"Couldn't prepare the editor copy.\n{res.stderr[-1000:]}")
+    else:
+        # CFR: a plain copy — no re-encode, no quality loss, fast.
+        on_log(f"Copying the original into the editor project: {media_copy.name}")
+        shutil.copy2(src, media_copy)
+
+    on_progress(0.9, "Writing editor timeline…")
+    meta = probe_stream_meta(media_copy, logger=logger)
+    dur = ffprobe_duration(media_copy, logger=logger)
+    xml = build_fcpxml(
+        media_uri=media_copy.resolve().as_uri(), name=Path(src).stem,
+        num=meta["fps_num"], den=meta["fps_den"], width=meta["width"], height=meta["height"],
+        audio_rate=meta["audio_rate"], audio_channels=meta["audio_channels"],
+        duration=dur, keep=keep)
+    fcpxml_path.write_text(xml, encoding="utf-8")
+    logger.info(f"editor project: {pdir} (fcpxml={fcpxml_path.name}, media={media_copy.name})")
+    return fcpxml_path, pdir, media_copy
 
 
 # Analyze-only captures every candidate gap down to this floor; the app applies the
@@ -70,6 +121,7 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
                 fade_ms=DEFAULT_FADE_MS, crossfade_ms=DEFAULT_CROSSFADE_MS, snap_ms=DEFAULT_SNAP_MS,
                 retake_sensitivity=DEFAULT_RETAKE_SENSITIVITY,
                 fps_mode=DEFAULT_FPS_MODE, fps=DEFAULT_FPS,
+                export_timeline=DEFAULT_EXPORT_TIMELINE, project_dir=None,
                 on_log=None, on_progress=None, logger=None):
     """
     Clean one video. Returns a dict with results.
@@ -331,6 +383,37 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
     retake_note = f", {stats['retakes']} repeated takes" if stats["retakes"] else ""
     on_log(f"Removing {stats['fillers']} filler words and {stats['pauses']} pauses{retake_note}.")
     on_log(f"{duration:.0f}s  →  {kept_dur:.0f}s  (saved {duration - kept_dur:.0f}s)")
+
+    # Editor handoff (Model A): instead of rendering a new video, write a
+    # non-destructive timeline an editor can open. Branches out before the render —
+    # no backup/captions/split/waveform (those describe a rendered deliverable).
+    if export_timeline == "fcpxml":
+        fcpxml_path, pdir, media_copy = _export_editor_project(
+            src, keep, out_dir, project_dir, target_fps,
+            video_codec, hardware, quality, audio_codec, audio_bitrate,
+            on_log, on_progress, logger)
+        on_progress(1.0, "Done")
+        on_log(f"✅ Editor project ready: {pdir}")
+        return {
+            "input": str(src),
+            "output": str(fcpxml_path),
+            "project_dir": str(pdir),
+            "media_output": str(media_copy),
+            "export_timeline": "fcpxml",
+            "backup": str(backup_path) if backup_path else "",
+            "orig_seconds": duration,
+            "new_seconds": kept_dur,
+            "saved_seconds": duration - kept_dur,
+            "fillers": stats["fillers"],
+            "pauses": stats["pauses"],
+            "retakes": stats["retakes"],
+            "peaks": wave_summary["peaks"],
+            "removed": wave_summary["removed"],
+            "video_output": "",
+            "audio_output": "",
+            "srt_output": "",
+            "vtt_output": "",
+        }
 
     audio = audio_args(audio_codec, audio_bitrate)
     mux = container_args(container)

@@ -47,9 +47,9 @@ def _enable_group_cancel():
 from crisp import CleanError, clean_video
 from crisp.config import (
     DEFAULT_AUDIO_BITRATE, DEFAULT_AUDIO_CODEC, DEFAULT_CONTAINER, DEFAULT_CROSSFADE_MS,
-    DEFAULT_FADE_MS, DEFAULT_FILLER_BACKEND, DEFAULT_FPS, DEFAULT_FPS_MODE, DEFAULT_KEEP_PAUSE,
-    DEFAULT_MAX_PAUSE, DEFAULT_MODEL, DEFAULT_NOISE_DB, DEFAULT_QUALITY, DEFAULT_RETAKE_SENSITIVITY,
-    DEFAULT_SNAP_MS, DEFAULT_VIDEO_CODEC, MIN_KEEP, RETAKE_SENSITIVITY_MIN_RUN,
+    DEFAULT_EXPORT_TIMELINE, DEFAULT_FADE_MS, DEFAULT_FILLER_BACKEND, DEFAULT_FPS, DEFAULT_FPS_MODE,
+    DEFAULT_KEEP_PAUSE, DEFAULT_MAX_PAUSE, DEFAULT_MODEL, DEFAULT_NOISE_DB, DEFAULT_QUALITY,
+    DEFAULT_RETAKE_SENSITIVITY, DEFAULT_SNAP_MS, DEFAULT_VIDEO_CODEC, MIN_KEEP, RETAKE_SENSITIVITY_MIN_RUN,
 )
 from crisp.encode import SUPPORTED_CONTAINERS
 from crisp.enginelog import logger_from_env
@@ -100,6 +100,14 @@ def main():
                    help="target constant frame rate for --fps-mode=constant (e.g. 30, 60) "
                         "— required in that mode (0 is unset and errors). 'auto' ignores "
                         "this and uses the source's own rate")
+    p.add_argument("--export-timeline", choices=["none", "fcpxml"], default=DEFAULT_EXPORT_TIMELINE,
+                   help="instead of rendering a cleaned video, write a non-destructive "
+                        "editor project: a copy of the original + an .fcpxml timeline "
+                        "(referencing the kept ranges) that DaVinci Resolve can import. "
+                        f"Zero re-encode for CFR sources (default {DEFAULT_EXPORT_TIMELINE})")
+    p.add_argument("--project-dir", default=None,
+                   help="folder to write the editor project into when --export-timeline "
+                        "is set (default: a '<name> (Crisp)' folder beside the input)")
     p.add_argument("--no-fillers", action="store_true", help="only remove pauses, keep um/uh")
     p.add_argument("--no-retakes", action="store_true",
                    help="don't remove repeated takes (a flubbed phrase you immediately "
@@ -227,6 +235,7 @@ def main():
                              filler_backend=args.filler_backend, filler_model=args.filler_model,
                              fade_ms=args.fade_ms, crossfade_ms=args.crossfade_ms, snap_ms=args.snap_ms,
                              fps_mode=args.fps_mode, fps=args.fps,
+                             export_timeline=args.export_timeline, project_dir=args.project_dir,
                              on_log=on_log, on_progress=on_progress, logger=log)
         if args.ndjson:
             emit({"event": "result", **result})
