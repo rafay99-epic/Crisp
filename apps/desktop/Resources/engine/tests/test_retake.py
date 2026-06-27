@@ -219,6 +219,15 @@ class PauselessRestartTests(unittest.TestCase):
             detect_retakes(words, min_run=3, require_pause=True,
                            min_run_no_pause=None, silences=[]), [])
 
+    def test_pause_required_preset_stays_pause_required_with_a_judge(self):
+        # Regression: a pause-required preset (min_run_no_pause=None, like gentle) must
+        # NOT start cutting pause-less restarts just because a judge is available — the
+        # judge only adds precision, it never relaxes the pause requirement.
+        words = self._restart()
+        self.assertEqual(
+            detect_retakes(words, min_run=3, require_pause=True, min_run_no_pause=None,
+                           sem_min=0.5, silences=[], judge=const_judge(0.99)), [])
+
     def test_short_pauseless_repeat_is_not_cut_even_in_aggressive(self):
         # A 3-word pause-less repeat is below the no-pause run bar — exactly the natural
         # short repetition we must not cut.

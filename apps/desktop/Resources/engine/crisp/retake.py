@@ -80,12 +80,16 @@ def _decide(anchored, has_pause, run, min_run_no_pause, require_pause, sim, sem_
         return True, f"pause(sim={sim:.2f})" if sim is not None else "pause"
     if not anchored:
         return True, "no-silence-data"        # bare CLI / library call: run+gap only
-    # No pause before the redo. A long-enough verbatim repeat is itself strong evidence
-    # of a restart; a very strong semantic match can rescue a shorter one.
-    if min_run_no_pause is not None and run >= min_run_no_pause:
-        return True, f"long-run-no-pause({run}>={min_run_no_pause})"
-    if sim is not None and sim >= sem_min:
-        return True, f"semantic-no-pause({sim:.2f}>={sem_min:.2f})"
+    # No pause before the redo. Only presets that OPT IN to a pause-less path
+    # (`min_run_no_pause` set) may cut here — so a pause-required preset like gentle
+    # stays pause-required even when a judge is available. A long-enough verbatim
+    # repeat is strong evidence of a restart; a very strong semantic match can rescue
+    # a shorter one.
+    if min_run_no_pause is not None:
+        if run >= min_run_no_pause:
+            return True, f"long-run-no-pause({run}>={min_run_no_pause})"
+        if sim is not None and sim >= sem_min:
+            return True, f"semantic-no-pause({sim:.2f}>={sem_min:.2f})"
     return False, ("no-pause" if require_pause else f"short-run-no-pause(run={run})")
 
 # Tokens shorter than this must match exactly: a similarity ratio is unreliable on
@@ -169,10 +173,11 @@ def detect_retakes(words, *, min_run=RETAKE_MIN_RUN, max_gap=RETAKE_MAX_GAP,
     norm = [normalize_word(w["text"]) for w in words]
     n = len(words)
     anchored = silences is not None
-    # Old behaviour (and the bare library call) require a pause for every cut. We only
-    # widen the candidate search beyond pause-anchored repeats when a pause-less path
-    # actually exists (a run-length lever or a judge) — otherwise selection is unchanged.
-    pause_is_mandatory = require_pause and min_run_no_pause is None and judge is None
+    # A pause is mandatory (so selection skips un-anchored repeats, as before) unless
+    # the preset opted into a pause-less path via `min_run_no_pause`. The judge does NOT
+    # relax this — a pause-required preset like gentle stays pause-required even with the
+    # semantic gate available (the judge can only ever add precision, never remove it).
+    pause_is_mandatory = require_pause and min_run_no_pause is None
     sil_ends = sorted(se for _s, se in silences) if anchored else []
 
     def begins_after_pause(onset):

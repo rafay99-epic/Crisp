@@ -15,6 +15,7 @@ helper is never required; it only ever *adds* precision.
 """
 
 import json
+import math
 import os
 import subprocess
 from pathlib import Path
@@ -40,9 +41,17 @@ def _run(binp, pairs, timeout=30):
                          timeout=timeout)
     if res.returncode != 0:
         raise RuntimeError((res.stderr or "").strip()[-300:] or f"exit {res.returncode}")
-    sims = json.loads(res.stdout).get("similarities", [])
-    if len(sims) != len(pairs):
-        raise RuntimeError(f"expected {len(pairs)} similarities, got {len(sims)}")
+    raw = json.loads(res.stdout).get("similarities", [])
+    if len(raw) != len(pairs):
+        raise RuntimeError(f"expected {len(pairs)} similarities, got {len(raw)}")
+    # Validate every value is a finite number here — a stray string/null/NaN would
+    # otherwise reach detect_retakes and crash the clean when it formats/compares the
+    # score. Raising instead lets make_judge fall back to None (gate disabled).
+    sims = []
+    for value in raw:
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+            raise RuntimeError(f"helper returned a non-finite similarity: {value!r}")
+        sims.append(float(value))
     return sims
 
 
