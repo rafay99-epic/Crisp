@@ -139,7 +139,11 @@ public struct CleanRunner {
                 args += ["--filler-backend", "coreml", "--filler-model", fillerModel]
             }
             if !options.removeFillers { args.append("--no-fillers") }
-            if options.removeRetakes {
+            // Belt-and-suspenders: the classifier backend produces no transcript, so
+            // retakes are impossible there. Refuse to emit the flag when it's active —
+            // callers already gate this and the engine backstops it, but this makes the
+            // pure argv unable to express the illegal "retakes + coreml" combination.
+            if options.removeRetakes && !usingFastFiller {
                 args += ["--retake-sensitivity", parameters.retakeSensitivity]
             } else {
                 args.append("--no-retakes")

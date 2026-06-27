@@ -254,19 +254,27 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
                 # detect_retakes keeps the anchor on regardless.
                 policy = RETAKE_SENSITIVITY.get(retake_sensitivity,
                                                 RETAKE_SENSITIVITY[DEFAULT_RETAKE_SENSITIVITY])
-                judge = make_judge(logger)
-                logger.debug(f"retake detection: sensitivity={retake_sensitivity} "
-                             f"min_run={policy['min_run']} require_pause={policy['require_pause']} "
-                             f"min_run_no_pause={policy['min_run_no_pause']} "
-                             f"sem_min={policy['sem_min']} "
-                             f"semantic_gate={'on' if judge else 'off'} "
-                             f"anchor_pauses={len(anchor_silences)}")
-                retakes = detect_retakes(
-                    words, min_run=policy["min_run"],
-                    require_pause=policy["require_pause"],
-                    min_run_no_pause=policy["min_run_no_pause"], sem_min=policy["sem_min"],
-                    silences=anchor_silences, judge=judge, logger=logger)
-                logger.debug(f"retake detection found {len(retakes)} repeated take(s)")
+                # Retake removal must never break a clean: any unexpected failure here
+                # degrades to "no retakes" (the rest of the clean — pauses, render —
+                # proceeds) rather than aborting and losing the user's run.
+                try:
+                    judge = make_judge(logger)
+                    logger.debug(f"retake detection: sensitivity={retake_sensitivity} "
+                                 f"min_run={policy['min_run']} require_pause={policy['require_pause']} "
+                                 f"min_run_no_pause={policy['min_run_no_pause']} "
+                                 f"sem_min={policy['sem_min']} "
+                                 f"semantic_gate={'on' if judge else 'off'} "
+                                 f"anchor_pauses={len(anchor_silences)}")
+                    retakes = detect_retakes(
+                        words, min_run=policy["min_run"],
+                        require_pause=policy["require_pause"],
+                        min_run_no_pause=policy["min_run_no_pause"], sem_min=policy["sem_min"],
+                        silences=anchor_silences, judge=judge, logger=logger)
+                    logger.debug(f"retake detection found {len(retakes)} repeated take(s)")
+                except Exception as exc:                       # noqa: BLE001 — degrade, never abort
+                    logger.error(f"retake detection failed ({exc!r}) — skipping retakes "
+                                 f"for this clean")
+                    retakes = []
             on_progress(0.59, "Planning cuts…")
             keep, stats = build_keep_segments(cut_words, silences, duration, keep_pause,
                                               min_keep, retakes=retakes)
