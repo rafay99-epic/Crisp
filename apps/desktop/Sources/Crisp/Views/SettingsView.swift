@@ -183,8 +183,14 @@ struct SettingsView: View {
             if let mode = FrameRateMode(rawValue: settings.frameRateMode) {
                 Text(mode.detail).font(.caption).foregroundStyle(.secondary)
                 if mode.usesValue {
+                    // settings.json may hold any engine-accepted rate (a power user can
+                    // hand-edit it); fold a non-preset value into the list so the picker
+                    // can represent the current selection instead of showing blank.
+                    let rates = commonFrameRates.contains(settings.frameRateValue)
+                        ? commonFrameRates
+                        : ([settings.frameRateValue] + commonFrameRates).sorted()
                     Picker("Constant rate", selection: $settings.frameRateValue) {
-                        ForEach(commonFrameRates, id: \.self) { Text(Self.frameRateLabel($0)).tag($0) }
+                        ForEach(rates, id: \.self) { Text(Self.frameRateLabel($0)).tag($0) }
                     }
                 }
             }

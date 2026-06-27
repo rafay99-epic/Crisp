@@ -49,24 +49,31 @@ def probe_video_fps(path: Path, logger=None):
     (``avg_frame_rate``) rates, as raw ffprobe fraction strings (``"30000/1001"``).
     Returns ``("", "")`` when there's no video stream or the probe fails — the
     caller (crisp.framerate) treats unknown rates as "don't normalize", so a probe
-    failure degrades to the source's own timing rather than breaking the clean."""
-    logger = logger or EngineLogger(None)
+    failure degrades to the source's own timing rather than breaking the clean.
+
+    `logger` is optional (a no-op when None), mirroring `ffprobe_duration` — the
+    rest of this module logs only through a passed-in logger."""
     res = subprocess.run(
         [ffprobe_bin(), "-v", "error", "-select_streams", "v:0",
          "-show_entries", "stream=r_frame_rate,avg_frame_rate",
          "-of", "default=noprint_wrappers=1", str(path)],
         capture_output=True, text=True,
     )
+    # Fail open: on a nonzero exit return ("", "") so a partial/garbled stdout can't
+    # feed bad metadata into resolve_target_fps (which would then normalize on the
+    # very path that's supposed to leave the source untouched).
+    if res.returncode != 0:
+        if logger is not None:
+            logger.error(f"ffprobe couldn't read frame rate of {path} (exit {res.returncode})\n"
+                         f"{(res.stderr or '').strip()[-800:]}")
+        return "", ""
     r = avg = ""
     for line in res.stdout.splitlines():
-        line = line.strip()
-        if line.startswith("r_frame_rate="):
-            r = line.split("=", 1)[1].strip()
-        elif line.startswith("avg_frame_rate="):
-            avg = line.split("=", 1)[1].strip()
-    if res.returncode != 0:
-        logger.error(f"ffprobe couldn't read frame rate of {path} (exit {res.returncode})\n"
-                     f"{(res.stderr or '').strip()[-800:]}")
+        s = line.strip()
+        if s.startswith("r_frame_rate="):
+            r = s.split("=", 1)[1].strip()
+        elif s.startswith("avg_frame_rate="):
+            avg = s.split("=", 1)[1].strip()
     return r, avg
 
 

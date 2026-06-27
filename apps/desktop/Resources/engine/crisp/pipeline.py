@@ -174,6 +174,10 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
     if fps_mode != "passthrough":
         r_text, avg_text = probe_video_fps(src, logger=logger)
         target_fps = resolve_target_fps(fps_mode, fps, r_text, avg_text)
+        # Constant mode must honor its contract: if no usable rate resolved (e.g. a
+        # zero/invalid --fps), fail loudly instead of silently rendering source timing.
+        if fps_mode == "constant" and target_fps is None:
+            raise CleanError("Constant frame rate mode needs a valid --fps value (e.g. 30 or 60).")
         logger.info(f"fps mode={fps_mode} requested={fps} r={r_text!r} avg={avg_text!r} "
                     f"-> target={target_fps!r}")
         if target_fps:

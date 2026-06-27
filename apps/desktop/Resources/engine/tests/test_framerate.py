@@ -64,6 +64,12 @@ class ResolveTargetFPSTests(unittest.TestCase):
     def test_auto_no_change_when_rates_unreadable(self):
         self.assertIsNone(resolve_target_fps("auto", 0, "N/A", "0/0"))
 
+    def test_constant_with_no_value_resolves_none(self):
+        # The pipeline turns this None into a CleanError (constant mode must force a
+        # rate); a zero/garbage request must never silently pass through.
+        self.assertIsNone(resolve_target_fps("constant", 0, "60/1", "60/1"))
+        self.assertIsNone(resolve_target_fps("constant", -5, "60/1", "60/1"))
+
 
 if __name__ == "__main__":
     unittest.main()
