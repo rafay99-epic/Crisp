@@ -1,0 +1,23 @@
+apps/desktop/Resources/engine/crisp/pipeline.py
+  s_390b1826d61e77::t_c97ea209b934b1 257-277
+apps/desktop/Sources/CrispCore/Engine/CleanRunner.swift
+  s_390b1826d61e77::t_3fa2735079f53e 142-146
+apps/desktop/Resources/engine/tests/test_semantic.py
+  s_390b1826d61e77::t_b264958ec673b4 1-167
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "64753898babfb721061ed411564fbf42e8353627",
+  "prompts": {},
+  "sessions": {
+    "s_390b1826d61e77": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "47d2ffe9-ceff-4aa9-8f1c-d2e02dd230cc",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
