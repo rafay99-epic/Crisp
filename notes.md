@@ -2,8 +2,39 @@
 
 Living doc for the "remove repeated takes" feature's next arc. Started while Abdul
 tested PR #73 (calibration) on his real YouTube footage. Read this first if you're a
-fresh session picking this up. See also: `retake-calibration.md`, `analytics-dashboard.md`,
-and the `retake-removal` memory.
+fresh session picking this up. See also: `retake-calibration.md`, `retake-research.md`
+(deep-research synthesis + viability), `analytics-dashboard.md`, and the
+`retake-removal` memory.
+
+## UPDATE — Tier 1 natural-detection shipped (branch `feat/retake-natural-detection`)
+Built end-to-end after the deep-research pass (`retake-research.md`). What landed:
+- **Fuzzy token matching** (`crisp/retake.py` `_tokens_match`, `RETAKE_TOKEN_SIM`): a
+  repeat now matches across whisper's transcription variance ("we're"/"were",
+  "open"/"opens"); short function words still need an exact match (no "the"/"they").
+- **Pause-less restart detection** via **run length** — the load-bearing lever.
+  Aggressive accepts a long verbatim repeat (`min_run_no_pause`) even with NO pause,
+  catching the notepad/Problem-1 case. gentle/balanced still require a pause for short
+  repeats. Sensitivity presets are now full policies (`RETAKE_SENSITIVITY` in config).
+- **Semantic gate** (`crisp/semantic.py` → new `crisp-embed` Swift helper, Apple
+  on-device NL sentence embeddings, shelled out via `CRISP_EMBED` like ffmpeg/whisper).
+- **KEY EMPIRICAL FINDING (important):** Apple's sentence embedding **does NOT
+  discriminate a redo from parallel structure** on short phrases — measured: real redo
+  "slow"→"fast" = 0.35, parallel "startup"/"enterprise" = 0.41, near-identical restart
+  = 0.40. A *correction changes meaning by design*, so "are the two takes alike?" is the
+  wrong question. So the embedding **never vetoes** (a low score isn't evidence of a
+  non-redo); it only logs every candidate's score (real-footage data to decide if a
+  stronger embedding / LLM judge is worth it) and can *rescue* a short pause-less repeat
+  at a deliberately high bar. **Run length, not the embedding, carries pause-less
+  precision.**
+- **Detailed dev logging** at every decision point (engine `retake @…s run=… pause=… sim=…
+  → CUT/skip (reason)`; pipeline policy line; Swift `CleanRunner` mode line) for tuning.
+- **Tier 2 (disfluency model) deferred with reason:** research confirmed no shippable
+  small model exists (paper-only / ~1 GB parser / ~110 MB unvetted) — it's a train-our-
+  own ML project. The architecture leaves a clean seam (`semantic.py` + `crisp-embed`).
+- Tests: engine 153 (+ fuzzy / pause-less / decide-matrix), Swift 79, SwiftLint clean.
+- **Next:** Abdul tests on real footage; the logged `sim=`/`run=`/`reason` lines are the
+  tuning data — adjust `min_run_no_pause` / `sem_min` per `RETAKE_SENSITIVITY`, and decide
+  the embedding's fate (keep / swap for sentence-transformer via swift-embeddings / LLM).
 
 ## Where it stands
 - **PR #72** (transcript-matching retake removal) — merged to nightly (`cd4426a`).

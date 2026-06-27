@@ -7,7 +7,7 @@ from .config import (
     DEFAULT_AUDIO_BITRATE, DEFAULT_AUDIO_CODEC, DEFAULT_BACKUP, DEFAULT_CONTAINER, DEFAULT_CROSSFADE_MS,
     DEFAULT_FADE_MS, DEFAULT_HARDWARE, DEFAULT_KEEP_PAUSE, DEFAULT_MAX_PAUSE, DEFAULT_MODEL,
     DEFAULT_NOISE_DB, DEFAULT_QUALITY, DEFAULT_REMOVE_RETAKES, DEFAULT_RETAKE_SENSITIVITY, DEFAULT_SNAP_MS,
-    DEFAULT_VIDEO_CODEC, MIN_KEEP, RETAKE_ANCHOR_PAUSE, RETAKE_MIN_RUN, RETAKE_SENSITIVITY_MIN_RUN,
+    DEFAULT_VIDEO_CODEC, MIN_KEEP, RETAKE_ANCHOR_PAUSE, RETAKE_SENSITIVITY,
 )
 from .detect import detect_silences, extract_audio, filler_words, filter_silences, transcribe
 from .edit import (build_keep_segments, gate_fillers_by_silence, make_backup, output_duration,
@@ -244,13 +244,43 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
                 on_log("Finding repeated takes...")
                 on_progress(0.58, "Finding repeated takes…")
                 from .retake import detect_retakes
-                # `anchor_silences` (the short-threshold pauses computed above) keep
-                # detection from firing on natural mid-sentence repetition; sensitivity
-                # sets how many matched words count as a redo.
-                min_run = RETAKE_SENSITIVITY_MIN_RUN.get(retake_sensitivity, RETAKE_MIN_RUN)
-                retakes = detect_retakes(words, min_run=min_run, silences=anchor_silences)
-                logger.debug(f"retake detection ({retake_sensitivity}, min_run={min_run}) "
-                             f"found {len(retakes)} repeated take(s)")
+                from .semantic import make_judge
+                # Each sensitivity is a full policy: how many matched words count as a
+                # redo (`min_run`), whether the corrected take must follow a pause
+                # (`require_pause` — aggressive drops it to catch mid-sentence
+                # restarts), and the semantic-similarity bar (`sem_min`). The semantic
+                # judge (crisp-embed) is what lets aggressive safely skip the pause
+                # anchor; it's None when the helper is unavailable, in which case
+                # detect_retakes keeps the anchor on regardless.
+                policy = RETAKE_SENSITIVITY.get(retake_sensitivity,
+                                                RETAKE_SENSITIVITY[DEFAULT_RETAKE_SENSITIVITY])
+                # Retake removal must never break a clean: any unexpected failure here
+                # degrades to "no retakes" (the rest of the clean — pauses, render —
+                # proceeds) rather than aborting and losing the user's run.
+                try:
+                    # Only presets with a pause-less path (balanced/aggressive) can use
+                    # the semantic gate; gentle is pause-required, so skip the helper
+                    # there entirely — no wasted probe, and the gate can never relax
+                    # gentle's pause rule (defense-in-depth on top of detect_retakes).
+                    judge = (make_judge(logger)
+                             if policy["min_run_no_pause"] is not None else None)
+                    logger.debug(f"retake detection: sensitivity={retake_sensitivity} "
+                                 f"min_run={policy['min_run']} require_pause={policy['require_pause']} "
+                                 f"min_run_no_pause={policy['min_run_no_pause']} "
+                                 f"sem_min={policy['sem_min']} "
+                                 f"semantic_gate={'on' if judge else 'off'} "
+                                 f"anchor_pauses={len(anchor_silences)}")
+                    retakes = detect_retakes(
+                        words, min_run=policy["min_run"],
+                        require_pause=policy["require_pause"],
+                        min_run_no_pause=policy["min_run_no_pause"], sem_min=policy["sem_min"],
+                        silences=anchor_silences, judge=judge, logger=logger)
+                    logger.debug(f"retake detection found {len(retakes)} repeated take(s)")
+                except Exception:                              # noqa: BLE001 — degrade, never abort
+                    # Full traceback (not just repr) so the exact failing call is
+                    # debuggable; retakes degrade to none, the clean still completes.
+                    logger.exception("retake detection failed — skipping retakes for this clean")
+                    retakes = []
             on_progress(0.59, "Planning cuts…")
             keep, stats = build_keep_segments(cut_words, silences, duration, keep_pause,
                                               min_keep, retakes=retakes)

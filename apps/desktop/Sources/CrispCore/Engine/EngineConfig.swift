@@ -86,7 +86,9 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         audioCodec: "aac", audioBitrateKbps: 192, outputContainer: "auto", outputDirectory: "",
         splitTracks: false, splitAudioFormat: "match",
         captionsFormat: "none",
-        retakeSensitivity: "balanced",
+        // Aggressive by default — validated on real footage to catch natural
+        // mid-sentence restarts; mirrors crisp/config.py DEFAULT_RETAKE_SENSITIVITY.
+        retakeSensitivity: "aggressive",
         backupOriginal: true,
         watchEnabled: false, watchFolderPath: "", watchRemoveFillers: true,
         presets: [], defaultPresetID: "",
@@ -113,7 +115,7 @@ public struct EngineConfig: Codable, Equatable, Sendable {
                 videoCodec: String, hardwareEncoding: Bool, videoQuality: String,
                 audioCodec: String, audioBitrateKbps: Int, outputContainer: String, outputDirectory: String,
                 splitTracks: Bool, splitAudioFormat: String, captionsFormat: String = "none",
-                retakeSensitivity: String = "balanced",
+                retakeSensitivity: String = "aggressive",
                 backupOriginal: Bool,
                 watchEnabled: Bool, watchFolderPath: String, watchRemoveFillers: Bool,
                 presets: [Preset], defaultPresetID: String,

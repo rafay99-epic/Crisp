@@ -29,7 +29,7 @@ public struct CleanParameters: Equatable, Sendable {
                 videoCodec: String, hardwareEncoding: Bool, videoQuality: String,
                 audioCodec: String, audioBitrateKbps: Int, outputContainer: String,
                 outputDirectory: String, splitTracks: Bool, splitAudioFormat: String,
-                captionsFormat: String = "none", retakeSensitivity: String = "balanced",
+                captionsFormat: String = "none", retakeSensitivity: String = "aggressive",
                 backupOriginal: Bool) {
         self.pause = pause
         self.noiseDB = noiseDB
@@ -74,10 +74,10 @@ extension Strength {
             splitTracks: config.splitTracks,
             splitAudioFormat: config.splitAudioFormat,
             captionsFormat: config.captionsFormat,
-            // Clamp a hand-edited/corrupt value to a known preset so the engine's
+            // Clamp a hand-edited/corrupt value to the default preset so the engine's
             // --retake-sensitivity (which has fixed choices) never hard-fails a clean.
             retakeSensitivity: RetakeSensitivity(rawValue: config.retakeSensitivity)?.rawValue
-                ?? RetakeSensitivity.balanced.rawValue,
+                ?? RetakeSensitivity.aggressive.rawValue,
             backupOriginal: config.backupOriginal)
     }
 }

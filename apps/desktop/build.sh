@@ -41,6 +41,7 @@ BINARY="$BIN_DIR/Crisp"
 WATCHER="$BIN_DIR/CrispWatcher"
 CLEANER="$BIN_DIR/CrispClean"
 FILLER="$BIN_DIR/crisp-filler"
+EMBED="$BIN_DIR/crisp-embed"
 
 APP="build/$APP_NAME.app"
 rm -rf "$APP"
@@ -72,6 +73,9 @@ cp -R .vendor/bin "$APP/Contents/Resources/engine/bin"
 # whisper-cli in engine/bin so the engine-bin signing loop below covers it and
 # CleanEngine.bundledTool("crisp-filler") finds it.
 cp "$FILLER" "$APP/Contents/Resources/engine/bin/crisp-filler"
+# The semantic-similarity helper for retake detection — same deal: beside the other
+# engine binaries so the signing loop covers it and CleanEngine finds it (CRISP_EMBED).
+cp "$EMBED" "$APP/Contents/Resources/engine/bin/crisp-embed"
 
 PB=/usr/libexec/PlistBuddy
 # Version is 0.<total commit count> — 10 commits → 0.10. CI passes
