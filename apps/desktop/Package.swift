@@ -67,6 +67,17 @@ let package = Package(
                 .linkedFramework("Accelerate")
             ]
         ),
+        // The semantic-similarity helper the engine shells out to (CRISP_EMBED): reads
+        // phrase pairs, returns cosine similarities from Apple's on-device
+        // NaturalLanguage sentence embeddings. Standalone — no CrispCore dependency.
+        // Lets retake detection tell a genuine redo from intentional parallel structure.
+        .executableTarget(
+            name: "crisp-embed",
+            swiftSettings: [.swiftLanguageMode(.v5)],
+            linkerSettings: [
+                .linkedFramework("NaturalLanguage")
+            ]
+        ),
         .testTarget(
             name: "CrispTests",
             dependencies: ["Crisp", "CrispCore"],

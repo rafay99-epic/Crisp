@@ -69,15 +69,42 @@ DEFAULT_FILLER_BACKEND = "whisper"  # whisper | coreml (fast on-device classifie
 # keep the corrected take. Conservative defaults so it can run automatically. Needs a
 # real whisper transcript (the coreml filler backend doesn't transcribe).
 DEFAULT_REMOVE_RETAKES = True
-# Sensitivity presets → the minimum matched-word run to treat a repeat as a redo.
-# Lower catches shorter retakes but risks cutting intentional repetition; the pause
-# anchor below keeps even "aggressive" from firing mid-sentence. The Swift UI exposes
-# these by name; tune the numbers against real retake-heavy footage.
+# Each sensitivity preset is a full policy, not just a word count:
+#   min_run          — matched words needed to treat a pause-anchored repeat as a redo.
+#   require_pause    — must a SHORT repeat begin right after a silence? Gentle/balanced
+#                      keep this. Aggressive relaxes it (see min_run_no_pause).
+#   min_run_no_pause — the lever for natural mid-sentence restarts (no pause, no "um"):
+#                      a verbatim repeat THIS long is accepted even without a pause,
+#                      because parallel structure rarely repeats this many words. This
+#                      — not the embedding — is the load-bearing precision signal for
+#                      pause-less detection. None ⇒ a pause is always required (gentle).
+#   sem_min          — semantic-similarity bar (corrected vs. flubbed take, via
+#                      crisp-embed) that can RESCUE a shorter pause-less repeat. Set
+#                      high on purpose: Apple's on-device sentence embedding is noisy on
+#                      short phrases (it scores a real redo and a parallel list alike),
+#                      so it never vetoes a word+pause match — every candidate's score
+#                      is just logged, to gather real-footage data on whether a stronger
+#                      embedding/LLM judge is worth it later. (See retake-research.md.)
+RETAKE_SENSITIVITY = {
+    "gentle":     {"min_run": 5, "require_pause": True,  "min_run_no_pause": None, "sem_min": 0.78},
+    "balanced":   {"min_run": 4, "require_pause": True,  "min_run_no_pause": 7,    "sem_min": 0.78},
+    "aggressive": {"min_run": 3, "require_pause": False, "min_run_no_pause": 5,    "sem_min": 0.70},
+}
 DEFAULT_RETAKE_SENSITIVITY = "balanced"        # gentle | balanced | aggressive
-RETAKE_SENSITIVITY_MIN_RUN = {"gentle": 5, "balanced": 4, "aggressive": 3}
-RETAKE_MIN_RUN = RETAKE_SENSITIVITY_MIN_RUN[DEFAULT_RETAKE_SENSITIVITY]  # bare-call default
+# Back-compat: the per-name min-run map other callers still read.
+RETAKE_SENSITIVITY_MIN_RUN = {k: v["min_run"] for k, v in RETAKE_SENSITIVITY.items()}
+RETAKE_MIN_RUN = RETAKE_SENSITIVITY[DEFAULT_RETAKE_SENSITIVITY]["min_run"]  # bare-call default
+RETAKE_SEM_MIN = RETAKE_SENSITIVITY[DEFAULT_RETAKE_SENSITIVITY]["sem_min"]
 RETAKE_MAX_GAP = 2.0        # seconds: a retake follows its flubbed take within this gap
 RETAKE_MAX_ABANDON = 12     # words: longest abandoned take to look across (bounds the search)
+# Two takes of the same line rarely transcribe identically — whisper varies
+# contractions, spelling and word forms between takes ("we're"/"were",
+# "colour"/"color", "open"/"opens"). Matching only exact tokens silently misses
+# those retakes, so a run also counts tokens whose similarity (difflib ratio) clears
+# this bar as "the same word". Kept high — and short tokens still require an exact
+# match — so genuinely different words ("startup"/"enterprise", "the"/"they") never
+# merge: the precision guard against intentional parallel structure stays intact.
+RETAKE_TOKEN_SIM = 0.85
 # A real retake is preceded by a pause (you stop, then redo). Requiring the corrected
 # take to begin right after a detected silence is the strongest filter against natural
 # mid-sentence repetition — on real footage it cut false positives ~64 → a handful.

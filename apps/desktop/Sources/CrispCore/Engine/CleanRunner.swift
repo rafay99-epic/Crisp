@@ -141,6 +141,9 @@ public struct CleanRunner {
             if !options.removeFillers { args.append("--no-fillers") }
             if options.removeRetakes {
                 args += ["--retake-sensitivity", parameters.retakeSensitivity]
+                // The engine logs the per-candidate decisions; record the chosen mode
+                // here too so the merged log shows what the run was configured to do.
+                Self.log.debug("Retake detection on: sensitivity=\(parameters.retakeSensitivity, privacy: .public)")
             } else {
                 args.append("--no-retakes")
             }

@@ -54,6 +54,7 @@ public enum CleanEngine {
         if let p = bundledTool("ffprobe") { env["CRISP_FFPROBE"] = p }
         if let w = bundledTool("whisper-cli") { env["CRISP_WHISPER"] = w }
         if let c = bundledTool("crisp-filler") { env["CRISP_FILLER"] = c }
+        if let e = bundledTool("crisp-embed") { env["CRISP_EMBED"] = e }
         env["PATH"] = "/opt/homebrew/bin:" + (env["PATH"] ?? "")
         env["CRISP_LOG_DIR"] = Channel.current.logsDirectory.path
         return env

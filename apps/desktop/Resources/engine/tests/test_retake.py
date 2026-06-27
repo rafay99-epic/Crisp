@@ -6,11 +6,16 @@ alone (rhetorical repeats far apart, ordinary recurring words)."""
 
 import unittest
 
-from crisp.retake import detect_retakes
+from crisp.retake import _decide, detect_retakes
 
 
 def w(text, start, end):
     return {"text": text, "start": start, "end": end}
+
+
+def const_judge(value):
+    """A fake semantic judge returning a fixed similarity, for deterministic tests."""
+    return lambda _flubbed, _corrected: value
 
 
 def seq(words, *, dur=0.3, gap=0.05, breaks=None):
@@ -65,6 +70,42 @@ class SensitivityTests(unittest.TestCase):
         four = seq(["the", "API", "is", "really", "slow",
                     "the", "API", "is", "really", "fast"], breaks={4})
         self.assertEqual(len(detect_retakes(four)), 1)
+
+
+class FuzzyMatchTests(unittest.TestCase):
+    """Two takes of the same line rarely transcribe identically — fuzzy token
+    matching aligns whisper's spelling variance while leaving different words apart."""
+
+    def test_transcription_variant_phrase_is_matched(self):
+        # whisper wrote the two takes slightly differently ("we're" vs "were"), but
+        # it's the same redo — exact matching would miss it; fuzzy catches it.
+        words = seq(["so", "today", "we're", "going", "slow",
+                     "so", "today", "were", "going", "fast"], breaks={4})
+        spans = detect_retakes(words, min_run=4)
+        self.assertEqual(len(spans), 1)
+        self.assertAlmostEqual(spans[0][0], words[0]["start"])
+        self.assertAlmostEqual(spans[0][1], words[5]["start"])  # corrected take's onset
+
+    def test_word_form_variant_is_matched(self):
+        # "open"/"opens" — same word, different form. Both clear the length floor.
+        words = seq(["we", "will", "open", "source", "this",
+                     "we", "will", "opens", "source", "that"], breaks={4})
+        self.assertEqual(len(detect_retakes(words, min_run=4)), 1)
+
+    def test_parallel_structure_is_not_merged_by_fuzzy(self):
+        # "at the startup level / at the enterprise level" — a deliberate list, not a
+        # redo. The differing content word is too dissimilar to fuzzy-match, so the
+        # run stays short (2) and nothing is cut.
+        words = seq(["at", "the", "startup", "level",
+                     "at", "the", "enterprise", "level"], breaks={3})
+        self.assertEqual(detect_retakes(words, min_run=4), [])
+
+    def test_short_words_require_exact_match(self):
+        # "they"/"the" are close under a string ratio but different words; the short-
+        # token guard keeps fuzzy from forging a run across them.
+        words = seq(["when", "they", "run", "fast",
+                     "when", "the", "run", "fast"], breaks={3})
+        self.assertEqual(detect_retakes(words, min_run=4), [])
 
 
 class StutterTests(unittest.TestCase):
@@ -149,6 +190,82 @@ class PauseAnchorTests(unittest.TestCase):
         # always supplies silences; library users may not).
         words = self._words()
         self.assertEqual(len(detect_retakes(words, min_run=3)), 1)
+
+
+class PauselessRestartTests(unittest.TestCase):
+    """Aggressive catches natural mid-sentence restarts (no pause) via run length, with
+    or without the semantic judge; gentle/balanced still require a pause for short ones."""
+
+    def _restart(self):
+        # "I was using this notepad to / I was using this notepad to work" with an aside
+        # ("you can see") between — a real restart, NO pause. The verbatim run is 6 words.
+        return seq(["I", "was", "using", "this", "notepad", "to",
+                    "you", "can", "see",
+                    "I", "was", "using", "this", "notepad", "to", "work"])
+
+    def test_long_pauseless_restart_is_cut_in_aggressive(self):
+        words = self._restart()
+        spans = detect_retakes(words, min_run=3, require_pause=False,
+                               min_run_no_pause=5, silences=[])   # no judge needed
+        self.assertEqual(len(spans), 1)
+        self.assertAlmostEqual(spans[0][0], words[0]["start"])
+        self.assertAlmostEqual(spans[0][1], words[9]["start"])     # the corrected take's onset
+
+    def test_pauseless_restart_is_kept_when_pause_is_required(self):
+        # Balanced default for a 6-word repeat would still need a pause (its
+        # min_run_no_pause is 7); with no pause-less path it's left alone.
+        words = self._restart()
+        self.assertEqual(
+            detect_retakes(words, min_run=3, require_pause=True,
+                           min_run_no_pause=None, silences=[]), [])
+
+    def test_short_pauseless_repeat_is_not_cut_even_in_aggressive(self):
+        # A 3-word pause-less repeat is below the no-pause run bar — exactly the natural
+        # short repetition we must not cut.
+        words = seq(["the", "API", "is", "slow", "the", "API", "is", "fast"])
+        self.assertEqual(
+            detect_retakes(words, min_run=3, require_pause=False,
+                           min_run_no_pause=5, silences=[]), [])
+
+    def test_strong_semantic_rescues_a_short_pauseless_repeat(self):
+        # The optional rescue path: a high judge score admits a sub-threshold pause-less
+        # repeat (logged + conservative — sem_min is set high in real config).
+        words = seq(["the", "API", "is", "slow", "the", "API", "is", "fast"])
+        spans = detect_retakes(words, min_run=3, require_pause=False, min_run_no_pause=9,
+                               sem_min=0.7, silences=[], judge=const_judge(0.95))
+        self.assertEqual(len(spans), 1)
+
+    def test_noisy_judge_never_vetoes_a_pause_anchored_cut(self):
+        # The embedding is too noisy to veto: a pause-anchored repeat is cut regardless
+        # of a low semantic score (a real redo can legitimately score low).
+        words = seq(["the", "API", "is", "slow", "the", "API", "is", "fast"])
+        silences = [(words[3]["start"], words[4]["start"])]   # pause at the redo onset
+        spans = detect_retakes(words, min_run=3, require_pause=True,
+                               silences=silences, judge=const_judge(0.05))
+        self.assertEqual(len(spans), 1)
+
+
+class DecideTests(unittest.TestCase):
+    """The accept/skip matrix in isolation.
+    _decide(anchored, has_pause, run, min_run_no_pause, require_pause, sim, sem_min)."""
+
+    def test_a_pause_always_accepts(self):
+        self.assertTrue(_decide(True, True, 3, None, True, None, 0.7)[0])
+        self.assertTrue(_decide(True, True, 3, None, True, 0.01, 0.7)[0])   # no veto
+
+    def test_no_silence_data_accepts(self):
+        self.assertTrue(_decide(False, False, 3, None, True, None, 0.7)[0])
+
+    def test_no_pause_requires_a_long_run(self):
+        self.assertFalse(_decide(True, False, 4, 5, False, None, 0.7)[0])   # run<bar
+        self.assertTrue(_decide(True, False, 6, 5, False, None, 0.7)[0])    # run>=bar
+
+    def test_no_pause_with_no_run_bar_is_rejected(self):
+        self.assertFalse(_decide(True, False, 9, None, True, None, 0.7)[0])
+
+    def test_strong_semantic_rescues_a_short_no_pause_run(self):
+        self.assertTrue(_decide(True, False, 3, 9, False, 0.9, 0.7)[0])     # sim>=bar
+        self.assertFalse(_decide(True, False, 3, 9, False, 0.5, 0.7)[0])    # sim<bar
 
 
 if __name__ == "__main__":

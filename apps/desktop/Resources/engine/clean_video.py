@@ -96,9 +96,9 @@ def main():
                         "said again); on by default, needs a whisper transcript")
     p.add_argument("--retake-sensitivity", choices=list(RETAKE_SENSITIVITY_MIN_RUN),
                    default=DEFAULT_RETAKE_SENSITIVITY,
-                   help=f"how eagerly to cut repeated takes: gentle (only long, "
-                        f"unmistakable redos) … aggressive (shorter redos too) "
-                        f"(default {DEFAULT_RETAKE_SENSITIVITY})")
+                   help=f"how eagerly to cut repeated takes: gentle (only long redos "
+                        f"after a pause) … aggressive (also mid-sentence restarts with "
+                        f"no pause) (default {DEFAULT_RETAKE_SENSITIVITY})")
     p.add_argument("--no-backup", action="store_true",
                    help="don't copy the original aside before cutting")
     p.add_argument("--split", action="store_true",
