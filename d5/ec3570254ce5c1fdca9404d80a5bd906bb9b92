@@ -1,0 +1,25 @@
+apps/desktop/Sources/crisp-embed/main.swift
+  s_390b1826d61e77::t_c03ab19e739a96 38-41
+retake-research.md
+  s_390b1826d61e77::t_637ca9d58f4e19 8-9
+apps/desktop/Sources/CrispCore/Models/EncodingOptions.swift
+  s_390b1826d61e77::t_2e21ee7eb008e4 101
+apps/desktop/Sources/CrispCore/Engine/CleanRunner.swift
+  s_390b1826d61e77::t_9e0d00d17a3513 175
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "d5ec3570254ce5c1fdca9404d80a5bd906bb9b92",
+  "prompts": {},
+  "sessions": {
+    "s_390b1826d61e77": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "47d2ffe9-ceff-4aa9-8f1c-d2e02dd230cc",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
