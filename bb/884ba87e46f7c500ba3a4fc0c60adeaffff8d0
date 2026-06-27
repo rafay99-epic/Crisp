@@ -1,0 +1,37 @@
+apps/desktop/Resources/engine/tests/test_timeline.py
+  s_1c9eefb4447eda::t_4dbf96012db599 80-81,83-84
+  s_1c9eefb4447eda::t_1521f23db732fe 1-79,82,85-114
+apps/desktop/Resources/engine/clean_video.py
+  s_1c9eefb4447eda::t_2b690ac35fa3d2 103-110
+  s_1c9eefb4447eda::t_43f3d994771fe7 50-52
+  s_1c9eefb4447eda::t_018b4743caab5a 238
+apps/desktop/Resources/engine/crisp/tools.py
+  s_1c9eefb4447eda::t_a4807c21f5c5eb 80-131
+apps/desktop/Resources/engine/crisp/pipeline.py
+  s_1c9eefb4447eda::t_cbe3a4a0d720ab 124
+  s_1c9eefb4447eda::t_6a8f7639a9e692 10-13
+  s_1c9eefb4447eda::t_d8538bd3a5a8f4 3-4
+  s_1c9eefb4447eda::t_a1dae1fc23025a 24-27
+  s_1c9eefb4447eda::t_8f49a6aee0d8d1 34-78
+  s_1c9eefb4447eda::t_b449dfe6d58aa5 387-417
+apps/desktop/Resources/engine/crisp/config.py
+  s_1c9eefb4447eda::t_a5de44c8be4968 72-77
+apps/desktop/Resources/engine/crisp/timeline.py
+  s_1c9eefb4447eda::t_cd61bb9d0977f4 1-130
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "bb884ba87e46f7c500ba3a4fc0c60adeaffff8d0",
+  "prompts": {},
+  "sessions": {
+    "s_1c9eefb4447eda": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e19c83fe-6f19-40d2-8102-46ce01d7fa72",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
