@@ -6,7 +6,27 @@ captured fixtures, never by spawning whisper.
 
 import unittest
 
-from crisp.detect import dtw_alias_for_model, parse_transcription, whisper_command
+from crisp.detect import (
+    dtw_alias_for_model, filter_silences, parse_transcription, whisper_command,
+)
+
+
+class FilterSilencesTests(unittest.TestCase):
+    def test_keeps_only_long_enough(self):
+        sil = [(0.0, 0.2), (1.0, 1.4), (2.0, 2.9), (3.0, 3.25)]   # durs 0.2,0.4,0.9,0.25
+        self.assertEqual(filter_silences(sil, 0.3), [(1.0, 1.4), (2.0, 2.9)])
+        self.assertEqual(filter_silences(sil, 0.6), [(2.0, 2.9)])
+
+    def test_boundary_duration_is_kept(self):
+        # A silence exactly at the threshold survives (within float epsilon).
+        self.assertEqual(filter_silences([(0.0, 0.6)], 0.6), [(0.0, 0.6)])
+
+    def test_anchor_set_is_a_superset_of_the_cut_set(self):
+        # The retake-anchor set (shorter threshold) always contains the cut set.
+        sil = [(0.0, 0.35), (1.0, 1.8), (2.0, 2.1)]
+        cut = filter_silences(sil, 0.6)
+        anchor = filter_silences(sil, 0.3)
+        self.assertTrue(set(cut).issubset(set(anchor)))
 
 
 class DTWAliasTests(unittest.TestCase):

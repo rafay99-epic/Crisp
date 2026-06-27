@@ -9,7 +9,7 @@ from .config import (
     DEFAULT_NOISE_DB, DEFAULT_QUALITY, DEFAULT_REMOVE_RETAKES, DEFAULT_RETAKE_SENSITIVITY, DEFAULT_SNAP_MS,
     DEFAULT_VIDEO_CODEC, MIN_KEEP, RETAKE_ANCHOR_PAUSE, RETAKE_MIN_RUN, RETAKE_SENSITIVITY_MIN_RUN,
 )
-from .detect import detect_silences, extract_audio, filler_words, transcribe
+from .detect import detect_silences, extract_audio, filler_words, filter_silences, transcribe
 from .edit import (build_keep_segments, gate_fillers_by_silence, make_backup, output_duration,
                    render, snap_keep_to_zero_crossings, tag_output_source, unique_output_path)
 from .encode import (
@@ -202,10 +202,11 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
             # (verified on real audio). Avoids a second full ffmpeg pass on long videos.
             anchor_silences = []
             if do_retakes:
+                # One scan at the shorter threshold serves both sets (see filter_silences).
                 found = detect_silences(wav, noise, min(pause, RETAKE_ANCHOR_PAUSE),
                                         on_log, logger=logger)
-                silences = [s for s in found if (s[1] - s[0]) >= pause - 1e-9]
-                anchor_silences = [s for s in found if (s[1] - s[0]) >= RETAKE_ANCHOR_PAUSE - 1e-9]
+                silences = filter_silences(found, pause)
+                anchor_silences = filter_silences(found, RETAKE_ANCHOR_PAUSE)
                 logger.debug(f"from {len(found)} pauses: {len(silences)} cut "
                              f"(≥{pause}s) + {len(anchor_silences)} retake-anchor "
                              f"(≥{RETAKE_ANCHOR_PAUSE}s)")
@@ -238,9 +239,10 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
             retakes = []
             if do_retakes and words:
                 # Its own visible step (after "Detecting pauses" / "Transcribing"), so
-                # the UI shows that repeated-take detection is happening.
+                # the UI shows that repeated-take detection is happening. Held at the
+                # transcription ceiling (0.58) so the bar never moves backward.
                 on_log("Finding repeated takes...")
-                on_progress(0.57, "Finding repeated takes…")
+                on_progress(0.58, "Finding repeated takes…")
                 from .retake import detect_retakes
                 # `anchor_silences` (the short-threshold pauses computed above) keep
                 # detection from firing on natural mid-sentence repetition; sensitivity
@@ -249,7 +251,7 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
                 retakes = detect_retakes(words, min_run=min_run, silences=anchor_silences)
                 logger.debug(f"retake detection ({retake_sensitivity}, min_run={min_run}) "
                              f"found {len(retakes)} repeated take(s)")
-            on_progress(0.58, "Planning cuts…")
+            on_progress(0.59, "Planning cuts…")
             keep, stats = build_keep_segments(cut_words, silences, duration, keep_pause,
                                               min_keep, retakes=retakes)
             if not keep:

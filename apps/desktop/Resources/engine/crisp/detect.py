@@ -132,6 +132,17 @@ def detect_silences(wav_path: Path, noise_db: float, min_pause: float, on_log, l
     return silences
 
 
+def filter_silences(silences: list, min_duration: float) -> list:
+    """The silences lasting at least `min_duration` seconds.
+
+    silencedetect's ``d=`` only gates *which* silences get reported, not their
+    boundaries — so filtering one low-threshold scan by duration reproduces a direct
+    scan at that (higher) threshold exactly. Lets a single ffmpeg pass serve both the
+    cut threshold and the shorter retake-anchor threshold. Pure, so it's unit-tested.
+    """
+    return [s for s in silences if (s[1] - s[0]) >= min_duration - 1e-9]
+
+
 def whisper_command(whisper_bin, model, wav_path, out_prefix) -> list:
     """Build the whisper.cpp argv. `-ml 1 -sow` gives one word per segment; when
     the model has a known DTW preset we add `-dtw <alias> -ojf -nfa` for accurate
