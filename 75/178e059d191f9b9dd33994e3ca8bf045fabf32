@@ -1,0 +1,25 @@
+apps/desktop/Sources/Crisp/Views/Onboarding/OnboardingView.swift
+  s_390b1826d61e77::t_91957261e26027 69,75-83
+  s_390b1826d61e77::t_0ba2c42b6caf97 396-414
+  s_390b1826d61e77::t_d6b6a431c413c5 19
+  s_390b1826d61e77::t_34955f004c5b92 50-55
+  s_390b1826d61e77::t_307ee1dfa388d0 84
+  s_390b1826d61e77::t_75600355bd5124 393-395
+  s_390b1826d61e77::t_98047968f7647a 390-392
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "75178e059d191f9b9dd33994e3ca8bf045fabf32",
+  "prompts": {},
+  "sessions": {
+    "s_390b1826d61e77": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "47d2ffe9-ceff-4aa9-8f1c-d2e02dd230cc",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
