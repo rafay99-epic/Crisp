@@ -258,7 +258,12 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
                 # degrades to "no retakes" (the rest of the clean — pauses, render —
                 # proceeds) rather than aborting and losing the user's run.
                 try:
-                    judge = make_judge(logger)
+                    # Only presets with a pause-less path (balanced/aggressive) can use
+                    # the semantic gate; gentle is pause-required, so skip the helper
+                    # there entirely — no wasted probe, and the gate can never relax
+                    # gentle's pause rule (defense-in-depth on top of detect_retakes).
+                    judge = (make_judge(logger)
+                             if policy["min_run_no_pause"] is not None else None)
                     logger.debug(f"retake detection: sensitivity={retake_sensitivity} "
                                  f"min_run={policy['min_run']} require_pause={policy['require_pause']} "
                                  f"min_run_no_pause={policy['min_run_no_pause']} "

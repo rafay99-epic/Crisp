@@ -164,10 +164,11 @@ public struct CleanRunner {
     public func run(input: URL, parameters: CleanParameters, options: Options,
                     onEvent: @escaping @Sendable (Progress) -> Void) async throws -> CleanResult {
         let script = try CleanEngine.scriptURL()
+        let argv = Self.arguments(scriptPath: script.path, input: input,
+                                  parameters: parameters, options: options)
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: CleanEngine.python)
-        proc.arguments = Self.arguments(scriptPath: script.path, input: input,
-                                        parameters: parameters, options: options)
+        proc.arguments = argv
 
         proc.environment = CleanEngine.environment()
 
@@ -176,7 +177,11 @@ public struct CleanRunner {
         proc.standardOutput = outPipe
         proc.standardError = errPipe
 
-        Self.log.info("Clean start: \(input.lastPathComponent) [\(parameters.videoCodec)/\(parameters.audioCodec) q=\(parameters.videoQuality) hw=\(parameters.hardwareEncoding) fillers=\(options.removeFillers) retakes=\(options.removeRetakes ? parameters.retakeSensitivity : "off", privacy: .public)]")
+        // Log the EFFECTIVE retake mode (what's actually in the argv), not just the
+        // requested setting — keep-file mode and the Core ML backend both suppress
+        // detection, and the debug log must agree with the real engine path.
+        let retakeMode = argv.contains("--retake-sensitivity") ? parameters.retakeSensitivity : "off"
+        Self.log.info("Clean start: \(input.lastPathComponent) [\(parameters.videoCodec)/\(parameters.audioCodec) q=\(parameters.videoQuality) hw=\(parameters.hardwareEncoding) fillers=\(options.removeFillers) retakes=\(retakeMode, privacy: .public)]")
 
         // Drain the engine's stderr via a readabilityHandler (NOT a second
         // `bytes.lines`): two concurrent FileHandle.AsyncBytes readers contend on a

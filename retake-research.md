@@ -58,9 +58,10 @@ what the ASR kept (pair w/ Angle 1), risk domain shift. Use as a precision filte
 candidates, not a primary detector.**
 
 ## Angle 3 — Semantic: genuine redo vs. intentional parallel structure
-- **Apple `NLContextualEmbedding`** runs fully on-device, **zero deps, zero bundle
-  size**, 768-dim on macOS, cosine via Accelerate. Needs macOS 14+. *Caveat: noisy on
-  short inputs (single words 0.60–0.89 even when unrelated) — use phrases.*
+- **Apple `NLContextualEmbedding`** runs on-device, **512-dim on macOS** (corrected
+  below — and it downloads an OS asset on first use, so not strictly zero-download),
+  cosine via Accelerate. Needs macOS 14+. *Caveat: noisy on short inputs (single words
+  0.60–0.89 even when unrelated) — use phrases.*
 - **swift-embeddings** (MIT) — real sentence-transformers (MiniLM, nomic) in Swift via
   MLTensor, the upgrade if NLEmbedding is too weak.
 - **mlx-swift** — higher ceiling, incl. a small on-device "retake judge" LLM (llama.cpp
