@@ -1,0 +1,66 @@
+apps/desktop/Resources/engine/crisp/config.py
+  s_390b1826d61e77::t_9d3a01c8d391f7 73-87,89-91
+  s_390b1826d61e77::t_c2ed514ccefc53 72,88,92,94-97
+  s_390b1826d61e77::t_7ee9321b3eba96 100-107
+apps/desktop/Sources/crisp-embed/main.swift
+  s_390b1826d61e77::t_8353d7db1b5f7e 1-55
+apps/desktop/Package.swift
+  s_390b1826d61e77::t_db209418eea716 70-80
+apps/desktop/Sources/CrispCore/Models/EncodingOptions.swift
+  s_390b1826d61e77::t_323ce5c38762f6 101,103
+apps/desktop/build.sh
+  s_390b1826d61e77::t_6eee58c000137d 44
+  s_390b1826d61e77::t_74d38f62d1ac1d 76-78
+retake-research.md
+  s_390b1826d61e77::t_1f630d1c042aa1 1-139
+  s_390b1826d61e77::t_6472fec4fe1325 140-166
+apps/desktop/Resources/engine/crisp/retake.py
+  s_390b1826d61e77::t_e9acc323ccc515 13-16
+  s_390b1826d61e77::t_0fff9ab3bd4eb2 27-41,49-50,55-59,61-62,78,81-82
+  s_390b1826d61e77::t_b4fa570e317654 45,91-95,97-118,121
+  s_390b1826d61e77::t_584a4087f3bd1a 149-152,157-160,162-165,172-175
+  s_390b1826d61e77::t_455a272727faa9 154-156
+  s_390b1826d61e77::t_262ebd0ea2a168 130-131
+  s_390b1826d61e77::t_c39b27048cdcdf 60,63-77,79-80,83-89
+  s_390b1826d61e77::t_4a6034bab2f346 210-213,229-230
+  s_390b1826d61e77::t_c98de7bcd7887b 194
+  s_390b1826d61e77::t_c02ca319f010b8 146-148,161,166-167,171,189,209,214,216-228,231-238
+  s_390b1826d61e77::t_6aa86c778022b1 129
+  s_390b1826d61e77::t_4f73072d03a651 90
+apps/desktop/Resources/engine/tests/test_retake.py
+  s_390b1826d61e77::t_1b58c2911e98d5 195-209,212-217,219-225,227-245,249-250,252-255,257-268
+  s_390b1826d61e77::t_2e10bb9934bb37 9,16-18
+  s_390b1826d61e77::t_c41fd5e1eb8a1f 210-211,218,226,246-248,251,256,269-270
+  s_390b1826d61e77::t_09020c4c0c103a 75-110
+  s_390b1826d61e77::t_99f23ec23256d8 19-20
+apps/desktop/Sources/CrispCore/Engine/CleanEngine.swift
+  s_390b1826d61e77::t_d21d905ac302f4 57
+apps/desktop/Resources/engine/clean_video.py
+  s_390b1826d61e77::t_0b12f6938874e2 99-101
+notes.md
+  s_390b1826d61e77::t_c59545cff65182 5-37
+apps/desktop/Resources/engine/crisp/pipeline.py
+  s_390b1826d61e77::t_2ba5b6e65072b5 247-259,261-265,268-269
+  s_390b1826d61e77::t_cb54f1c1ffa5ad 260,266-267
+  s_390b1826d61e77::t_82319dc4537648 10
+apps/desktop/Resources/engine/crisp/semantic.py
+  s_390b1826d61e77::t_05a492d7d6f735 1-82
+apps/desktop/Sources/CrispCore/Engine/CleanRunner.swift
+  s_390b1826d61e77::t_abc4993014d2e3 144-146
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "ed2a7e51cd46433adf9353e9189f088a56464121",
+  "prompts": {},
+  "sessions": {
+    "s_390b1826d61e77": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "47d2ffe9-ceff-4aa9-8f1c-d2e02dd230cc",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
