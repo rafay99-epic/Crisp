@@ -1,0 +1,32 @@
+apps/desktop/Resources/engine/crisp/config.py
+  s_390b1826d61e77::t_b237d17d902805 93-97
+apps/desktop/Sources/CrispCore/Engine/EngineConfig.swift
+  s_390b1826d61e77::t_da0fb532abe9f8 89-91
+  s_390b1826d61e77::t_2865fd30cf4db2 118
+apps/desktop/Tests/CrispTests/CrispTests.swift
+  s_390b1826d61e77::t_a02bce6c58cded 445-446
+  s_390b1826d61e77::t_509347d98bd8b1 469-470,473,478,482,487
+apps/desktop/Sources/CrispCore/Models/CleanParameters.swift
+  s_390b1826d61e77::t_6d0c83c657c3fa 77,80
+  s_390b1826d61e77::t_44a0dc95c5ae9c 32
+apps/desktop/Resources/engine/tests/test_retake.py
+  s_390b1826d61e77::t_d19a6c83414098 7
+  s_390b1826d61e77::t_4691a95e5dfa66 66-67,69-71
+  s_390b1826d61e77::t_efd352295a11dc 279-316
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "6292ff1e1b6990ee82845b565ba24d021d651ae2",
+  "prompts": {},
+  "sessions": {
+    "s_390b1826d61e77": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "47d2ffe9-ceff-4aa9-8f1c-d2e02dd230cc",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
