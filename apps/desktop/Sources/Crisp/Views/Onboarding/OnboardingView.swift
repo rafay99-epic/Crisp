@@ -66,7 +66,7 @@ struct OnboardingView: View {
                    title: settings.hasExistingConfig ? "Welcome back to Crisp" : "Welcome to Crisp",
                    subtitle: settings.hasExistingConfig
                     ? "Your saved settings are preserved — nothing has changed. Here’s a quick tour of how everything works."
-                    : "Crisp tightens up your screen recordings and talking-head videos — automatically cutting out long pauses, filler words, and repeated takes to leave clean, snappy jump-cuts.")
+                    : "Crisp tightens up your screen recordings and talking-head videos — automatically cutting out long pauses and filler words for clean, snappy jump-cuts, plus repeated takes when you use the Whisper speech model.")
             featureRow("checkmark.shield.fill", "Your footage is safe",
                        "Crisp never edits or deletes your original. It only ever writes a new cleaned copy beside it.")
             featureRow("rectangle.on.rectangle", "No quality loss",
@@ -79,8 +79,9 @@ struct OnboardingView: View {
                        "Dead air and the gaps between sentences, detected from the real audio.")
             featureRow("waveform", "Filler words",
                        "“Um”, “uh”, “hmm” and the like — caught by the on-device Whisper speech model, or an optional faster custom model.")
-            featureRowBadged("arrow.uturn.backward", "Repeated takes", "New",
-                       "Flub a line and immediately say it again? Crisp keeps the corrected take and cuts the flubbed one — the tedious edit you’d normally do by hand. Needs the Whisper speech model.")
+            featureRow("arrow.uturn.backward", "Repeated takes",
+                       "Flub a line and immediately say it again? Crisp keeps the corrected take and cuts the flubbed one — the tedious edit you’d normally do by hand. Needs the Whisper speech model.",
+                       badge: "New")
 
         case .howItWorks:
             header(symbol: "wand.and.stars", title: "Clean your videos in seconds",
@@ -378,35 +379,22 @@ struct OnboardingView: View {
         }
     }
 
-    private func featureRow(_ symbol: String, _ title: String, _ detail: String) -> some View {
-        HStack(alignment: .top, spacing: 14) {
-            Image(systemName: symbol).font(.title3).foregroundStyle(.tint).frame(width: 30, height: 30)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.headline)
-                Text(detail).font(.callout).foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Spacer(minLength: 0)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .cardBackground()
-    }
-
-    /// A feature row with a small accent badge (e.g. "New") beside the title — same
-    /// capsule style as the "Recommended" tag on the model options.
-    private func featureRowBadged(_ symbol: String, _ title: String, _ badge: String,
-                                  _ detail: String) -> some View {
+    /// A feature row; pass `badge` to show a small accent capsule (e.g. "New") beside
+    /// the title — same style as the "Recommended" tag on the model options.
+    private func featureRow(_ symbol: String, _ title: String, _ detail: String,
+                            badge: String? = nil) -> some View {
         HStack(alignment: .top, spacing: 14) {
             Image(systemName: symbol).font(.title3).foregroundStyle(.tint).frame(width: 30, height: 30)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(title).font(.headline)
-                    Text(badge.uppercased())
-                        .font(.caption2.bold())
-                        .padding(.horizontal, 6).padding(.vertical, 2)
-                        .background(Capsule().fill(.tint.opacity(0.18)))
-                        .foregroundStyle(.tint)
+                    if let badge {
+                        Text(badge.uppercased())
+                            .font(.caption2.bold())
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(Capsule().fill(.tint.opacity(0.18)))
+                            .foregroundStyle(.tint)
+                    }
                 }
                 Text(detail).font(.callout).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
