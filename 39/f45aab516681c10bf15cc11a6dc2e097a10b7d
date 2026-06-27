@@ -1,0 +1,31 @@
+apps/desktop/Tests/CrispTests/CrispTests.swift
+  s_19cb4a65b25230::t_225754bcd8304e 476-489
+apps/desktop/Resources/engine/crisp/pipeline.py
+  s_19cb4a65b25230::t_d6c73b5cf1f69a 209-211
+  s_19cb4a65b25230::t_8949ecf9d905bb 242-244
+  s_19cb4a65b25230::t_0937b7f35926e2 65,70
+  s_19cb4a65b25230::t_369de24495c966 197-208,212-213
+apps/desktop/Sources/CrispCore/Models/CleanParameters.swift
+  s_19cb4a65b25230::t_94d9eca01ad8f3 77-80
+apps/desktop/Sources/Crisp/Views/BottomBar.swift
+  s_19cb4a65b25230::t_1c101870a5a86e 116
+apps/desktop/Resources/engine/clean_video.py
+  s_19cb4a65b25230::t_8d695858671a6e 52
+  s_19cb4a65b25230::t_add3e60cc88244 97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "39f45aab516681c10bf15cc11a6dc2e097a10b7d",
+  "prompts": {},
+  "sessions": {
+    "s_19cb4a65b25230": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3222d035-3b0c-4e2f-ad06-6616a619b68b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
