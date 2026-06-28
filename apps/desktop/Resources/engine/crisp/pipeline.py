@@ -70,6 +70,9 @@ def _export_editor_project(src, keep, out_dir, project_dir, target_fps,
             break
         i += 1
 
+    # Whether THIS run creates the folder — so cleanup-on-failure never deletes a
+    # prior good export when we're re-exporting into (reusing) the same folder.
+    created = not pdir.exists()
     try:
         pdir.mkdir(parents=True, exist_ok=True)
     except OSError as e:
@@ -113,10 +116,10 @@ def _export_editor_project(src, keep, out_dir, project_dir, target_fps,
             has_audio=meta["audio_channels"] > 0, duration=dur, keep=keep)
         fcpxml_path.write_text(xml, encoding="utf-8")
     except OSError as e:
-        _cleanup_partial_project(pdir, media_copy, fcpxml_path)
+        _cleanup_partial_project(pdir, media_copy, fcpxml_path, created)
         raise CleanError(f"Couldn't write the editor project.\n{e}") from e
     except CleanError:
-        _cleanup_partial_project(pdir, media_copy, fcpxml_path)
+        _cleanup_partial_project(pdir, media_copy, fcpxml_path, created)
         raise
 
     # Tag the media copy with its source so a later re-export reuses this folder and a
@@ -127,10 +130,13 @@ def _export_editor_project(src, keep, out_dir, project_dir, target_fps,
     return fcpxml_path, pdir, media_copy, snapped
 
 
-def _cleanup_partial_project(pdir, media_copy, fcpxml_path):
+def _cleanup_partial_project(pdir, media_copy, fcpxml_path, created):
     """Best-effort removal of a half-written editor project after a failure, so the UI
-    never offers to open a broken handoff. Only removes the project dir if it's empty
-    (don't touch a folder that already held other files)."""
+    never offers to open a broken handoff. Skipped entirely when the folder was reused
+    (a re-export into an existing project) — we must never delete a prior good export —
+    and the dir is removed only if it's now empty."""
+    if not created:
+        return
     for p in (media_copy, fcpxml_path):
         try:
             if p.exists():
