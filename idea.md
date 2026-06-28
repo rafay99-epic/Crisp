@@ -43,6 +43,23 @@ impact-per-effort. Living doc — add/reorder freely.
    instead of dying mid-encode.
 8. **Graceful odd-input handling** — no-audio videos, corrupt/partial files, exotic
    codecs → a clean error, never a crash or a half-written file.
+16. ✅ **Done (PR TBD).** **Quit guard during render** — while any in-process clean is
+    rendering (a single file, a batch, or a menu-bar Quick Clean), Crisp **refuses to
+    quit or close** — ⌘Q, the Quit menu item, Dock ▸ Quit, logout/shutdown, the red
+    close button, and ⌘W are all blocked. Interrupting a re-encode mid-write is the one
+    way to hand the user a corrupt file (philosophy #2), so this is the floor everything
+    else stands on. The block lifts the instant the engine run returns — i.e. the moment
+    the output (cleaned file, or the editor handoff's copy + FCPXML) is safely on disk,
+    **even before** any handoff to an external editor. Quit shows a custom Crisp sheet
+    ("Crisp is still working… you can quit when it's done; force quit from Activity
+    Monitor to bail"), not the system's "quit anyway?" dialog; window close greys out the
+    red button + ⌘W natively. The escape hatch is intentional: Force Quit / Activity
+    Monitor (SIGKILL) is unvetoable. Engine: `App/QuitGuard.swift` (`ProcessingGuard` +
+    `AppDelegate.applicationShouldTerminate` + `.closable` style-mask toggle via
+    `MainWindowAttacher`); busy is read live from `CleanModel.isRunning` /
+    `QuickDropModel.isBusy` (single source of truth, no drift). *Why a style mask and not
+    `windowShouldClose`: SwiftUI owns the `Window` scene's NSWindow delegate and
+    re-installs its own, clobbering ours — verified — so the delegate can't be relied on.*
 
 ## 🔁 Cross-cutting (polish + the model flywheel)
 
