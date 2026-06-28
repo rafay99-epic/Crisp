@@ -18,12 +18,13 @@ from .edit import (_output_owner, build_keep_segments, gate_fillers_by_silence, 
                    output_duration, render, snap_keep_to_zero_crossings, tag_output_source,
                    unique_output_path)
 from .encode import (
-    audio_args, container_args, default_output_path, resolve_codecs, resolve_container, video_args,
+    audio_args, container_args, default_output_path, is_high_bit_depth, resolve_codecs,
+    resolve_container, video_args,
 )
 from .enginelog import EngineLogger
 from .errors import CleanError
 from .framerate import resolve_target_fps
-from .timeline import build_fcpxml, project_paths, timeline_seconds
+from .timeline import build_fcpxml, fcpxml_colorspace, project_paths, timeline_seconds
 from .tools import (
     ffmpeg_bin, ffprobe_duration, probe_stream_meta, probe_video_fps, which_filler, which_whisper,
 )
@@ -31,6 +32,26 @@ from .tools import (
 
 def _noop(*_a, **_k):
     pass
+
+
+# Filesystem-independent fallback for the editor project's "which source made me" identity
+# (the xattr equivalent for drives without xattr support — see the reuse loop). A hidden
+# sidecar holding the absolute source path.
+_SOURCE_MARKER = ".crisp-source"
+
+
+def _read_source_marker(project_dir) -> str | None:
+    try:
+        return (project_dir / _SOURCE_MARKER).read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+
+
+def _write_source_marker(project_dir, src) -> None:
+    try:
+        (project_dir / _SOURCE_MARKER).write_text(str(src), encoding="utf-8")
+    except OSError:
+        pass   # best-effort; the xattr tag still covers xattr-capable filesystems
 
 
 def _export_editor_project(src, keep, out_dir, project_dir, target_fps,
@@ -58,14 +79,18 @@ def _export_editor_project(src, keep, out_dir, project_dir, target_fps,
 
     # Don't clobber a DIFFERENT source's project that happens to share a stem (mirrors
     # the render path's unique_output_path + source xattr). Re-exporting the SAME source
-    # reuses — and overwrites — its own project folder.
+    # reuses — and overwrites — its own project folder. Identity is the media xattr OR a
+    # sidecar marker file: the xattr is lost on filesystems that don't support it (many
+    # NAS/exFAT), where xattr-only matching would spawn a new "(Crisp) 1/2…" every
+    # re-export, so the sidecar makes re-export idempotent everywhere.
     marker = os.fsencode(str(src))
     base = pdir.name
     i = 0
     while True:
         cand = pdir if i == 0 else pdir.with_name(f"{base} {i}")
         cand_media, cand_fcp = cand / media_copy.name, cand / fcpxml_path.name
-        if not cand.exists() or _output_owner(cand_media) == marker:
+        if (not cand.exists() or _output_owner(cand_media) == marker
+                or _read_source_marker(cand) == str(src)):
             pdir, media_copy, fcpxml_path = cand, cand_media, cand_fcp
             break
         i += 1
@@ -86,27 +111,54 @@ def _export_editor_project(src, keep, out_dir, project_dir, target_fps,
     media_tmp = media_copy.with_name(f"{media_copy.stem}.crisp-tmp{media_copy.suffix}")
     fcpxml_tmp = fcpxml_path.with_name(f"{fcpxml_path.stem}.crisp-tmp{fcpxml_path.suffix}")
     try:
+        # Probe the SOURCE up front: drives the re-encode's pixel format / color tags and
+        # the FCPXML colorSpace, and fails loud here (before any work) if it's unreadable.
+        src_meta = probe_stream_meta(src, logger=logger)
+        if src_meta is None:
+            raise CleanError("Couldn't read the source video's properties.")
+        # Carry the source's color characteristics onto the re-encoded copy (and into the
+        # timeline) so an HDR / Rec.2020 source isn't silently flattened to Rec.709.
+        color_flags = []
+        for flag, key in (("-color_primaries", "color_primaries"),
+                          ("-color_trc", "color_transfer"), ("-colorspace", "color_space")):
+            if src_meta[key]:
+                color_flags += [flag, src_meta[key]]
+
         if target_fps or force_encode:
             on_log(f"Making an editor-ready copy at {target_fps} fps…" if target_fps
                    else "Converting your footage to an editor-friendly format…")
+            # Preserve the source's bit depth / chroma (10-bit, 4:2:2…) rather than crushing
+            # to 8-bit 4:2:0 — this is the non-destructive handoff. Apple's VideoToolbox is
+            # unreliable for those formats, so a preserved copy uses the software encoder.
+            src_pix = src_meta["pix_fmt"]
+            preserve = is_high_bit_depth(src_pix) and bool(src_pix)
+            enc_pix = src_pix if preserve else "yuv420p"
 
-            def _normalize(hw):
+            def _normalize(hw, pix):
                 fps_args = ["-r", str(target_fps)] if target_fps else []
-                cmd = [ffmpeg_bin(), "-y", "-i", str(src),
-                       *video_args(video_codec, hw, quality), *fps_args,
+                # Keep the first video + ALL audio tracks (multi-mic/multi-cam), matching the
+                # byte-copy path; `0:a?` makes audio optional so a silent source still works.
+                cmd = [ffmpeg_bin(), "-y", "-i", str(src), "-map", "0:v:0", "-map", "0:a?",
+                       *video_args(video_codec, hw, quality, pix), *fps_args, *color_flags,
                        *audio_args(audio_codec, audio_bitrate), str(media_tmp)]
-                logger.command(f"ffmpeg editor-copy ({'hw' if hw else 'sw'})", cmd)
+                logger.command(f"ffmpeg editor-copy ({'hw' if hw else 'sw'}, {pix})", cmd)
                 r = subprocess.run(cmd, capture_output=True, text=True)
                 logger.tool_result("ffmpeg editor-copy", r.returncode, r.stderr)
                 return r
 
-            res = _normalize(hardware)
-            if (res.returncode != 0 or not media_tmp.exists()) and hardware:
+            res = _normalize(hardware and not preserve, enc_pix)
+            if (res.returncode != 0 or not media_tmp.exists()) and hardware and not preserve:
                 # Hardware encoding can be unavailable (e.g. a VM with no media engine);
                 # fall back to software so the handoff still works — mirrors render().
                 logger.notice("Hardware encode failed for the editor copy — retrying in software")
                 on_log("Hardware encoding failed — falling back to software encoding…")
-                res = _normalize(False)
+                res = _normalize(False, enc_pix)
+            if (res.returncode != 0 or not media_tmp.exists()) and enc_pix != "yuv420p":
+                # Couldn't keep the source's high-bit-depth/wide-chroma format — fall back to
+                # 8-bit 4:2:0, but SAY so (never a silent quality drop).
+                logger.notice(f"Couldn't preserve pixel format {enc_pix} on the editor copy — using 8-bit 4:2:0")
+                on_log("Couldn't preserve the source's color format — using standard 8-bit…")
+                res = _normalize(False, "yuv420p")
             if res.returncode != 0 or not media_tmp.exists():
                 raise CleanError(f"Couldn't prepare the editor copy.\n{res.stderr[-1000:]}")
         else:
@@ -126,10 +178,17 @@ def _export_editor_project(src, keep, out_dir, project_dir, target_fps,
             # a 1-frame asset. Fail loudly instead of emitting a bogus timeline.
             raise CleanError("Couldn't read the editor copy's duration.")
         xml = build_fcpxml(
+            # Absolute file:// URI: unambiguous, so Resolve always links the media on the
+            # machine that created the export (the overwhelmingly common case). A relative
+            # path would be more portable across machines, but Resolve's handling of
+            # relative media-rep src is inconsistent — not worth risking a failed import for
+            # every user to serve a rare folder-moved-to-another-Mac case (where Resolve's
+            # relink, searching the .fcpxml's own folder, recovers it anyway).
             media_uri=media_copy.resolve().as_uri(), name=Path(src).stem,
             num=meta["fps_num"], den=meta["fps_den"], width=meta["width"], height=meta["height"],
             audio_rate=meta["audio_rate"], audio_channels=meta["audio_channels"],
-            has_audio=meta["audio_channels"] > 0, duration=dur, keep=keep)
+            has_audio=meta["audio_channels"] > 0, duration=dur, keep=keep,
+            color_space=fcpxml_colorspace(src_meta["color_primaries"], src_meta["color_transfer"]))
         fcpxml_tmp.write_text(xml, encoding="utf-8")
         # Publish both as a unit (stage old aside, replace both, roll back on failure) so
         # a re-export never leaves a mixed media/timeline project.
@@ -143,8 +202,9 @@ def _export_editor_project(src, keep, out_dir, project_dir, target_fps,
     # Tag the media copy with its source so a later re-export reuses this folder and a
     # different same-stem source dedups instead of clobbering it.
     tag_output_source(media_copy, src)
+    _write_source_marker(pdir, src)   # FS-independent identity so re-export reuses this folder
     logger.info(f"editor project: {pdir} (fcpxml={fcpxml_path.name}, media={media_copy.name})")
-    snapped = timeline_seconds(keep, meta["fps_num"], meta["fps_den"])
+    snapped = timeline_seconds(keep, meta["fps_num"], meta["fps_den"], duration=dur)
     return fcpxml_path, pdir, media_copy, snapped
 
 
@@ -189,6 +249,16 @@ def _cleanup_temp_project(media_tmp, fcpxml_tmp, pdir, created):
                 p.unlink()
         except OSError:
             pass
+    # Drop any redundant publish-staging backups — but ONLY when the live file is present
+    # (a `.crisp-bak` with its live counterpart MISSING is the sole surviving copy after a
+    # failed rollback, so it must be kept, not deleted).
+    try:
+        for bak in pdir.glob("*.crisp-bak"):
+            live = bak.with_name(bak.name[: -len(".crisp-bak")])
+            if live.exists():
+                bak.unlink()
+    except OSError:
+        pass
     if not created:
         return
     try:

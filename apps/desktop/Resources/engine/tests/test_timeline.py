@@ -5,7 +5,8 @@ from xml.dom import minidom
 
 from crisp.errors import CleanError
 from crisp.timeline import (
-    FCPXML_VERSION, build_fcpxml, frame_time, project_paths, secs_to_frames, timeline_seconds,
+    FCPXML_VERSION, build_fcpxml, fcpxml_colorspace, frame_time, project_paths,
+    secs_to_frames, timeline_seconds,
 )
 from crisp.tools import parse_stream_meta
 
@@ -114,8 +115,12 @@ class BuildFcpxmlTests(unittest.TestCase):
         self.assertIn('hasAudio="0"', self._doc(audio_channels=2, has_audio=False))
 
     def test_audio_rate_tokens_and_fallback(self):
-        self.assertIn('audioRate="32k"', self._doc(audio_rate=32000))
-        self.assertIn('audioRate="48k"', self._doc(audio_rate=999999))   # unknown → 48k
+        self.assertIn('audioRate="32k"', self._doc(audio_rate=32000))      # exact token
+        self.assertIn('audioRate="44.1k"', self._doc(audio_rate=44100))    # exact token
+        # Non-token rates snap to the NEAREST valid token, not a blanket 48k.
+        self.assertIn('audioRate="32k"', self._doc(audio_rate=24000))      # 24k → 32k (nearest)
+        self.assertIn('audioRate="48k"', self._doc(audio_rate=50000))      # 50k → 48k (nearest)
+        self.assertIn('audioRate="192k"', self._doc(audio_rate=999999))    # huge → highest token
 
     def test_clip_clamped_to_asset_duration(self):
         # keep extends past the asset length → the clip must not exceed it (no
@@ -161,6 +166,33 @@ class ProjectPathsTests(unittest.TestCase):
         proj, media, fcpxml = project_paths("/v/talk.mkv", out_dir="/out")
         self.assertEqual(str(proj), "/out/talk (Crisp)")
         self.assertEqual(str(media), "/out/talk (Crisp)/talk.mkv")
+
+
+class ColorSpaceTests(unittest.TestCase):
+    def test_sdr_and_unknown_default_to_rec709(self):
+        self.assertEqual(fcpxml_colorspace("bt709", "bt709"), "1-1-1 (Rec. 709)")
+        self.assertEqual(fcpxml_colorspace("", ""), "1-1-1 (Rec. 709)")
+        self.assertEqual(fcpxml_colorspace("smpte170m", "bt709"), "1-1-1 (Rec. 709)")
+
+    def test_hdr_is_not_mistagged_as_709(self):
+        self.assertEqual(fcpxml_colorspace("bt2020", "smpte2084"), "9-16-9 (Rec. 2020 PQ)")
+        self.assertEqual(fcpxml_colorspace("bt2020", "arib-std-b67"), "9-18-9 (Rec. 2020 HLG)")
+        self.assertEqual(fcpxml_colorspace("bt2020", "bt2020-10"), "9-16-9 (Rec. 2020)")
+
+    def test_colorspace_flows_into_format(self):
+        xml = build_fcpxml(media_uri="m.mov", name="c", num=30, den=1, width=1920, height=1080,
+                           audio_rate=48000, audio_channels=0, duration=2.0, keep=[(0.0, 1.0)],
+                           has_audio=False, color_space="9-16-9 (Rec. 2020 PQ)")
+        self.assertIn('colorSpace="9-16-9 (Rec. 2020 PQ)"', xml)
+
+
+class TimelineSecondsClampTests(unittest.TestCase):
+    def test_clamps_to_asset_duration_like_build(self):
+        # keep runs to 2.0s but the media is only 1.0s (60 frames @ 60fps): the reported
+        # snapped length must match the clamped timeline (1.0s), not the raw 2.0s span.
+        self.assertEqual(timeline_seconds([(0.0, 2.0)], 60, 1, duration=1.0), 1.0)
+        # Without a duration cap it's the raw frame sum (back-compat).
+        self.assertEqual(timeline_seconds([(0.0, 2.0)], 60, 1), 2.0)
 
 
 class ParseStreamMetaTests(unittest.TestCase):

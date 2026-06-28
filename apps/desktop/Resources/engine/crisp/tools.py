@@ -95,8 +95,11 @@ def parse_stream_meta(returncode: int, stdout: str) -> dict | None:
 
     # audio_channels defaults to 0 so a source with no audio stream is distinguishable
     # from one with audio (the FCPXML builder declares audio only when channels > 0).
+    # pix_fmt + color_* drive bit-depth-preserving re-encodes and the FCPXML colorSpace
+    # (empty = unknown → caller keeps its safe default).
     meta = {"width": 1920, "height": 1080, "fps_num": 30, "fps_den": 1,
-            "audio_rate": 48000, "audio_channels": 0}
+            "audio_rate": 48000, "audio_channels": 0,
+            "pix_fmt": "", "color_primaries": "", "color_transfer": "", "color_space": ""}
 
     def _int(value, default):
         try:
@@ -111,6 +114,10 @@ def parse_stream_meta(returncode: int, stdout: str) -> dict | None:
             have_video = True
             meta["width"] = _int(s.get("width"), meta["width"])
             meta["height"] = _int(s.get("height"), meta["height"])
+            for key in ("pix_fmt", "color_primaries", "color_transfer", "color_space"):
+                v = s.get(key)
+                if isinstance(v, str):
+                    meta[key] = v
             rate = s.get("r_frame_rate", "")
             if isinstance(rate, str) and "/" in rate:
                 n, d = rate.split("/", 1)
@@ -139,7 +146,9 @@ def probe_stream_meta(path: Path, logger=None) -> dict | None:
     # lines (where there's no reliable per-stream delimiter).
     res = subprocess.run(
         [ffprobe_bin(), "-v", "error",
-         "-show_entries", "stream=codec_type,width,height,r_frame_rate,sample_rate,channels",
+         "-show_entries",
+         "stream=codec_type,width,height,r_frame_rate,sample_rate,channels,"
+         "pix_fmt,color_primaries,color_transfer,color_space",
          "-of", "json", str(path)],
         capture_output=True, text=True,
     )
@@ -147,7 +156,6 @@ def probe_stream_meta(path: Path, logger=None) -> dict | None:
     if meta is None and logger is not None:
         logger.error(f"ffprobe couldn't read usable stream metadata of {path} (exit {res.returncode})\n"
                      f"{(res.stderr or '').strip()[-800:]}")
-    return meta
     return meta
 
 

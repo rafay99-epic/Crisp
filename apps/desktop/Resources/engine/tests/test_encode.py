@@ -5,7 +5,7 @@ from pathlib import Path
 
 from crisp.encode import (
     HARDWARE_QV, SOFTWARE_CRF, audio_args, container_args, default_output_path,
-    resolve_codecs, resolve_container, video_args,
+    is_high_bit_depth, resolve_codecs, resolve_container, video_args,
 )
 
 
@@ -136,6 +136,22 @@ class ContainerArgsTests(unittest.TestCase):
         self.assertEqual(container_args("mkv"), [])
         self.assertEqual(container_args("ts"), [])
         self.assertEqual(container_args("webm"), [])
+
+
+class HighBitDepthTests(unittest.TestCase):
+    def test_8bit_420_is_not_high(self):
+        for pf in ("yuv420p", "nv12", "yuvj420p", ""):
+            self.assertFalse(is_high_bit_depth(pf), pf)
+
+    def test_10_12_16bit_and_wide_chroma_are_high(self):
+        for pf in ("yuv420p10le", "yuv422p10le", "yuv444p10le", "p010le",
+                   "yuv420p12le", "yuv422p", "yuv444p", "yuv420p16le"):
+            self.assertTrue(is_high_bit_depth(pf), pf)
+
+    def test_video_args_threads_pix_fmt(self):
+        # The editor copy passes the source's own pixel format instead of forcing 8-bit.
+        self.assertIn("yuv420p10le", video_args("hevc", False, "high", "yuv420p10le"))
+        self.assertIn("yuv420p", video_args("hevc", False, "high"))   # default unchanged
 
 
 if __name__ == "__main__":

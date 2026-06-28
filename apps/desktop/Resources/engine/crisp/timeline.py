@@ -30,8 +30,11 @@ FCPXML_VERSION = "1.9"
 
 
 def secs_to_frames(sec: float, num: int, den: int) -> int:
-    """Seconds → whole frame index at a `num/den` fps (e.g. 30000/1001)."""
-    return int(round(sec * num / den))
+    """Seconds → whole frame index at a `num/den` fps (e.g. 30000/1001). Rounds half UP
+    (deterministic) rather than Python's round-half-to-even, which would surprise on a cut
+    landing exactly on an x.5 frame. Cuts are non-negative; round() covers the rare rest."""
+    x = sec * num / den
+    return int(x + 0.5) if x >= 0 else int(round(x))
 
 
 def frame_time(frames: int, num: int, den: int) -> str:
@@ -46,17 +49,23 @@ def frame_time(frames: int, num: int, den: int) -> str:
     return f"{n}s" if d == 1 else f"{n}/{d}s"
 
 
-def timeline_seconds(keep: list, num: int, den: int) -> float:
+def timeline_seconds(keep: list, num: int, den: int, duration: float | None = None) -> float:
     """The kept duration as it actually lands on the frame grid — the sum of each
     clip's whole-frame count × the frame duration. This matches what build_fcpxml()
-    writes (which snaps every span to frames), so reported new/saved seconds agree
-    with the real timeline instead of the raw second spans. Falls back to the raw
-    sum when the frame rate is unknown."""
+    writes (which snaps every span to frames AND clamps to the asset length), so reported
+    new/saved seconds agree with the real timeline. Pass `duration` (the asset seconds) so
+    a span rounding past the media's last frame is clamped identically to build_fcpxml —
+    otherwise the stats can overstate the timeline by up to a frame at the tail. Falls back
+    to the raw sum when the frame rate is unknown."""
     if num <= 0 or den <= 0:
         return sum(max(0.0, e - s) for s, e in keep)
+    cap = max(1, secs_to_frames(duration, num, den)) if duration is not None else None
     total_frames = 0
     for s, e in keep:
-        f = secs_to_frames(e, num, den) - secs_to_frames(s, num, den)
+        sf, ef = secs_to_frames(s, num, den), secs_to_frames(e, num, den)
+        if cap is not None:
+            sf, ef = min(sf, cap), min(ef, cap)
+        f = ef - sf
         if f > 0:
             total_frames += f
     return total_frames * den / num
@@ -72,14 +81,36 @@ _AUDIO_RATE_TOKENS = {
 
 
 def _audio_rate_attr(hz: int) -> str:
-    """FCPXML audioRate token for a sample rate, defaulting to 48k for anything
-    outside the enumerated set (a raw integer isn't a valid audioRate)."""
-    return _AUDIO_RATE_TOKENS.get(int(hz), "48k")
+    """FCPXML audioRate token for a sample rate. Exact match when the rate is one of the
+    valid tokens; otherwise the NEAREST valid token (e.g. 24k→32k, 22.05k→44.1k) rather
+    than a blanket 48k — Resolve conforms to the media's real rate on import anyway, so
+    this just keeps the declared value DTD-valid and as close as possible."""
+    hz = int(hz)
+    if hz in _AUDIO_RATE_TOKENS:
+        return _AUDIO_RATE_TOKENS[hz]
+    nearest = min(_AUDIO_RATE_TOKENS, key=lambda r: abs(r - hz))
+    return _AUDIO_RATE_TOKENS[nearest]
+
+
+# ffprobe color tags → FCPXML colorSpace token. Default Rec. 709 (the safe SDR default);
+# Rec. 2020 PQ/HLG/SDR are recognized so an HDR source isn't mistagged as 709 on import.
+def fcpxml_colorspace(primaries: str, transfer: str) -> str:
+    """Map a source's color primaries + transfer (from ffprobe) to an FCPXML colorSpace
+    token, defaulting to Rec. 709 for unknown/SD."""
+    p, t = (primaries or "").lower(), (transfer or "").lower()
+    if p == "bt2020":
+        if t in ("smpte2084", "smptest2084"):
+            return "9-16-9 (Rec. 2020 PQ)"
+        if t in ("arib-std-b67", "arib_std_b67"):
+            return "9-18-9 (Rec. 2020 HLG)"
+        return "9-16-9 (Rec. 2020)"
+    return "1-1-1 (Rec. 709)"
 
 
 def build_fcpxml(*, media_uri: str, name: str, num: int, den: int,
                  width: int, height: int, audio_rate: int, audio_channels: int,
-                 duration: float, keep: list, has_audio: bool = True) -> str:
+                 duration: float, keep: list, has_audio: bool = True,
+                 color_space: str = "1-1-1 (Rec. 709)") -> str:
     """Return a flat FCPXML document (a string) describing the cut timeline.
 
     media_uri        — `file://` URI of the (copied) media the timeline references.
@@ -103,6 +134,7 @@ def build_fcpxml(*, media_uri: str, name: str, num: int, den: int,
     # break a name/URL placed inside a double-quoted XML attribute — escape them too.
     name_x = escape(name, {'"': "&quot;", "'": "&apos;"})
     uri_x = escape(media_uri, {'"': "&quot;", "'": "&apos;"})
+    colorspace_x = escape(color_space, {'"': "&quot;", "'": "&apos;"})
     arate = _audio_rate_attr(audio_rate)
     # Audio is declared only when the source actually has it — a phantom hasAudio="1"
     # on a silent screen recording produces a wrong (and import-warning) timeline.
@@ -140,7 +172,7 @@ def build_fcpxml(*, media_uri: str, name: str, num: int, den: int,
 <!DOCTYPE fcpxml>
 <fcpxml version="{FCPXML_VERSION}">
   <resources>
-    <format id="r1" name="FFVideoFormat{height}p{int(round(num / den))}" frameDuration="{frame_dur}" width="{width}" height="{height}" colorSpace="1-1-1 (Rec. 709)"/>
+    <format id="r1" name="FFVideoFormat{height}p{int(round(num / den))}" frameDuration="{frame_dur}" width="{width}" height="{height}" colorSpace="{colorspace_x}"/>
     <asset id="a1" name="{name_x}" start="0s" duration="{frame_time(total_frames, num, den)}" hasVideo="1" videoSources="1"{asset_audio} format="r1">
       <media-rep kind="original-media" src="{uri_x}"/>
     </asset>
