@@ -478,6 +478,34 @@ final class CrispTests: XCTestCase {
         XCTAssertNil(EditorDetector.firstInstalled(name: "X", ids: ["a", "b"]) { _ in nil })
     }
 
+    // The open/reveal policy is pure so the picker, row button, and context menu can all
+    // share it. An editor export surfaces its .fcpxml; anything else has nothing to reveal.
+    func testTimelineFileOnlyForEditorExport() {
+        let export = CleanResult(output: "/v/clip (Crisp)/clip.fcpxml", origSeconds: 0, newSeconds: 0,
+                                 savedSeconds: 0, pauses: 0, fillers: 0,
+                                 exportTimeline: "fcpxml", projectDir: "/v/clip (Crisp)")
+        XCTAssertEqual(EditorDetector.timelineFile(for: export)?.path, "/v/clip (Crisp)/clip.fcpxml")
+
+        let rendered = CleanResult(output: "/v/clip_cleaned.mp4", origSeconds: 0, newSeconds: 0,
+                                   savedSeconds: 0, pauses: 0, fillers: 0)   // exportTimeline defaults "none"
+        XCTAssertNil(EditorDetector.timelineFile(for: rendered),
+                     "a normal rendered clean has no timeline to reveal")
+        XCTAssertNil(EditorDetector.timelineFile(for: nil))
+    }
+
+    func testProjectFolderFallsBackToTimelineLocation() {
+        let withDir = CleanResult(output: "/v/c (Crisp)/c.fcpxml", origSeconds: 0, newSeconds: 0,
+                                  savedSeconds: 0, pauses: 0, fillers: 0,
+                                  exportTimeline: "fcpxml", projectDir: "/v/c (Crisp)")
+        XCTAssertEqual(EditorDetector.projectFolder(for: withDir)?.path, "/v/c (Crisp)")
+
+        // No projectDir recorded → fall back to the .fcpxml path so reveal still lands.
+        let noDir = CleanResult(output: "/v/c (Crisp)/c.fcpxml", origSeconds: 0, newSeconds: 0,
+                                savedSeconds: 0, pauses: 0, fillers: 0, exportTimeline: "fcpxml")
+        XCTAssertEqual(EditorDetector.projectFolder(for: noDir)?.path, "/v/c (Crisp)/c.fcpxml")
+        XCTAssertNil(EditorDetector.projectFolder(for: nil))
+    }
+
     func testCleanRunnerEmitsExportTimelineWhenEditorOn() {
         var cfg = EngineConfig.defaults
         cfg.exportToEditor = true

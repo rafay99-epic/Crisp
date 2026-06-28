@@ -48,23 +48,9 @@ struct QueueView: View {
         }
         .sheet(item: $editorPickerItem) { item in
             EditorPickerSheet(editors: EditorDetector.installed(),
-                              onOpen: { openForImport($0, item) },
-                              onReveal: { revealProject(item) })
+                              onOpen: { EditorDetector.openForImport($0, result: item.result) },
+                              onReveal: { EditorDetector.revealProject(for: item.result) })
         }
-    }
-
-    /// Open the chosen editor and reveal this handoff's `.fcpxml` so it's ready to import.
-    private func openForImport(_ editor: VideoEditor, _ item: QueueItem) {
-        guard let fcpxml = item.result?.output, !fcpxml.isEmpty else { return }
-        EditorDetector.openForImport(editor, timeline: URL(fileURLWithPath: fcpxml))
-    }
-
-    /// Reveal an editor-handoff result's project folder (falls back to its output).
-    private func revealProject(_ item: QueueItem) {
-        let path = item.result?.projectDir.isEmpty == false
-            ? item.result!.projectDir : (item.result?.output ?? "")
-        guard !path.isEmpty else { return }
-        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
     }
 
     private var countLabel: String {
@@ -104,15 +90,9 @@ private struct QueueRow: View {
         guard let path = item.result?.projectDir, !path.isEmpty else { return nil }
         return URL(fileURLWithPath: path)
     }
-    private func revealProject() { if let p = projectURL { reveal(p) } else { revealOutput() } }
-    /// Open the editor and reveal this handoff's `.fcpxml` (the row's `outputURL` is the
-    /// timeline file) so it's ready to import — same one-click behavior as the picker.
+    private func revealProject() { EditorDetector.revealProject(for: item.result) }
     private func openInEditor(_ editor: VideoEditor) {
-        if let fcpxml = outputURL {
-            EditorDetector.openForImport(editor, timeline: fcpxml)
-        } else {
-            EditorDetector.launch(editor)
-        }
+        EditorDetector.openForImport(editor, result: item.result)
     }
 
     var body: some View {

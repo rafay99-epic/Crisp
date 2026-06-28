@@ -83,7 +83,7 @@ impact-per-effort. Living doc — add/reorder freely.
         carries cut/encode knobs — captions / frame-rate / smoothing / split fall back to
         defaults (pre-existing; this PR only threaded the new `exportToEditor`). Worth
         making presets capture the full recipe.
-    - **Auto-import spike — DONE (2026-06-29): not feasible on free.** Measured on the
+    - **Auto-import spike — DONE: not feasible on free.** Measured on the
       user's machine: their Resolve is the App Store **free/Lite, sandboxed** build, which
       exposes **no "External scripting" preference at all** (Preferences search "script" →
       "No Results Found"), so `scriptapp("Resolve")` returns `None` — external auto-import
