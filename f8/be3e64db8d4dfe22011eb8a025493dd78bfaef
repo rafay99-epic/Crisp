@@ -1,0 +1,22 @@
+apps/desktop/Sources/Crisp/Views/Components/ConfirmationSheet.swift
+  s_ec4a8f9f437cbc::t_b451979666b65f 7
+  s_ec4a8f9f437cbc::t_5eaf922132721f 1-6,8-50
+apps/desktop/Sources/Crisp/Views/SettingsView.swift
+  s_ec4a8f9f437cbc::t_3231029b0f68d8 202-211
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "f8be3e64db8d4dfe22011eb8a025493dd78bfaef",
+  "prompts": {},
+  "sessions": {
+    "s_ec4a8f9f437cbc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a4fdbd9c-d1e0-4104-8af6-55e6fba7481f",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
