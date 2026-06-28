@@ -70,10 +70,16 @@ def build_fcpxml(*, media_uri: str, name: str, num: int, den: int,
         raise CleanError("Can't build an editor timeline: unknown source frame rate.")
 
     frame_dur = frame_time(1, num, den)
-    drop = "DF" if den == 1001 else "NDF"          # 59.94 / 29.97 are drop-frame
-    name_x = escape(name)
-    uri_x = escape(media_uri)
+    # Drop-frame applies only to the NTSC 29.97 / 59.94 rates — NOT to 23.976
+    # (24000/1001), which is non-drop. A too-broad check mislabels 23.976 timelines.
+    drop = "DF" if (den == 1001 and num in (30000, 60000)) else "NDF"
+    # Attribute-safe escaping: saxutils.escape() leaves quotes intact, which would
+    # break a name/URL placed inside a double-quoted XML attribute — escape them too.
+    name_x = escape(name, {'"': "&quot;", "'": "&apos;"})
+    uri_x = escape(media_uri, {'"': "&quot;", "'": "&apos;"})
     arate = _audio_rate_attr(audio_rate)
+    # Map channel count to an FCPXML audio layout (stereo is wrong for >2 channels).
+    layout = "mono" if audio_channels <= 1 else ("stereo" if audio_channels == 2 else "surround")
     total_frames = max(1, secs_to_frames(duration, num, den))
 
     # Snap each kept span to whole frames and lay the segments back-to-back on the
@@ -106,7 +112,7 @@ def build_fcpxml(*, media_uri: str, name: str, num: int, den: int,
   <library>
     <event name="Crisp">
       <project name="{name_x} (Crisp cut)">
-        <sequence format="r1" duration="{frame_time(timeline_frames, num, den)}" tcStart="0s" tcFormat="{drop}" audioLayout="stereo" audioRate="{arate}">
+        <sequence format="r1" duration="{frame_time(timeline_frames, num, den)}" tcStart="0s" tcFormat="{drop}" audioLayout="{layout}" audioRate="{arate}">
           <spine>
 {chr(10).join(clips)}
           </spine>

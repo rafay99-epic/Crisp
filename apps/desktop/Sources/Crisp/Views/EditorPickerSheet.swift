@@ -29,6 +29,7 @@ struct EditorPickerSheet: View {
                 .font(.system(size: 34))
                 .foregroundStyle(.tint)
                 .symbolRenderingMode(.hierarchical)
+                .accessibilityHidden(true)
             Text("Your cuts are ready")
                 .font(.title2.weight(.semibold))
             Text(editors.isEmpty
@@ -52,6 +53,7 @@ struct EditorPickerSheet: View {
                 Image(systemName: "film.stack")
                     .font(.title)
                     .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
                 Text("No video editor found")
                     .font(.headline)
                 Text("Install DaVinci Resolve — the free version works great — then open the timeline from the project folder.")

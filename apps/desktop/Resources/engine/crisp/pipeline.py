@@ -43,24 +43,41 @@ def _export_editor_project(src, keep, out_dir, project_dir, target_fps,
     that needs normalization (VFR, or an explicit constant rate) is re-encoded to CFR
     once, because FCPXML can't represent variable timing frame-accurately."""
     pdir, media_copy, fcpxml_path = project_paths(src, project_dir or out_dir)
-    pdir.mkdir(parents=True, exist_ok=True)
+    try:
+        pdir.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        raise CleanError(f"Couldn't create the editor project folder \"{pdir}\".\n{e}") from e
 
     if target_fps:
         # The one re-encode exception: a VFR/constant source must become CFR so the
         # timeline lands frame-accurately. Logged so it's never a silent transcode.
         on_log(f"Making an editor-ready copy at {target_fps} fps…")
-        cmd = [ffmpeg_bin(), "-y", "-i", str(src),
-               *video_args(video_codec, hardware, quality), "-r", str(target_fps),
-               *audio_args(audio_codec, audio_bitrate), str(media_copy)]
-        logger.command("ffmpeg editor-copy (normalize)", cmd)
-        res = subprocess.run(cmd, capture_output=True, text=True)
-        logger.tool_result("ffmpeg editor-copy", res.returncode, res.stderr)
+
+        def _normalize(hw):
+            cmd = [ffmpeg_bin(), "-y", "-i", str(src),
+                   *video_args(video_codec, hw, quality), "-r", str(target_fps),
+                   *audio_args(audio_codec, audio_bitrate), str(media_copy)]
+            logger.command(f"ffmpeg editor-copy ({'hw' if hw else 'sw'})", cmd)
+            r = subprocess.run(cmd, capture_output=True, text=True)
+            logger.tool_result("ffmpeg editor-copy", r.returncode, r.stderr)
+            return r
+
+        res = _normalize(hardware)
+        if (res.returncode != 0 or not media_copy.exists()) and hardware:
+            # Hardware encoding can be unavailable (e.g. a VM with no media engine);
+            # fall back to software so the handoff still works — mirrors render().
+            logger.notice("Hardware encode failed for the editor copy — retrying in software")
+            on_log("Hardware encoding failed — falling back to software encoding…")
+            res = _normalize(False)
         if res.returncode != 0 or not media_copy.exists():
             raise CleanError(f"Couldn't prepare the editor copy.\n{res.stderr[-1000:]}")
     else:
         # CFR: a plain copy — no re-encode, no quality loss, fast.
         on_log("Copying your footage for the editor…")
-        shutil.copy2(src, media_copy)
+        try:
+            shutil.copy2(src, media_copy)
+        except OSError as e:
+            raise CleanError(f"Couldn't copy your footage into the editor project.\n{e}") from e
 
     meta = probe_stream_meta(media_copy, logger=logger)
     dur = ffprobe_duration(media_copy, logger=logger)
@@ -69,7 +86,10 @@ def _export_editor_project(src, keep, out_dir, project_dir, target_fps,
         num=meta["fps_num"], den=meta["fps_den"], width=meta["width"], height=meta["height"],
         audio_rate=meta["audio_rate"], audio_channels=meta["audio_channels"],
         duration=dur, keep=keep)
-    fcpxml_path.write_text(xml, encoding="utf-8")
+    try:
+        fcpxml_path.write_text(xml, encoding="utf-8")
+    except OSError as e:
+        raise CleanError(f"Couldn't write the editor timeline.\n{e}") from e
     logger.info(f"editor project: {pdir} (fcpxml={fcpxml_path.name}, media={media_copy.name})")
     return fcpxml_path, pdir, media_copy
 
@@ -206,7 +226,10 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
         on_log(note)
     on_progress(0.0, "Starting…")
 
-    backup_path = make_backup(src, on_log, backup_dir, logger=logger) if backup else None
+    # Editor-handoff copies the original into the project folder, so a separate backup
+    # would duplicate a (possibly large) file twice — skip it in that mode.
+    do_backup = backup and export_timeline != "fcpxml"
+    backup_path = make_backup(src, on_log, backup_dir, logger=logger) if do_backup else None
     if backup_path:
         on_progress(0.03, "Backed up original")
 
@@ -387,12 +410,19 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
     # Branches out here before the render, so backup/captions/split (which describe a
     # rendered deliverable) don't run either.
     if export_timeline == "fcpxml":
+        # Captions describe a rendered deliverable; an editor timeline has none, so a
+        # caption request can't be honored here — say so rather than silently dropping it.
+        if want_captions:
+            on_log("Captions aren't written for an editor handoff — add them in your editor.")
         on_progress(0.62, "Saving your timeline…")
         fcpxml_path, pdir, media_copy = _export_editor_project(
             src, keep, out_dir, project_dir, target_fps,
             video_codec, hardware, quality, audio_codec, audio_bitrate, on_log, logger)
         on_progress(1.0, "Done")
         on_log(f"✅ Your cuts are ready to open in a video editor — {pdir.name}")
+        # The editor timeline is hard cuts (no crossfade), so report the plain kept
+        # duration — not the crossfade-adjusted render length.
+        export_kept = output_duration(keep, 0.0)
         return {
             "input": str(src),
             "output": str(fcpxml_path),
@@ -401,8 +431,8 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
             "export_timeline": "fcpxml",
             "backup": str(backup_path) if backup_path else "",
             "orig_seconds": duration,
-            "new_seconds": kept_dur,
-            "saved_seconds": duration - kept_dur,
+            "new_seconds": export_kept,
+            "saved_seconds": duration - export_kept,
             "fillers": stats["fillers"],
             "pauses": stats["pauses"],
             "retakes": stats["retakes"],

@@ -83,6 +83,24 @@ class BuildFcpxmlTests(unittest.TestCase):
         asset = dom.getElementsByTagName("asset")[0]
         self.assertEqual(asset.getAttribute("name"), "A & B")
 
+    def test_quotes_in_name_are_attribute_escaped(self):
+        # A double quote in the name must not break the (quoted) XML attribute.
+        dom = minidom.parseString(self._doc(name='My "Best" Take'))
+        self.assertEqual(dom.getElementsByTagName("asset")[0].getAttribute("name"),
+                         'My "Best" Take')
+
+    def test_drop_frame_only_for_ntsc_30_60(self):
+        # 29.97 / 59.94 are drop-frame; 23.976 (24000/1001) is NOT.
+        self.assertIn('tcFormat="DF"', self._doc(num=30000, den=1001))
+        self.assertIn('tcFormat="DF"', self._doc(num=60000, den=1001))
+        self.assertIn('tcFormat="NDF"', self._doc(num=24000, den=1001))
+        self.assertIn('tcFormat="NDF"', self._doc(num=60, den=1))
+
+    def test_audio_layout_tracks_channel_count(self):
+        self.assertIn('audioLayout="mono"', self._doc(audio_channels=1))
+        self.assertIn('audioLayout="stereo"', self._doc(audio_channels=2))
+        self.assertIn('audioLayout="surround"', self._doc(audio_channels=6))
+
     def test_empty_keep_raises(self):
         with self.assertRaises(CleanError):
             self._doc(keep=[])

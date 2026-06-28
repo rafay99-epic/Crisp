@@ -262,7 +262,9 @@ private struct QueueRow: View {
         switch item.status {
         case .done:
             if let cuts = item.result?.cutsSummary { Text("Removed \(cuts)") }
-            if let summary = sizeSummary { Text(summary) }
+            // Skip the file-size summary for an editor handoff — there's no rendered
+            // video, so comparing the original to the tiny .fcpxml would mislead.
+            if !editorExport, let summary = sizeSummary { Text(summary) }
             if editorExport {
                 ForEach(EditorDetector.installed()) { editor in
                     Button { openInEditor(editor) } label: { Label("Open in \(editor.name)", systemImage: "film.stack") }

@@ -43,6 +43,12 @@ public struct QuickClean {
             removeRetakes = false
             config.captionsFormat = "none"
         }
+        // Editor handoff is an interactive main-window action (it pops an editor
+        // picker). QuickClean's callers — the watch folder, the App Intent, the
+        // menu-bar drop — are headless/one-shot and can't present that, and a watch
+        // run that produced only an .fcpxml would never write the `_cleaned` marker the
+        // watcher uses to avoid reprocessing. So these paths always render a video.
+        config.exportToEditor = false
         let params = strength.parameters(using: config)
         let backupDir = params.backupOriginal ? CleanRunner.backupDirectory() : nil
         let options = CleanRunner.Options(modelPath: modelPath,
