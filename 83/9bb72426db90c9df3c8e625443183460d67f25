@@ -1,0 +1,25 @@
+idea.md
+  s_d9e9a0e9665314::t_b569886bee074a 114-135
+apps/desktop/Sources/Crisp/App/QuitGuard.swift
+  s_d9e9a0e9665314::t_2ade9898256d33 71-73,78-94,98-105
+  s_d9e9a0e9665314::t_177d13deaff89e 178,180,186
+  s_d9e9a0e9665314::t_58b0e9b7e45ae2 106-107
+apps/desktop/Tests/CrispTests/ProcessingGuardTests.swift
+  s_d9e9a0e9665314::t_f14102c870a934 33-37,40-41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "839bb72426db90c9df3c8e625443183460d67f25",
+  "prompts": {},
+  "sessions": {
+    "s_d9e9a0e9665314": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e2bfcf51-6592-455f-b03c-16d23ba6f719",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
