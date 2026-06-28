@@ -104,31 +104,14 @@ private struct QueueRow: View {
         .onChange(of: item.status) { _, status in
             if status == .done, editorExport { showEditorPicker = true }
         }
-        // The picker box: one button per installed editor (just DaVinci Resolve today).
-        // Selecting one launches it; the free tier can't auto-import, so the user does
-        // File ▸ Import ▸ Timeline.
-        .confirmationDialog("Your cuts are ready", isPresented: $showEditorPicker,
-                            titleVisibility: .visible) {
-            ForEach(EditorDetector.installed()) { editor in
-                Button("Open \(editor.name)") { openInEditor(editor) }
-            }
-            Button("Show in Finder") { revealProject() }
-            Button("Not now", role: .cancel) { }
-        } message: {
-            Text(editorPickerMessage)
+        // The custom, on-brand picker sheet — lists each installed editor with its own
+        // Open button. Selecting one launches it; the free tier can't auto-import, so
+        // the sheet states the one manual step (File ▸ Import ▸ Timeline).
+        .sheet(isPresented: $showEditorPicker) {
+            EditorPickerSheet(editors: EditorDetector.installed(),
+                              onOpen: { openInEditor($0) },
+                              onReveal: { revealProject() })
         }
-    }
-
-    /// Picker copy — adapts to whether any editor was found.
-    private var editorPickerMessage: String {
-        let editors = EditorDetector.installed()
-        if editors.isEmpty {
-            return "Crisp saved your cuts as a timeline. Install DaVinci Resolve (the free "
-                + "version works), then import the timeline to finish."
-        }
-        let names = editors.map(\.name).joined(separator: ", ")
-        return "Found \(names) on your Mac. Open one and import the timeline "
-            + "(File ▸ Import ▸ Timeline) to finish your edit — your footage is untouched."
     }
 
     private var rowContent: some View {
