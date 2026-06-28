@@ -26,12 +26,22 @@ public struct CleanResult: Identifiable, Sendable {
     /// Where the pristine original was backed up (`~/.crisp*/Originals/<date>/…`),
     /// or "" when backup was off. Lets the UI offer "Restore Original".
     public let backup: String
+    /// Editor handoff (Model A). When `exportTimeline == "fcpxml"`, `output` is the
+    /// `.fcpxml`, `projectDir` is the `<name> (Crisp)` folder, and `mediaOutput` is the
+    /// copied original the timeline references — so the UI offers "Open in Resolve" /
+    /// "Reveal project" instead of the usual play/reveal-video actions. "none" for a
+    /// normal rendered clean.
+    public let exportTimeline: String
+    public let projectDir: String
+    public let mediaOutput: String
 
     public init(output: String, origSeconds: Double, newSeconds: Double,
                 savedSeconds: Double, pauses: Int, fillers: Int, retakes: Int = 0,
                 peaks: [Double] = [], removed: [Bool] = [],
                 videoOutput: String = "", audioOutput: String = "",
-                srtOutput: String = "", vttOutput: String = "", backup: String = "") {
+                srtOutput: String = "", vttOutput: String = "", backup: String = "",
+                exportTimeline: String = "none", projectDir: String = "",
+                mediaOutput: String = "") {
         self.output = output
         self.origSeconds = origSeconds
         self.newSeconds = newSeconds
@@ -46,6 +56,9 @@ public struct CleanResult: Identifiable, Sendable {
         self.srtOutput = srtOutput
         self.vttOutput = vttOutput
         self.backup = backup
+        self.exportTimeline = exportTimeline
+        self.projectDir = projectDir
+        self.mediaOutput = mediaOutput
     }
 
     /// What was cut, as "12 fillers · 47 pauses" — only the non-zero parts, properly

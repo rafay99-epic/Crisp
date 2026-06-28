@@ -71,6 +71,17 @@ private struct QueueRow: View {
         return URL(fileURLWithPath: path)
     }
 
+    /// True when this clean produced an editor project (a copy + .fcpxml timeline)
+    /// instead of a rendered video — the result actions become "open/reveal project".
+    private var editorExport: Bool { item.result?.exportTimeline == "fcpxml" }
+    private var resolveEditor: VideoEditor? { EditorDetector.resolve() }
+    private var projectURL: URL? {
+        guard let path = item.result?.projectDir, !path.isEmpty else { return nil }
+        return URL(fileURLWithPath: path)
+    }
+    private func revealProject() { if let p = projectURL { reveal(p) } else { revealOutput() } }
+    private func openInEditor(_ editor: VideoEditor) { EditorDetector.launch(editor) }
+
     var body: some View {
         Group {
             if item.status == .done, let url = outputURL {
@@ -198,7 +209,18 @@ private struct QueueRow: View {
                     Text("removed \(formatTime(r.savedSeconds))")
                         .font(.caption).foregroundStyle(.secondary).fixedSize()
                 }
-                if let url = outputURL {
+                if editorExport {
+                    // Editor handoff: open the editor / reveal the project to import,
+                    // rather than play a rendered file (there isn't one).
+                    if let editor = resolveEditor {
+                        Button { openInEditor(editor) } label: { Image(systemName: "film.stack") }
+                            .buttonStyle(.plain).foregroundStyle(.tint)
+                            .help("Open \(editor.name)")
+                    }
+                    Button { revealProject() } label: { Image(systemName: "folder") }
+                        .buttonStyle(.plain).foregroundStyle(.tint)
+                        .help("Show editor project in Finder (then File ▸ Import ▸ Timeline)")
+                } else if let url = outputURL {
                     Button { player.toggle(url) } label: {
                         Image(systemName: player.isPlaying(url) ? "stop.circle.fill" : "play.circle")
                             .contentTransition(.symbolEffect(.replace))
@@ -228,7 +250,15 @@ private struct QueueRow: View {
         case .done:
             if let cuts = item.result?.cutsSummary { Text("Removed \(cuts)") }
             if let summary = sizeSummary { Text(summary) }
-            if let url = outputURL {
+            if editorExport {
+                if let editor = resolveEditor {
+                    Button { openInEditor(editor) } label: { Label("Open \(editor.name)", systemImage: "film.stack") }
+                }
+                Button { revealProject() } label: { Label("Reveal Editor Project", systemImage: "folder") }
+                if outputURL != nil {
+                    Button { copyOutputPath() } label: { Label("Copy Timeline Path", systemImage: "doc.on.doc") }
+                }
+            } else if let url = outputURL {
                 Button { revealOutput() } label: { Label("Show in Finder", systemImage: "folder") }
                 Button { copyOutputPath() } label: { Label("Copy Output Path", systemImage: "doc.on.doc") }
                 Button { player.toggle(url) } label: {
@@ -237,7 +267,7 @@ private struct QueueRow: View {
                 }
             }
             // The split-track stems, when the clean produced them.
-            if let video = stemURL(item.result?.videoOutput) {
+            if !editorExport, let video = stemURL(item.result?.videoOutput) {
                 Button { reveal(video) } label: { Label("Show Video Track", systemImage: "film") }
             }
             if let audio = stemURL(item.result?.audioOutput) {

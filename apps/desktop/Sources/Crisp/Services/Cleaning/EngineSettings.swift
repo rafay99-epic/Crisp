@@ -28,6 +28,7 @@ final class EngineSettings {
     var outputContainer: String { didSet { save() } }
     var frameRateMode: String { didSet { save() } }     // "auto" | "passthrough" | "constant"
     var frameRateValue: Double { didSet { save() } }    // fps used when mode == "constant"
+    var exportToEditor: Bool { didSet { save() } }      // write an editor project instead of rendering
     var outputDirectory: String { didSet { save() } }   // "" ⇒ beside the source
     var splitTracks: Bool { didSet { save() } }          // also write separate video/audio files
     var splitAudioFormat: String { didSet { save() } }   // "match" | "wav"
@@ -74,6 +75,7 @@ final class EngineSettings {
                      videoQuality: videoQuality, audioCodec: audioCodec,
                      audioBitrateKbps: audioBitrateKbps, outputContainer: outputContainer,
                      frameRateMode: frameRateMode, frameRateValue: frameRateValue,
+                     exportToEditor: exportToEditor,
                      outputDirectory: outputDirectory,
                      splitTracks: splitTracks, splitAudioFormat: splitAudioFormat,
                      captionsFormat: captionsFormat,
@@ -118,6 +120,7 @@ final class EngineSettings {
         frameRateMode = FrameRateMode(rawValue: cfg.frameRateMode)?.rawValue
             ?? EngineConfig.defaults.frameRateMode
         frameRateValue = cfg.frameRateValue
+        exportToEditor = cfg.exportToEditor
         outputDirectory = cfg.outputDirectory
         splitTracks = cfg.splitTracks
         splitAudioFormat = cfg.splitAudioFormat
@@ -168,6 +171,7 @@ final class EngineSettings {
         outputContainer = d.outputContainer
         frameRateMode = d.frameRateMode
         frameRateValue = d.frameRateValue
+        exportToEditor = d.exportToEditor
         outputDirectory = d.outputDirectory
         splitTracks = d.splitTracks
         splitAudioFormat = d.splitAudioFormat

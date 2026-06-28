@@ -43,7 +43,7 @@ struct SettingsView: View {
             tab { cuttingSection; retakeSection; smoothingSection; speechModelSection; fillerModelSection }
                 .tabItem { Label("Cutting", systemImage: "scissors") }
 
-            tab { encodingSection; captionsSection; outputLocationSection; originalsSection }
+            tab { encodingSection; editorSection; captionsSection; outputLocationSection; originalsSection }
                 .tabItem { Label("Output", systemImage: "film.stack") }
 
             tab { presetsSection }
@@ -206,6 +206,26 @@ struct SettingsView: View {
     static func frameRateLabel(_ fps: Double) -> String {
         let whole = fps.rounded() == fps
         return whole ? "\(Int(fps)) fps" : String(format: "%.2f fps", fps)
+    }
+
+    @ViewBuilder private var editorSection: some View {
+        Section {
+            if let editor = EditorDetector.resolve() {
+                Toggle("Hand off to \(editor.name) instead of rendering", isOn: $settings.exportToEditor)
+                Text("After cutting, Crisp writes a project folder — a copy of your original plus a timeline (.fcpxml) you open in \(editor.name) (File ▸ Import ▸ Timeline). The cuts are there but every one stays adjustable, and your footage is never re-encoded or touched. Detected \(editor.name).")
+                    .font(.caption).foregroundStyle(.secondary)
+            } else {
+                Toggle("Hand off to a video editor instead of rendering", isOn: .constant(false))
+                    .disabled(true)
+                Text("No supported editor found. Crisp can hand its cuts to DaVinci Resolve (the free edition works) as a ready-to-edit timeline — install Resolve to enable this.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        } header: {
+            Text("Editor handoff")
+        } footer: {
+            Text("A non-destructive timeline — zero re-encode, edit the cuts in your editor. Replaces the rendered video while it\u{2019}s on.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
     }
 
     @ViewBuilder private var captionsSection: some View {
