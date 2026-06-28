@@ -164,10 +164,10 @@ struct BottomBar: View {
     // MARK: - Trailing action
 
     /// The primary-button title. With editor handoff on, the cut produces an editor
-    /// timeline (no render), so the button says "Cut for Editor".
+    /// timeline (no render), so the button says "Prepare for Editor".
     private var startTitle: String {
         if settings.exportToEditor {
-            return pending == 1 ? "Cut for Editor" : "Cut \(pending) for Editor"
+            return pending == 1 ? "Prepare for Editor" : "Prepare \(pending) for Editor"
         }
         return pending == 1 ? "Clean Video" : "Clean \(pending) Videos"
     }

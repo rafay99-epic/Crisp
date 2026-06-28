@@ -48,7 +48,7 @@ def _export_editor_project(src, keep, out_dir, project_dir, target_fps,
     if target_fps:
         # The one re-encode exception: a VFR/constant source must become CFR so the
         # timeline lands frame-accurately. Logged so it's never a silent transcode.
-        on_log(f"Preparing a constant-frame-rate copy for the editor ({target_fps} fps)…")
+        on_log(f"Making an editor-ready copy at {target_fps} fps…")
         cmd = [ffmpeg_bin(), "-y", "-i", str(src),
                *video_args(video_codec, hardware, quality), "-r", str(target_fps),
                *audio_args(audio_codec, audio_bitrate), str(media_copy)]
@@ -59,7 +59,7 @@ def _export_editor_project(src, keep, out_dir, project_dir, target_fps,
             raise CleanError(f"Couldn't prepare the editor copy.\n{res.stderr[-1000:]}")
     else:
         # CFR: a plain copy — no re-encode, no quality loss, fast.
-        on_log(f"Copying the original into the editor project: {media_copy.name}")
+        on_log("Copying your footage for the editor…")
         shutil.copy2(src, media_copy)
 
     meta = probe_stream_meta(media_copy, logger=logger)
@@ -387,12 +387,12 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
     # Branches out here before the render, so backup/captions/split (which describe a
     # rendered deliverable) don't run either.
     if export_timeline == "fcpxml":
-        on_progress(0.62, "Preparing editor project…")
+        on_progress(0.62, "Saving your timeline…")
         fcpxml_path, pdir, media_copy = _export_editor_project(
             src, keep, out_dir, project_dir, target_fps,
             video_codec, hardware, quality, audio_codec, audio_bitrate, on_log, logger)
         on_progress(1.0, "Done")
-        on_log(f"✅ Editor project ready: {pdir}")
+        on_log(f"✅ Your cuts are ready to open in a video editor — {pdir.name}")
         return {
             "input": str(src),
             "output": str(fcpxml_path),

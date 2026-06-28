@@ -99,19 +99,36 @@ private struct QueueRow: View {
         .padding(.vertical, 3)
         .animation(.smooth, value: item.status)
         .contextMenu { contextMenu }
-        // The "open in editor" picker box — one button per installed editor (just
-        // DaVinci Resolve today). Selecting one simply launches it; we can't auto-import
-        // on the free tier, so the user does File ▸ Import ▸ Timeline.
-        .confirmationDialog("Open in a video editor", isPresented: $showEditorPicker,
+        // When an editor-handoff cut finishes, detect the installed editors and pop the
+        // picker automatically — the user just chooses where to open.
+        .onChange(of: item.status) { _, status in
+            if status == .done, editorExport { showEditorPicker = true }
+        }
+        // The picker box: one button per installed editor (just DaVinci Resolve today).
+        // Selecting one launches it; the free tier can't auto-import, so the user does
+        // File ▸ Import ▸ Timeline.
+        .confirmationDialog("Your cuts are ready", isPresented: $showEditorPicker,
                             titleVisibility: .visible) {
             ForEach(EditorDetector.installed()) { editor in
-                Button("Open in \(editor.name)") { openInEditor(editor) }
+                Button("Open \(editor.name)") { openInEditor(editor) }
             }
-            Button("Reveal Project in Finder") { revealProject() }
+            Button("Show in Finder") { revealProject() }
+            Button("Not now", role: .cancel) { }
         } message: {
-            Text("Crisp saved an editable timeline (.fcpxml). Open your editor, then "
-                 + "File ▸ Import ▸ Timeline to finish the cut.")
+            Text(editorPickerMessage)
         }
+    }
+
+    /// Picker copy — adapts to whether any editor was found.
+    private var editorPickerMessage: String {
+        let editors = EditorDetector.installed()
+        if editors.isEmpty {
+            return "Crisp saved your cuts as a timeline. Install DaVinci Resolve (the free "
+                + "version works), then import the timeline to finish."
+        }
+        let names = editors.map(\.name).joined(separator: ", ")
+        return "Found \(names) on your Mac. Open one and import the timeline "
+            + "(File ▸ Import ▸ Timeline) to finish your edit — your footage is untouched."
     }
 
     private var rowContent: some View {
@@ -232,7 +249,7 @@ private struct QueueRow: View {
                         .help("Open in a video editor")
                     Button { revealProject() } label: { Image(systemName: "folder") }
                         .buttonStyle(.plain).foregroundStyle(.tint)
-                        .help("Show editor project in Finder")
+                        .help("Show project in Finder")
                 } else if let url = outputURL {
                     Button { player.toggle(url) } label: {
                         Image(systemName: player.isPlaying(url) ? "stop.circle.fill" : "play.circle")

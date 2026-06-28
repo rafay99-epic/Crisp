@@ -211,19 +211,19 @@ struct SettingsView: View {
     @ViewBuilder private var editorSection: some View {
         Section {
             if let editor = EditorDetector.resolve() {
-                Toggle("Finish in a video editor", isOn: $settings.exportToEditor)
-                Text("Crisp finds the cuts and saves an editable timeline (.fcpxml) instead of rendering a video — no encode, nothing re-compressed. When a cut finishes you pick your editor and Crisp opens it; you import the timeline and finish there. Detected \(editor.name).")
+                Toggle("Send my cuts to a video editor", isOn: $settings.exportToEditor)
+                Text("Crisp finds the cuts and hands them to your editor as a ready-to-edit timeline — no rendering, nothing re-compressed, so it finishes in seconds. When it\u{2019}s done, Crisp asks which editor to open. You\u{2019}ll import the timeline there and take it from the finish line. Found \(editor.name) on your Mac.")
                     .font(.caption).foregroundStyle(.secondary)
             } else {
-                Toggle("Finish in a video editor", isOn: .constant(false))
+                Toggle("Send my cuts to a video editor", isOn: .constant(false))
                     .disabled(true)
-                Text("No supported editor found. Crisp can hand its cuts to DaVinci Resolve (the free edition works) as a ready-to-edit timeline — install Resolve to enable this.")
+                Text("We couldn\u{2019}t find a video editor on your Mac yet. Install DaVinci Resolve (the free version works great) and Crisp can send your cuts straight to it.")
                     .font(.caption).foregroundStyle(.secondary)
             }
         } header: {
-            Text("Editor handoff")
+            Text("Send to a video editor")
         } footer: {
-            Text("Skips rendering entirely — fastest path. Turn this off to render a finished video with all of Crisp\u{2019}s cleanup instead.")
+            Text("The fastest way out of Crisp \u{2014} skip rendering and finish in your editor. Turn this off to have Crisp render a polished video for you instead.")
                 .font(.caption).foregroundStyle(.secondary)
         }
     }
