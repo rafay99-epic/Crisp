@@ -254,7 +254,11 @@ class ResolvePixFmtTests(unittest.TestCase):
         # falling through to 10-bit 4:2:0 (which would silently downgrade the chroma).
         for src, want in (("yuv422p", "yuv422p10le"), ("yuv444p", "yuv444p10le"),
                           ("yuvj422p", "yuv422p10le"), ("yuvj444p", "yuv444p10le"),
-                          ("yuyv422", "yuv422p10le"), ("uyvy422", "yuv422p10le")):
+                          ("yuyv422", "yuv422p10le"), ("uyvy422", "yuv422p10le"),
+                          # Named formats with no 444/422 in the name (semi-planar / GBR):
+                          ("nv16", "yuv422p10le"), ("nv61", "yuv422p10le"),
+                          ("nv24", "yuv444p10le"), ("gbrp", "yuv444p10le"),
+                          ("gbrap", "yuv444p10le")):
             pix, notes = resolve_pix_fmt("10", src)
             self.assertEqual(pix, want, src)
             self.assertTrue(is_deep_pix_fmt(pix), pix)   # genuinely 10-bit now

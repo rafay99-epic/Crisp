@@ -690,9 +690,9 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
     color_flags = _source_color_flags(src_meta)
     # HDR10 static metadata (mastering display + content light) carried onto the libx265
     # encode so an HDR source isn't tone-mapped blind by players. None for SDR / non-HEVC.
+    # Only libx265 (software HEVC) can write it — so the "preserved" claim is made INSIDE the
+    # loop, on the attempt that actually used software, never on a hardware attempt.
     hdr_params = _source_hdr_params(src, src_meta, video_codec, logger)
-    if hdr_params:
-        on_log("Preserving the source's HDR10 metadata.")
 
     # Encode attempts, tried in order; each fallback SAYS what it gave up (never a silent
     # quality drop). High-bit-depth formats need the software encoder (VideoToolbox is
@@ -710,6 +710,10 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
             render(src, keep, out_path, on_log, stage(0.60, 1.0),
                    video_args(video_codec, hw, quality, pix, hdr_params=hdr_params) + color_flags,
                    audio, mux, fade=fade_s, crossfade=crossfade_s, fps=target_fps, logger=logger)
+            # hdr_params rides libx265 only, so it was actually written iff this was a
+            # software encode — claim preservation only then (never on a hardware attempt).
+            if hdr_params and not hw:
+                on_log("Preserving the source's HDR10 metadata.")
             break
         except CleanError:
             if i == last:
