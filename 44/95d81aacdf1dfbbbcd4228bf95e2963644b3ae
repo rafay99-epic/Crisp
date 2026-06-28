@@ -1,0 +1,52 @@
+apps/desktop/Sources/Crisp/Views/SettingsView.swift
+  s_1c9eefb4447eda::t_f161d7435f7936 46
+  s_1c9eefb4447eda::t_d8ff7bd1d10a48 211-230
+apps/desktop/Sources/Crisp/Views/QueueView.swift
+  s_1c9eefb4447eda::t_cfc11d2505374c 74-84
+  s_1c9eefb4447eda::t_a7e465371b5290 212-223
+  s_1c9eefb4447eda::t_ea50dbef21dfdd 253-261,270
+apps/desktop/Sources/CrispCore/Models/CleanParameters.swift
+  s_1c9eefb4447eda::t_8889e249f54ac2 22
+  s_1c9eefb4447eda::t_00232dc23a4e46 54
+  s_1c9eefb4447eda::t_8e52000f640347 35
+  s_1c9eefb4447eda::t_1bf6ff1cbe6cc0 84
+apps/desktop/Tests/CrispTests/CrispTests.swift
+  s_1c9eefb4447eda::t_4c069d17f3a358 458-512
+apps/desktop/Sources/CrispCore/Models/CleanResult.swift
+  s_1c9eefb4447eda::t_38cb4d38439a11 29-36,42-44,59-61
+apps/desktop/Sources/CrispCore/Editor/EditorDetector.swift
+  s_1c9eefb4447eda::t_05d00c6dc456f5 29
+  s_1c9eefb4447eda::t_0df78ad06a612b 1-28,30-71
+apps/desktop/Sources/Crisp/Services/Cleaning/EngineSettings.swift
+  s_1c9eefb4447eda::t_7410e23348351b 174
+  s_1c9eefb4447eda::t_229536a5b6b19d 78
+  s_1c9eefb4447eda::t_8ea535c441b560 123
+  s_1c9eefb4447eda::t_164c4ce1e0afec 31
+apps/desktop/Sources/CrispCore/Engine/EngineConfig.swift
+  s_1c9eefb4447eda::t_4f0395248d6c2a 99
+  s_1c9eefb4447eda::t_5c0581ff5ee56b 133
+  s_1c9eefb4447eda::t_3517dd2ef68ac4 36-40
+  s_1c9eefb4447eda::t_542f7cb9fd21dd 118
+  s_1c9eefb4447eda::t_125868b486f3fe 161
+  s_1c9eefb4447eda::t_24163522ee13ab 202
+apps/desktop/Sources/CrispCore/Engine/CleanRunner.swift
+  s_1c9eefb4447eda::t_1e04e40ee93ef5 254-257
+  s_1c9eefb4447eda::t_e892a5fcd18110 33-35
+  s_1c9eefb4447eda::t_54940ccbf2c993 120-124
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "4495d81aacdf1dfbbbcd4228bf95e2963644b3ae",
+  "prompts": {},
+  "sessions": {
+    "s_1c9eefb4447eda": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e19c83fe-6f19-40d2-8102-46ce01d7fa72",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
