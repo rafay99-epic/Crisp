@@ -49,6 +49,13 @@ public enum EditorDetector {
         }
     }
 
+    /// Every supported editor that's installed — the list shown in the "open in
+    /// editor" picker. Only DaVinci Resolve today; Final Cut / Premiere can be added
+    /// here later without touching the UI.
+    public static func installed() -> [VideoEditor] {
+        [resolve()].compactMap { $0 }
+    }
+
     /// Launch `editor` (optionally handing it `fileURL`). Note: Resolve won't
     /// auto-import a passed FCPXML, so callers generally pair this with `reveal`
     /// and a "File ▸ Import ▸ Timeline" hint.

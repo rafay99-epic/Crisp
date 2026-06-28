@@ -71,10 +71,9 @@ DEFAULT_FPS_MODE = "auto"     # auto | passthrough | constant
 DEFAULT_FPS = 0               # fps for mode=constant; 0 is unset → constant errors. "auto" ignores it (uses the source's own rate)
 
 # Editor handoff (see crisp.timeline). "none" renders a cleaned video as usual;
-# "fcpxml" ALSO writes a non-destructive editor project alongside the cleaned video —
-# a copy of the original + an .fcpxml referencing the kept ranges that a video editor
-# (DaVinci Resolve) can open, every cut still adjustable (the project copy is itself
-# zero re-encode for CFR sources).
+# "fcpxml" instead writes ONLY a non-destructive editor project (no render, no
+# encode) — a copy of the original + an .fcpxml referencing the kept ranges that a
+# video editor (DaVinci Resolve) opens to finish the cut. Zero re-encode for CFR.
 DEFAULT_EXPORT_TIMELINE = "none"   # none | fcpxml
 DEFAULT_FILLER_BACKEND = "whisper"  # whisper | coreml (fast on-device classifier)
 

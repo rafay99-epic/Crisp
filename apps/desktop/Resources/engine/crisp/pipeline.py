@@ -382,6 +382,38 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
     on_log(f"Removing {stats['fillers']} filler words and {stats['pauses']} pauses{retake_note}.")
     on_log(f"{duration:.0f}s  →  {kept_dur:.0f}s  (saved {duration - kept_dur:.0f}s)")
 
+    # Editor handoff (Model A): write a non-destructive editor project and STOP —
+    # no render, no encode (that's the whole point: the editor finishes the cut).
+    # Branches out here before the render, so backup/captions/split (which describe a
+    # rendered deliverable) don't run either.
+    if export_timeline == "fcpxml":
+        on_progress(0.62, "Preparing editor project…")
+        fcpxml_path, pdir, media_copy = _export_editor_project(
+            src, keep, out_dir, project_dir, target_fps,
+            video_codec, hardware, quality, audio_codec, audio_bitrate, on_log, logger)
+        on_progress(1.0, "Done")
+        on_log(f"✅ Editor project ready: {pdir}")
+        return {
+            "input": str(src),
+            "output": str(fcpxml_path),
+            "project_dir": str(pdir),
+            "media_output": str(media_copy),
+            "export_timeline": "fcpxml",
+            "backup": str(backup_path) if backup_path else "",
+            "orig_seconds": duration,
+            "new_seconds": kept_dur,
+            "saved_seconds": duration - kept_dur,
+            "fillers": stats["fillers"],
+            "pauses": stats["pauses"],
+            "retakes": stats["retakes"],
+            "peaks": wave_summary["peaks"],
+            "removed": wave_summary["removed"],
+            "video_output": "",
+            "audio_output": "",
+            "srt_output": "",
+            "vtt_output": "",
+        }
+
     audio = audio_args(audio_codec, audio_bitrate)
     mux = container_args(container)
     fade_s, crossfade_s = fade_ms / 1000.0, crossfade_ms / 1000.0
@@ -430,25 +462,6 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
         except Exception:
             logger.exception("Caption export failed (continuing without captions)")
 
-    # Editor handoff (Model A) — additive: alongside the rendered video, write a
-    # non-destructive editor project (a copy of the original + an .fcpxml the editor
-    # imports). Best-effort: the cleaned video is already written, so a handoff failure
-    # must never fail the clean — log it and return the video result.
-    project_dir_out = media_export_out = ""
-    export_done = "none"
-    if export_timeline == "fcpxml":
-        try:
-            on_log("Also exporting an editor project…")
-            fcpxml_path, pdir, media_copy = _export_editor_project(
-                src, keep, out_dir, project_dir, target_fps,
-                video_codec, hardware, quality, audio_codec, audio_bitrate, on_log, logger)
-            project_dir_out, media_export_out = str(pdir), str(media_copy)
-            export_done = "fcpxml"
-            on_log(f"✅ Editor project ready: {pdir}")
-        except Exception:
-            logger.exception("Editor export failed (continuing — the cleaned video is written)")
-            on_log("Couldn't write the editor project (the cleaned video is still saved).")
-
     on_progress(1.0, "Done")
     on_log(f"✅ Done! Cleaned video: {out_path}")
     return {
@@ -467,7 +480,7 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
         "audio_output": audio_out,
         "srt_output": srt_out,
         "vtt_output": vtt_out,
-        "export_timeline": export_done,
-        "project_dir": project_dir_out,
-        "media_output": media_export_out,
+        "export_timeline": "none",
+        "project_dir": "",
+        "media_output": "",
     }

@@ -65,6 +65,9 @@ private struct QueueRow: View {
     let onPreview: () -> Void
     let onReview: () -> Void
 
+    /// Drives the "open in editor" picker box for an editor-handoff result.
+    @State private var showEditorPicker = false
+
     /// The cleaned file, once it exists — used for drag-out, reveal, preview, copy.
     private var outputURL: URL? {
         guard let path = item.result?.output, !path.isEmpty else { return nil }
@@ -74,7 +77,6 @@ private struct QueueRow: View {
     /// True when this clean produced an editor project (a copy + .fcpxml timeline)
     /// instead of a rendered video — the result actions become "open/reveal project".
     private var editorExport: Bool { item.result?.exportTimeline == "fcpxml" }
-    private var resolveEditor: VideoEditor? { EditorDetector.resolve() }
     private var projectURL: URL? {
         guard let path = item.result?.projectDir, !path.isEmpty else { return nil }
         return URL(fileURLWithPath: path)
@@ -97,6 +99,19 @@ private struct QueueRow: View {
         .padding(.vertical, 3)
         .animation(.smooth, value: item.status)
         .contextMenu { contextMenu }
+        // The "open in editor" picker box — one button per installed editor (just
+        // DaVinci Resolve today). Selecting one simply launches it; we can't auto-import
+        // on the free tier, so the user does File ▸ Import ▸ Timeline.
+        .confirmationDialog("Open in a video editor", isPresented: $showEditorPicker,
+                            titleVisibility: .visible) {
+            ForEach(EditorDetector.installed()) { editor in
+                Button("Open in \(editor.name)") { openInEditor(editor) }
+            }
+            Button("Reveal Project in Finder") { revealProject() }
+        } message: {
+            Text("Crisp saved an editable timeline (.fcpxml). Open your editor, then "
+                 + "File ▸ Import ▸ Timeline to finish the cut.")
+        }
     }
 
     private var rowContent: some View {
@@ -209,26 +224,25 @@ private struct QueueRow: View {
                     Text("removed \(formatTime(r.savedSeconds))")
                         .font(.caption).foregroundStyle(.secondary).fixedSize()
                 }
-                // Editor handoff is additive: the clean still renders a video, AND
-                // writes the editor project. So a handoff row leads with "Open Resolve"
-                // (the primary action) and keeps play/reveal for the rendered video.
-                if editorExport, let editor = resolveEditor {
-                    Button { openInEditor(editor) } label: { Image(systemName: "film.stack") }
+                // Editor handoff produced a project, not a video — open it in an editor
+                // (a picker, in case more than one is installed) or reveal the project.
+                if editorExport {
+                    Button { showEditorPicker = true } label: { Image(systemName: "film.stack") }
                         .buttonStyle(.plain).foregroundStyle(.tint)
-                        .help("Open \(editor.name) (then File ▸ Import ▸ Timeline)")
-                }
-                if let url = outputURL {
+                        .help("Open in a video editor")
+                    Button { revealProject() } label: { Image(systemName: "folder") }
+                        .buttonStyle(.plain).foregroundStyle(.tint)
+                        .help("Show editor project in Finder")
+                } else if let url = outputURL {
                     Button { player.toggle(url) } label: {
                         Image(systemName: player.isPlaying(url) ? "stop.circle.fill" : "play.circle")
                             .contentTransition(.symbolEffect(.replace))
                     }
                     .buttonStyle(.plain).foregroundStyle(.tint)
                     .help(player.isPlaying(url) ? "Stop preview" : "Play preview")
-                    Button { editorExport ? revealProject() : revealOutput() } label: {
-                        Image(systemName: "folder")
-                    }
-                    .buttonStyle(.plain).foregroundStyle(.tint)
-                    .help(editorExport ? "Show editor project in Finder" : "Show in Finder")
+                    Button { revealOutput() } label: { Image(systemName: "folder") }
+                        .buttonStyle(.plain).foregroundStyle(.tint)
+                        .help("Show in Finder")
                 }
             }
             .transition(.scale.combined(with: .opacity))
@@ -250,21 +264,21 @@ private struct QueueRow: View {
             if let cuts = item.result?.cutsSummary { Text("Removed \(cuts)") }
             if let summary = sizeSummary { Text(summary) }
             if editorExport {
-                if let editor = resolveEditor {
-                    Button { openInEditor(editor) } label: { Label("Open \(editor.name)", systemImage: "film.stack") }
+                ForEach(EditorDetector.installed()) { editor in
+                    Button { openInEditor(editor) } label: { Label("Open in \(editor.name)", systemImage: "film.stack") }
                 }
                 Button { revealProject() } label: { Label("Reveal Editor Project", systemImage: "folder") }
-            }
-            if let url = outputURL {
-                Button { revealOutput() } label: { Label("Show Video in Finder", systemImage: "film") }
+                Button { copyOutputPath() } label: { Label("Copy Timeline Path", systemImage: "doc.on.doc") }
+            } else if let url = outputURL {
+                Button { revealOutput() } label: { Label("Show in Finder", systemImage: "folder") }
                 Button { copyOutputPath() } label: { Label("Copy Output Path", systemImage: "doc.on.doc") }
                 Button { player.toggle(url) } label: {
                     Label(player.isPlaying(url) ? "Stop Preview" : "Play Preview",
                           systemImage: player.isPlaying(url) ? "stop.fill" : "play.fill")
                 }
             }
-            // The split-track stems, when the clean produced them.
-            if let video = stemURL(item.result?.videoOutput) {
+            // The split-track stems, when the clean produced them (render mode only).
+            if !editorExport, let video = stemURL(item.result?.videoOutput) {
                 Button { reveal(video) } label: { Label("Show Video Track", systemImage: "film") }
             }
             if let audio = stemURL(item.result?.audioOutput) {

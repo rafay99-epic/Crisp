@@ -211,11 +211,11 @@ struct SettingsView: View {
     @ViewBuilder private var editorSection: some View {
         Section {
             if let editor = EditorDetector.resolve() {
-                Toggle("Also export a \(editor.name) project", isOn: $settings.exportToEditor)
-                Text("Alongside the cleaned video, Crisp writes a project folder — a copy of your original plus a timeline (.fcpxml) you open in \(editor.name) (File ▸ Import ▸ Timeline). Every cut stays adjustable and your footage is never touched. Detected \(editor.name).")
+                Toggle("Finish in a video editor", isOn: $settings.exportToEditor)
+                Text("Crisp finds the cuts and saves an editable timeline (.fcpxml) instead of rendering a video — no encode, nothing re-compressed. When a cut finishes you pick your editor and Crisp opens it; you import the timeline and finish there. Detected \(editor.name).")
                     .font(.caption).foregroundStyle(.secondary)
             } else {
-                Toggle("Also export a video-editor project", isOn: .constant(false))
+                Toggle("Finish in a video editor", isOn: .constant(false))
                     .disabled(true)
                 Text("No supported editor found. Crisp can hand its cuts to DaVinci Resolve (the free edition works) as a ready-to-edit timeline — install Resolve to enable this.")
                     .font(.caption).foregroundStyle(.secondary)
@@ -223,7 +223,7 @@ struct SettingsView: View {
         } header: {
             Text("Editor handoff")
         } footer: {
-            Text("A non-destructive timeline written next to the cleaned video — edit the cuts in your editor. Zero extra re-encode for constant-frame-rate footage.")
+            Text("Skips rendering entirely — fastest path. Turn this off to render a finished video with all of Crisp\u{2019}s cleanup instead.")
                 .font(.caption).foregroundStyle(.secondary)
         }
     }
