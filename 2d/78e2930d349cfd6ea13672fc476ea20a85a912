@@ -1,0 +1,26 @@
+apps/desktop/Resources/engine/crisp/tools.py
+  s_d9e9a0e9665314::t_ec63cfe37e2919 90,94
+  s_d9e9a0e9665314::t_c1d72189b98993 81-89,92,95-99,131-150
+  s_d9e9a0e9665314::t_c2350046967225 127-130
+apps/desktop/Resources/engine/tests/test_timeline.py
+  s_d9e9a0e9665314::t_573486e4fce7ad 166-205
+  s_d9e9a0e9665314::t_2f3f8ae20426c8 10
+apps/desktop/Resources/engine/crisp/pipeline.py
+  s_d9e9a0e9665314::t_a068b449716b20 118-122
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "2d78e2930d349cfd6ea13672fc476ea20a85a912",
+  "prompts": {},
+  "sessions": {
+    "s_d9e9a0e9665314": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e2bfcf51-6592-455f-b03c-16d23ba6f719",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
