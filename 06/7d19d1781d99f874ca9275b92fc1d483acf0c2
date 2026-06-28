@@ -1,0 +1,40 @@
+apps/desktop/Sources/Crisp/Views/SettingsView.swift
+  s_1c9eefb4447eda::t_f3dc37510e22c8 215,218-221
+apps/desktop/Resources/engine/crisp/tools.py
+  s_1c9eefb4447eda::t_83217f9ff7b8c7 87-90,94,97-117,120-123,125-127,130-131
+  s_1c9eefb4447eda::t_95305c3f73b237 3
+apps/desktop/Sources/Crisp/Views/QueueView.swift
+  s_1c9eefb4447eda::t_6fc0e697786381 265-267
+apps/desktop/Sources/CrispCore/Engine/QuickClean.swift
+  s_1c9eefb4447eda::t_eaf692602b8544 46-51
+apps/desktop/Resources/engine/tests/test_timeline.py
+  s_1c9eefb4447eda::t_7366f54c2687d4 86-103
+apps/desktop/Resources/engine/crisp/timeline.py
+  s_1c9eefb4447eda::t_dafc880bc94a01 73-79,81-82
+  s_1c9eefb4447eda::t_584698de616db1 115
+apps/desktop/Sources/Crisp/Views/EditorPickerSheet.swift
+  s_1c9eefb4447eda::t_e72d042f61e1ca 32
+  s_1c9eefb4447eda::t_f1b4212d1f7249 56
+apps/desktop/Resources/engine/clean_video.py
+  s_1c9eefb4447eda::t_fc14d636709999 104-108
+apps/desktop/Resources/engine/crisp/pipeline.py
+  s_1c9eefb4447eda::t_30283966784d41 46-49,55-71,77-80,89-92
+  s_1c9eefb4447eda::t_afa6837c4ec308 229-232
+  s_1c9eefb4447eda::t_da6c4b83e1ac29 413-416,423-425,434-435
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "067d19d1781d99f874ca9275b92fc1d483acf0c2",
+  "prompts": {},
+  "sessions": {
+    "s_1c9eefb4447eda": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e19c83fe-6f19-40d2-8102-46ce01d7fa72",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
