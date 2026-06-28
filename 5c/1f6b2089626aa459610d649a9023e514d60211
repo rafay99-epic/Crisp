@@ -1,0 +1,19 @@
+idea.md
+  s_d9e9a0e9665314::t_0fff688dfaad1d 9-38
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "5c1f6b2089626aa459610d649a9023e514d60211",
+  "prompts": {},
+  "sessions": {
+    "s_d9e9a0e9665314": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e2bfcf51-6592-455f-b03c-16d23ba6f719",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
