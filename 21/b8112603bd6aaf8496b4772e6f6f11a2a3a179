@@ -1,0 +1,30 @@
+apps/desktop/Sources/Crisp/Views/QueueView.swift
+  s_d9e9a0e9665314::t_96ce4c25eee101 51,56-59
+  s_d9e9a0e9665314::t_e901d039b0da15 111-115
+  s_d9e9a0e9665314::t_56a63015c5f84b 60,108-110,116
+  s_d9e9a0e9665314::t_37bd5aae8d7abf 61
+apps/desktop/Sources/Crisp/Views/EditorPickerSheet.swift
+  s_d9e9a0e9665314::t_b55311a626152b 69-73,75,80-91
+  s_d9e9a0e9665314::t_d05698cf5789cb 37
+  s_d9e9a0e9665314::t_ae0d431692548d 92-93
+idea.md
+  s_d9e9a0e9665314::t_29c22f51e43a86 86-100
+apps/desktop/Sources/CrispCore/Editor/EditorDetector.swift
+  s_d9e9a0e9665314::t_9f1b4a4d185854 77-86
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "21b8112603bd6aaf8496b4772e6f6f11a2a3a179",
+  "prompts": {},
+  "sessions": {
+    "s_d9e9a0e9665314": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e2bfcf51-6592-455f-b03c-16d23ba6f719",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
