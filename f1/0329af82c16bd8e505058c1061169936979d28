@@ -1,0 +1,23 @@
+apps/desktop/Resources/engine/crisp/tools.py
+  s_d9e9a0e9665314::t_14ab420d36d79b 116,118-119,134,142-146
+  s_d9e9a0e9665314::t_71df36ca4d93e6 83-87
+  s_d9e9a0e9665314::t_7093b6f365a484 91,94-100
+apps/desktop/Resources/engine/tests/test_timeline.py
+  s_d9e9a0e9665314::t_0fab0039fb45e9 226-240
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "f10329af82c16bd8e505058c1061169936979d28",
+  "prompts": {},
+  "sessions": {
+    "s_d9e9a0e9665314": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e2bfcf51-6592-455f-b03c-16d23ba6f719",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
