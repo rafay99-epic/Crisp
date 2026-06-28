@@ -95,10 +95,12 @@ public enum EditorDetector {
         return URL(fileURLWithPath: result.output)
     }
 
-    /// The project folder for a handoff (its `<name> (Crisp)` dir), falling back to the
-    /// timeline file's location, or nil when neither is recorded. Pure/testable.
+    /// The project folder for an editor handoff (its `<name> (Crisp)` dir), falling back to
+    /// the timeline file's location, or nil when this isn't an editor export or neither is
+    /// recorded. Gated on `exportTimeline == "fcpxml"` (like `timelineFile`) so it never
+    /// returns a *rendered* clip's path — keeps "editor handoff only" honest. Pure/testable.
     public static func projectFolder(for result: CleanResult?) -> URL? {
-        guard let result else { return nil }
+        guard let result, result.exportTimeline == "fcpxml" else { return nil }
         if !result.projectDir.isEmpty { return URL(fileURLWithPath: result.projectDir) }
         if !result.output.isEmpty { return URL(fileURLWithPath: result.output) }
         return nil

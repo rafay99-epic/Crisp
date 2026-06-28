@@ -504,6 +504,12 @@ final class CrispTests: XCTestCase {
                                 savedSeconds: 0, pauses: 0, fillers: 0, exportTimeline: "fcpxml")
         XCTAssertEqual(EditorDetector.projectFolder(for: noDir)?.path, "/v/c (Crisp)/c.fcpxml")
         XCTAssertNil(EditorDetector.projectFolder(for: nil))
+
+        // Editor-only contract: a normal rendered clean must NOT yield a project folder
+        // (else revealProject would reveal the rendered video).
+        let rendered = CleanResult(output: "/v/c_cleaned.mp4", origSeconds: 0, newSeconds: 0,
+                                   savedSeconds: 0, pauses: 0, fillers: 0, projectDir: "/should/not/use")
+        XCTAssertNil(EditorDetector.projectFolder(for: rendered))
     }
 
     func testCleanRunnerEmitsExportTimelineWhenEditorOn() {

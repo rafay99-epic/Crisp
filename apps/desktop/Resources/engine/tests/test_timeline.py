@@ -196,6 +196,28 @@ class TimelineSecondsClampTests(unittest.TestCase):
         self.assertEqual(timeline_seconds([(0.0, 2.0)], 60, 1), 2.0)
 
 
+class SourceMarkerTests(unittest.TestCase):
+    """The re-export identity sidecar must NOT leak the source path (the project folder is a
+    shareable artifact) — it stores a stable hash instead."""
+
+    def test_marker_is_a_hash_not_the_path(self):
+        from crisp.pipeline import _source_id
+        sid = _source_id("/Users/alice/Secret Project/clip.mov")
+        self.assertNotIn("alice", sid)
+        self.assertNotIn("Secret", sid)
+        self.assertEqual(len(sid), 64)                                   # sha256 hex
+        self.assertEqual(sid, _source_id("/Users/alice/Secret Project/clip.mov"))   # stable
+        self.assertNotEqual(sid, _source_id("/Users/alice/Other/clip.mov"))         # distinguishes
+
+    def test_marker_roundtrip_matches_source_id(self):
+        import tempfile
+        from pathlib import Path as P
+        from crisp.pipeline import _write_source_marker, _read_source_marker, _source_id
+        with tempfile.TemporaryDirectory() as d:
+            _write_source_marker(P(d), "/x/y z.mov")   # whitespace-bearing path is fine
+            self.assertEqual(_read_source_marker(P(d)), _source_id("/x/y z.mov"))
+
+
 class ParseStreamMetaTests(unittest.TestCase):
     """A total probe failure must return None (so the handoff fails loud) rather than
     fabricate 1920x1080/30fps — a wrong fps in the FCPXML lands every cut at the wrong

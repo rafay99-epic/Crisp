@@ -24,12 +24,17 @@ HARDWARE_QV = {"maximum": 80, "high": 65, "balanced": 55, "smaller": 45}
 
 def is_high_bit_depth(pix_fmt: str) -> bool:
     """True for >8-bit / non-4:2:0 pixel formats worth preserving on the editor copy
-    instead of crushing to 8-bit yuv420p (10/12/16-bit, or 4:2:2 / 4:4:4 chroma)."""
+    instead of crushing to 8-bit yuv420p — covers planar/semi-planar YUV (10/12/14/16-bit),
+    4:2:2 / 4:4:4 chroma, AND packed high-bit-depth RGB (rgb48 / rgba64 / 10-bit packed)."""
     pf = (pix_fmt or "").lower()
-    deep = pf.endswith(("10le", "10be", "12le", "12be", "16le", "16be")) \
-        or pf.startswith(("p010", "p012", "p016", "p210", "p216", "p410", "p416"))
+    deep = (pf.endswith(("10le", "10be", "12le", "12be", "14le", "14be", "16le", "16be"))
+            or pf.startswith(("p010", "p012", "p016", "p210", "p216", "p410", "p416")))
+    # Packed 16-bit RGB(A): rgb48/bgr48 (3×16) and rgba64/bgra64/argb64 (4×16); plus the
+    # 10-bit packed RGB variants (x2rgb10, x2bgr10, gbrp already handled by the depth suffix).
+    rgb_deep = any(tag in pf for tag in ("rgb48", "bgr48", "rgba64", "bgra64", "argb64",
+                                         "abgr64", "rgb30", "x2rgb10", "x2bgr10"))
     wide_chroma = "422" in pf or "444" in pf
-    return deep or wide_chroma
+    return deep or rgb_deep or wide_chroma
 
 
 def video_args(codec: str, hardware: bool, quality: str, pix_fmt: str = "yuv420p") -> list:

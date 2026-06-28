@@ -1,5 +1,6 @@
 """The public engine entry point — orchestrates detect → edit into a clean video."""
 
+import hashlib
 import os
 import shutil
 import subprocess
@@ -14,7 +15,7 @@ from .config import (
     MIN_KEEP, RETAKE_ANCHOR_PAUSE, RETAKE_SENSITIVITY,
 )
 from .detect import detect_silences, extract_audio, filler_words, filter_silences, transcribe
-from .edit import (_output_owner, build_keep_segments, gate_fillers_by_silence, make_backup,
+from .edit import (build_keep_segments, gate_fillers_by_silence, make_backup,
                    output_duration, render, snap_keep_to_zero_crossings, tag_output_source,
                    unique_output_path)
 from .encode import (
@@ -34,16 +35,23 @@ def _noop(*_a, **_k):
     pass
 
 
-# Filesystem-independent fallback for the editor project's "which source made me" identity
-# (the xattr equivalent for drives without xattr support — see the reuse loop). A hidden
-# sidecar holding the absolute source path.
+# The editor project's "which source made me" identity, used to reuse (and overwrite) the
+# same folder on re-export instead of spawning "(Crisp) 1/2…". A hidden sidecar in the
+# project folder, so it's filesystem-independent (works on NAS/exFAT where xattrs don't).
+# It stores a HASH of the source path, NOT the path itself — the folder is a shareable
+# artifact, and the identity only needs stable equality, so there's no reason to leak the
+# user's directory names in plaintext.
 _SOURCE_MARKER = ".crisp-source"
+
+
+def _source_id(src) -> str:
+    """Stable, non-reversible id for a source path (for re-export reuse matching)."""
+    return hashlib.sha256(str(src).encode("utf-8")).hexdigest()
 
 
 def _read_source_marker(project_dir) -> str | None:
     try:
-        # No strip(): the marker is written as the exact source path, and a path can legally
-        # begin/end with whitespace — stripping would change the identity and break reuse.
+        # No strip(): the stored value is an exact hash with no surrounding whitespace.
         return (project_dir / _SOURCE_MARKER).read_text(encoding="utf-8")
     except OSError:
         return None
@@ -51,9 +59,9 @@ def _read_source_marker(project_dir) -> str | None:
 
 def _write_source_marker(project_dir, src) -> None:
     try:
-        (project_dir / _SOURCE_MARKER).write_text(str(src), encoding="utf-8")
+        (project_dir / _SOURCE_MARKER).write_text(_source_id(src), encoding="utf-8")
     except OSError:
-        pass   # best-effort; the xattr tag still covers xattr-capable filesystems
+        pass   # best-effort; a failed write just means the next re-export makes a new folder
 
 
 def _export_editor_project(src, keep, out_dir, project_dir, target_fps,
@@ -79,20 +87,17 @@ def _export_editor_project(src, keep, out_dir, project_dir, target_fps,
     if force_encode:
         media_copy = media_copy.with_suffix(".mov")
 
-    # Don't clobber a DIFFERENT source's project that happens to share a stem (mirrors
-    # the render path's unique_output_path + source xattr). Re-exporting the SAME source
-    # reuses — and overwrites — its own project folder. Identity is the media xattr OR a
-    # sidecar marker file: the xattr is lost on filesystems that don't support it (many
-    # NAS/exFAT), where xattr-only matching would spawn a new "(Crisp) 1/2…" every
-    # re-export, so the sidecar makes re-export idempotent everywhere.
-    marker = os.fsencode(str(src))
+    # Don't clobber a DIFFERENT source's project that happens to share a stem. Re-exporting
+    # the SAME source reuses — and overwrites — its own project folder. Identity is the
+    # hashed-source sidecar (filesystem-independent, unlike an xattr, so re-export is
+    # idempotent on NAS/exFAT too — and it doesn't leak the source path).
+    src_id = _source_id(src)
     base = pdir.name
     i = 0
     while True:
         cand = pdir if i == 0 else pdir.with_name(f"{base} {i}")
         cand_media, cand_fcp = cand / media_copy.name, cand / fcpxml_path.name
-        if (not cand.exists() or _output_owner(cand_media) == marker
-                or _read_source_marker(cand) == str(src)):
+        if not cand.exists() or _read_source_marker(cand) == src_id:
             pdir, media_copy, fcpxml_path = cand, cand_media, cand_fcp
             break
         i += 1
@@ -205,10 +210,9 @@ def _export_editor_project(src, keep, out_dir, project_dir, target_fps,
             raise
         raise CleanError(f"Couldn't write the editor project.\n{e}") from e
 
-    # Tag the media copy with its source so a later re-export reuses this folder and a
-    # different same-stem source dedups instead of clobbering it.
-    tag_output_source(media_copy, src)
-    _write_source_marker(pdir, src)   # FS-independent identity so re-export reuses this folder
+    # Record this folder's source identity (a hash) so a later re-export reuses it and a
+    # different same-stem source dedups to "(Crisp) 1" instead of clobbering it.
+    _write_source_marker(pdir, src)
     logger.info(f"editor project: {pdir} (fcpxml={fcpxml_path.name}, media={media_copy.name})")
     snapped = timeline_seconds(keep, meta["fps_num"], meta["fps_den"], duration=dur)
     return fcpxml_path, pdir, media_copy, snapped
