@@ -238,3 +238,15 @@ GPL-3.0 (`LICENSE` at root). Credited to Syntax Lab Technology / Abdul Rafay.
 
 
 ## Code Review
+- When with coding and done making the PR then there are  3 agents 
+  1. Cubic Ai Agent
+  2. Code Rabit 
+  3. Scralet Speed (Code Review)
+
+when the PR is marked as Read for review by me then these will trigger and then it will review the code looking for alot of shit. 
+You job is to keep an eye out as you commit everytime review will be triggered. 
+sometime you have to triggered it but most of the time, it automically, so your job is do review all the changes and make the fix according to 3 reviewe. 
+
+Oce you have done keep going until the review are compelte process, 
+then do Your own code review and make sure that the code is solid, production ready, no dead code, no complex logics and everything should be on point. 
+
