@@ -74,5 +74,15 @@ public enum EditorDetector {
     public static func reveal(_ url: URL) {
         NSWorkspace.shared.activateFileViewerSelecting([url])
     }
+
+    /// Hand a finished timeline off for the (manual) import: launch the editor *and*
+    /// reveal the `.fcpxml` in Finder, selected — so by the time the editor is up the
+    /// file is right there to drag in or pick via File ▸ Import ▸ Timeline. Free Resolve
+    /// can't auto-import (no external scripting API — verified on a real machine), so
+    /// this one-click "open + surface the file" is the tightest honest loop we can ship.
+    public static func openForImport(_ editor: VideoEditor, timeline fcpxmlURL: URL) {
+        launch(editor)
+        reveal(fcpxmlURL)
+    }
     #endif
 }

@@ -34,7 +34,7 @@ struct EditorPickerSheet: View {
                 .font(.title2.weight(.semibold))
             Text(editors.isEmpty
                  ? "Crisp saved your cuts as an editable timeline."
-                 : "Pick an editor to open. You’ll import the timeline there (File ▸ Import ▸ Timeline) — your footage is never touched.")
+                 : "Crisp opens your editor and reveals the timeline file in Finder — your footage is never touched.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -66,12 +66,29 @@ struct EditorPickerSheet: View {
             .padding(16)
             .cardBackground()
         } else {
-            VStack(spacing: 10) {
-                ForEach(editors) { editor in
-                    editorRow(editor)
+            VStack(spacing: 14) {
+                VStack(spacing: 10) {
+                    ForEach(editors) { editor in
+                        editorRow(editor)
+                    }
                 }
+                importSteps
             }
         }
+    }
+
+    /// The two manual steps after opening — kept explicit so the handoff never feels
+    /// half-finished. (Free editors can't auto-import; this is the whole job, plainly.)
+    private var importSteps: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label("In your editor, choose **File ▸ Import ▸ Timeline**", systemImage: "1.circle.fill")
+            Label("Pick the **.fcpxml** Crisp just revealed in Finder", systemImage: "2.circle.fill")
+        }
+        .font(.callout)
+        .foregroundStyle(.secondary)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .cardBackground()
     }
 
     private func editorRow(_ editor: VideoEditor) -> some View {

@@ -83,18 +83,21 @@ impact-per-effort. Living doc — add/reorder freely.
         carries cut/encode knobs — captions / frame-rate / smoothing / split fall back to
         defaults (pre-existing; this PR only threaded the new `exportToEditor`). Worth
         making presets capture the full recipe.
-    - **NEXT (the big one the user is curious about) — auto-import spike.** Goal: skip the
-      manual File ▸ Import step by auto-creating a Resolve project + importing the
-      timeline. Hard fact from research: the *external* scripting API is Studio-only; the
-      user has free (Lite, bundle id `com.blackmagic-design.DaVinciResolveLite`). User
-      wants to TEST it on their machine anyway (sources conflict). To run the spike, the
-      user must set **Resolve → Preferences → System → General → "External scripting
-      using" = Local** and keep Resolve running; then run a tiny Python using
-      `RESOLVE_SCRIPT_API`/`RESOLVE_SCRIPT_LIB` (paths in the README inside the .app) to
-      try `scriptapp("Resolve")` + `ImportTimelineFromFile`. If it connects on free →
-      build real auto-import; if gated → keep the manual import (UI automation is the
-      brittle fallback we'd avoid). Note: user's Python is 3.14 (fusionscript may not load
-      there — part of what the spike reveals).
+    - **Auto-import spike — DONE (2026-06-29): not feasible on free.** Measured on the
+      user's machine: their Resolve is the App Store **free/Lite, sandboxed** build, which
+      exposes **no "External scripting" preference at all** (Preferences search "script" →
+      "No Results Found"), so `scriptapp("Resolve")` returns `None` — external auto-import
+      can't be enabled. (`fusionscript.so` *does* load fine under Python 3.14, so that
+      worry was moot; the blocker is the free tier + sandbox.) Internal scripting exists
+      (Workspace ▸ Console/Scripts) but a sandboxed Resolve won't run an externally-dropped
+      script, and triggering one needs brittle UI automation. **True one-click auto-import
+      works only on Resolve Studio.**
+    - **Shipped instead — polished manual handoff (PR TBD).** On finish, the picker's
+      **Open** now launches the editor *and* reveals the `.fcpxml` in Finder (selected),
+      with a clear 2-step hint ("File ▸ Import ▸ Timeline → pick this"). One click, zero
+      fragility, works on free. `EditorDetector.openForImport(_:timeline:)`; same behavior
+      across the picker, the row button, and the context menu. A Studio-gated *real*
+      auto-import remains a future option if the user gets Studio.
 13. **Chapter detection + export** — auto-generate YouTube / podcast chapter markers
     from long pauses + transcript topic shifts; export as chapter metadata or a
     timestamp list. Reuses the existing transcript; concrete, visible creator value.

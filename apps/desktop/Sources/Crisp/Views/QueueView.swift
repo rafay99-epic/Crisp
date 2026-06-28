@@ -48,9 +48,15 @@ struct QueueView: View {
         }
         .sheet(item: $editorPickerItem) { item in
             EditorPickerSheet(editors: EditorDetector.installed(),
-                              onOpen: { EditorDetector.launch($0) },
+                              onOpen: { openForImport($0, item) },
                               onReveal: { revealProject(item) })
         }
+    }
+
+    /// Open the chosen editor and reveal this handoff's `.fcpxml` so it's ready to import.
+    private func openForImport(_ editor: VideoEditor, _ item: QueueItem) {
+        guard let fcpxml = item.result?.output, !fcpxml.isEmpty else { return }
+        EditorDetector.openForImport(editor, timeline: URL(fileURLWithPath: fcpxml))
     }
 
     /// Reveal an editor-handoff result's project folder (falls back to its output).
@@ -99,7 +105,15 @@ private struct QueueRow: View {
         return URL(fileURLWithPath: path)
     }
     private func revealProject() { if let p = projectURL { reveal(p) } else { revealOutput() } }
-    private func openInEditor(_ editor: VideoEditor) { EditorDetector.launch(editor) }
+    /// Open the editor and reveal this handoff's `.fcpxml` (the row's `outputURL` is the
+    /// timeline file) so it's ready to import — same one-click behavior as the picker.
+    private func openInEditor(_ editor: VideoEditor) {
+        if let fcpxml = outputURL {
+            EditorDetector.openForImport(editor, timeline: fcpxml)
+        } else {
+            EditorDetector.launch(editor)
+        }
+    }
 
     var body: some View {
         Group {
