@@ -5,8 +5,10 @@ from xml.dom import minidom
 
 from crisp.errors import CleanError
 from crisp.timeline import (
-    FCPXML_VERSION, build_fcpxml, frame_time, project_paths, secs_to_frames, timeline_seconds,
+    FCPXML_VERSION, build_fcpxml, fcpxml_colorspace, frame_time, project_paths,
+    secs_to_frames, timeline_seconds,
 )
+from crisp.tools import parse_stream_meta
 
 
 class FrameTimeTests(unittest.TestCase):
@@ -113,8 +115,12 @@ class BuildFcpxmlTests(unittest.TestCase):
         self.assertIn('hasAudio="0"', self._doc(audio_channels=2, has_audio=False))
 
     def test_audio_rate_tokens_and_fallback(self):
-        self.assertIn('audioRate="32k"', self._doc(audio_rate=32000))
-        self.assertIn('audioRate="48k"', self._doc(audio_rate=999999))   # unknown → 48k
+        self.assertIn('audioRate="32k"', self._doc(audio_rate=32000))      # exact token
+        self.assertIn('audioRate="44.1k"', self._doc(audio_rate=44100))    # exact token
+        # Non-token rates snap to the NEAREST valid token, not a blanket 48k.
+        self.assertIn('audioRate="32k"', self._doc(audio_rate=24000))      # 24k → 32k (nearest)
+        self.assertIn('audioRate="48k"', self._doc(audio_rate=50000))      # 50k → 48k (nearest)
+        self.assertIn('audioRate="192k"', self._doc(audio_rate=999999))    # huge → highest token
 
     def test_clip_clamped_to_asset_duration(self):
         # keep extends past the asset length → the clip must not exceed it (no
@@ -160,6 +166,117 @@ class ProjectPathsTests(unittest.TestCase):
         proj, media, fcpxml = project_paths("/v/talk.mkv", out_dir="/out")
         self.assertEqual(str(proj), "/out/talk (Crisp)")
         self.assertEqual(str(media), "/out/talk (Crisp)/talk.mkv")
+
+
+class ColorSpaceTests(unittest.TestCase):
+    def test_sdr_and_unknown_default_to_rec709(self):
+        self.assertEqual(fcpxml_colorspace("bt709", "bt709"), "1-1-1 (Rec. 709)")
+        self.assertEqual(fcpxml_colorspace("", ""), "1-1-1 (Rec. 709)")
+        self.assertEqual(fcpxml_colorspace("smpte170m", "bt709"), "1-1-1 (Rec. 709)")
+
+    def test_hdr_is_not_mistagged_as_709(self):
+        self.assertEqual(fcpxml_colorspace("bt2020", "smpte2084"), "9-16-9 (Rec. 2020 PQ)")
+        self.assertEqual(fcpxml_colorspace("bt2020", "arib-std-b67"), "9-18-9 (Rec. 2020 HLG)")
+        # SDR Rec.2020 must use the non-PQ token (transfer 1, not 16) or Resolve treats it as HDR.
+        self.assertEqual(fcpxml_colorspace("bt2020", "bt2020-10"), "9-1-9 (Rec. 2020)")
+
+    def test_colorspace_flows_into_format(self):
+        xml = build_fcpxml(media_uri="m.mov", name="c", num=30, den=1, width=1920, height=1080,
+                           audio_rate=48000, audio_channels=0, duration=2.0, keep=[(0.0, 1.0)],
+                           has_audio=False, color_space="9-16-9 (Rec. 2020 PQ)")
+        self.assertIn('colorSpace="9-16-9 (Rec. 2020 PQ)"', xml)
+
+
+class TimelineSecondsClampTests(unittest.TestCase):
+    def test_clamps_to_asset_duration_like_build(self):
+        # keep runs to 2.0s but the media is only 1.0s (60 frames @ 60fps): the reported
+        # snapped length must match the clamped timeline (1.0s), not the raw 2.0s span.
+        self.assertEqual(timeline_seconds([(0.0, 2.0)], 60, 1, duration=1.0), 1.0)
+        # Without a duration cap it's the raw frame sum (back-compat).
+        self.assertEqual(timeline_seconds([(0.0, 2.0)], 60, 1), 2.0)
+
+
+class SourceMarkerTests(unittest.TestCase):
+    """The re-export identity sidecar must NOT leak the source path (the project folder is a
+    shareable artifact) — it stores a stable hash instead."""
+
+    def test_marker_is_a_hash_not_the_path(self):
+        from crisp.pipeline import _source_id
+        sid = _source_id("/Users/alice/Secret Project/clip.mov")
+        self.assertNotIn("alice", sid)
+        self.assertNotIn("Secret", sid)
+        self.assertEqual(len(sid), 64)                                   # sha256 hex
+        self.assertEqual(sid, _source_id("/Users/alice/Secret Project/clip.mov"))   # stable
+        self.assertNotEqual(sid, _source_id("/Users/alice/Other/clip.mov"))         # distinguishes
+
+    def test_marker_roundtrip_matches_source_id(self):
+        import tempfile
+        from pathlib import Path as P
+        from crisp.pipeline import _write_source_marker, _read_source_marker, _source_id
+        with tempfile.TemporaryDirectory() as d:
+            _write_source_marker(P(d), "/x/y z.mov")   # whitespace-bearing path is fine
+            self.assertEqual(_read_source_marker(P(d)), _source_id("/x/y z.mov"))
+
+
+class ParseStreamMetaTests(unittest.TestCase):
+    """A total probe failure must return None (so the handoff fails loud) rather than
+    fabricate 1920x1080/30fps — a wrong fps in the FCPXML lands every cut at the wrong
+    source time. Individual missing fields still default."""
+
+    VIDEO = '{"codec_type":"video","width":3840,"height":2160,"r_frame_rate":"30000/1001"}'
+    AUDIO = '{"codec_type":"audio","sample_rate":"44100","channels":"1"}'
+
+    def _json(self, *streams):
+        return '{"streams":[' + ",".join(streams) + "]}"
+
+    def test_good_probe_reads_real_values(self):
+        meta = parse_stream_meta(0, self._json(self.VIDEO, self.AUDIO))
+        self.assertEqual((meta["width"], meta["height"]), (3840, 2160))
+        self.assertEqual((meta["fps_num"], meta["fps_den"]), (30000, 1001))
+        self.assertEqual((meta["audio_rate"], meta["audio_channels"]), (44100, 1))
+
+    def test_nonzero_exit_is_failure(self):
+        self.assertIsNone(parse_stream_meta(1, self._json(self.VIDEO)))
+
+    def test_malformed_json_is_failure(self):
+        self.assertIsNone(parse_stream_meta(0, "not json{"))
+
+    def test_no_video_stream_is_failure(self):
+        # Audio-only / metadata-only: can't build a video timeline — signal failure, not
+        # a fabricated 30fps asset.
+        self.assertIsNone(parse_stream_meta(0, self._json(self.AUDIO)))
+
+    def test_valid_but_non_object_json_is_failure(self):
+        # Valid JSON that isn't the expected shape must fail cleanly, not crash on .get.
+        for body in ("null", "5", "[1,2,3]", '"hi"'):
+            self.assertIsNone(parse_stream_meta(0, body), body)
+
+    def test_unreadable_frame_rate_is_failure(self):
+        # A video stream with no / zero r_frame_rate must FAIL (fps is required) rather than
+        # default to 30fps and misplace every cut.
+        self.assertIsNone(parse_stream_meta(0, self._json('{"codec_type":"video","width":1280,"height":720}')))
+        self.assertIsNone(parse_stream_meta(0, self._json('{"codec_type":"video","r_frame_rate":"0/0"}')))
+
+    def test_source_probe_tolerates_missing_fps(self):
+        # The SOURCE probe (require_fps=False) only needs pixfmt/color, so a missing fps must
+        # NOT reject it (the copy is normalized to a constant rate anyway).
+        meta = parse_stream_meta(0, self._json('{"codec_type":"video","pix_fmt":"yuv420p10le"}'),
+                                 require_fps=False)
+        self.assertIsNotNone(meta)
+        self.assertEqual(meta["pix_fmt"], "yuv420p10le")
+        # But still fail with no video stream at all, even when fps isn't required.
+        self.assertIsNone(parse_stream_meta(0, self._json(self.AUDIO), require_fps=False))
+
+    def test_missing_size_defaults_when_fps_known(self):
+        # fps present but no width/height → those default (less critical), still usable.
+        meta = parse_stream_meta(0, self._json('{"codec_type":"video","r_frame_rate":"24/1"}'))
+        self.assertEqual((meta["fps_num"], meta["fps_den"]), (24, 1))
+        self.assertEqual((meta["width"], meta["height"]), (1920, 1080))
+        self.assertEqual(meta["audio_channels"], 0)   # no audio stream → 0, no phantom track
+
+    def test_audio_channels_default_to_stereo_when_unparseable(self):
+        meta = parse_stream_meta(0, self._json(self.VIDEO, '{"codec_type":"audio"}'))
+        self.assertEqual(meta["audio_channels"], 2)   # stream exists but channels missing
 
 
 if __name__ == "__main__":

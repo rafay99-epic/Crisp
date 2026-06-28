@@ -56,23 +56,53 @@ public enum EditorDetector {
         [resolve()].compactMap { $0 }
     }
 
-    /// Launch `editor` (optionally handing it `fileURL`). Note: Resolve won't
-    /// auto-import a passed FCPXML, so callers generally pair this with `reveal`
-    /// and a "File ▸ Import ▸ Timeline" hint.
-    public static func launch(_ editor: VideoEditor, opening fileURL: URL? = nil) {
-        let cfg = NSWorkspace.OpenConfiguration()
-        if let fileURL {
-            NSWorkspace.shared.open([fileURL], withApplicationAt: editor.appURL,
-                                    configuration: cfg, completionHandler: nil)
-        } else {
-            NSWorkspace.shared.openApplication(at: editor.appURL, configuration: cfg,
-                                               completionHandler: nil)
-        }
+    /// Launch `editor` (no document — Resolve won't auto-import a passed FCPXML, so the
+    /// handoff opens the app and reveals the timeline file separately, see `openForImport`).
+    public static func launch(_ editor: VideoEditor) {
+        NSWorkspace.shared.openApplication(at: editor.appURL,
+                                           configuration: NSWorkspace.OpenConfiguration(),
+                                           completionHandler: nil)
     }
 
     /// Reveal a file/folder in Finder (the project the user then imports).
     public static func reveal(_ url: URL) {
         NSWorkspace.shared.activateFileViewerSelecting([url])
     }
+
+    /// Hand a finished handoff off for the (manual) import: launch the editor *and*, when
+    /// the result is an editor export, reveal its `.fcpxml` in Finder (selected) — so by
+    /// the time the editor is up the file is right there to drag in or pick via File ▸
+    /// Import ▸ Timeline. With nothing to surface (no timeline file) it just opens the
+    /// editor. This is the single open policy every call site shares (picker, row button,
+    /// context menu) so they can't drift. Free Resolve can't auto-import (no external
+    /// scripting API — verified on a real machine), so this is the tightest honest loop.
+    public static func openForImport(_ editor: VideoEditor, result: CleanResult?) {
+        launch(editor)
+        if let timeline = timelineFile(for: result) { reveal(timeline) }
+    }
+
+    /// Reveal a handoff's project folder in Finder (the folder the user imports from).
+    public static func revealProject(for result: CleanResult?) {
+        if let folder = projectFolder(for: result) { reveal(folder) }
+    }
     #endif
+
+    /// The timeline file to surface for a finished handoff, or nil when there's nothing to
+    /// reveal (not an editor export, or no path recorded). Pure, so the open policy is
+    /// testable without driving Finder.
+    public static func timelineFile(for result: CleanResult?) -> URL? {
+        guard let result, result.exportTimeline == "fcpxml", !result.output.isEmpty else { return nil }
+        return URL(fileURLWithPath: result.output)
+    }
+
+    /// The project folder for an editor handoff (its `<name> (Crisp)` dir), falling back to
+    /// the timeline file's location, or nil when this isn't an editor export or neither is
+    /// recorded. Gated on `exportTimeline == "fcpxml"` (like `timelineFile`) so it never
+    /// returns a *rendered* clip's path — keeps "editor handoff only" honest. Pure/testable.
+    public static func projectFolder(for result: CleanResult?) -> URL? {
+        guard let result, result.exportTimeline == "fcpxml" else { return nil }
+        if !result.projectDir.isEmpty { return URL(fileURLWithPath: result.projectDir) }
+        if !result.output.isEmpty { return URL(fileURLWithPath: result.output) }
+        return nil
+    }
 }

@@ -6,6 +6,36 @@ impact-per-effort. Living doc — add/reorder freely.
 
 ---
 
+## ⭐ Top priority — IMPORTANT
+
+17. ⭐ **Source-aware encoding — auto-detect bit depth (8/10-bit) and never downgrade
+    footage.** **The most important quality issue.** The normal clean/render path today
+    **always re-encodes to 8-bit 4:2:0 (`yuv420p`)** — so a creator who records in 10-bit
+    (or HDR / 4:2:2) gets their footage **silently flattened to 8-bit** in their cleaned
+    video. That violates philosophy #3 ("never silently degrade"). Fix = the app **reads
+    the source video's data and sets the encode defaults to MATCH it**, automatically:
+    - **Detect on import** (we already probe `pix_fmt` + color tags for the editor handoff
+      — `tools.probe_stream_meta` / `parse_stream_meta`): bit depth (8/10/12-bit), chroma
+      (4:2:0/4:2:2/4:4:4), color/HDR (Rec.709/2020 PQ/HLG), and bitrate.
+    - **Default = match the source, no downgrade.** 8-bit source → 8-bit (what most people,
+      incl. the user, record — so the default "just works" and stays fast on hardware);
+      10-bit/HDR source → preserve 10-bit (software encode, since Apple VideoToolbox is
+      unreliable for 10-bit/4:2:2 — same lesson as the editor copy). Carry color tags
+      through so HDR isn't flattened.
+    - **User override in Settings ▸ Output:** a "Color depth" control — **Automatic (match
+      source)** default / Force 8-bit / Force 10-bit — alongside the existing codec/quality
+      knobs. Honest about the speed/size tradeoff.
+    - **Scope:** this is the GENERAL render path (the cleaned `<name>_cleaned` video). The
+      **editor handoff already preserves bit depth/chroma** (shipped in PR #81); this
+      generalizes that to the main clean output and makes it an auto-detected, overridable
+      setting. Engine seam exists: `encode.video_args` already takes a `pix_fmt`, and
+      `encode.is_high_bit_depth` already classifies formats — wire detection → pix_fmt +
+      encoder choice + the hardware→software fallback into `pipeline.render()`, then add
+      the field to `EngineConfig`/`EngineSettings`/`SettingsView` + `CleanParameters`.
+    - **Big, important feature — do NOT bolt onto PR #81 (already large); its own PR.**
+
+---
+
 ## 🎨 Polish (premium feel)
 
 1. **Before/after preview of the *result*** — scrub/play the cleaned result (or A/B
@@ -83,18 +113,21 @@ impact-per-effort. Living doc — add/reorder freely.
         carries cut/encode knobs — captions / frame-rate / smoothing / split fall back to
         defaults (pre-existing; this PR only threaded the new `exportToEditor`). Worth
         making presets capture the full recipe.
-    - **NEXT (the big one the user is curious about) — auto-import spike.** Goal: skip the
-      manual File ▸ Import step by auto-creating a Resolve project + importing the
-      timeline. Hard fact from research: the *external* scripting API is Studio-only; the
-      user has free (Lite, bundle id `com.blackmagic-design.DaVinciResolveLite`). User
-      wants to TEST it on their machine anyway (sources conflict). To run the spike, the
-      user must set **Resolve → Preferences → System → General → "External scripting
-      using" = Local** and keep Resolve running; then run a tiny Python using
-      `RESOLVE_SCRIPT_API`/`RESOLVE_SCRIPT_LIB` (paths in the README inside the .app) to
-      try `scriptapp("Resolve")` + `ImportTimelineFromFile`. If it connects on free →
-      build real auto-import; if gated → keep the manual import (UI automation is the
-      brittle fallback we'd avoid). Note: user's Python is 3.14 (fusionscript may not load
-      there — part of what the spike reveals).
+    - **Auto-import spike — DONE: not feasible on free.** Measured on the
+      user's machine: their Resolve is the App Store **free/Lite, sandboxed** build, which
+      exposes **no "External scripting" preference at all** (Preferences search "script" →
+      "No Results Found"), so `scriptapp("Resolve")` returns `None` — external auto-import
+      can't be enabled. (`fusionscript.so` *does* load fine under Python 3.14, so that
+      worry was moot; the blocker is the free tier + sandbox.) Internal scripting exists
+      (Workspace ▸ Console/Scripts) but a sandboxed Resolve won't run an externally-dropped
+      script, and triggering one needs brittle UI automation. **True one-click auto-import
+      works only on Resolve Studio.**
+    - **Shipped instead — polished manual handoff (PR TBD).** On finish, the picker's
+      **Open** now launches the editor *and* reveals the `.fcpxml` in Finder (selected),
+      with a clear 2-step hint ("File ▸ Import ▸ Timeline → pick this"). One click, zero
+      fragility, works on free. `EditorDetector.openForImport(_:timeline:)`; same behavior
+      across the picker, the row button, and the context menu. A Studio-gated *real*
+      auto-import remains a future option if the user gets Studio.
 13. **Chapter detection + export** — auto-generate YouTube / podcast chapter markers
     from long pauses + transcript topic shifts; export as chapter metadata or a
     timestamp list. Reuses the existing transcript; concrete, visible creator value.

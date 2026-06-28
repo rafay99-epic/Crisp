@@ -48,17 +48,9 @@ struct QueueView: View {
         }
         .sheet(item: $editorPickerItem) { item in
             EditorPickerSheet(editors: EditorDetector.installed(),
-                              onOpen: { EditorDetector.launch($0) },
-                              onReveal: { revealProject(item) })
+                              onOpen: { EditorDetector.openForImport($0, result: item.result) },
+                              onReveal: { EditorDetector.revealProject(for: item.result) })
         }
-    }
-
-    /// Reveal an editor-handoff result's project folder (falls back to its output).
-    private func revealProject(_ item: QueueItem) {
-        let path = item.result?.projectDir.isEmpty == false
-            ? item.result!.projectDir : (item.result?.output ?? "")
-        guard !path.isEmpty else { return }
-        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
     }
 
     private var countLabel: String {
@@ -98,8 +90,10 @@ private struct QueueRow: View {
         guard let path = item.result?.projectDir, !path.isEmpty else { return nil }
         return URL(fileURLWithPath: path)
     }
-    private func revealProject() { if let p = projectURL { reveal(p) } else { revealOutput() } }
-    private func openInEditor(_ editor: VideoEditor) { EditorDetector.launch(editor) }
+    private func revealProject() { EditorDetector.revealProject(for: item.result) }
+    private func openInEditor(_ editor: VideoEditor) {
+        EditorDetector.openForImport(editor, result: item.result)
+    }
 
     var body: some View {
         Group {

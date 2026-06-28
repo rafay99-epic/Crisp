@@ -22,9 +22,27 @@ SOFTWARE_CRF = {
 HARDWARE_QV = {"maximum": 80, "high": 65, "balanced": 55, "smaller": 45}
 
 
-def video_args(codec: str, hardware: bool, quality: str) -> list:
-    """ffmpeg `-c:v …` arguments for the chosen video encoder + quality level."""
+def is_high_bit_depth(pix_fmt: str) -> bool:
+    """True for >8-bit / non-4:2:0 pixel formats worth preserving on the editor copy
+    instead of crushing to 8-bit yuv420p — covers planar/semi-planar YUV (10/12/14/16-bit),
+    4:2:2 / 4:4:4 chroma, AND packed high-bit-depth RGB (rgb48 / rgba64 / 10-bit packed)."""
+    pf = (pix_fmt or "").lower()
+    deep = (pf.endswith(("10le", "10be", "12le", "12be", "14le", "14be", "16le", "16be"))
+            or pf.startswith(("p010", "p012", "p016", "p210", "p216", "p410", "p416")))
+    # Packed 16-bit RGB(A): rgb48/bgr48 (3×16) and rgba64/bgra64/argb64 (4×16); plus the
+    # 10-bit packed RGB variants (x2rgb10, x2bgr10, gbrp already handled by the depth suffix).
+    rgb_deep = any(tag in pf for tag in ("rgb48", "bgr48", "rgba64", "bgra64", "argb64",
+                                         "abgr64", "rgb30", "x2rgb10", "x2bgr10"))
+    wide_chroma = "422" in pf or "444" in pf
+    return deep or rgb_deep or wide_chroma
+
+
+def video_args(codec: str, hardware: bool, quality: str, pix_fmt: str = "yuv420p") -> list:
+    """ffmpeg `-c:v …` arguments for the chosen video encoder + quality level. `pix_fmt`
+    defaults to 8-bit 4:2:0 (`yuv420p`, the compatible output for the rendered clean); the
+    editor copy passes the source's own format to avoid a silent bit-depth/chroma downgrade."""
     quality = quality if quality in HARDWARE_QV else "high"
+    pix_fmt = pix_fmt or "yuv420p"
 
     if codec == "vp9":
         # VP9 has no Apple hardware encoder, so it's always software. `-b:v 0`
@@ -36,18 +54,18 @@ def video_args(codec: str, hardware: bool, quality: str) -> list:
         # threads. `-cpu-used 2` keeps a sane speed/quality operating point.
         return ["-c:v", "libvpx-vp9", "-crf", str(crf), "-b:v", "0",
                 "-row-mt", "1", "-tile-columns", "2", "-deadline", "good",
-                "-cpu-used", "2", "-pix_fmt", "yuv420p"]
+                "-cpu-used", "2", "-pix_fmt", pix_fmt]
 
     codec = codec if codec in ("h264", "hevc") else "h264"
     hevc_tag = ["-tag:v", "hvc1"] if codec == "hevc" else []  # QuickTime-friendly HEVC
 
     if hardware:
         encoder = "hevc_videotoolbox" if codec == "hevc" else "h264_videotoolbox"
-        return ["-c:v", encoder, "-q:v", str(HARDWARE_QV[quality])] + hevc_tag + ["-pix_fmt", "yuv420p"]
+        return ["-c:v", encoder, "-q:v", str(HARDWARE_QV[quality])] + hevc_tag + ["-pix_fmt", pix_fmt]
 
     encoder = "libx265" if codec == "hevc" else "libx264"
     crf = SOFTWARE_CRF[codec][quality]
-    return ["-c:v", encoder, "-preset", "veryfast", "-crf", str(crf)] + hevc_tag + ["-pix_fmt", "yuv420p"]
+    return ["-c:v", encoder, "-preset", "veryfast", "-crf", str(crf)] + hevc_tag + ["-pix_fmt", pix_fmt]
 
 
 def audio_args(codec: str, bitrate_kbps: int) -> list:
