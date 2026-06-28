@@ -195,10 +195,13 @@ struct SettingsView: View {
 
             // Color depth — "Automatic" matches the source so 10-bit/HDR footage is never
             // crushed to 8-bit. Independent of the container (VP9 supports 10-bit too), so
-            // it stays enabled even when WebM disables the codec controls above.
+            // it stays enabled even when WebM disables the codec controls above. But editor
+            // handoff does the final encode in the editor and only ever preserves the source
+            // (no upscale), so the choice has no effect there — disable + explain it then.
             Picker("Color depth", selection: colorDepthBinding) {
                 ForEach(ColorDepth.allCases) { Text($0.label).tag($0.rawValue) }
             }
+            .disabled(settings.exportToEditor)
             .sheet(isPresented: $confirmForce10) {
                 ConfirmationSheet(
                     icon: "paintpalette",
@@ -210,7 +213,10 @@ struct SettingsView: View {
                     settings.colorDepth = ColorDepth.force10.rawValue
                 }
             }
-            if let depth = ColorDepth(rawValue: settings.colorDepth) {
+            if settings.exportToEditor {
+                Text("Applies only when Crisp renders a video. With \u{201C}Send my cuts to a video editor\u{201D} on, the original\u{2019}s color depth is preserved and your editor handles the final encode.")
+                    .font(.caption).foregroundStyle(.secondary)
+            } else if let depth = ColorDepth(rawValue: settings.colorDepth) {
                 Text(depth.detail).font(.caption).foregroundStyle(.secondary)
             }
 

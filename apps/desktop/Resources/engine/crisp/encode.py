@@ -22,10 +22,12 @@ SOFTWARE_CRF = {
 HARDWARE_QV = {"maximum": 80, "high": 65, "balanced": 55, "smaller": 45}
 
 
-def is_high_bit_depth(pix_fmt: str) -> bool:
-    """True for >8-bit / non-4:2:0 pixel formats worth preserving on the editor copy
-    instead of crushing to 8-bit yuv420p — covers planar/semi-planar YUV (10/12/14/16-bit),
-    4:2:2 / 4:4:4 chroma, AND packed high-bit-depth RGB (rgb48 / rgba64 / 10-bit packed)."""
+def is_deep_pix_fmt(pix_fmt: str) -> bool:
+    """True only for >8-bit pixel formats (real bit depth) — planar/semi-planar YUV
+    (10/12/14/16-bit) and packed high-bit-depth RGB (rgb48 / rgba64 / 10-bit packed).
+    Deliberately does NOT count wide chroma (4:2:2/4:4:4 can still be 8-bit), so callers
+    that care specifically about bit depth (e.g. the Force-10-bit decision) don't mistake
+    an 8-bit 4:2:2 source for a 10-bit one. `is_high_bit_depth` adds wide chroma on top."""
     pf = (pix_fmt or "").lower()
     deep = (pf.endswith(("10le", "10be", "12le", "12be", "14le", "14be", "16le", "16be"))
             or pf.startswith(("p010", "p012", "p016", "p210", "p216", "p410", "p416")))
@@ -33,18 +35,32 @@ def is_high_bit_depth(pix_fmt: str) -> bool:
     # 10-bit packed RGB variants (x2rgb10, x2bgr10, gbrp already handled by the depth suffix).
     rgb_deep = any(tag in pf for tag in ("rgb48", "bgr48", "rgba64", "bgra64", "argb64",
                                          "abgr64", "rgb30", "x2rgb10", "x2bgr10"))
+    return deep or rgb_deep
+
+
+def is_high_bit_depth(pix_fmt: str) -> bool:
+    """True for >8-bit OR non-4:2:0 pixel formats worth preserving on the editor copy
+    instead of crushing to 8-bit yuv420p — real high bit depth (see `is_deep_pix_fmt`)
+    plus 4:2:2 / 4:4:4 chroma. Used to decide what to PRESERVE; for the bit-depth-only
+    question (is this actually 10-bit?), use `is_deep_pix_fmt`."""
+    pf = (pix_fmt or "").lower()
     wide_chroma = "422" in pf or "444" in pf
-    return deep or rgb_deep or wide_chroma
+    return is_deep_pix_fmt(pf) or wide_chroma
 
 
 # The 10-bit 4:2:0 software pixel format every encoder we drive understands
-# (libx264 High 10, libx265 Main10, libvpx-vp9 profile 2). It's the target when a
-# source is forced/preserved at 10-bit but isn't already a more specific high-bit
-# format. We never synthesize wider chroma (4:2:2/4:4:4) than the source had.
+# (libx264 High 10, libx265 Main10, libvpx-vp9 profile 2). It's the target when an
+# 8-bit source is forced to 10-bit and isn't a wider-chroma format (those keep their
+# chroma via WIDE_8_TO_10_PIX_FMT). We never synthesize wider chroma than the source had.
 TEN_BIT_PIX_FMT = "yuv420p10le"
 
+# Force-10-bit on an 8-bit WIDE-chroma source: bump to the matching 10-bit format so the
+# chroma the source carried isn't thrown away on the way to 10-bit (libx264/libx265 both
+# encode these). Anything else 8-bit falls through to TEN_BIT_PIX_FMT (10-bit 4:2:0).
+WIDE_8_TO_10_PIX_FMT = {"yuv422p": "yuv422p10le", "yuv444p": "yuv444p10le"}
 
-def resolve_pix_fmt(color_depth: str, src_pix_fmt: str, video_codec: str = "h264"):
+
+def resolve_pix_fmt(color_depth: str, src_pix_fmt: str):
     """Pick the output pixel format for the rendered clean from the color-depth mode
     and the source's own format, returning `(pix_fmt, notes)` — `notes` is a list of
     human-readable strings so any depth change is surfaced, never silent.
@@ -54,28 +70,31 @@ def resolve_pix_fmt(color_depth: str, src_pix_fmt: str, video_codec: str = "h264
                source stays 8-bit. The default — footage is never downgraded.
       "8"    — force 8-bit 4:2:0 (`yuv420p`). Notes the loss when the source was deeper.
       "10"   — force a 10-bit encode. A source that's already ≥10-bit is preserved as-is;
-               an 8-bit source is upconverted to `yuv420p10le` (no real quality gain —
-               the UI warns first — but it honors a 10-bit delivery spec).
+               an 8-bit source is upconverted to 10-bit (keeping its chroma — no real
+               quality gain, the UI warns first — but it honors a 10-bit delivery spec).
 
     Whether the result needs the software encoder is the caller's call via
     `is_high_bit_depth(pix_fmt)` (Apple VideoToolbox is unreliable for >8-bit / wide
     chroma — the same lesson as the editor copy), so this stays a pure format decision."""
     src = (src_pix_fmt or "").strip()
-    src_high = is_high_bit_depth(src) and bool(src)
+    src_high = is_high_bit_depth(src) and bool(src)   # deep OR wide chroma — what to preserve
+    src_deep = is_deep_pix_fmt(src) and bool(src)     # actually ≥10-bit — what "10" already satisfies
     notes = []
 
     if color_depth == "8":
         if src_high:
-            notes.append("Encoding 8-bit — your setting forces it (the source is higher bit depth).")
+            notes.append("Downscaling to 8-bit 4:2:0 — your setting forces it (the source is higher quality).")
         return "yuv420p", notes
 
     if color_depth == "10":
-        if src_high:
-            # Already 10-bit-or-deeper: preserve the source format exactly (keeps its
-            # chroma too) rather than coercing it down to plain 4:2:0 10-bit.
+        if src_deep:
+            # Already ≥10-bit: preserve the source format exactly (keeps its chroma too)
+            # rather than coercing it down to plain 4:2:0 10-bit.
             return src, notes
+        # An 8-bit source (incl. 8-bit 4:2:2/4:4:4, which is_high_bit_depth flags as
+        # wide-chroma but is NOT 10-bit) is upconverted — keeping its chroma where we can.
         notes.append("Encoding 8-bit source as 10-bit — your setting forces it (no quality gain).")
-        return TEN_BIT_PIX_FMT, notes
+        return WIDE_8_TO_10_PIX_FMT.get(src.lower(), TEN_BIT_PIX_FMT), notes
 
     # "auto" (and any unexpected value): match the source. Preserve a high-bit-depth /
     # wide-chroma source; an empty/unknown or plain 8-bit format stays the safe 8-bit 4:2:0.

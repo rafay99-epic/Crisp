@@ -23,6 +23,7 @@ public struct Preset: Identifiable, Codable, Equatable, Sendable {
     public var audioCodec: String
     public var audioBitrateKbps: Int
     public var outputContainer: String
+    public var colorDepth: String        // "auto" | "8" | "10" — output bit depth
     // Output + backup
     public var outputDirectory: String
     public var backupOriginal: Bool
@@ -31,6 +32,7 @@ public struct Preset: Identifiable, Codable, Equatable, Sendable {
                 pauseThreshold: Double, silenceFloorDB: Double, breathingRoom: Double, minKeep: Double,
                 videoCodec: String, hardwareEncoding: Bool, videoQuality: String,
                 audioCodec: String, audioBitrateKbps: Int, outputContainer: String,
+                colorDepth: String = "auto",
                 outputDirectory: String, backupOriginal: Bool) {
         self.id = id
         self.name = name
@@ -45,8 +47,40 @@ public struct Preset: Identifiable, Codable, Equatable, Sendable {
         self.audioCodec = audioCodec
         self.audioBitrateKbps = audioBitrateKbps
         self.outputContainer = outputContainer
+        self.colorDepth = colorDepth
         self.outputDirectory = outputDirectory
         self.backupOriginal = backupOriginal
+    }
+
+    // Custom CodingKeys + decoder so a NEW field (colorDepth) added to presets already
+    // saved in settings.json stays forward-compatible: synthesized Codable would fail to
+    // decode an older preset missing the key — and because EngineConfig decodes its whole
+    // `presets` array under one `try`, a single failed preset would throw away ALL the
+    // user's settings (load() falls back to defaults). decodeIfPresent prevents that.
+    enum CodingKeys: String, CodingKey {
+        case id, name, strength, pauseThreshold, silenceFloorDB, breathingRoom, minKeep
+        case videoCodec, hardwareEncoding, videoQuality, audioCodec, audioBitrateKbps
+        case outputContainer, colorDepth, outputDirectory, backupOriginal
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        name = try c.decode(String.self, forKey: .name)
+        strength = try c.decode(String.self, forKey: .strength)
+        pauseThreshold = try c.decode(Double.self, forKey: .pauseThreshold)
+        silenceFloorDB = try c.decode(Double.self, forKey: .silenceFloorDB)
+        breathingRoom = try c.decode(Double.self, forKey: .breathingRoom)
+        minKeep = try c.decode(Double.self, forKey: .minKeep)
+        videoCodec = try c.decode(String.self, forKey: .videoCodec)
+        hardwareEncoding = try c.decode(Bool.self, forKey: .hardwareEncoding)
+        videoQuality = try c.decode(String.self, forKey: .videoQuality)
+        audioCodec = try c.decode(String.self, forKey: .audioCodec)
+        audioBitrateKbps = try c.decode(Int.self, forKey: .audioBitrateKbps)
+        outputContainer = try c.decode(String.self, forKey: .outputContainer)
+        colorDepth = try c.decodeIfPresent(String.self, forKey: .colorDepth) ?? "auto"
+        outputDirectory = try c.decode(String.self, forKey: .outputDirectory)
+        backupOriginal = try c.decode(Bool.self, forKey: .backupOriginal)
     }
 
     /// Snapshot the current global recipe into a new preset under `name`.
@@ -57,6 +91,7 @@ public struct Preset: Identifiable, Codable, Equatable, Sendable {
                   videoCodec: config.videoCodec, hardwareEncoding: config.hardwareEncoding,
                   videoQuality: config.videoQuality, audioCodec: config.audioCodec,
                   audioBitrateKbps: config.audioBitrateKbps, outputContainer: config.outputContainer,
+                  colorDepth: config.colorDepth,
                   outputDirectory: config.outputDirectory, backupOriginal: config.backupOriginal)
     }
 
@@ -81,6 +116,7 @@ public struct Preset: Identifiable, Codable, Equatable, Sendable {
         cfg.audioCodec = audioCodec
         cfg.audioBitrateKbps = audioBitrateKbps
         cfg.outputContainer = outputContainer
+        cfg.colorDepth = colorDepth
         cfg.outputDirectory = outputDirectory
         cfg.backupOriginal = backupOriginal
         cfg.exportToEditor = exportToEditor

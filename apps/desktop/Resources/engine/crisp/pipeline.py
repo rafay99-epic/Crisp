@@ -159,7 +159,7 @@ def _export_editor_project(src, keep, out_dir, project_dir, target_fps,
             # the resolver runs in "auto" (match-source) mode regardless of the user's
             # Color-depth setting. Apple's VideoToolbox is unreliable for high-bit-depth /
             # wide-chroma formats, so a preserved copy uses the software encoder.
-            enc_pix, _ = resolve_pix_fmt("auto", src_meta["pix_fmt"], video_codec)
+            enc_pix, _ = resolve_pix_fmt("auto", src_meta["pix_fmt"])
             preserve = is_high_bit_depth(enc_pix)
 
             def _normalize(hw, pix):
@@ -657,7 +657,7 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
     # 8-bit (philosophy #3). `color_depth` ("auto"|"8"|"10") can override the match. A
     # probe failure degrades to the safe 8-bit default rather than breaking the clean.
     src_meta = probe_stream_meta(src, logger=logger, require_fps=False) or {}
-    enc_pix, depth_notes = resolve_pix_fmt(color_depth, src_meta.get("pix_fmt", ""), video_codec)
+    enc_pix, depth_notes = resolve_pix_fmt(color_depth, src_meta.get("pix_fmt", ""))
     for note in depth_notes:
         on_log(note)
     color_flags = _source_color_flags(src_meta)
@@ -684,7 +684,12 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
                 raise
             if attempts[i + 1][1] != pix:        # the next attempt gives up the source's depth
                 logger.notice(f"Couldn't encode pixel format {pix} — falling back to 8-bit 4:2:0")
-                on_log("Couldn't preserve the source's color format — using standard 8-bit…")
+                # Word the message for what was actually dropped: a forced 10-bit encode that
+                # failed (nothing to "preserve") vs. a source whose own depth couldn't be kept.
+                if color_depth == "10":
+                    on_log("Couldn't encode 10-bit output — using standard 8-bit…")
+                else:
+                    on_log("Couldn't preserve the source's color format — using standard 8-bit…")
             else:                                 # same depth, just dropping hardware
                 logger.notice("Hardware encoding failed — retrying in software")
                 on_log("Hardware encoding failed — falling back to software encoding…")
