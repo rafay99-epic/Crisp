@@ -85,9 +85,11 @@ def probe_stream_meta(path: Path, logger=None) -> dict:
     stereo) so a slightly odd file still produces a usable timeline. `logger` is
     optional (no-op when None), like the other probes here."""
     # JSON output so each stream is a real object — robust vs. parsing flat key=value
-    # lines (where there's no reliable per-stream delimiter).
+    # lines (where there's no reliable per-stream delimiter). audio_channels defaults to
+    # 0 so a source with no audio stream is distinguishable from one with audio (the
+    # FCPXML builder declares audio only when channels > 0 — no phantom track).
     meta = {"width": 1920, "height": 1080, "fps_num": 30, "fps_den": 1,
-            "audio_rate": 48000, "audio_channels": 2}
+            "audio_rate": 48000, "audio_channels": 0}
     res = subprocess.run(
         [ffprobe_bin(), "-v", "error",
          "-show_entries", "stream=codec_type,width,height,r_frame_rate,sample_rate,channels",

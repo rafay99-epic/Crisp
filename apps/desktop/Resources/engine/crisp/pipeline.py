@@ -1,5 +1,6 @@
 """The public engine entry point — orchestrates detect → edit into a clean video."""
 
+import os
 import shutil
 import subprocess
 import tempfile
@@ -13,8 +14,9 @@ from .config import (
     MIN_KEEP, RETAKE_ANCHOR_PAUSE, RETAKE_SENSITIVITY,
 )
 from .detect import detect_silences, extract_audio, filler_words, filter_silences, transcribe
-from .edit import (build_keep_segments, gate_fillers_by_silence, make_backup, output_duration,
-                   render, snap_keep_to_zero_crossings, tag_output_source, unique_output_path)
+from .edit import (_output_owner, build_keep_segments, gate_fillers_by_silence, make_backup,
+                   output_duration, render, snap_keep_to_zero_crossings, tag_output_source,
+                   unique_output_path)
 from .encode import (
     audio_args, container_args, default_output_path, resolve_codecs, resolve_container, video_args,
 )
@@ -40,60 +42,106 @@ def _export_editor_project(src, keep, out_dir, project_dir, target_fps,
     media_copy_path, timeline_seconds) — timeline_seconds is the frame-snapped kept
     length so reported stats match the actual timeline. The original is never touched.
 
-    A CFR source is copied byte-for-byte (zero re-encode — the whole point). A source
-    that needs normalization (VFR, or an explicit constant rate) is re-encoded to CFR
-    once, because FCPXML can't represent variable timing frame-accurately."""
+    A CFR source in an editor-friendly container is copied byte-for-byte (zero
+    re-encode — the whole point). A source that needs normalization (VFR / an explicit
+    constant rate) or sits in a poor editor container (.avi/.flv/no extension) is
+    re-encoded once to CFR .mov, because FCPXML can't represent variable timing and
+    editors choke on those containers."""
     pdir, media_copy, fcpxml_path = project_paths(src, project_dir or out_dir)
+
+    # An unmuxable / extension-less source becomes a .mov copy (and forces a re-encode);
+    # a byte copy keeping e.g. an .avi extension imports poorly into editors.
+    EDITOR_CONTAINERS = {"mov", "mp4", "m4v", "mkv", "webm"}
+    force_encode = src.suffix.lower().lstrip(".") not in EDITOR_CONTAINERS
+    if force_encode:
+        media_copy = media_copy.with_suffix(".mov")
+
+    # Don't clobber a DIFFERENT source's project that happens to share a stem (mirrors
+    # the render path's unique_output_path + source xattr). Re-exporting the SAME source
+    # reuses — and overwrites — its own project folder.
+    marker = os.fsencode(str(src))
+    base = pdir.name
+    i = 0
+    while True:
+        cand = pdir if i == 0 else pdir.with_name(f"{base} {i}")
+        cand_media, cand_fcp = cand / media_copy.name, cand / fcpxml_path.name
+        if not cand.exists() or _output_owner(cand_media) == marker:
+            pdir, media_copy, fcpxml_path = cand, cand_media, cand_fcp
+            break
+        i += 1
+
     try:
         pdir.mkdir(parents=True, exist_ok=True)
     except OSError as e:
         raise CleanError(f"Couldn't create the editor project folder \"{pdir}\".\n{e}") from e
 
-    if target_fps:
-        # The one re-encode exception: a VFR/constant source must become CFR so the
-        # timeline lands frame-accurately. Logged so it's never a silent transcode.
-        on_log(f"Making an editor-ready copy at {target_fps} fps…")
-
-        def _normalize(hw):
-            cmd = [ffmpeg_bin(), "-y", "-i", str(src),
-                   *video_args(video_codec, hw, quality), "-r", str(target_fps),
-                   *audio_args(audio_codec, audio_bitrate), str(media_copy)]
-            logger.command(f"ffmpeg editor-copy ({'hw' if hw else 'sw'})", cmd)
-            r = subprocess.run(cmd, capture_output=True, text=True)
-            logger.tool_result("ffmpeg editor-copy", r.returncode, r.stderr)
-            return r
-
-        res = _normalize(hardware)
-        if (res.returncode != 0 or not media_copy.exists()) and hardware:
-            # Hardware encoding can be unavailable (e.g. a VM with no media engine);
-            # fall back to software so the handoff still works — mirrors render().
-            logger.notice("Hardware encode failed for the editor copy — retrying in software")
-            on_log("Hardware encoding failed — falling back to software encoding…")
-            res = _normalize(False)
-        if res.returncode != 0 or not media_copy.exists():
-            raise CleanError(f"Couldn't prepare the editor copy.\n{res.stderr[-1000:]}")
-    else:
-        # CFR: a plain copy — no re-encode, no quality loss, fast.
-        on_log("Copying your footage for the editor…")
-        try:
-            shutil.copy2(src, media_copy)
-        except OSError as e:
-            raise CleanError(f"Couldn't copy your footage into the editor project.\n{e}") from e
-
-    meta = probe_stream_meta(media_copy, logger=logger)
-    dur = ffprobe_duration(media_copy, logger=logger)
-    xml = build_fcpxml(
-        media_uri=media_copy.resolve().as_uri(), name=Path(src).stem,
-        num=meta["fps_num"], den=meta["fps_den"], width=meta["width"], height=meta["height"],
-        audio_rate=meta["audio_rate"], audio_channels=meta["audio_channels"],
-        duration=dur, keep=keep)
     try:
+        if target_fps or force_encode:
+            on_log(f"Making an editor-ready copy at {target_fps} fps…" if target_fps
+                   else "Converting your footage to an editor-friendly format…")
+
+            def _normalize(hw):
+                fps_args = ["-r", str(target_fps)] if target_fps else []
+                cmd = [ffmpeg_bin(), "-y", "-i", str(src),
+                       *video_args(video_codec, hw, quality), *fps_args,
+                       *audio_args(audio_codec, audio_bitrate), str(media_copy)]
+                logger.command(f"ffmpeg editor-copy ({'hw' if hw else 'sw'})", cmd)
+                r = subprocess.run(cmd, capture_output=True, text=True)
+                logger.tool_result("ffmpeg editor-copy", r.returncode, r.stderr)
+                return r
+
+            res = _normalize(hardware)
+            if (res.returncode != 0 or not media_copy.exists()) and hardware:
+                # Hardware encoding can be unavailable (e.g. a VM with no media engine);
+                # fall back to software so the handoff still works — mirrors render().
+                logger.notice("Hardware encode failed for the editor copy — retrying in software")
+                on_log("Hardware encoding failed — falling back to software encoding…")
+                res = _normalize(False)
+            if res.returncode != 0 or not media_copy.exists():
+                raise CleanError(f"Couldn't prepare the editor copy.\n{res.stderr[-1000:]}")
+        else:
+            # CFR, editor-friendly container: a plain copy — no re-encode, no loss, fast.
+            on_log("Copying your footage for the editor…")
+            shutil.copy2(src, media_copy)
+
+        meta = probe_stream_meta(media_copy, logger=logger)
+        dur = ffprobe_duration(media_copy, logger=logger)
+        xml = build_fcpxml(
+            media_uri=media_copy.resolve().as_uri(), name=Path(src).stem,
+            num=meta["fps_num"], den=meta["fps_den"], width=meta["width"], height=meta["height"],
+            audio_rate=meta["audio_rate"], audio_channels=meta["audio_channels"],
+            has_audio=meta["audio_channels"] > 0, duration=dur, keep=keep)
         fcpxml_path.write_text(xml, encoding="utf-8")
     except OSError as e:
-        raise CleanError(f"Couldn't write the editor timeline.\n{e}") from e
+        _cleanup_partial_project(pdir, media_copy, fcpxml_path)
+        raise CleanError(f"Couldn't write the editor project.\n{e}") from e
+    except CleanError:
+        _cleanup_partial_project(pdir, media_copy, fcpxml_path)
+        raise
+
+    # Tag the media copy with its source so a later re-export reuses this folder and a
+    # different same-stem source dedups instead of clobbering it.
+    tag_output_source(media_copy, src)
     logger.info(f"editor project: {pdir} (fcpxml={fcpxml_path.name}, media={media_copy.name})")
     snapped = timeline_seconds(keep, meta["fps_num"], meta["fps_den"])
     return fcpxml_path, pdir, media_copy, snapped
+
+
+def _cleanup_partial_project(pdir, media_copy, fcpxml_path):
+    """Best-effort removal of a half-written editor project after a failure, so the UI
+    never offers to open a broken handoff. Only removes the project dir if it's empty
+    (don't touch a folder that already held other files)."""
+    for p in (media_copy, fcpxml_path):
+        try:
+            if p.exists():
+                p.unlink()
+        except OSError:
+            pass
+    try:
+        if pdir.exists() and not any(pdir.iterdir()):
+            pdir.rmdir()
+    except OSError:
+        pass
 
 
 # Analyze-only captures every candidate gap down to this floor; the app applies the

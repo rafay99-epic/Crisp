@@ -62,14 +62,23 @@ def timeline_seconds(keep: list, num: int, den: int) -> float:
     return total_frames * den / num
 
 
+# FCPXML audioRate is an enumerated token set, not a free integer — a bare "32000"
+# is invalid and Resolve may ignore it. Map the standard rates; fall back to 48k.
+_AUDIO_RATE_TOKENS = {
+    16000: "16k", 22050: "22.05k", 24000: "24k", 32000: "32k", 44100: "44.1k",
+    48000: "48k", 88200: "88.2k", 96000: "96k", 176400: "176.4k", 192000: "192k",
+}
+
+
 def _audio_rate_attr(hz: int) -> str:
-    """FCPXML audioRate spelling for the common sample rates (others pass through)."""
-    return {48000: "48k", 44100: "44.1k", 96000: "96k"}.get(int(hz), str(int(hz)))
+    """FCPXML audioRate token for a sample rate, defaulting to 48k for anything
+    outside the enumerated set (a raw integer isn't a valid audioRate)."""
+    return _AUDIO_RATE_TOKENS.get(int(hz), "48k")
 
 
 def build_fcpxml(*, media_uri: str, name: str, num: int, den: int,
                  width: int, height: int, audio_rate: int, audio_channels: int,
-                 duration: float, keep: list) -> str:
+                 duration: float, keep: list, has_audio: bool = True) -> str:
     """Return a flat FCPXML document (a string) describing the cut timeline.
 
     media_uri        — `file://` URI of the (copied) media the timeline references.
@@ -94,16 +103,22 @@ def build_fcpxml(*, media_uri: str, name: str, num: int, den: int,
     name_x = escape(name, {'"': "&quot;", "'": "&apos;"})
     uri_x = escape(media_uri, {'"': "&quot;", "'": "&apos;"})
     arate = _audio_rate_attr(audio_rate)
+    # Audio is declared only when the source actually has it — a phantom hasAudio="1"
+    # on a silent screen recording produces a wrong (and import-warning) timeline.
+    has_audio = has_audio and audio_channels > 0
+    chans = max(1, audio_channels)
     # Map channel count to an FCPXML audio layout (stereo is wrong for >2 channels).
-    layout = "mono" if audio_channels <= 1 else ("stereo" if audio_channels == 2 else "surround")
+    layout = "mono" if chans <= 1 else ("stereo" if chans == 2 else "surround")
     total_frames = max(1, secs_to_frames(duration, num, den))
 
     # Snap each kept span to whole frames and lay the segments back-to-back on the
-    # timeline (each `offset` = the running total of kept frames so far).
+    # timeline (each `offset` = the running total of kept frames so far). Clamp to the
+    # asset's frame count so a span that rounds past the (possibly re-encoded) copy's
+    # length can't land out of bounds → Resolve "media out of range".
     clips, timeline_frames = [], 0
     for i, (s, e) in enumerate(keep):
-        sf = secs_to_frames(s, num, den)
-        ef = secs_to_frames(e, num, den)
+        sf = min(secs_to_frames(s, num, den), total_frames)
+        ef = min(secs_to_frames(e, num, den), total_frames)
         dur_f = ef - sf
         if dur_f <= 0:                              # span collapsed to <1 frame — skip
             continue
@@ -116,19 +131,23 @@ def build_fcpxml(*, media_uri: str, name: str, num: int, den: int,
     if not clips:
         raise CleanError("Can't build an editor timeline: no segments survived to keep.")
 
+    asset_audio = (f' hasAudio="1" audioSources="1" audioChannels="{chans}" audioRate="{arate}"'
+                   if has_audio else ' hasAudio="0"')
+    seq_audio = f' audioLayout="{layout}" audioRate="{arate}"' if has_audio else ""
+
     return f'''<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE fcpxml>
 <fcpxml version="{FCPXML_VERSION}">
   <resources>
     <format id="r1" name="FFVideoFormat{height}p{int(round(num / den))}" frameDuration="{frame_dur}" width="{width}" height="{height}" colorSpace="1-1-1 (Rec. 709)"/>
-    <asset id="a1" name="{name_x}" start="0s" duration="{frame_time(total_frames, num, den)}" hasVideo="1" hasAudio="1" videoSources="1" audioSources="1" audioChannels="{audio_channels}" audioRate="{arate}" format="r1">
+    <asset id="a1" name="{name_x}" start="0s" duration="{frame_time(total_frames, num, den)}" hasVideo="1" videoSources="1"{asset_audio} format="r1">
       <media-rep kind="original-media" src="{uri_x}"/>
     </asset>
   </resources>
   <library>
     <event name="Crisp">
       <project name="{name_x} (Crisp cut)">
-        <sequence format="r1" duration="{frame_time(timeline_frames, num, den)}" tcStart="0s" tcFormat="{drop}" audioLayout="{layout}" audioRate="{arate}">
+        <sequence format="r1" duration="{frame_time(timeline_frames, num, den)}" tcStart="0s" tcFormat="{drop}"{seq_audio}>
           <spine>
 {chr(10).join(clips)}
           </spine>

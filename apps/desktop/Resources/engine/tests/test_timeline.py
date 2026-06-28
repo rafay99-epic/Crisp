@@ -101,6 +101,28 @@ class BuildFcpxmlTests(unittest.TestCase):
         self.assertIn('audioLayout="stereo"', self._doc(audio_channels=2))
         self.assertIn('audioLayout="surround"', self._doc(audio_channels=6))
 
+    def test_no_audio_source_omits_audio(self):
+        # A source with no audio (channels 0) must not declare a phantom track.
+        xml = self._doc(audio_channels=0)
+        dom = minidom.parseString(xml)
+        self.assertEqual(dom.getElementsByTagName("asset")[0].getAttribute("hasAudio"), "0")
+        self.assertNotIn("audioChannels", xml)
+        self.assertNotIn("audioLayout", xml)
+
+    def test_has_audio_false_overrides(self):
+        self.assertIn('hasAudio="0"', self._doc(audio_channels=2, has_audio=False))
+
+    def test_audio_rate_tokens_and_fallback(self):
+        self.assertIn('audioRate="32k"', self._doc(audio_rate=32000))
+        self.assertIn('audioRate="48k"', self._doc(audio_rate=999999))   # unknown → 48k
+
+    def test_clip_clamped_to_asset_duration(self):
+        # keep extends past the asset length → the clip must not exceed it (no
+        # "media out of range" in the editor).
+        dom = minidom.parseString(self._doc(num=60, den=1, duration=1.0, keep=[(0.0, 2.0)]))
+        self.assertEqual(dom.getElementsByTagName("asset-clip")[0].getAttribute("duration"),
+                         frame_time(60, 60, 1))   # clamped to 60 frames = 1s
+
     def test_empty_keep_raises(self):
         with self.assertRaises(CleanError):
             self._doc(keep=[])

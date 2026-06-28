@@ -12,6 +12,9 @@ struct QueueView: View {
 
     @State private var previewItem: QueueItem?
     @State private var reviewItem: QueueItem?
+    // One editor-handoff picker for the whole queue (hosted here, not per-row) so a
+    // batch of exports can't stack/lose sheets and List row recycling can't tear it down.
+    @State private var editorPickerItem: QueueItem?
 
     var body: some View {
         List {
@@ -19,7 +22,8 @@ struct QueueView: View {
                 ForEach($model.queue) { $item in
                     QueueRow(item: $item, model: model, player: player, presets: settings.presets,
                              onPreview: { previewItem = item },
-                             onReview: { reviewItem = item })
+                             onReview: { reviewItem = item },
+                             onEditorPicker: { editorPickerItem = item })
                         .listRowSeparator(.hidden)
                 }
                 .onMove(perform: model.moveWaiting)
@@ -42,6 +46,19 @@ struct QueueView: View {
         .sheet(item: $reviewItem) { item in
             ReviewSheet(item: item, model: model, settings: settings)
         }
+        .sheet(item: $editorPickerItem) { item in
+            EditorPickerSheet(editors: EditorDetector.installed(),
+                              onOpen: { EditorDetector.launch($0) },
+                              onReveal: { revealProject(item) })
+        }
+    }
+
+    /// Reveal an editor-handoff result's project folder (falls back to its output).
+    private func revealProject(_ item: QueueItem) {
+        let path = item.result?.projectDir.isEmpty == false
+            ? item.result!.projectDir : (item.result?.output ?? "")
+        guard !path.isEmpty else { return }
+        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
     }
 
     private var countLabel: String {
@@ -64,9 +81,9 @@ private struct QueueRow: View {
     let presets: [Preset]
     let onPreview: () -> Void
     let onReview: () -> Void
-
-    /// Drives the "open in editor" picker box for an editor-handoff result.
-    @State private var showEditorPicker = false
+    /// Ask the parent (QueueView) to show the editor-handoff picker for this row — one
+    /// shared sheet, so batches and List recycling can't break it.
+    let onEditorPicker: () -> Void
 
     /// The cleaned file, once it exists — used for drag-out, reveal, preview, copy.
     private var outputURL: URL? {
@@ -87,10 +104,14 @@ private struct QueueRow: View {
     var body: some View {
         Group {
             if item.status == .done, let url = outputURL {
-                // Drag the finished file straight into Finder, an editor, or an
-                // upload box — the last step of the clean → publish flow.
-                rowContent.draggable(url) {
-                    Label(item.url.lastPathComponent, systemImage: "scissors")
+                // Drag the result into Finder / an editor / an upload box. For an editor
+                // handoff drag the whole project FOLDER (the .fcpxml alone would lose its
+                // media references), with a matching label/icon.
+                let dragURL = editorExport ? (projectURL ?? url) : url
+                rowContent.draggable(dragURL) {
+                    Label(editorExport ? "\(item.url.deletingPathExtension().lastPathComponent) (Crisp)"
+                                       : item.url.lastPathComponent,
+                          systemImage: editorExport ? "film.stack" : "scissors")
                 }
             } else {
                 rowContent
@@ -99,18 +120,10 @@ private struct QueueRow: View {
         .padding(.vertical, 3)
         .animation(.smooth, value: item.status)
         .contextMenu { contextMenu }
-        // When an editor-handoff cut finishes, detect the installed editors and pop the
-        // picker automatically — the user just chooses where to open.
+        // When an editor-handoff cut finishes, ask the parent to pop the (shared) picker
+        // so the user just chooses where to open.
         .onChange(of: item.status) { _, status in
-            if status == .done, editorExport { showEditorPicker = true }
-        }
-        // The custom, on-brand picker sheet — lists each installed editor with its own
-        // Open button. Selecting one launches it; the free tier can't auto-import, so
-        // the sheet states the one manual step (File ▸ Import ▸ Timeline).
-        .sheet(isPresented: $showEditorPicker) {
-            EditorPickerSheet(editors: EditorDetector.installed(),
-                              onOpen: { openInEditor($0) },
-                              onReveal: { revealProject() })
+            if status == .done, editorExport { onEditorPicker() }
         }
     }
 
@@ -227,7 +240,7 @@ private struct QueueRow: View {
                 // Editor handoff produced a project, not a video — open it in an editor
                 // (a picker, in case more than one is installed) or reveal the project.
                 if editorExport {
-                    Button { showEditorPicker = true } label: { Image(systemName: "film.stack") }
+                    Button { onEditorPicker() } label: { Image(systemName: "film.stack") }
                         .buttonStyle(.plain).foregroundStyle(.tint)
                         .help("Open in a video editor")
                     Button { revealProject() } label: { Image(systemName: "folder") }

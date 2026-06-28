@@ -63,7 +63,11 @@ public struct Preset: Identifiable, Codable, Equatable, Sendable {
     /// Resolve this preset to engine parameters, reusing the global mapping: build
     /// a throwaway `EngineConfig` from the preset's fields and run it through the
     /// existing `Strength.parameters(using:)`.
-    public func parameters() -> CleanParameters {
+    ///
+    /// `exportToEditor` is a global *output mode* (editor handoff), not a per-preset
+    /// recipe knob, so the live setting is threaded in — otherwise a preset-backed row
+    /// would silently render a video even while "Send to editor" is on.
+    public func parameters(exportToEditor: Bool = false) -> CleanParameters {
         var cfg = EngineConfig.defaults
         cfg.pauseThreshold = pauseThreshold
         cfg.silenceFloorDB = silenceFloorDB
@@ -77,6 +81,7 @@ public struct Preset: Identifiable, Codable, Equatable, Sendable {
         cfg.outputContainer = outputContainer
         cfg.outputDirectory = outputDirectory
         cfg.backupOriginal = backupOriginal
+        cfg.exportToEditor = exportToEditor
         return (Strength(rawValue: strength) ?? .custom).parameters(using: cfg)
     }
 }
