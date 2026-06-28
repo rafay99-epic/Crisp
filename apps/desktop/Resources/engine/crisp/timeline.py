@@ -82,7 +82,7 @@ _AUDIO_RATE_TOKENS = {
 
 def _audio_rate_attr(hz: int) -> str:
     """FCPXML audioRate token for a sample rate. Exact match when the rate is one of the
-    valid tokens; otherwise the NEAREST valid token (e.g. 24k→32k, 22.05k→44.1k) rather
+    valid tokens; otherwise the NEAREST valid token (e.g. 24k→32k, 22.05k→32k) rather
     than a blanket 48k — Resolve conforms to the media's real rate on import anyway, so
     this just keeps the declared value DTD-valid and as close as possible."""
     hz = int(hz)
@@ -103,7 +103,9 @@ def fcpxml_colorspace(primaries: str, transfer: str) -> str:
             return "9-16-9 (Rec. 2020 PQ)"
         if t in ("arib-std-b67", "arib_std_b67"):
             return "9-18-9 (Rec. 2020 HLG)"
-        return "9-16-9 (Rec. 2020)"
+        # SDR Rec.2020: transfer 1 (SDR), NOT 16 — "9-16-9" is the PQ token, so using it for
+        # an SDR source would make Resolve apply HDR/PQ handling and wreck the colors.
+        return "9-1-9 (Rec. 2020)"
     return "1-1-1 (Rec. 709)"
 
 

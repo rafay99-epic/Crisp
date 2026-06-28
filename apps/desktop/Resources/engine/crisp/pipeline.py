@@ -42,7 +42,9 @@ _SOURCE_MARKER = ".crisp-source"
 
 def _read_source_marker(project_dir) -> str | None:
     try:
-        return (project_dir / _SOURCE_MARKER).read_text(encoding="utf-8").strip()
+        # No strip(): the marker is written as the exact source path, and a path can legally
+        # begin/end with whitespace — stripping would change the identity and break reuse.
+        return (project_dir / _SOURCE_MARKER).read_text(encoding="utf-8")
     except OSError:
         return None
 
@@ -113,7 +115,10 @@ def _export_editor_project(src, keep, out_dir, project_dir, target_fps,
     try:
         # Probe the SOURCE up front: drives the re-encode's pixel format / color tags and
         # the FCPXML colorSpace, and fails loud here (before any work) if it's unreadable.
-        src_meta = probe_stream_meta(src, logger=logger)
+        # require_fps=False: this probe only needs pixel format + color; the source's own
+        # r_frame_rate may be missing/0 (it'll be normalized to a constant rate anyway), so
+        # don't reject it here — only the timeline probe below requires a real fps.
+        src_meta = probe_stream_meta(src, logger=logger, require_fps=False)
         if src_meta is None:
             raise CleanError("Couldn't read the source video's properties.")
         # Carry the source's color characteristics onto the re-encoded copy (and into the
@@ -136,9 +141,10 @@ def _export_editor_project(src, keep, out_dir, project_dir, target_fps,
 
             def _normalize(hw, pix):
                 fps_args = ["-r", str(target_fps)] if target_fps else []
-                # Keep the first video + ALL audio tracks (multi-mic/multi-cam), matching the
-                # byte-copy path; `0:a?` makes audio optional so a silent source still works.
-                cmd = [ffmpeg_bin(), "-y", "-i", str(src), "-map", "0:v:0", "-map", "0:a?",
+                # First video + first audio — matching the single audio source the FCPXML
+                # declares (audioSources="1"); `0:a:0?` makes audio optional so a silent
+                # source still works. (Mapping ALL audio would contradict that declaration.)
+                cmd = [ffmpeg_bin(), "-y", "-i", str(src), "-map", "0:v:0", "-map", "0:a:0?",
                        *video_args(video_codec, hw, quality, pix), *fps_args, *color_flags,
                        *audio_args(audio_codec, audio_bitrate), str(media_tmp)]
                 logger.command(f"ffmpeg editor-copy ({'hw' if hw else 'sw'}, {pix})", cmd)
@@ -249,16 +255,12 @@ def _cleanup_temp_project(media_tmp, fcpxml_tmp, pdir, created):
                 p.unlink()
         except OSError:
             pass
-    # Drop any redundant publish-staging backups — but ONLY when the live file is present
-    # (a `.crisp-bak` with its live counterpart MISSING is the sole surviving copy after a
-    # failed rollback, so it must be kept, not deleted).
-    try:
-        for bak in pdir.glob("*.crisp-bak"):
-            live = bak.with_name(bak.name[: -len(".crisp-bak")])
-            if live.exists():
-                bak.unlink()
-    except OSError:
-        pass
+    # NOTE: deliberately do NOT remove `*.crisp-bak` here. Publish backups are owned by
+    # `_publish_atomic` (restored on rollback, deleted on success). A `.crisp-bak` that
+    # outlives a run only exists after a failed rollback / SIGKILL — in which case it may be
+    # the ONLY surviving copy of the previous good media/timeline (the live file can hold
+    # the new/bad one), so deleting it would lose the user's data. Leaving it is the safe
+    # choice; it's harmless clutter.
     if not created:
         return
     try:

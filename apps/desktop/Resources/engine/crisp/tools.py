@@ -78,13 +78,16 @@ def probe_video_fps(path: Path, logger=None):
     return r, avg
 
 
-def parse_stream_meta(returncode: int, stdout: str) -> dict | None:
+def parse_stream_meta(returncode: int, stdout: str, require_fps: bool = True) -> dict | None:
     """Pure parse of `ffprobe … -show_entries stream … -of json` into the metadata the
     FCPXML handoff needs, or None on failure: a bad exit, non-object/malformed output, no
-    video stream, OR an unreadable frame rate. The frame rate is REQUIRED (not defaulted),
-    because a wrong fps is silently catastrophic — every cut would land at the wrong source
-    time. Less-critical missing fields (width/height/audio) still fall back to sane defaults
-    so a slightly odd file works. Pure (no subprocess) so it's unit-testable without ffprobe."""
+    video stream, or (when `require_fps`) an unreadable frame rate. The frame rate is
+    required for the probe that feeds the TIMELINE (the editor copy), because a wrong fps
+    is silently catastrophic — every cut would land at the wrong source time. The SOURCE
+    probe only needs pixel format + color (to drive the re-encode), so it passes
+    `require_fps=False` and isn't rejected just because the source's r_frame_rate is
+    missing/0 (it'll be normalized to a constant rate anyway). Less-critical missing fields
+    (width/height/audio) always default. Pure (no subprocess) so it's unit-testable."""
     if returncode != 0:
         return None
     try:
@@ -139,19 +142,21 @@ def parse_stream_meta(returncode: int, stdout: str) -> dict | None:
             # default to 2 (stereo), not 0. 0 is reserved for "no audio stream at all";
             # dropping audio just because channels didn't parse would be wrong.
             meta["audio_channels"] = _int(s.get("channels"), 2)
-    # Fail loud unless we read BOTH a video stream AND a real frame rate: a missing/zero
-    # r_frame_rate would otherwise default to 30fps and misplace every cut (a wrong fps is
-    # silently catastrophic, unlike a defaulted width/height). The caller refuses rather
-    # than emit a wrong-timed timeline.
-    if not have_video or not fps_read:
+    # No video stream → can't build a video timeline. And for the timeline probe, a
+    # missing/zero r_frame_rate would default to 30fps and misplace every cut (catastrophic),
+    # so fps is required there; the source probe (require_fps=False) tolerates it.
+    if not have_video:
+        return None
+    if require_fps and not fps_read:
         return None
     return meta
 
 
-def probe_stream_meta(path: Path, logger=None) -> dict | None:
-    """Stream metadata the FCPXML editor handoff needs (size, fps, audio), or None on a
-    total probe failure — see `parse_stream_meta`. `logger` is optional (no-op when None),
-    like the other probes here."""
+def probe_stream_meta(path: Path, logger=None, require_fps: bool = True) -> dict | None:
+    """Stream metadata the FCPXML editor handoff needs (size, fps, audio, pixfmt, color),
+    or None on a probe failure — see `parse_stream_meta`. Pass `require_fps=False` for the
+    SOURCE probe (pixfmt/color only); the timeline probe keeps the default (fps required).
+    `logger` is optional (no-op when None), like the other probes here."""
     # JSON output so each stream is a real object — robust vs. parsing flat key=value
     # lines (where there's no reliable per-stream delimiter).
     res = subprocess.run(
@@ -162,7 +167,7 @@ def probe_stream_meta(path: Path, logger=None) -> dict | None:
          "-of", "json", str(path)],
         capture_output=True, text=True,
     )
-    meta = parse_stream_meta(res.returncode, res.stdout)
+    meta = parse_stream_meta(res.returncode, res.stdout, require_fps=require_fps)
     if meta is None and logger is not None:
         logger.error(f"ffprobe couldn't read usable stream metadata of {path} (exit {res.returncode})\n"
                      f"{(res.stderr or '').strip()[-800:]}")

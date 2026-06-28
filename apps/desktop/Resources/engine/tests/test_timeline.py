@@ -177,7 +177,8 @@ class ColorSpaceTests(unittest.TestCase):
     def test_hdr_is_not_mistagged_as_709(self):
         self.assertEqual(fcpxml_colorspace("bt2020", "smpte2084"), "9-16-9 (Rec. 2020 PQ)")
         self.assertEqual(fcpxml_colorspace("bt2020", "arib-std-b67"), "9-18-9 (Rec. 2020 HLG)")
-        self.assertEqual(fcpxml_colorspace("bt2020", "bt2020-10"), "9-16-9 (Rec. 2020)")
+        # SDR Rec.2020 must use the non-PQ token (transfer 1, not 16) or Resolve treats it as HDR.
+        self.assertEqual(fcpxml_colorspace("bt2020", "bt2020-10"), "9-1-9 (Rec. 2020)")
 
     def test_colorspace_flows_into_format(self):
         xml = build_fcpxml(media_uri="m.mov", name="c", num=30, den=1, width=1920, height=1080,
@@ -233,6 +234,16 @@ class ParseStreamMetaTests(unittest.TestCase):
         # default to 30fps and misplace every cut.
         self.assertIsNone(parse_stream_meta(0, self._json('{"codec_type":"video","width":1280,"height":720}')))
         self.assertIsNone(parse_stream_meta(0, self._json('{"codec_type":"video","r_frame_rate":"0/0"}')))
+
+    def test_source_probe_tolerates_missing_fps(self):
+        # The SOURCE probe (require_fps=False) only needs pixfmt/color, so a missing fps must
+        # NOT reject it (the copy is normalized to a constant rate anyway).
+        meta = parse_stream_meta(0, self._json('{"codec_type":"video","pix_fmt":"yuv420p10le"}'),
+                                 require_fps=False)
+        self.assertIsNotNone(meta)
+        self.assertEqual(meta["pix_fmt"], "yuv420p10le")
+        # But still fail with no video stream at all, even when fps isn't required.
+        self.assertIsNone(parse_stream_meta(0, self._json(self.AUDIO), require_fps=False))
 
     def test_missing_size_defaults_when_fps_known(self):
         # fps present but no width/height → those default (less critical), still usable.
