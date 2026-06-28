@@ -115,6 +115,7 @@ struct OnboardingView: View {
                        "Right-click any video → Services → Clean with Crisp.")
             featureRow("square.stack.3d.up.fill", "Shortcuts",
                        "Add the “Clean with Crisp” action to any Shortcut or automation.")
+            editorHandoffSetup
             menuBarSetup
             watchSetup
 
@@ -191,6 +192,35 @@ struct OnboardingView: View {
         if let path = FolderPicker.choosePath(message: "Choose where cleaned videos are saved (e.g. a NAS).") {
             settings.outputDirectory = path
         }
+    }
+
+    // MARK: - Configuration: editor handoff
+
+    @ViewBuilder private var editorHandoffSetup: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Image(systemName: "film.stack").font(.title3).foregroundStyle(.tint)
+                    .frame(width: 30)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Send to a video editor").font(.headline)
+                    Text("Prefer to finish in your own editor? Crisp finds the cuts and hands them over as a ready-to-edit timeline — no rendering, so it’s done in seconds. You polish in the editor.")
+                        .font(.callout).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+            if let editor = EditorDetector.resolve() {
+                Toggle("Send my cuts to \(editor.name)", isOn: $settings.exportToEditor)
+                    .toggleStyle(.switch)
+            } else {
+                Text("Install DaVinci Resolve (the free version works great) and Crisp can send your cuts straight to it.")
+                    .font(.callout).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardBackground(.tint.opacity(0.08))
     }
 
     // MARK: - Configuration: menu bar
