@@ -1,0 +1,30 @@
+apps/desktop/Resources/engine/crisp/pipeline.py
+  s_1c9eefb4447eda::t_65edcd4d5b91e8 40-41
+  s_1c9eefb4447eda::t_55459e62486d32 24
+  s_1c9eefb4447eda::t_b84d477d0bb01f 205-210
+  s_1c9eefb4447eda::t_ba18b2d56ab04d 410,415-417,420-425,427-430,441-442,454
+  s_1c9eefb4447eda::t_49e346896736f4 95-96
+apps/desktop/Resources/engine/tests/test_timeline.py
+  s_1c9eefb4447eda::t_be8b6c92e62bf3 118-129
+  s_1c9eefb4447eda::t_e5d060448351de 8
+idea.md
+  s_1c9eefb4447eda::t_0816eea9ece204 71-75
+apps/desktop/Resources/engine/crisp/timeline.py
+  s_1c9eefb4447eda::t_dd60a138e2d04f 49-64
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "b8e3b08e1fe7de93e777573fdbc888450e4d2de9",
+  "prompts": {},
+  "sessions": {
+    "s_1c9eefb4447eda": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e19c83fe-6f19-40d2-8102-46ce01d7fa72",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
