@@ -199,11 +199,16 @@ struct SettingsView: View {
             Picker("Color depth", selection: colorDepthBinding) {
                 ForEach(ColorDepth.allCases) { Text($0.label).tag($0.rawValue) }
             }
-            .alert("Force 10-bit output?", isPresented: $confirmForce10) {
-                Button("Keep Automatic", role: .cancel) { }
-                Button("Force 10-bit") { settings.colorDepth = ColorDepth.force10.rawValue }
-            } message: {
-                Text("10-bit doesn\u{2019}t improve 8-bit footage \u{2014} it just makes a larger file that encodes more slowly (in software). Automatic already keeps a real 10-bit or HDR source at 10-bit. Force this only if a delivery spec requires it.")
+            .sheet(isPresented: $confirmForce10) {
+                ConfirmationSheet(
+                    icon: "paintpalette",
+                    title: "Force 10-bit output?",
+                    message: "On Automatic, your footage already keeps the right color depth \u{2014} real 10-bit and HDR recordings stay 10-bit.\n\nForcing 10-bit only changes 8-bit footage, where it adds no real quality \u{2014} just larger files and slower, software-only encoding. Choose it only if a delivery spec needs 10-bit.",
+                    confirmTitle: "Force 10-bit",
+                    cancelTitle: "Keep Automatic"
+                ) {
+                    settings.colorDepth = ColorDepth.force10.rawValue
+                }
             }
             if let depth = ColorDepth(rawValue: settings.colorDepth) {
                 Text(depth.detail).font(.caption).foregroundStyle(.secondary)
