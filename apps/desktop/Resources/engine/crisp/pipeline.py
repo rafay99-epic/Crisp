@@ -80,9 +80,11 @@ def _export_editor_project(src, keep, out_dir, project_dir, target_fps,
 
     # Write to temp files and atomically swap them in only once BOTH are ready — so a
     # failed re-export can never corrupt an existing project (the live media/.fcpxml are
-    # untouched until the final os.replace), and a partial run leaves only temp files.
-    media_tmp = media_copy.with_name(media_copy.name + ".crisp-tmp")
-    fcpxml_tmp = fcpxml_path.with_name(fcpxml_path.name + ".crisp-tmp")
+    # untouched until the final publish), and a partial run leaves only temp files. The
+    # temp marker goes BEFORE the suffix (talk.crisp-tmp.mov) so ffmpeg still infers the
+    # output muxer from the real extension on the re-encode path.
+    media_tmp = media_copy.with_name(f"{media_copy.stem}.crisp-tmp{media_copy.suffix}")
+    fcpxml_tmp = fcpxml_path.with_name(f"{fcpxml_path.stem}.crisp-tmp{fcpxml_path.suffix}")
     try:
         if target_fps or force_encode:
             on_log(f"Making an editor-ready copy at {target_fps} fps…" if target_fps
@@ -124,9 +126,9 @@ def _export_editor_project(src, keep, out_dir, project_dir, target_fps,
             audio_rate=meta["audio_rate"], audio_channels=meta["audio_channels"],
             has_audio=meta["audio_channels"] > 0, duration=dur, keep=keep)
         fcpxml_tmp.write_text(xml, encoding="utf-8")
-        # Atomic publish — only now do the live files change.
-        os.replace(media_tmp, media_copy)
-        os.replace(fcpxml_tmp, fcpxml_path)
+        # Publish both as a unit (stage old aside, replace both, roll back on failure) so
+        # a re-export never leaves a mixed media/timeline project.
+        _publish_atomic(media_tmp, media_copy, fcpxml_tmp, fcpxml_path)
     except (OSError, CleanError) as e:
         _cleanup_temp_project(media_tmp, fcpxml_tmp, pdir, created)
         if isinstance(e, CleanError):
@@ -139,6 +141,37 @@ def _export_editor_project(src, keep, out_dir, project_dir, target_fps,
     logger.info(f"editor project: {pdir} (fcpxml={fcpxml_path.name}, media={media_copy.name})")
     snapped = timeline_seconds(keep, meta["fps_num"], meta["fps_den"])
     return fcpxml_path, pdir, media_copy, snapped
+
+
+def _publish_atomic(media_tmp, media_dst, fcpxml_tmp, fcpxml_dst):
+    """Swap both temp files into place so the project updates together or not at all.
+    Stages any existing live files aside, replaces both, and on failure restores them —
+    so a re-export can't leave a half-updated (mixed media + timeline) project. The
+    leftover temp files are removed by the caller's cleanup."""
+    media_bak = media_dst.with_name(media_dst.name + ".crisp-bak") if media_dst.exists() else None
+    fcpxml_bak = fcpxml_dst.with_name(fcpxml_dst.name + ".crisp-bak") if fcpxml_dst.exists() else None
+    if media_bak:
+        os.replace(media_dst, media_bak)
+    if fcpxml_bak:
+        os.replace(fcpxml_dst, fcpxml_bak)
+    try:
+        os.replace(media_tmp, media_dst)
+        os.replace(fcpxml_tmp, fcpxml_dst)
+    except OSError:
+        # Roll back to the previous good versions (or remove a half-published new file).
+        if media_bak and media_bak.exists():
+            os.replace(media_bak, media_dst)
+        elif media_dst.exists():
+            media_dst.unlink()
+        if fcpxml_bak and fcpxml_bak.exists():
+            os.replace(fcpxml_bak, fcpxml_dst)
+        raise
+    for bak in (media_bak, fcpxml_bak):       # success → drop the staged old copies
+        if bak and bak.exists():
+            try:
+                bak.unlink()
+            except OSError:
+                pass
 
 
 def _cleanup_temp_project(media_tmp, fcpxml_tmp, pdir, created):
