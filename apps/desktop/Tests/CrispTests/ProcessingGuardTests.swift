@@ -30,9 +30,14 @@ final class ProcessingGuardTests: XCTestCase {
         XCTAssertFalse(guardState.busy)
     }
 
-    func testRefuseRaisesNotice() {
+    func testRefuseIsSafeWithoutWindow() {
+        // Headless: no main window and no NSApp, so `refuse()` takes the windowless path
+        // and must not crash or raise the in-window sheet flag (it would carry the notice
+        // via a standalone alert when a real app is running). Just assert it's a safe no-op.
+        guardState.mainWindow = nil
         guardState.showBlockedNotice = false
         guardState.refuse()
-        XCTAssertTrue(guardState.showBlockedNotice)
+        XCTAssertFalse(guardState.showBlockedNotice,
+                       "the SwiftUI sheet flag is only set when a window can host it")
     }
 }

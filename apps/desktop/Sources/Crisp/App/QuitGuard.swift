@@ -68,12 +68,41 @@ final class ProcessingGuard {
     }
 
     /// Raise the "can't quit yet" notice and bring Crisp forward so the user sees why.
+    /// `windowless` is true when there's no visible window to host the SwiftUI sheet —
+    /// e.g. a menu-bar Quick Clean running with the main window closed — in which case we
+    /// must not silently swallow the refusal; a standalone notice carries it instead.
     func refuse() {
-        showBlockedNotice = true
         // `NSApp` is nil in a headless context (e.g. unit tests); only the running app
         // needs bringing forward so the user can see the notice.
         NSApp?.activate(ignoringOtherApps: true)
+        if let window = mainWindow, window.isVisible {
+            window.makeKeyAndOrderFront(nil)
+            showBlockedNotice = true   // the SwiftUI sheet, hosted on the main window
+        } else {
+            presentWindowlessNotice()
+        }
     }
+
+    /// The fallback when the refusal can't ride the main window's sheet (it's closed): a
+    /// standalone notice so a ⌘Q during a menu-bar Quick Clean is never silently ignored.
+    private func presentWindowlessNotice() {
+        guard NSApp != nil else { return }   // headless: nothing to show, nothing to block
+        let alert = NSAlert()
+        alert.messageText = QuitGuardCopy.title
+        alert.informativeText = QuitGuardCopy.body
+        alert.addButton(withTitle: QuitGuardCopy.action)
+        alert.runModal()
+    }
+}
+
+/// Shared copy for the two surfaces that explain a refused quit — the in-window SwiftUI
+/// sheet and the windowless `NSAlert` fallback — so they never drift.
+enum QuitGuardCopy {
+    static let title = "Crisp is still working"
+    static let body = "Quitting now could corrupt the video that's rendering. "
+        + "You'll be able to quit as soon as it's finished.\n\n"
+        + "Need to stop immediately? You can force quit from Activity Monitor."
+    static let action = "Keep Cleaning"
 }
 
 /// Owns the app-level termination decision via `applicationShouldTerminate` — the single
@@ -146,17 +175,15 @@ private struct QuitBlockedSheet: View {
                 .frame(width: 56, height: 56)
                 .background(.tint.opacity(0.15), in: RoundedRectangle(cornerRadius: 14))
             VStack(spacing: 6) {
-                Text("Crisp is still working")
+                Text(QuitGuardCopy.title)
                     .font(.title3.weight(.semibold))
-                Text("Quitting now could corrupt the video that's rendering. "
-                     + "You'll be able to quit as soon as it's finished.\n\n"
-                     + "Need to stop immediately? You can force quit from Activity Monitor.")
+                Text(QuitGuardCopy.body)
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            Button("Keep Cleaning", action: onDismiss)
+            Button(QuitGuardCopy.action, action: onDismiss)
                 .keyboardShortcut(.defaultAction)
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
