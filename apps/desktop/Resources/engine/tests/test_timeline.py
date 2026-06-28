@@ -223,10 +223,21 @@ class ParseStreamMetaTests(unittest.TestCase):
         # a fabricated 30fps asset.
         self.assertIsNone(parse_stream_meta(0, self._json(self.AUDIO)))
 
-    def test_missing_individual_fields_default(self):
-        # Video present but no r_frame_rate / size → per-field defaults, still usable.
-        meta = parse_stream_meta(0, self._json('{"codec_type":"video"}'))
-        self.assertEqual((meta["fps_num"], meta["fps_den"]), (30, 1))
+    def test_valid_but_non_object_json_is_failure(self):
+        # Valid JSON that isn't the expected shape must fail cleanly, not crash on .get.
+        for body in ("null", "5", "[1,2,3]", '"hi"'):
+            self.assertIsNone(parse_stream_meta(0, body), body)
+
+    def test_unreadable_frame_rate_is_failure(self):
+        # A video stream with no / zero r_frame_rate must FAIL (fps is required) rather than
+        # default to 30fps and misplace every cut.
+        self.assertIsNone(parse_stream_meta(0, self._json('{"codec_type":"video","width":1280,"height":720}')))
+        self.assertIsNone(parse_stream_meta(0, self._json('{"codec_type":"video","r_frame_rate":"0/0"}')))
+
+    def test_missing_size_defaults_when_fps_known(self):
+        # fps present but no width/height → those default (less critical), still usable.
+        meta = parse_stream_meta(0, self._json('{"codec_type":"video","r_frame_rate":"24/1"}'))
+        self.assertEqual((meta["fps_num"], meta["fps_den"]), (24, 1))
         self.assertEqual((meta["width"], meta["height"]), (1920, 1080))
         self.assertEqual(meta["audio_channels"], 0)   # no audio stream → 0, no phantom track
 

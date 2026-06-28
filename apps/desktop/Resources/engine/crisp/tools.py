@@ -80,17 +80,23 @@ def probe_video_fps(path: Path, logger=None):
 
 def parse_stream_meta(returncode: int, stdout: str) -> dict | None:
     """Pure parse of `ffprobe … -show_entries stream … -of json` into the metadata the
-    FCPXML handoff needs, or None on a TOTAL failure (bad exit / malformed output / no
-    video stream). Individual missing FIELDS on an otherwise-good probe fall back to sane
-    defaults (1920x1080 / 30fps / 48kHz) so a slightly odd file still works, but a total
-    failure returns None so the caller fails loud rather than emit a wrong-fps timeline
-    (silently catastrophic — every cut would land at the wrong source time). Pure (no
-    subprocess) so it's unit-testable without ffprobe."""
+    FCPXML handoff needs, or None on failure: a bad exit, non-object/malformed output, no
+    video stream, OR an unreadable frame rate. The frame rate is REQUIRED (not defaulted),
+    because a wrong fps is silently catastrophic — every cut would land at the wrong source
+    time. Less-critical missing fields (width/height/audio) still fall back to sane defaults
+    so a slightly odd file works. Pure (no subprocess) so it's unit-testable without ffprobe."""
     if returncode != 0:
         return None
     try:
-        streams = json.loads(stdout).get("streams", [])
+        payload = json.loads(stdout)
     except (ValueError, TypeError):
+        return None
+    # Valid JSON that isn't the expected object/array shape (e.g. `null`, `5`, `[…]`)
+    # must fail cleanly, not crash on `.get` / iteration.
+    if not isinstance(payload, dict):
+        return None
+    streams = payload.get("streams", [])
+    if not isinstance(streams, list):
         return None
 
     # audio_channels defaults to 0 so a source with no audio stream is distinguishable
@@ -107,8 +113,10 @@ def parse_stream_meta(returncode: int, stdout: str) -> dict | None:
         except (TypeError, ValueError):
             return default
 
-    have_video = have_audio = False
+    have_video = have_audio = fps_read = False
     for s in streams:
+        if not isinstance(s, dict):
+            continue
         kind = s.get("codec_type")
         if kind == "video" and not have_video:
             have_video = True
@@ -123,7 +131,7 @@ def parse_stream_meta(returncode: int, stdout: str) -> dict | None:
                 n, d = rate.split("/", 1)
                 n, d = _int(n, 0), _int(d, 0)
                 if n > 0 and d > 0:
-                    meta["fps_num"], meta["fps_den"] = n, d
+                    meta["fps_num"], meta["fps_den"], fps_read = n, d, True
         elif kind == "audio" and not have_audio:
             have_audio = True
             meta["audio_rate"] = _int(s.get("sample_rate"), meta["audio_rate"])
@@ -131,9 +139,11 @@ def parse_stream_meta(returncode: int, stdout: str) -> dict | None:
             # default to 2 (stereo), not 0. 0 is reserved for "no audio stream at all";
             # dropping audio just because channels didn't parse would be wrong.
             meta["audio_channels"] = _int(s.get("channels"), 2)
-    # No video stream at all → we can't build a video timeline; signal failure rather
-    # than emit a fabricated 1920x1080/30fps asset.
-    if not have_video:
+    # Fail loud unless we read BOTH a video stream AND a real frame rate: a missing/zero
+    # r_frame_rate would otherwise default to 30fps and misplace every cut (a wrong fps is
+    # silently catastrophic, unlike a defaulted width/height). The caller refuses rather
+    # than emit a wrong-timed timeline.
+    if not have_video or not fps_read:
         return None
     return meta
 
