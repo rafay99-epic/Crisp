@@ -1,0 +1,36 @@
+apps/desktop/Resources/engine/crisp/encode.py
+  s_ec4a8f9f437cbc::t_cd3589a61ad823 25-30,38-46,48,52-54,57-61,63,73-74,80-81,86,90-92,94-95,97
+apps/desktop/Resources/engine/tests/test_encode.py
+  s_ec4a8f9f437cbc::t_e503aec3e5e170 165-174,182,189,194,197,202,206-216,221-226,232,235
+  s_ec4a8f9f437cbc::t_1d182224fe817c 8-9
+apps/desktop/Sources/CrispCore/Models/Preset.swift
+  s_ec4a8f9f437cbc::t_fea9ad6187922d 26,35,50,55-84
+  s_ec4a8f9f437cbc::t_9a29790ee51dfd 119
+  s_ec4a8f9f437cbc::t_e6b12a282f82ec 94
+  s_ec4a8f9f437cbc::t_740f3e9f4e9ad0 85
+apps/desktop/Sources/Crisp/Views/SettingsView.swift
+  s_ec4a8f9f437cbc::t_e7aa0e8f22d3ae 198-200,204,216-219
+apps/desktop/Resources/engine/crisp/pipeline.py
+  s_ec4a8f9f437cbc::t_c05fda7979bed5 162
+  s_ec4a8f9f437cbc::t_0e99e4f1dca38a 660
+  s_ec4a8f9f437cbc::t_1dc0846174101d 687-692
+apps/desktop/Tests/CrispTests/CrispTests.swift
+  s_ec4a8f9f437cbc::t_569f1f4ee42c46 331-355
+  s_ec4a8f9f437cbc::t_639a3be2633ce3 475-490
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "9f451dc75bd5dd480968a3e1493b721ffa581521",
+  "prompts": {},
+  "sessions": {
+    "s_ec4a8f9f437cbc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a4fdbd9c-d1e0-4104-8af6-55e6fba7481f",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
