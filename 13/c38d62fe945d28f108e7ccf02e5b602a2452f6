@@ -1,0 +1,31 @@
+apps/desktop/Sources/Crisp/App/QuitGuard.swift
+  s_d9e9a0e9665314::t_321b32213f79e9 1-2,4-10,15-22,33-42,46-48,51,69-72,76-78,82,86-87,89-93,99,102-104,107-110,116-117,121-174
+  s_d9e9a0e9665314::t_09d6345ca38942 11-14,23-32,43-45,49-50,52-68,79-81,83,94-98,100-101,105-106,111-115,118-120
+  s_d9e9a0e9665314::t_66f1ea2d8e6f23 84-85,88
+  s_d9e9a0e9665314::t_aa842b0e76f3e4 73-75
+  s_d9e9a0e9665314::t_acfeab88ee53d7 3
+idea.md
+  s_d9e9a0e9665314::t_a88566ad399183 46-62
+apps/desktop/Tests/CrispTests/ProcessingGuardTests.swift
+  s_d9e9a0e9665314::t_57bceee8941f21 1-38
+apps/desktop/Sources/Crisp/App/CrispApp.swift
+  s_d9e9a0e9665314::t_d3fa06d638ae72 6-7
+  s_d9e9a0e9665314::t_32d260b1b14c27 58
+  s_d9e9a0e9665314::t_13af0dd27f1f63 53-57,59
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "13c38d62fe945d28f108e7ccf02e5b602a2452f6",
+  "prompts": {},
+  "sessions": {
+    "s_d9e9a0e9665314": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e2bfcf51-6592-455f-b03c-16d23ba6f719",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
