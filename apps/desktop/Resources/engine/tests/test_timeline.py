@@ -278,6 +278,44 @@ class ParseStreamMetaTests(unittest.TestCase):
         meta = parse_stream_meta(0, self._json(self.VIDEO, '{"codec_type":"audio"}'))
         self.assertEqual(meta["audio_channels"], 2)   # stream exists but channels missing
 
+    def test_color_tags_including_range_are_read(self):
+        # color_range joins primaries/transfer/space so a full-range or HDR source keeps
+        # every signal-level color tag on the re-encode (not just primaries/trc).
+        hdr = ('{"codec_type":"video","r_frame_rate":"24/1","pix_fmt":"yuv420p10le",'
+               '"color_primaries":"bt2020","color_transfer":"smpte2084",'
+               '"color_space":"bt2020nc","color_range":"tv"}')
+        meta = parse_stream_meta(0, self._json(hdr), require_fps=False)
+        self.assertEqual(meta["color_primaries"], "bt2020")
+        self.assertEqual(meta["color_transfer"], "smpte2084")
+        self.assertEqual(meta["color_space"], "bt2020nc")
+        self.assertEqual(meta["color_range"], "tv")
+        # A source that declares no color metadata leaves them all empty (nothing to carry).
+        bare = parse_stream_meta(0, self._json('{"codec_type":"video","r_frame_rate":"24/1"}'))
+        self.assertEqual(bare["color_range"], "")
+
+
+class SourceColorFlagsTests(unittest.TestCase):
+    """The ffmpeg color flags carried from the source onto the re-encode."""
+
+    def test_carries_all_declared_tags_including_range(self):
+        from crisp.pipeline import _source_color_flags
+        meta = {"color_primaries": "bt2020", "color_transfer": "smpte2084",
+                "color_space": "bt2020nc", "color_range": "pc"}
+        flags = _source_color_flags(meta)
+        for flag, val in (("-color_primaries", "bt2020"), ("-color_trc", "smpte2084"),
+                          ("-colorspace", "bt2020nc"), ("-color_range", "pc")):
+            self.assertIn(flag, flags)
+            self.assertEqual(flags[flags.index(flag) + 1], val)
+
+    def test_skips_missing_and_unknown_tags(self):
+        from crisp.pipeline import _source_color_flags
+        # Empty (undeclared) and "unknown" (explicitly unspecified) carry nothing.
+        self.assertEqual(_source_color_flags({}), [])
+        meta = {"color_primaries": "unknown", "color_transfer": "", "color_range": "unknown"}
+        self.assertEqual(_source_color_flags(meta), [])
+        # A real range still comes through even when the others are unknown/missing.
+        self.assertEqual(_source_color_flags({"color_range": "tv"}), ["-color_range", "tv"])
+
 
 if __name__ == "__main__":
     unittest.main()

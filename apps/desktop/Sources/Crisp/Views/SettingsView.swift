@@ -208,7 +208,9 @@ struct SettingsView: View {
                     title: "Force 10-bit output?",
                     message: "On Automatic, your footage already keeps the right color depth \u{2014} real 10-bit and HDR recordings stay 10-bit.\n\nForcing 10-bit only changes 8-bit footage, where it adds no real quality \u{2014} just larger files and slower, software-only encoding. Choose it only if a delivery spec needs 10-bit.",
                     confirmTitle: "Force 10-bit",
-                    cancelTitle: "Keep Automatic"
+                    // Neutral label: canceling keeps whatever depth is currently selected
+                    // (which may be 8-bit, not Automatic), so don't promise "Keep Automatic".
+                    cancelTitle: "Cancel"
                 ) {
                     settings.colorDepth = ColorDepth.force10.rawValue
                 }

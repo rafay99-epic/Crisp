@@ -108,7 +108,8 @@ def parse_stream_meta(returncode: int, stdout: str, require_fps: bool = True) ->
     # (empty = unknown → caller keeps its safe default).
     meta = {"width": 1920, "height": 1080, "fps_num": 30, "fps_den": 1,
             "audio_rate": 48000, "audio_channels": 0,
-            "pix_fmt": "", "color_primaries": "", "color_transfer": "", "color_space": ""}
+            "pix_fmt": "", "color_primaries": "", "color_transfer": "", "color_space": "",
+            "color_range": ""}
 
     def _int(value, default):
         try:
@@ -125,7 +126,8 @@ def parse_stream_meta(returncode: int, stdout: str, require_fps: bool = True) ->
             have_video = True
             meta["width"] = _int(s.get("width"), meta["width"])
             meta["height"] = _int(s.get("height"), meta["height"])
-            for key in ("pix_fmt", "color_primaries", "color_transfer", "color_space"):
+            for key in ("pix_fmt", "color_primaries", "color_transfer", "color_space",
+                        "color_range"):
                 v = s.get(key)
                 if isinstance(v, str):
                     meta[key] = v
@@ -163,7 +165,7 @@ def probe_stream_meta(path: Path, logger=None, require_fps: bool = True) -> dict
         [ffprobe_bin(), "-v", "error",
          "-show_entries",
          "stream=codec_type,width,height,r_frame_rate,sample_rate,channels,"
-         "pix_fmt,color_primaries,color_transfer,color_space",
+         "pix_fmt,color_primaries,color_transfer,color_space,color_range",
          "-of", "json", str(path)],
         capture_output=True, text=True,
     )

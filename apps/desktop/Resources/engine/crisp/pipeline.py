@@ -36,15 +36,24 @@ def _noop(*_a, **_k):
 
 
 def _source_color_flags(src_meta) -> list:
-    """ffmpeg `-color_primaries/-color_trc/-colorspace` flags carried from the source
-    so its color characteristics (e.g. Rec.2020 PQ/HLG HDR) aren't silently flattened
-    to Rec.709 on the re-encode. Empty for any tag the source didn't declare. Shared by
-    the rendered clean and the editor copy so both tag the output the same way."""
+    """ffmpeg `-color_primaries/-color_trc/-colorspace/-color_range` flags carried from the
+    source so its color characteristics (e.g. Rec.2020 PQ/HLG HDR, and full vs. limited
+    range) aren't silently flattened to Rec.709 limited on the re-encode. Empty for any tag
+    the source didn't declare (or declared as "unknown" — equivalent to unspecified, so
+    there's nothing to carry). Shared by the rendered clean and the editor copy so both tag
+    the output the same way.
+
+    NOTE: this carries the signal-level color tags. HDR10 *static mastering metadata*
+    (mastering-display luminance/primaries, MaxCLL/MaxFALL) lives in frame side-data and
+    would need an encoder-specific path (e.g. libx265 `-x265-params master-display=…`); it's
+    not carried here yet."""
     flags = []
     for flag, key in (("-color_primaries", "color_primaries"),
-                      ("-color_trc", "color_transfer"), ("-colorspace", "color_space")):
-        if src_meta.get(key):
-            flags += [flag, src_meta[key]]
+                      ("-color_trc", "color_transfer"), ("-colorspace", "color_space"),
+                      ("-color_range", "color_range")):
+        val = src_meta.get(key)
+        if val and val != "unknown":
+            flags += [flag, val]
     return flags
 
 
