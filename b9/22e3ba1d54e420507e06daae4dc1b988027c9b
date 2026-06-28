@@ -1,0 +1,41 @@
+apps/desktop/Sources/Crisp/Views/ContentView.swift
+  s_1c9eefb4447eda::t_8a1c265922bde3 85-89
+apps/desktop/Resources/engine/crisp/tools.py
+  s_1c9eefb4447eda::t_da21dd4d9f37c0 88-90,92
+apps/desktop/Sources/Crisp/Views/QueueView.swift
+  s_1c9eefb4447eda::t_9d4b027774d4e3 15-17
+  s_1c9eefb4447eda::t_8934866419f87a 49-61
+  s_1c9eefb4447eda::t_036b262a74b4f9 84-86
+  s_1c9eefb4447eda::t_d3f1032a20c479 243
+  s_1c9eefb4447eda::t_9b0f5c0fa9cf59 107-114,123-124,126
+  s_1c9eefb4447eda::t_e556664f11f3b0 25-26
+apps/desktop/Resources/engine/tests/test_timeline.py
+  s_1c9eefb4447eda::t_edb2e882080655 104-125
+apps/desktop/Sources/CrispCore/Models/Preset.swift
+  s_1c9eefb4447eda::t_283d3259769ad7 66-70,84
+apps/desktop/Resources/engine/crisp/timeline.py
+  s_1c9eefb4447eda::t_671ef9aa74ee66 134-137,143,150
+  s_1c9eefb4447eda::t_89cb2cb6376baa 106-109,111,115-117,120-121
+  s_1c9eefb4447eda::t_a95bef2ee402a4 65-72,74-76,81
+apps/desktop/Resources/engine/crisp/pipeline.py
+  s_1c9eefb4447eda::t_5af70ecbf42f40 3
+  s_1c9eefb4447eda::t_14c6e46212898a 17-19
+  s_1c9eefb4447eda::t_4f4dcb6a930393 45-49,51-72,79-113,116-124,130-144
+  s_1c9eefb4447eda::t_e8ee2a4b3d92c9 145-146
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "b922e3ba1d54e420507e06daae4dc1b988027c9b",
+  "prompts": {},
+  "sessions": {
+    "s_1c9eefb4447eda": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e19c83fe-6f19-40d2-8102-46ce01d7fa72",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
