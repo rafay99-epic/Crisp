@@ -104,6 +104,9 @@ def probe_stream_meta(path: Path, logger=None) -> dict:
     try:
         streams = json.loads(res.stdout).get("streams", [])
     except (ValueError, TypeError):
+        # Don't fail open silently — a metadata regression should be debuggable.
+        if logger is not None:
+            logger.error(f"ffprobe returned malformed stream metadata for {path}")
         return meta
 
     def _int(value, default):

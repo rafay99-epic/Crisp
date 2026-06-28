@@ -399,11 +399,14 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
     # Effective output length: a crossfade overlaps each join, so the reported
     # new/saved seconds match the file render() actually writes (not the raw sum).
     kept_dur = output_duration(keep, crossfade_ms / 1000.0)
-    logger.info(f"keep {len(keep)} segments, kept {kept_dur:.2f}s, "
+    # An editor handoff is hard cuts (no crossfade), so its kept length differs from a
+    # crossfaded render. Use the right one for the status line AND the returned stats.
+    effective_kept = output_duration(keep, 0.0) if export_timeline == "fcpxml" else kept_dur
+    logger.info(f"keep {len(keep)} segments, kept {effective_kept:.2f}s, "
                 f"fillers={stats['fillers']} pauses={stats['pauses']} retakes={stats['retakes']}")
     retake_note = f", {stats['retakes']} repeated takes" if stats["retakes"] else ""
     on_log(f"Removing {stats['fillers']} filler words and {stats['pauses']} pauses{retake_note}.")
-    on_log(f"{duration:.0f}s  →  {kept_dur:.0f}s  (saved {duration - kept_dur:.0f}s)")
+    on_log(f"{duration:.0f}s  →  {effective_kept:.0f}s  (saved {duration - effective_kept:.0f}s)")
 
     # Editor handoff (Model A): write a non-destructive editor project and STOP —
     # no render, no encode (that's the whole point: the editor finishes the cut).
@@ -420,9 +423,6 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
             video_codec, hardware, quality, audio_codec, audio_bitrate, on_log, logger)
         on_progress(1.0, "Done")
         on_log(f"✅ Your cuts are ready to open in a video editor — {pdir.name}")
-        # The editor timeline is hard cuts (no crossfade), so report the plain kept
-        # duration — not the crossfade-adjusted render length.
-        export_kept = output_duration(keep, 0.0)
         return {
             "input": str(src),
             "output": str(fcpxml_path),
@@ -431,8 +431,8 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
             "export_timeline": "fcpxml",
             "backup": str(backup_path) if backup_path else "",
             "orig_seconds": duration,
-            "new_seconds": export_kept,
-            "saved_seconds": duration - export_kept,
+            "new_seconds": effective_kept,
+            "saved_seconds": duration - effective_kept,
             "fillers": stats["fillers"],
             "pauses": stats["pauses"],
             "retakes": stats["retakes"],
