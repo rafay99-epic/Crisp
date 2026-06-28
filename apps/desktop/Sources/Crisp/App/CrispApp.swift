@@ -3,6 +3,8 @@ import CrispCore
 
 @main
 struct CrispApp: App {
+    // Owns the quit/close veto used while a render is in flight (`ProcessingGuard`).
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var model = CleanModel()
     @State private var updater = Updater()
     @State private var modelStore = ModelStore()
@@ -48,6 +50,13 @@ struct CrispApp: App {
                 .task { QuickActionInstaller.install() }
                 .task { reconcileWatchAgent() }
                 .task { Notifier.requestAuthorization() }
+                // Block quitting/closing while any in-process clean is rendering, so an
+                // interrupted re-encode can never leave the user a corrupt file. The probe
+                // reads the live run flags (main-window batch + menu-bar Quick Clean); the
+                // attacher lets the AppDelegate veto the window's close button / ⌘W.
+                .task { ProcessingGuard.shared.isBusyProbe = { model.isRunning || quickDrop.isBusy } }
+                .background(MainWindowAttacher(busy: model.isRunning || quickDrop.isBusy))
+                .quitBlockedNotice(isBusy: model.isRunning || quickDrop.isBusy)
         }
         // The queue is a list, so the window is resizable (macOS restores its size
         // and position between launches): the queue takes the slack while the
