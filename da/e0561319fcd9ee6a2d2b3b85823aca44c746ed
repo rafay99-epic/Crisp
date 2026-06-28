@@ -1,0 +1,41 @@
+apps/desktop/Sources/CrispCore/Engine/CleanRunner.swift
+  s_fb9b4bc3d01c7a::t_ee8bfce625823b 122-124
+apps/desktop/Tests/CrispTests/CrispTests.swift
+  s_fb9b4bc3d01c7a::t_5139a1b7225119 495,504-506
+idea.md
+  s_1c9eefb4447eda::t_424dfd51c87c12 34-40
+  s_390b1826d61e77::t_3d2f9f22b6421c 55-89,95-98
+  s_1c9eefb4447eda::t_3cd8786b939193 93
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "dae0561319fcd9ee6a2d2b3b85823aca44c746ed",
+  "prompts": {},
+  "sessions": {
+    "s_1c9eefb4447eda": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e19c83fe-6f19-40d2-8102-46ce01d7fa72",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    },
+    "s_390b1826d61e77": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "47d2ffe9-ceff-4aa9-8f1c-d2e02dd230cc",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    },
+    "s_fb9b4bc3d01c7a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7f55075b-02b5-4077-8d8c-d8aed90ce6c4",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
