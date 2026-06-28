@@ -114,6 +114,10 @@ def _export_editor_project(src, keep, out_dir, project_dir, target_fps,
 
         meta = probe_stream_meta(media_tmp, logger=logger)
         dur = ffprobe_duration(media_tmp, logger=logger)
+        if dur <= 0:
+            # ffprobe_duration returns 0.0 on failure; build_fcpxml would turn that into
+            # a 1-frame asset. Fail loudly instead of emitting a bogus timeline.
+            raise CleanError("Couldn't read the editor copy's duration.")
         xml = build_fcpxml(
             media_uri=media_copy.resolve().as_uri(), name=Path(src).stem,
             num=meta["fps_num"], den=meta["fps_den"], width=meta["width"], height=meta["height"],
