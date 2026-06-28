@@ -1,0 +1,23 @@
+apps/desktop/Resources/engine/crisp/tools.py
+  s_1c9eefb4447eda::t_c79434e9b85bc9 107-109
+apps/desktop/Resources/engine/crisp/pipeline.py
+  s_1c9eefb4447eda::t_ed1d4eb978e7be 435
+  s_1c9eefb4447eda::t_da67260b2da110 402-405,409
+  s_1c9eefb4447eda::t_5186d3359c53a0 434
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "e7e910c1568789f0ddddeb4a7b249c486780c307",
+  "prompts": {},
+  "sessions": {
+    "s_1c9eefb4447eda": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e19c83fe-6f19-40d2-8102-46ce01d7fa72",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
