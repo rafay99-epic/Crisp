@@ -68,9 +68,9 @@ final class ProcessingGuard {
     }
 
     /// Raise the "can't quit yet" notice and bring Crisp forward so the user sees why.
-    /// `windowless` is true when there's no visible window to host the SwiftUI sheet —
-    /// e.g. a menu-bar Quick Clean running with the main window closed — in which case we
-    /// must not silently swallow the refusal; a standalone notice carries it instead.
+    /// When a visible window can host it, that's the SwiftUI sheet; when there isn't one —
+    /// e.g. a menu-bar Quick Clean running with the main window closed — a standalone
+    /// notice carries the refusal instead, so it's never silently swallowed.
     func refuse() {
         // `NSApp` is nil in a headless context (e.g. unit tests); only the running app
         // needs bringing forward so the user can see the notice.
@@ -85,13 +85,27 @@ final class ProcessingGuard {
 
     /// The fallback when the refusal can't ride the main window's sheet (it's closed): a
     /// standalone notice so a ⌘Q during a menu-bar Quick Clean is never silently ignored.
+    /// The alert is modal, so — like the sheet, which auto-dismisses when work ends — we
+    /// poll the busy state and abort the modal once the render finishes, otherwise a notice
+    /// left untouched would keep the app pinned long after it was safe to quit.
     private func presentWindowlessNotice() {
         guard NSApp != nil else { return }   // headless: nothing to show, nothing to block
         let alert = NSAlert()
         alert.messageText = QuitGuardCopy.title
         alert.informativeText = QuitGuardCopy.body
         alert.addButton(withTitle: QuitGuardCopy.action)
+
+        // Tear the alert down by itself once the render finishes. The timer must run in the
+        // modal run-loop mode (`.common` covers it) — a default-mode timer never fires
+        // while `runModal` owns the loop.
+        let timer = Timer(timeInterval: 0.25, repeats: true) { [weak self] timer in
+            guard self?.busy != true else { return }
+            timer.invalidate()
+            NSApp.abortModal()
+        }
+        RunLoop.main.add(timer, forMode: .common)
         alert.runModal()
+        timer.invalidate()
     }
 }
 
