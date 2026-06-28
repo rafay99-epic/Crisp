@@ -21,7 +21,7 @@ from .encode import (
 from .enginelog import EngineLogger
 from .errors import CleanError
 from .framerate import resolve_target_fps
-from .timeline import build_fcpxml, project_paths
+from .timeline import build_fcpxml, project_paths, timeline_seconds
 from .tools import (
     ffmpeg_bin, ffprobe_duration, probe_stream_meta, probe_video_fps, which_filler, which_whisper,
 )
@@ -37,7 +37,8 @@ def _export_editor_project(src, keep, out_dir, project_dir, target_fps,
     """Model-A editor handoff: drop a copy of the ORIGINAL plus a non-destructive
     FCPXML timeline into a project folder, so an editor (DaVinci Resolve) can open the
     already-cut footage and still adjust every cut. Returns (fcpxml_path, project_dir,
-    media_copy_path). The original is never touched.
+    media_copy_path, timeline_seconds) — timeline_seconds is the frame-snapped kept
+    length so reported stats match the actual timeline. The original is never touched.
 
     A CFR source is copied byte-for-byte (zero re-encode — the whole point). A source
     that needs normalization (VFR, or an explicit constant rate) is re-encoded to CFR
@@ -91,7 +92,8 @@ def _export_editor_project(src, keep, out_dir, project_dir, target_fps,
     except OSError as e:
         raise CleanError(f"Couldn't write the editor timeline.\n{e}") from e
     logger.info(f"editor project: {pdir} (fcpxml={fcpxml_path.name}, media={media_copy.name})")
-    return fcpxml_path, pdir, media_copy
+    snapped = timeline_seconds(keep, meta["fps_num"], meta["fps_den"])
+    return fcpxml_path, pdir, media_copy, snapped
 
 
 # Analyze-only captures every candidate gap down to this floor; the app applies the
@@ -200,6 +202,12 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
     # whenever fillers are removed OR captions are requested. But an explicit reviewed
     # keep-list (the app's edit-timeline output) bypasses detection entirely — no audio
     # analysis, transcription, or model — so we render exactly the approved segments.
+    # An editor handoff writes no captions (there's no rendered deliverable to attach
+    # them to), so drop a caption request up front — before it would pull transcription
+    # work that produces nothing. Fillers/retakes still transcribe as needed.
+    if export_timeline == "fcpxml" and captions != "none":
+        on_log("Captions aren't written for an editor handoff — add them in your editor.")
+        captions = "none"
     want_captions = captions != "none"
     # Retake detection needs a real transcript, which the Core ML classifier can't
     # produce. Rather than silently switch a classifier run onto whisper, the engine
@@ -399,28 +407,27 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
     # Effective output length: a crossfade overlaps each join, so the reported
     # new/saved seconds match the file render() actually writes (not the raw sum).
     kept_dur = output_duration(keep, crossfade_ms / 1000.0)
-    # An editor handoff is hard cuts (no crossfade), so its kept length differs from a
-    # crossfaded render. Use the right one for the status line AND the returned stats.
-    effective_kept = output_duration(keep, 0.0) if export_timeline == "fcpxml" else kept_dur
-    logger.info(f"keep {len(keep)} segments, kept {effective_kept:.2f}s, "
+    logger.info(f"keep {len(keep)} segments, kept {kept_dur:.2f}s, "
                 f"fillers={stats['fillers']} pauses={stats['pauses']} retakes={stats['retakes']}")
     retake_note = f", {stats['retakes']} repeated takes" if stats["retakes"] else ""
     on_log(f"Removing {stats['fillers']} filler words and {stats['pauses']} pauses{retake_note}.")
-    on_log(f"{duration:.0f}s  →  {effective_kept:.0f}s  (saved {duration - effective_kept:.0f}s)")
 
-    # Editor handoff (Model A): write a non-destructive editor project and STOP —
-    # no render, no encode (that's the whole point: the editor finishes the cut).
-    # Branches out here before the render, so backup/captions/split (which describe a
-    # rendered deliverable) don't run either.
+    # Editor handoff (Model A): write a non-destructive editor project and STOP — no
+    # render, no encode (that's the whole point: the editor finishes the cut). Branches
+    # out here before the render, so backup/captions/split don't run either.
     if export_timeline == "fcpxml":
-        # Captions describe a rendered deliverable; an editor timeline has none, so a
-        # caption request can't be honored here — say so rather than silently dropping it.
-        if want_captions:
-            on_log("Captions aren't written for an editor handoff — add them in your editor.")
         on_progress(0.62, "Saving your timeline…")
-        fcpxml_path, pdir, media_copy = _export_editor_project(
+        # The editor copy keeps the SOURCE's container (and name), not the chosen output
+        # container — so re-resolve codecs against the source. Otherwise a WebM output
+        # setting (which forces VP9) would try to write VP9 into an .mp4/.mov copy.
+        src_container = resolve_container("auto", src.suffix)
+        ev_codec, ea_codec, ev_hw, _ = resolve_codecs(src_container, video_codec, audio_codec, hardware)
+        fcpxml_path, pdir, media_copy, kept_secs = _export_editor_project(
             src, keep, out_dir, project_dir, target_fps,
-            video_codec, hardware, quality, audio_codec, audio_bitrate, on_log, logger)
+            ev_codec, ev_hw, quality, ea_codec, audio_bitrate, on_log, logger)
+        # kept_secs is frame-snapped (matches the actual timeline), so the status line
+        # and the returned stats agree.
+        on_log(f"{duration:.0f}s  →  {kept_secs:.0f}s  (saved {duration - kept_secs:.0f}s)")
         on_progress(1.0, "Done")
         on_log(f"✅ Your cuts are ready to open in a video editor — {pdir.name}")
         return {
@@ -431,8 +438,8 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
             "export_timeline": "fcpxml",
             "backup": str(backup_path) if backup_path else "",
             "orig_seconds": duration,
-            "new_seconds": effective_kept,
-            "saved_seconds": duration - effective_kept,
+            "new_seconds": kept_secs,
+            "saved_seconds": duration - kept_secs,
             "fillers": stats["fillers"],
             "pauses": stats["pauses"],
             "retakes": stats["retakes"],
@@ -444,6 +451,7 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
             "vtt_output": "",
         }
 
+    on_log(f"{duration:.0f}s  →  {kept_dur:.0f}s  (saved {duration - kept_dur:.0f}s)")
     audio = audio_args(audio_codec, audio_bitrate)
     mux = container_args(container)
     fade_s, crossfade_s = fade_ms / 1000.0, crossfade_ms / 1000.0

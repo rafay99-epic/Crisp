@@ -68,9 +68,11 @@ impact-per-effort. Living doc — add/reorder freely.
 12. **Export to your editor (FCPXML / EDL / DaVinci XML)** — instead of rendering,
     export the detected cuts as a *non-destructive timeline* the user opens in
     DaVinci / Final Cut / Premiere. Crisp does the tedious detection; they finish in
-    their NLE. **Zero re-encode** — perfectly on-brand ("honest quality, never touch
-    the footage") and the killer feature for serious creators (the kind who pay).
-    Reuses the keep/cut span list the engine already produces. **Top pro pick.**
+    their NLE. **Zero re-encode for constant-frame-rate sources** (a variable-frame-rate
+    source incurs one normalization pass to CFR first, so the timeline lands
+    frame-accurately) — on-brand ("honest quality, never touch the footage") and the
+    killer feature for serious creators (the kind who pay). Reuses the keep/cut span
+    list the engine already produces. **Top pro pick.**
 13. **Chapter detection + export** — auto-generate YouTube / podcast chapter markers
     from long pauses + transcript topic shifts; export as chapter metadata or a
     timestamp list. Reuses the existing transcript; concrete, visible creator value.

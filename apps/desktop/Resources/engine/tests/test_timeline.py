@@ -5,7 +5,7 @@ from xml.dom import minidom
 
 from crisp.errors import CleanError
 from crisp.timeline import (
-    FCPXML_VERSION, build_fcpxml, frame_time, project_paths, secs_to_frames,
+    FCPXML_VERSION, build_fcpxml, frame_time, project_paths, secs_to_frames, timeline_seconds,
 )
 
 
@@ -113,6 +113,18 @@ class BuildFcpxmlTests(unittest.TestCase):
     def test_unknown_fps_raises(self):
         with self.assertRaises(CleanError):
             self._doc(num=0, den=0)
+
+
+class TimelineSecondsTests(unittest.TestCase):
+    def test_snaps_to_frame_grid(self):
+        # 1.008s at 60fps rounds to 60 frames = 1.0s, not the raw 1.008s span.
+        self.assertAlmostEqual(timeline_seconds([(0.0, 1.008)], 60, 1), 1.0, places=6)
+
+    def test_sums_multiple_clips(self):
+        self.assertAlmostEqual(timeline_seconds([(0.0, 1.0), (2.0, 3.5)], 60, 1), 2.5, places=6)
+
+    def test_unknown_rate_falls_back_to_raw_sum(self):
+        self.assertAlmostEqual(timeline_seconds([(0.0, 1.0), (2.0, 3.5)], 0, 0), 2.5, places=6)
 
 
 class ProjectPathsTests(unittest.TestCase):

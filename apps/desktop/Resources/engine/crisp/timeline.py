@@ -46,6 +46,22 @@ def frame_time(frames: int, num: int, den: int) -> str:
     return f"{n}s" if d == 1 else f"{n}/{d}s"
 
 
+def timeline_seconds(keep: list, num: int, den: int) -> float:
+    """The kept duration as it actually lands on the frame grid — the sum of each
+    clip's whole-frame count × the frame duration. This matches what build_fcpxml()
+    writes (which snaps every span to frames), so reported new/saved seconds agree
+    with the real timeline instead of the raw second spans. Falls back to the raw
+    sum when the frame rate is unknown."""
+    if num <= 0 or den <= 0:
+        return sum(max(0.0, e - s) for s, e in keep)
+    total_frames = 0
+    for s, e in keep:
+        f = secs_to_frames(e, num, den) - secs_to_frames(s, num, den)
+        if f > 0:
+            total_frames += f
+    return total_frames * den / num
+
+
 def _audio_rate_attr(hz: int) -> str:
     """FCPXML audioRate spelling for the common sample rates (others pass through)."""
     return {48000: "48k", 44100: "44.1k", 96000: "96k"}.get(int(hz), str(int(hz)))
