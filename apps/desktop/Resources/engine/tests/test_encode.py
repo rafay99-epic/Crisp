@@ -249,9 +249,12 @@ class ResolvePixFmtTests(unittest.TestCase):
 
     def test_force_10_on_8bit_wide_chroma_returns_a_real_10bit_format(self):
         # The bug: 8-bit 4:2:2/4:4:4 reads as "high" (wide chroma) but is NOT 10-bit, so
-        # Force-10-bit must still bump it to a genuine 10-bit format (keeping its chroma),
-        # never return the 8-bit source unchanged.
-        for src, want in (("yuv422p", "yuv422p10le"), ("yuv444p", "yuv444p10le")):
+        # Force-10-bit must still bump it to a genuine 10-bit format that KEEPS its chroma
+        # (any alias — planar yuvj*, packed yuyv/uyvy — not just yuv422p/yuv444p), never
+        # falling through to 10-bit 4:2:0 (which would silently downgrade the chroma).
+        for src, want in (("yuv422p", "yuv422p10le"), ("yuv444p", "yuv444p10le"),
+                          ("yuvj422p", "yuv422p10le"), ("yuvj444p", "yuv444p10le"),
+                          ("yuyv422", "yuv422p10le"), ("uyvy422", "yuv422p10le")):
             pix, notes = resolve_pix_fmt("10", src)
             self.assertEqual(pix, want, src)
             self.assertTrue(is_deep_pix_fmt(pix), pix)   # genuinely 10-bit now

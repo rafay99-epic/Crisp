@@ -49,15 +49,10 @@ def is_high_bit_depth(pix_fmt: str) -> bool:
 
 
 # The 10-bit 4:2:0 software pixel format every encoder we drive understands
-# (libx264 High 10, libx265 Main10, libvpx-vp9 profile 2). It's the target when an
-# 8-bit source is forced to 10-bit and isn't a wider-chroma format (those keep their
-# chroma via WIDE_8_TO_10_PIX_FMT). We never synthesize wider chroma than the source had.
+# (libx264 High 10, libx265 Main10, libvpx-vp9 profile 2). It's the target when an 8-bit
+# source is forced to 10-bit and isn't wider chroma (4:2:2/4:4:4 keep their chroma — see
+# the "10" branch of resolve_pix_fmt). We never synthesize wider chroma than the source had.
 TEN_BIT_PIX_FMT = "yuv420p10le"
-
-# Force-10-bit on an 8-bit WIDE-chroma source: bump to the matching 10-bit format so the
-# chroma the source carried isn't thrown away on the way to 10-bit (libx264/libx265 both
-# encode these). Anything else 8-bit falls through to TEN_BIT_PIX_FMT (10-bit 4:2:0).
-WIDE_8_TO_10_PIX_FMT = {"yuv422p": "yuv422p10le", "yuv444p": "yuv444p10le"}
 
 
 def resolve_pix_fmt(color_depth: str, src_pix_fmt: str):
@@ -92,9 +87,16 @@ def resolve_pix_fmt(color_depth: str, src_pix_fmt: str):
             # rather than coercing it down to plain 4:2:0 10-bit.
             return src, notes
         # An 8-bit source (incl. 8-bit 4:2:2/4:4:4, which is_high_bit_depth flags as
-        # wide-chroma but is NOT 10-bit) is upconverted — keeping its chroma where we can.
+        # wide-chroma but is NOT 10-bit) is upconverted — keeping its chroma where we can:
+        # a 4:4:4/4:2:2 source (any alias — yuv444p, yuvj422p, yuyv422…) bumps to the matching
+        # 10-bit format; everything else goes to 10-bit 4:2:0. Substring match, like is_*_depth.
         notes.append("Encoding 8-bit source as 10-bit — your setting forces it (no quality gain).")
-        return WIDE_8_TO_10_PIX_FMT.get(src.lower(), TEN_BIT_PIX_FMT), notes
+        src_low = src.lower()
+        if "444" in src_low:
+            return "yuv444p10le", notes
+        if "422" in src_low:
+            return "yuv422p10le", notes
+        return TEN_BIT_PIX_FMT, notes
 
     # "auto" (and any unexpected value): match the source. Preserve a high-bit-depth /
     # wide-chroma source; an empty/unknown or plain 8-bit format stays the safe 8-bit 4:2:0.
