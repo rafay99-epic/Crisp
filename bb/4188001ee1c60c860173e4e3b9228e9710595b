@@ -1,0 +1,65 @@
+apps/desktop/Resources/engine/crisp/config.py
+  s_ec4a8f9f437cbc::t_e2f7e56e35b61c 65-69
+apps/desktop/Sources/CrispCore/Engine/EngineConfig.swift
+  s_ec4a8f9f437cbc::t_936bf7f566a1e0 102
+  s_ec4a8f9f437cbc::t_a4627f3d8bed95 137
+  s_ec4a8f9f437cbc::t_d63882862fc6f5 165
+  s_ec4a8f9f437cbc::t_41daadc809a884 207
+  s_ec4a8f9f437cbc::t_068368c29eb70b 30-33
+  s_ec4a8f9f437cbc::t_40dee3f4f6772e 123
+apps/desktop/Sources/CrispCore/Models/EncodingOptions.swift
+  s_ec4a8f9f437cbc::t_05237539661f45 29-55
+apps/desktop/Sources/CrispCore/Engine/CleanRunner.swift
+  s_ec4a8f9f437cbc::t_a544b319a57529 106
+apps/desktop/Resources/engine/clean_video.py
+  s_ec4a8f9f437cbc::t_e61c56034a8808 94-97
+  s_ec4a8f9f437cbc::t_e781d8bbaaccb2 234-235
+  s_ec4a8f9f437cbc::t_7a26ad82462243 49-53
+apps/desktop/Sources/Crisp/Views/SettingsView.swift
+  s_ec4a8f9f437cbc::t_1ae2fdf3afec5e 35-49
+  s_ec4a8f9f437cbc::t_7d728524d0e912 20-22
+  s_ec4a8f9f437cbc::t_fe05739453bd51 196-211
+apps/desktop/Tests/CrispTests/CrispTests.swift
+  s_ec4a8f9f437cbc::t_e7c488eae79582 387
+  s_ec4a8f9f437cbc::t_220a6fac441284 442
+  s_ec4a8f9f437cbc::t_d227fd852b087b 322-350
+apps/desktop/Resources/engine/crisp/encode.py
+  s_ec4a8f9f437cbc::t_345bd352e7f423 40-87
+apps/desktop/Sources/Crisp/Services/Cleaning/EngineSettings.swift
+  s_ec4a8f9f437cbc::t_6d3f8d466f202d 29
+  s_ec4a8f9f437cbc::t_151e3f344f4548 177
+  s_ec4a8f9f437cbc::t_f4570537679da5 78
+  s_ec4a8f9f437cbc::t_be3413ca701398 120-122
+apps/desktop/Resources/engine/crisp/pipeline.py
+  s_ec4a8f9f437cbc::t_09b52085adccf1 11-15
+  s_ec4a8f9f437cbc::t_2aa9eeb8552a68 151,156-163
+  s_ec4a8f9f437cbc::t_5f49cbe21e83e3 392
+  s_ec4a8f9f437cbc::t_e122b3e9a1e97f 654-690
+  s_ec4a8f9f437cbc::t_7ec3eef40134c6 38-50
+  s_ec4a8f9f437cbc::t_7220e2d033d17b 332
+  s_ec4a8f9f437cbc::t_7310ec29b819eb 23
+apps/desktop/Resources/engine/tests/test_encode.py
+  s_ec4a8f9f437cbc::t_e344b1add58484 7-8
+  s_ec4a8f9f437cbc::t_d80a0cf0b2ac45 165-211
+apps/desktop/Sources/CrispCore/Models/CleanParameters.swift
+  s_ec4a8f9f437cbc::t_3393dfffe1389c 35
+  s_ec4a8f9f437cbc::t_13d834cec89b64 54
+  s_ec4a8f9f437cbc::t_a58b368bd68c39 20
+  s_ec4a8f9f437cbc::t_e0641001194dad 84-87
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "bb4188001ee1c60c860173e4e3b9228e9710595b",
+  "prompts": {},
+  "sessions": {
+    "s_ec4a8f9f437cbc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a4fdbd9c-d1e0-4104-8af6-55e6fba7481f",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
