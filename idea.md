@@ -65,14 +65,39 @@ impact-per-effort. Living doc — add/reorder freely.
 
 ## 💎 Pro (justifies the paid tier)
 
-12. **Export to your editor (FCPXML / EDL / DaVinci XML)** — instead of rendering,
-    export the detected cuts as a *non-destructive timeline* the user opens in
-    DaVinci / Final Cut / Premiere. Crisp does the tedious detection; they finish in
-    their NLE. **Zero re-encode for constant-frame-rate sources** (a variable-frame-rate
-    source incurs one normalization pass to CFR first, so the timeline lands
-    frame-accurately) — on-brand ("honest quality, never touch the footage") and the
-    killer feature for serious creators (the kind who pay). Reuses the keep/cut span
-    list the engine already produces. **Top pro pick.**
+12. ✅ **Shipped (PR #79) — "Send to a video editor" (FCPXML, DaVinci Resolve).**
+    Instead of rendering, export the detected cuts as a *non-destructive timeline* the
+    user opens in DaVinci Resolve (free edition works — File ▸ Import ▸ Timeline; no
+    Studio scripting API needed). Crisp writes a `<name> (Crisp)/` folder = a copy of
+    the original + an `.fcpxml`. **Zero re-encode for CFR sources** (VFR is normalized to
+    CFR once, frame-accurately). Engine: `crisp/timeline.py` + `tools.probe_stream_meta`
+    + `pipeline._export_editor_project`; app: `EditorDetector`, Settings → Output → "Send
+    my cuts to a video editor", auto editor-picker sheet on finish. **Top pro pick.**
+    - **Open follow-ups (deferred — not blockers):**
+      - *Hard-cancel leftover:* a force-kill (SIGKILL) mid-copy can leave a partial
+        `(Crisp)` folder; we clean up on caught errors but can't on SIGKILL. Low impact
+        (original untouched; re-export overwrites). Could add a stale-partial sweep.
+      - *History project path:* an editor handoff records the `.fcpxml` path but not the
+        project folder, so History can't reveal the project after an app restart.
+      - *Presets drop fields:* `Preset.parameters()` rebuilds from defaults and only
+        carries cut/encode knobs — captions / frame-rate / smoothing / split fall back to
+        defaults (pre-existing; this PR only threaded the new `exportToEditor`). Worth
+        making presets capture the full recipe.
+    - **NEXT (the big one the user is curious about) — auto-import spike.** Goal: skip the
+      manual File ▸ Import step by auto-creating a Resolve project + importing the
+      timeline. Hard fact from research: the *external* scripting API is Studio-only; the
+      user has free (Lite, bundle id `com.blackmagic-design.DaVinciResolveLite`). User
+      wants to TEST it on their machine anyway (sources conflict). To run the spike, the
+      user must set **Resolve → Preferences → System → General → "External scripting
+      using" = Local** and keep Resolve running; then run a tiny Python using
+      `RESOLVE_SCRIPT_API`/`RESOLVE_SCRIPT_LIB` (paths in the README inside the .app) to
+      try `scriptapp("Resolve")` + `ImportTimelineFromFile`. If it connects on free →
+      build real auto-import; if gated → keep the manual import (UI automation is the
+      brittle fallback we'd avoid). Note: user's Python is 3.14 (fusionscript may not load
+      there — part of what the spike reveals).
+13. **Chapter detection + export** — auto-generate YouTube / podcast chapter markers
+    from long pauses + transcript topic shifts; export as chapter metadata or a
+    timestamp list. Reuses the existing transcript; concrete, visible creator value.
 13. **Chapter detection + export** — auto-generate YouTube / podcast chapter markers
     from long pauses + transcript topic shifts; export as chapter metadata or a
     timestamp list. Reuses the existing transcript; concrete, visible creator value.
