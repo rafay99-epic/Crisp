@@ -15,7 +15,7 @@ from .config import (
     MIN_KEEP, RETAKE_ANCHOR_PAUSE, RETAKE_SENSITIVITY,
 )
 from .detect import detect_silences, extract_audio, filler_words, filter_silences, transcribe
-from .edit import (build_keep_segments, gate_fillers_by_silence, make_backup,
+from .edit import (_output_owner, build_keep_segments, gate_fillers_by_silence, make_backup,
                    output_duration, render, snap_keep_to_zero_crossings, tag_output_source,
                    unique_output_path)
 from .encode import (
@@ -92,12 +92,19 @@ def _export_editor_project(src, keep, out_dir, project_dir, target_fps,
     # hashed-source sidecar (filesystem-independent, unlike an xattr, so re-export is
     # idempotent on NAS/exFAT too — and it doesn't leak the source path).
     src_id = _source_id(src)
+    # MIGRATION: editor projects made by the previously-shipped build identified the folder
+    # by the source-path xattr (no sidecar). Still MATCH that legacy xattr so re-exporting
+    # an old project reuses it instead of spawning "(Crisp) 1". We only READ it here — the
+    # successful re-export writes the new hashed sidecar (and re-copies the media without the
+    # xattr), so the folder migrates forward and the plaintext path stops being stored.
+    legacy_marker = os.fsencode(str(src))
     base = pdir.name
     i = 0
     while True:
         cand = pdir if i == 0 else pdir.with_name(f"{base} {i}")
         cand_media, cand_fcp = cand / media_copy.name, cand / fcpxml_path.name
-        if not cand.exists() or _read_source_marker(cand) == src_id:
+        if (not cand.exists() or _read_source_marker(cand) == src_id
+                or _output_owner(cand_media) == legacy_marker):
             pdir, media_copy, fcpxml_path = cand, cand_media, cand_fcp
             break
         i += 1
