@@ -17,6 +17,9 @@ struct SettingsView: View {
     @Bindable var model: CleanModel
 
     @State private var newPresetName = ""
+    /// Force-10-bit confirmation: it upconverts an 8-bit source for no real gain, so the
+    /// picker warns before committing (the user can still proceed for a delivery spec).
+    @State private var confirmForce10 = false
     @State private var snapshot = SystemProbe.snapshot()
     /// Dev sideload: the local model path picked in this build (mirrors
     /// `DevFillerModel.pickedPath`; `@State` so the UI refreshes after picking).
@@ -27,6 +30,21 @@ struct SettingsView: View {
     /// so it stays in one place as containers are added.
     private var isWebM: Bool {
         OutputContainer(rawValue: settings.outputContainer)?.forcesOwnCodecs ?? false
+    }
+
+    /// Color-depth picker binding that intercepts the forced-10-bit choice to confirm
+    /// first (upconverting 8-bit gains nothing); every other choice applies immediately.
+    private var colorDepthBinding: Binding<String> {
+        Binding(
+            get: { settings.colorDepth },
+            set: { newValue in
+                if ColorDepth(rawValue: newValue)?.warnsOnSelect == true {
+                    confirmForce10 = true          // hold the picker; commit only on confirm
+                } else {
+                    settings.colorDepth = newValue
+                }
+            }
+        )
     }
 
     /// The running build, e.g. "0.12" or "0.12 (build 34)" on Nightly.
@@ -173,6 +191,22 @@ struct SettingsView: View {
             }
             Picker("Audio bitrate", selection: $settings.audioBitrateKbps) {
                 ForEach([128, 160, 192, 256], id: \.self) { Text("\($0) kbps").tag($0) }
+            }
+
+            // Color depth — "Automatic" matches the source so 10-bit/HDR footage is never
+            // crushed to 8-bit. Independent of the container (VP9 supports 10-bit too), so
+            // it stays enabled even when WebM disables the codec controls above.
+            Picker("Color depth", selection: colorDepthBinding) {
+                ForEach(ColorDepth.allCases) { Text($0.label).tag($0.rawValue) }
+            }
+            .alert("Force 10-bit output?", isPresented: $confirmForce10) {
+                Button("Keep Automatic", role: .cancel) { }
+                Button("Force 10-bit") { settings.colorDepth = ColorDepth.force10.rawValue }
+            } message: {
+                Text("10-bit doesn\u{2019}t improve 8-bit footage \u{2014} it just makes a larger file that encodes more slowly (in software). Automatic already keeps a real 10-bit or HDR source at 10-bit. Force this only if a delivery spec requires it.")
+            }
+            if let depth = ColorDepth(rawValue: settings.colorDepth) {
+                Text(depth.detail).font(.caption).foregroundStyle(.secondary)
             }
 
             // Frame rate — screen recordings (OBS, macOS capture) are often variable

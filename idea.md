@@ -6,36 +6,6 @@ impact-per-effort. Living doc — add/reorder freely.
 
 ---
 
-## ⭐ Top priority — IMPORTANT
-
-17. ⭐ **Source-aware encoding — auto-detect bit depth (8/10-bit) and never downgrade
-    footage.** **The most important quality issue.** The normal clean/render path today
-    **always re-encodes to 8-bit 4:2:0 (`yuv420p`)** — so a creator who records in 10-bit
-    (or HDR / 4:2:2) gets their footage **silently flattened to 8-bit** in their cleaned
-    video. That violates philosophy #3 ("never silently degrade"). Fix = the app **reads
-    the source video's data and sets the encode defaults to MATCH it**, automatically:
-    - **Detect on import** (we already probe `pix_fmt` + color tags for the editor handoff
-      — `tools.probe_stream_meta` / `parse_stream_meta`): bit depth (8/10/12-bit), chroma
-      (4:2:0/4:2:2/4:4:4), color/HDR (Rec.709/2020 PQ/HLG), and bitrate.
-    - **Default = match the source, no downgrade.** 8-bit source → 8-bit (what most people,
-      incl. the user, record — so the default "just works" and stays fast on hardware);
-      10-bit/HDR source → preserve 10-bit (software encode, since Apple VideoToolbox is
-      unreliable for 10-bit/4:2:2 — same lesson as the editor copy). Carry color tags
-      through so HDR isn't flattened.
-    - **User override in Settings ▸ Output:** a "Color depth" control — **Automatic (match
-      source)** default / Force 8-bit / Force 10-bit — alongside the existing codec/quality
-      knobs. Honest about the speed/size tradeoff.
-    - **Scope:** this is the GENERAL render path (the cleaned `<name>_cleaned` video). The
-      **editor handoff already preserves bit depth/chroma** (shipped in PR #81); this
-      generalizes that to the main clean output and makes it an auto-detected, overridable
-      setting. Engine seam exists: `encode.video_args` already takes a `pix_fmt`, and
-      `encode.is_high_bit_depth` already classifies formats — wire detection → pix_fmt +
-      encoder choice + the hardware→software fallback into `pipeline.render()`, then add
-      the field to `EngineConfig`/`EngineSettings`/`SettingsView` + `CleanParameters`.
-    - **Big, important feature — do NOT bolt onto PR #81 (already large); its own PR.**
-
----
-
 ## 🎨 Polish (premium feel)
 
 1. **Before/after preview of the *result*** — scrub/play the cleaned result (or A/B

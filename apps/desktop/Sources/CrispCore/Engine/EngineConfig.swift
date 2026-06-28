@@ -27,6 +27,10 @@ public struct EngineConfig: Codable, Equatable, Sendable {
     public var audioCodec: String        // "aac" | "opus"
     public var audioBitrateKbps: Int
     public var outputContainer: String   // "auto" | "mp4" | "mkv" | "mov" | "m4v" | "ts" | "webm"
+    // Output bit depth — "auto" matches the source (a 10-bit/HDR/wide-chroma recording is
+    // preserved, 8-bit stays 8-bit, so footage is never silently downgraded); "8"/"10"
+    // force it. (See ColorDepth + crisp/encode.py resolve_pix_fmt.)
+    public var colorDepth: String        // "auto" | "8" | "10"
     // Frame-rate handling — screen recorders emit variable-frame-rate video that the
     // cut render can drift A/V on. "auto" normalizes a detected VFR source to a
     // constant rate; "passthrough" keeps source timing; "constant" forces
@@ -95,6 +99,7 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         fadeMs: 10, crossfadeMs: 0, snapMs: 12,
         videoCodec: "hevc", hardwareEncoding: true, videoQuality: "high",
         audioCodec: "aac", audioBitrateKbps: 192, outputContainer: "auto",
+        colorDepth: "auto",
         frameRateMode: "auto", frameRateValue: 30,
         exportToEditor: false,
         outputDirectory: "",
@@ -115,7 +120,7 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         case version, pauseThreshold, silenceFloorDB, breathingRoom, minKeep
         case fadeMs, crossfadeMs, snapMs
         case videoCodec, hardwareEncoding, videoQuality, audioCodec, audioBitrateKbps
-        case outputContainer, frameRateMode, frameRateValue, exportToEditor
+        case outputContainer, colorDepth, frameRateMode, frameRateValue, exportToEditor
         case outputDirectory, splitTracks, splitAudioFormat, captionsFormat
         case retakeSensitivity, backupOriginal
         case watchEnabled, watchFolderPath, watchRemoveFillers
@@ -129,6 +134,7 @@ public struct EngineConfig: Codable, Equatable, Sendable {
                 minKeep: Double, fadeMs: Double = 10, crossfadeMs: Double = 0, snapMs: Double = 12,
                 videoCodec: String, hardwareEncoding: Bool, videoQuality: String,
                 audioCodec: String, audioBitrateKbps: Int, outputContainer: String,
+                colorDepth: String = "auto",
                 frameRateMode: String = "auto", frameRateValue: Double = 30,
                 exportToEditor: Bool = false,
                 outputDirectory: String,
@@ -156,6 +162,7 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         self.audioCodec = audioCodec
         self.audioBitrateKbps = audioBitrateKbps
         self.outputContainer = outputContainer
+        self.colorDepth = colorDepth
         self.frameRateMode = frameRateMode
         self.frameRateValue = frameRateValue
         self.exportToEditor = exportToEditor
@@ -197,6 +204,7 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         audioCodec         = try c.decodeIfPresent(String.self, forKey: .audioCodec) ?? d.audioCodec
         audioBitrateKbps   = try c.decodeIfPresent(Int.self, forKey: .audioBitrateKbps) ?? d.audioBitrateKbps
         outputContainer    = try c.decodeIfPresent(String.self, forKey: .outputContainer) ?? d.outputContainer
+        colorDepth         = try c.decodeIfPresent(String.self, forKey: .colorDepth) ?? d.colorDepth
         frameRateMode      = try c.decodeIfPresent(String.self, forKey: .frameRateMode) ?? d.frameRateMode
         frameRateValue     = try c.decodeIfPresent(Double.self, forKey: .frameRateValue) ?? d.frameRateValue
         exportToEditor     = try c.decodeIfPresent(Bool.self, forKey: .exportToEditor) ?? d.exportToEditor

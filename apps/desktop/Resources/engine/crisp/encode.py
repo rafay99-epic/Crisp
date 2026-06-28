@@ -37,6 +37,54 @@ def is_high_bit_depth(pix_fmt: str) -> bool:
     return deep or rgb_deep or wide_chroma
 
 
+# The 10-bit 4:2:0 software pixel format every encoder we drive understands
+# (libx264 High 10, libx265 Main10, libvpx-vp9 profile 2). It's the target when a
+# source is forced/preserved at 10-bit but isn't already a more specific high-bit
+# format. We never synthesize wider chroma (4:2:2/4:4:4) than the source had.
+TEN_BIT_PIX_FMT = "yuv420p10le"
+
+
+def resolve_pix_fmt(color_depth: str, src_pix_fmt: str, video_codec: str = "h264"):
+    """Pick the output pixel format for the rendered clean from the color-depth mode
+    and the source's own format, returning `(pix_fmt, notes)` — `notes` is a list of
+    human-readable strings so any depth change is surfaced, never silent.
+
+      "auto" — match the source: a high-bit-depth / wide-chroma source is preserved
+               exactly (10-bit stays 10-bit, 4:2:2 stays 4:2:2); a plain 8-bit 4:2:0
+               source stays 8-bit. The default — footage is never downgraded.
+      "8"    — force 8-bit 4:2:0 (`yuv420p`). Notes the loss when the source was deeper.
+      "10"   — force a 10-bit encode. A source that's already ≥10-bit is preserved as-is;
+               an 8-bit source is upconverted to `yuv420p10le` (no real quality gain —
+               the UI warns first — but it honors a 10-bit delivery spec).
+
+    Whether the result needs the software encoder is the caller's call via
+    `is_high_bit_depth(pix_fmt)` (Apple VideoToolbox is unreliable for >8-bit / wide
+    chroma — the same lesson as the editor copy), so this stays a pure format decision."""
+    src = (src_pix_fmt or "").strip()
+    src_high = is_high_bit_depth(src) and bool(src)
+    notes = []
+
+    if color_depth == "8":
+        if src_high:
+            notes.append("Encoding 8-bit — your setting forces it (the source is higher bit depth).")
+        return "yuv420p", notes
+
+    if color_depth == "10":
+        if src_high:
+            # Already 10-bit-or-deeper: preserve the source format exactly (keeps its
+            # chroma too) rather than coercing it down to plain 4:2:0 10-bit.
+            return src, notes
+        notes.append("Encoding 8-bit source as 10-bit — your setting forces it (no quality gain).")
+        return TEN_BIT_PIX_FMT, notes
+
+    # "auto" (and any unexpected value): match the source. Preserve a high-bit-depth /
+    # wide-chroma source; an empty/unknown or plain 8-bit format stays the safe 8-bit 4:2:0.
+    if src_high:
+        notes.append(f"Preserving the source's color depth ({src}).")
+        return src, notes
+    return "yuv420p", notes
+
+
 def video_args(codec: str, hardware: bool, quality: str, pix_fmt: str = "yuv420p") -> list:
     """ffmpeg `-c:v …` arguments for the chosen video encoder + quality level. `pix_fmt`
     defaults to 8-bit 4:2:0 (`yuv420p`, the compatible output for the rendered clean); the

@@ -17,6 +17,7 @@ public struct CleanParameters: Equatable, Sendable {
     public let audioCodec: String
     public let audioBitrateKbps: Int
     public let outputContainer: String
+    public let colorDepth: String        // "auto" | "8" | "10" — output bit depth
     public let frameRateMode: String     // "auto" | "passthrough" | "constant"
     public let frameRateValue: Double    // fps used when mode == "constant"
     public let exportTimeline: String    // "none" (render) | "fcpxml" (editor handoff)
@@ -31,6 +32,7 @@ public struct CleanParameters: Equatable, Sendable {
                 fadeMs: Double = 10, crossfadeMs: Double = 0, snapMs: Double = 12,
                 videoCodec: String, hardwareEncoding: Bool, videoQuality: String,
                 audioCodec: String, audioBitrateKbps: Int, outputContainer: String,
+                colorDepth: String = "auto",
                 frameRateMode: String = "auto", frameRateValue: Double = 30,
                 exportTimeline: String = "none",
                 outputDirectory: String, splitTracks: Bool, splitAudioFormat: String,
@@ -49,6 +51,7 @@ public struct CleanParameters: Equatable, Sendable {
         self.audioCodec = audioCodec
         self.audioBitrateKbps = audioBitrateKbps
         self.outputContainer = outputContainer
+        self.colorDepth = colorDepth
         self.frameRateMode = frameRateMode
         self.frameRateValue = frameRateValue
         self.exportTimeline = exportTimeline
@@ -78,6 +81,10 @@ extension Strength {
             audioCodec: config.audioCodec,
             audioBitrateKbps: config.audioBitrateKbps,
             outputContainer: config.outputContainer,
+            // Clamp a hand-edited/corrupt value to the default so the engine's
+            // --color-depth (fixed choices) never hard-fails a clean.
+            colorDepth: ColorDepth(rawValue: config.colorDepth)?.rawValue
+                ?? ColorDepth.auto.rawValue,
             frameRateMode: FrameRateMode(rawValue: config.frameRateMode)?.rawValue
                 ?? FrameRateMode.auto.rawValue,
             frameRateValue: config.frameRateValue,

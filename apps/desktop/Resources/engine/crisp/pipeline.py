@@ -8,11 +8,11 @@ import tempfile
 from pathlib import Path
 
 from .config import (
-    DEFAULT_AUDIO_BITRATE, DEFAULT_AUDIO_CODEC, DEFAULT_BACKUP, DEFAULT_CONTAINER, DEFAULT_CROSSFADE_MS,
-    DEFAULT_EXPORT_TIMELINE, DEFAULT_FADE_MS, DEFAULT_FPS, DEFAULT_FPS_MODE, DEFAULT_HARDWARE,
-    DEFAULT_KEEP_PAUSE, DEFAULT_MAX_PAUSE, DEFAULT_MODEL, DEFAULT_NOISE_DB, DEFAULT_QUALITY,
-    DEFAULT_REMOVE_RETAKES, DEFAULT_RETAKE_SENSITIVITY, DEFAULT_SNAP_MS, DEFAULT_VIDEO_CODEC,
-    MIN_KEEP, RETAKE_ANCHOR_PAUSE, RETAKE_SENSITIVITY,
+    DEFAULT_AUDIO_BITRATE, DEFAULT_AUDIO_CODEC, DEFAULT_BACKUP, DEFAULT_COLOR_DEPTH, DEFAULT_CONTAINER,
+    DEFAULT_CROSSFADE_MS, DEFAULT_EXPORT_TIMELINE, DEFAULT_FADE_MS, DEFAULT_FPS, DEFAULT_FPS_MODE,
+    DEFAULT_HARDWARE, DEFAULT_KEEP_PAUSE, DEFAULT_MAX_PAUSE, DEFAULT_MODEL, DEFAULT_NOISE_DB,
+    DEFAULT_QUALITY, DEFAULT_REMOVE_RETAKES, DEFAULT_RETAKE_SENSITIVITY, DEFAULT_SNAP_MS,
+    DEFAULT_VIDEO_CODEC, MIN_KEEP, RETAKE_ANCHOR_PAUSE, RETAKE_SENSITIVITY,
 )
 from .detect import detect_silences, extract_audio, filler_words, filter_silences, transcribe
 from .edit import (_output_owner, build_keep_segments, gate_fillers_by_silence, make_backup,
@@ -20,7 +20,7 @@ from .edit import (_output_owner, build_keep_segments, gate_fillers_by_silence, 
                    unique_output_path)
 from .encode import (
     audio_args, container_args, default_output_path, is_high_bit_depth, resolve_codecs,
-    resolve_container, video_args,
+    resolve_container, resolve_pix_fmt, video_args,
 )
 from .enginelog import EngineLogger
 from .errors import CleanError
@@ -33,6 +33,19 @@ from .tools import (
 
 def _noop(*_a, **_k):
     pass
+
+
+def _source_color_flags(src_meta) -> list:
+    """ffmpeg `-color_primaries/-color_trc/-colorspace` flags carried from the source
+    so its color characteristics (e.g. Rec.2020 PQ/HLG HDR) aren't silently flattened
+    to Rec.709 on the re-encode. Empty for any tag the source didn't declare. Shared by
+    the rendered clean and the editor copy so both tag the output the same way."""
+    flags = []
+    for flag, key in (("-color_primaries", "color_primaries"),
+                      ("-color_trc", "color_transfer"), ("-colorspace", "color_space")):
+        if src_meta.get(key):
+            flags += [flag, src_meta[key]]
+    return flags
 
 
 # The editor project's "which source made me" identity, used to reuse (and overwrite) the
@@ -135,21 +148,19 @@ def _export_editor_project(src, keep, out_dir, project_dir, target_fps,
             raise CleanError("Couldn't read the source video's properties.")
         # Carry the source's color characteristics onto the re-encoded copy (and into the
         # timeline) so an HDR / Rec.2020 source isn't silently flattened to Rec.709.
-        color_flags = []
-        for flag, key in (("-color_primaries", "color_primaries"),
-                          ("-color_trc", "color_transfer"), ("-colorspace", "color_space")):
-            if src_meta[key]:
-                color_flags += [flag, src_meta[key]]
+        color_flags = _source_color_flags(src_meta)
 
         if target_fps or force_encode:
             on_log(f"Making an editor-ready copy at {target_fps} fps…" if target_fps
                    else "Converting your footage to an editor-friendly format…")
-            # Preserve the source's bit depth / chroma (10-bit, 4:2:2…) rather than crushing
-            # to 8-bit 4:2:0 — this is the non-destructive handoff. Apple's VideoToolbox is
-            # unreliable for those formats, so a preserved copy uses the software encoder.
-            src_pix = src_meta["pix_fmt"]
-            preserve = is_high_bit_depth(src_pix) and bool(src_pix)
-            enc_pix = src_pix if preserve else "yuv420p"
+            # The editor copy always MATCHES the source's bit depth / chroma (10-bit,
+            # 4:2:2…) rather than crushing to 8-bit 4:2:0 — and never upscales it: the
+            # editor does the final encode, so this is purely the faithful handoff. Hence
+            # the resolver runs in "auto" (match-source) mode regardless of the user's
+            # Color-depth setting. Apple's VideoToolbox is unreliable for high-bit-depth /
+            # wide-chroma formats, so a preserved copy uses the software encoder.
+            enc_pix, _ = resolve_pix_fmt("auto", src_meta["pix_fmt"], video_codec)
+            preserve = is_high_bit_depth(enc_pix)
 
             def _normalize(hw, pix):
                 fps_args = ["-r", str(target_fps)] if target_fps else []
@@ -318,7 +329,7 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
                 noise=DEFAULT_NOISE_DB, keep_pause=DEFAULT_KEEP_PAUSE, min_keep=MIN_KEEP,
                 video_codec=DEFAULT_VIDEO_CODEC, hardware=DEFAULT_HARDWARE, quality=DEFAULT_QUALITY,
                 audio_codec=DEFAULT_AUDIO_CODEC, audio_bitrate=DEFAULT_AUDIO_BITRATE,
-                container=DEFAULT_CONTAINER, remove_fillers=True,
+                container=DEFAULT_CONTAINER, color_depth=DEFAULT_COLOR_DEPTH, remove_fillers=True,
                 remove_retakes=DEFAULT_REMOVE_RETAKES, backup=DEFAULT_BACKUP,
                 backup_dir=None, out_dir=None, split_tracks=False, split_audio="match",
                 waveform_buckets=0, keep_file=None, captions="none",
@@ -378,7 +389,7 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
 
     logger.info(f"src={src}")
     logger.info(f"out={out_path} container={container} video={video_codec} "
-                f"audio={audio_codec} hw={hardware} quality={quality} "
+                f"audio={audio_codec} hw={hardware} quality={quality} color_depth={color_depth} "
                 f"remove_fillers={remove_fillers} remove_retakes={remove_retakes} "
                 f"retake_sensitivity={retake_sensitivity} "
                 f"captions={captions} keep_file={bool(keep_file)} backup={backup}")
@@ -640,20 +651,43 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
     audio = audio_args(audio_codec, audio_bitrate)
     mux = container_args(container)
     fade_s, crossfade_s = fade_ms / 1000.0, crossfade_ms / 1000.0
-    try:
-        render(src, keep, out_path, on_log, stage(0.60, 1.0),
-               video_args(video_codec, hardware, quality), audio, mux,
-               fade=fade_s, crossfade=crossfade_s, fps=target_fps, logger=logger)
-    except CleanError:
-        if not hardware:
-            raise
-        # Hardware encoding can be unavailable in odd setups (e.g. a macOS VM
-        # with no media engine). Fall back to software so a clean never fails.
-        logger.notice("Hardware encoding failed — retrying in software")
-        on_log("Hardware encoding failed — falling back to software encoding…")
-        render(src, keep, out_path, on_log, stage(0.60, 1.0),
-               video_args(video_codec, False, quality), audio, mux,
-               fade=fade_s, crossfade=crossfade_s, fps=target_fps, logger=logger)
+
+    # Source-aware bit depth: probe the source's pixel format + color tags so the render
+    # MATCHES it instead of silently flattening 10-bit / HDR / wide-chroma footage to
+    # 8-bit (philosophy #3). `color_depth` ("auto"|"8"|"10") can override the match. A
+    # probe failure degrades to the safe 8-bit default rather than breaking the clean.
+    src_meta = probe_stream_meta(src, logger=logger, require_fps=False) or {}
+    enc_pix, depth_notes = resolve_pix_fmt(color_depth, src_meta.get("pix_fmt", ""), video_codec)
+    for note in depth_notes:
+        on_log(note)
+    color_flags = _source_color_flags(src_meta)
+
+    # Encode attempts, tried in order; each fallback SAYS what it gave up (never a silent
+    # quality drop). High-bit-depth formats need the software encoder (VideoToolbox is
+    # unreliable for >8-bit / wide chroma), so they start there; an 8-bit encode keeps the
+    # hardware→software fallback for odd setups (e.g. a VM with no media engine).
+    preserve = is_high_bit_depth(enc_pix)
+    attempts = [(hardware and not preserve, enc_pix)]
+    if attempts[0][0]:
+        attempts.append((False, enc_pix))       # hardware unavailable → software, same depth
+    if enc_pix != "yuv420p":
+        attempts.append((False, "yuv420p"))      # last resort: drop to standard 8-bit 4:2:0
+    last = len(attempts) - 1
+    for i, (hw, pix) in enumerate(attempts):
+        try:
+            render(src, keep, out_path, on_log, stage(0.60, 1.0),
+                   video_args(video_codec, hw, quality, pix) + color_flags, audio, mux,
+                   fade=fade_s, crossfade=crossfade_s, fps=target_fps, logger=logger)
+            break
+        except CleanError:
+            if i == last:
+                raise
+            if attempts[i + 1][1] != pix:        # the next attempt gives up the source's depth
+                logger.notice(f"Couldn't encode pixel format {pix} — falling back to 8-bit 4:2:0")
+                on_log("Couldn't preserve the source's color format — using standard 8-bit…")
+            else:                                 # same depth, just dropping hardware
+                logger.notice("Hardware encoding failed — retrying in software")
+                on_log("Hardware encoding failed — falling back to software encoding…")
 
     if not explicit_out:
         # Tag the derived output so a later re-clean of this same source overwrites it,

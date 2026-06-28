@@ -4,8 +4,8 @@ import unittest
 from pathlib import Path
 
 from crisp.encode import (
-    HARDWARE_QV, SOFTWARE_CRF, audio_args, container_args, default_output_path,
-    is_high_bit_depth, resolve_codecs, resolve_container, video_args,
+    HARDWARE_QV, SOFTWARE_CRF, TEN_BIT_PIX_FMT, audio_args, container_args, default_output_path,
+    is_high_bit_depth, resolve_codecs, resolve_container, resolve_pix_fmt, video_args,
 )
 
 
@@ -160,6 +160,53 @@ class HighBitDepthTests(unittest.TestCase):
         # The editor copy passes the source's own pixel format instead of forcing 8-bit.
         self.assertIn("yuv420p10le", video_args("hevc", False, "high", "yuv420p10le"))
         self.assertIn("yuv420p", video_args("hevc", False, "high"))   # default unchanged
+
+
+class ResolvePixFmtTests(unittest.TestCase):
+    """Color-depth → output pixel format (the source-aware bit-depth decision)."""
+
+    def test_auto_preserves_high_bit_depth_source(self):
+        # A 10-bit / wide-chroma source is matched exactly (incl. its chroma), with a note.
+        for src in ("yuv420p10le", "yuv422p10le", "yuv444p10le", "yuv420p12le", "yuv422p"):
+            pix, notes = resolve_pix_fmt("auto", src, "hevc")
+            self.assertEqual(pix, src, src)
+            self.assertTrue(notes, src)   # the preserve is surfaced, never silent
+
+    def test_auto_keeps_8bit_and_unknown_at_yuv420p(self):
+        # Plain 8-bit and an unreadable/empty pix_fmt both stay the safe 8-bit 4:2:0 — no note.
+        for src in ("yuv420p", "nv12", "yuvj420p", ""):
+            pix, notes = resolve_pix_fmt("auto", src, "hevc")
+            self.assertEqual(pix, "yuv420p", src)
+            self.assertEqual(notes, [], src)
+
+    def test_force_8_always_yuv420p_and_notes_a_real_downgrade(self):
+        pix, notes = resolve_pix_fmt("8", "yuv422p10le", "hevc")
+        self.assertEqual(pix, "yuv420p")
+        self.assertTrue(notes)                     # crushing a 10-bit source is surfaced
+        pix, notes = resolve_pix_fmt("8", "yuv420p", "hevc")
+        self.assertEqual(pix, "yuv420p")
+        self.assertEqual(notes, [])                # 8-bit → 8-bit isn't a downgrade
+
+    def test_force_10_upconverts_8bit_with_a_note(self):
+        pix, notes = resolve_pix_fmt("10", "yuv420p", "hevc")
+        self.assertEqual(pix, TEN_BIT_PIX_FMT)     # yuv420p10le
+        self.assertTrue(notes)                     # "no quality gain" warning surfaced
+        # An unknown/empty source still yields a real 10-bit target.
+        self.assertEqual(resolve_pix_fmt("10", "", "h264")[0], TEN_BIT_PIX_FMT)
+
+    def test_force_10_preserves_an_already_deep_source(self):
+        # Already ≥10-bit: keep the source format (incl. its chroma), don't coerce to 4:2:0.
+        for src in ("yuv422p10le", "yuv444p10le", "yuv420p12le"):
+            self.assertEqual(resolve_pix_fmt("10", src, "hevc")[0], src, src)
+
+    def test_target_high_bit_depth_implies_software(self):
+        # The render ladder keys "needs software encoder" off is_high_bit_depth(target);
+        # every depth-preserving/forcing result must classify as high so it picks software.
+        for mode, src in (("auto", "yuv420p10le"), ("10", "yuv420p"), ("10", "yuv422p10le")):
+            self.assertTrue(is_high_bit_depth(resolve_pix_fmt(mode, src, "hevc")[0]), (mode, src))
+        # The 8-bit results must NOT (they keep the hardware fast path).
+        for mode, src in (("auto", "yuv420p"), ("8", "yuv420p10le")):
+            self.assertFalse(is_high_bit_depth(resolve_pix_fmt(mode, src, "hevc")[0]), (mode, src))
 
 
 if __name__ == "__main__":

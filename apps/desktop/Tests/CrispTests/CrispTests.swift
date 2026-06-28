@@ -319,6 +319,35 @@ final class CrispTests: XCTestCase {
                        ["auto", "mp4", "mkv", "mov", "m4v", "ts", "webm"])
     }
 
+    func testColorDepthDefaultsToAutoAndCarriesThrough() {
+        // Default is "auto" (match the source so 10-bit/HDR footage is never crushed to
+        // 8-bit); whatever's chosen reaches the engine parameters for every strength.
+        XCTAssertEqual(EngineConfig.defaults.colorDepth, "auto")
+        var cfg = EngineConfig.defaults
+        cfg.colorDepth = "10"
+        for strength in [Strength.gentle, .aggressive, .custom] {
+            XCTAssertEqual(strength.parameters(using: cfg).colorDepth, "10")
+        }
+    }
+
+    func testColorDepthRawValuesMatchEngineFlag() {
+        // The enum rawValues must be exactly the strings the engine's --color-depth flag
+        // accepts, since the picker tags feed straight into the CLI.
+        XCTAssertEqual(ColorDepth.allCases.map(\.rawValue), ["auto", "8", "10"])
+        // Only the forced-10-bit choice warns before committing (it upconverts 8-bit).
+        XCTAssertTrue(ColorDepth.force10.warnsOnSelect)
+        XCTAssertFalse(ColorDepth.auto.warnsOnSelect)
+        XCTAssertFalse(ColorDepth.force8.warnsOnSelect)
+    }
+
+    func testColorDepthCorruptValueClampsToAuto() {
+        // A hand-edited/unknown value must clamp to "auto" so the engine never gets a
+        // bogus --color-depth (which has fixed choices and would hard-fail the clean).
+        var cfg = EngineConfig.defaults
+        cfg.colorDepth = "garbage"
+        XCTAssertEqual(Strength.aggressive.parameters(using: cfg).colorDepth, "auto")
+    }
+
     func testBackupOriginalDefaultsOnAndCarriesThrough() {
         // Backing up the original is on by default (the safety net), and the choice
         // reaches the engine parameters for every strength.
@@ -355,6 +384,7 @@ final class CrispTests: XCTestCase {
         XCTAssertEqual(cfg.audioCodec, EngineConfig.defaults.audioCodec)  // new key → default
         XCTAssertEqual(cfg.audioBitrateKbps, EngineConfig.defaults.audioBitrateKbps)
         XCTAssertEqual(cfg.outputContainer, EngineConfig.defaults.outputContainer)  // new key → default
+        XCTAssertEqual(cfg.colorDepth, EngineConfig.defaults.colorDepth)  // new key → default
         XCTAssertEqual(cfg.backupOriginal, EngineConfig.defaults.backupOriginal)  // new key → default
 
         // An empty object decodes to all defaults (not a failure).
@@ -409,6 +439,7 @@ final class CrispTests: XCTestCase {
         XCTAssertEqual(args[1], "/v/in.mp4")
         XCTAssertTrue(args.contains("--ndjson"))
         XCTAssertTrue(args.contains("--hardware"))                 // defaults enable HW
+        XCTAssertEqual(valueAfter("--color-depth", in: args), "auto")  // source-aware by default
         XCTAssertEqual(valueAfter("--model", in: args), "/models/ggml.bin")
         XCTAssertEqual(valueAfter("--backup-dir", in: args), "/tmp/orig")
         XCTAssertFalse(args.contains("--no-fillers"))

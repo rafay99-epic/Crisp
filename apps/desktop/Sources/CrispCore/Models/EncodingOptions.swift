@@ -26,6 +26,33 @@ public enum VideoQuality: String, CaseIterable, Identifiable {
     }
 }
 
+/// Output bit depth (color depth) of the rendered clean. `auto` matches the source
+/// — a 10-bit / HDR / wide-chroma recording is preserved, an 8-bit source stays
+/// 8-bit — so footage is never silently downgraded. `force8`/`force10` override that.
+/// Each `rawValue` is exactly the string the engine's `--color-depth` flag expects.
+public enum ColorDepth: String, CaseIterable, Identifiable {
+    case auto, force8 = "8", force10 = "10"
+    public var id: String { rawValue }
+    public var label: String {
+        switch self {
+        case .auto:    return "Automatic (match source)"
+        case .force8:  return "8-bit (SDR)"
+        case .force10: return "10-bit"
+        }
+    }
+    public var detail: String {
+        switch self {
+        case .auto:    return "Matches your footage \u{2014} 10-bit, HDR, and wide-chroma recordings keep their color depth; ordinary 8-bit footage stays 8-bit and fast. Recommended."
+        case .force8:  return "Always 8-bit 4:2:0. Smallest and fastest, and can use hardware encoding \u{2014} but crushes a 10-bit/HDR source. Only force this if your editor or upload needs 8-bit."
+        case .force10: return "Always a 10-bit encode (software, slower, larger). Keeps a 10-bit source at 10-bit; an 8-bit source is upconverted \u{2014} which adds no real quality, so leave this on Automatic unless a delivery spec demands 10-bit."
+        }
+    }
+
+    /// True only for the forced-10-bit choice, which upconverts an 8-bit source for no
+    /// real gain — the Settings UI confirms before committing to it.
+    public var warnsOnSelect: Bool { self == .force10 }
+}
+
 public enum AudioCodec: String, CaseIterable, Identifiable {
     case aac, opus
     public var id: String { rawValue }

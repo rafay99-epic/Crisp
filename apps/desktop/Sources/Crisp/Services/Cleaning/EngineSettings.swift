@@ -26,6 +26,7 @@ final class EngineSettings {
     var audioCodec: String { didSet { save() } }
     var audioBitrateKbps: Int { didSet { save() } }
     var outputContainer: String { didSet { save() } }
+    var colorDepth: String { didSet { save() } }        // "auto" | "8" | "10"
     var frameRateMode: String { didSet { save() } }     // "auto" | "passthrough" | "constant"
     var frameRateValue: Double { didSet { save() } }    // fps used when mode == "constant"
     var exportToEditor: Bool { didSet { save() } }      // write an editor project instead of rendering
@@ -74,6 +75,7 @@ final class EngineSettings {
                      videoCodec: videoCodec, hardwareEncoding: hardwareEncoding,
                      videoQuality: videoQuality, audioCodec: audioCodec,
                      audioBitrateKbps: audioBitrateKbps, outputContainer: outputContainer,
+                     colorDepth: colorDepth,
                      frameRateMode: frameRateMode, frameRateValue: frameRateValue,
                      exportToEditor: exportToEditor,
                      outputDirectory: outputDirectory,
@@ -115,6 +117,9 @@ final class EngineSettings {
         audioCodec = cfg.audioCodec
         audioBitrateKbps = cfg.audioBitrateKbps
         outputContainer = cfg.outputContainer
+        // Clamp a hand-edited/unknown depth to the default so the Settings picker always
+        // has a valid selection (and the engine a legal --color-depth value).
+        colorDepth = ColorDepth(rawValue: cfg.colorDepth)?.rawValue ?? EngineConfig.defaults.colorDepth
         // Normalize a hand-edited/unknown mode to the default so the Settings picker
         // always has a valid selection (and the engine a legal --fps-mode).
         frameRateMode = FrameRateMode(rawValue: cfg.frameRateMode)?.rawValue
@@ -169,6 +174,7 @@ final class EngineSettings {
         audioCodec = d.audioCodec
         audioBitrateKbps = d.audioBitrateKbps
         outputContainer = d.outputContainer
+        colorDepth = d.colorDepth
         frameRateMode = d.frameRateMode
         frameRateValue = d.frameRateValue
         exportToEditor = d.exportToEditor

@@ -103,6 +103,7 @@ public struct CleanRunner {
             "--audio-codec", parameters.audioCodec,
             "--audio-bitrate", String(parameters.audioBitrateKbps),
             "--container", parameters.outputContainer,
+            "--color-depth", parameters.colorDepth,
             "--ndjson"
         ]
         // Cut smoothing — applied to every clean (kept out of the literal above so the
