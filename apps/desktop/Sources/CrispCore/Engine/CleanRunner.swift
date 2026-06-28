@@ -119,9 +119,9 @@ public struct CleanRunner {
         }
         // Editor handoff: write an FCPXML project instead of rendering a video. Applies
         // to every clean (incl. a reviewed keep-list), so it lives outside that branch.
-        if parameters.exportTimeline != "none" {
-            args += ["--export-timeline", parameters.exportTimeline]
-        }
+        // Always pass it explicitly — including "none" — so the Swift config is
+        // authoritative and behaviour never depends on clean_video.py's own default.
+        args += ["--export-timeline", parameters.exportTimeline]
         if parameters.hardwareEncoding { args.append("--hardware") }
         if parameters.splitTracks {
             args.append("--split")

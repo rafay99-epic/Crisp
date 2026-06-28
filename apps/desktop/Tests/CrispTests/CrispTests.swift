@@ -492,7 +492,7 @@ final class CrispTests: XCTestCase {
         XCTAssertEqual(valueAfter("--export-timeline", in: args), "fcpxml")
     }
 
-    func testCleanRunnerOmitsExportTimelineByDefault() {
+    func testCleanRunnerEmitsExportTimelineNoneByDefault() {
         let params = Strength.balanced.parameters(using: .defaults)
         XCTAssertEqual(params.exportTimeline, "none")
         let args = CleanRunner.arguments(scriptPath: "/eng/clean_video.py",
@@ -501,7 +501,9 @@ final class CrispTests: XCTestCase {
                                          options: CleanRunner.Options(modelPath: nil,
                                                                       removeFillers: false,
                                                                       removeRetakes: false))
-        XCTAssertFalse(args.contains("--export-timeline"))
+        // Passed explicitly as "none" so the Swift config — not the script default
+        // — decides; clean_video.py accepts "none" as a valid --export-timeline value.
+        XCTAssertEqual(valueAfter("--export-timeline", in: args), "none")
     }
 
     func testExportToEditorConfigDefaultsOffAndForwardCompat() throws {
