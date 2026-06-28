@@ -1,0 +1,19 @@
+apps/desktop/Sources/Crisp/App/QuitGuard.swift
+  s_d9e9a0e9665314::t_557186a06f6d59 71-73,88-90,97-106,108
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "0672225fcfbd728d6fe1ace1f09efb63310546c4",
+  "prompts": {},
+  "sessions": {
+    "s_d9e9a0e9665314": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e2bfcf51-6592-455f-b03c-16d23ba6f719",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
