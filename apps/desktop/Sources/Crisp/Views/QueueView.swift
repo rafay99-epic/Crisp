@@ -209,27 +209,26 @@ private struct QueueRow: View {
                     Text("removed \(formatTime(r.savedSeconds))")
                         .font(.caption).foregroundStyle(.secondary).fixedSize()
                 }
-                if editorExport {
-                    // Editor handoff: open the editor / reveal the project to import,
-                    // rather than play a rendered file (there isn't one).
-                    if let editor = resolveEditor {
-                        Button { openInEditor(editor) } label: { Image(systemName: "film.stack") }
-                            .buttonStyle(.plain).foregroundStyle(.tint)
-                            .help("Open \(editor.name)")
-                    }
-                    Button { revealProject() } label: { Image(systemName: "folder") }
+                // Editor handoff is additive: the clean still renders a video, AND
+                // writes the editor project. So a handoff row leads with "Open Resolve"
+                // (the primary action) and keeps play/reveal for the rendered video.
+                if editorExport, let editor = resolveEditor {
+                    Button { openInEditor(editor) } label: { Image(systemName: "film.stack") }
                         .buttonStyle(.plain).foregroundStyle(.tint)
-                        .help("Show editor project in Finder (then File ▸ Import ▸ Timeline)")
-                } else if let url = outputURL {
+                        .help("Open \(editor.name) (then File ▸ Import ▸ Timeline)")
+                }
+                if let url = outputURL {
                     Button { player.toggle(url) } label: {
                         Image(systemName: player.isPlaying(url) ? "stop.circle.fill" : "play.circle")
                             .contentTransition(.symbolEffect(.replace))
                     }
                     .buttonStyle(.plain).foregroundStyle(.tint)
                     .help(player.isPlaying(url) ? "Stop preview" : "Play preview")
-                    Button { revealOutput() } label: { Image(systemName: "folder") }
-                        .buttonStyle(.plain).foregroundStyle(.tint)
-                        .help("Show in Finder")
+                    Button { editorExport ? revealProject() : revealOutput() } label: {
+                        Image(systemName: "folder")
+                    }
+                    .buttonStyle(.plain).foregroundStyle(.tint)
+                    .help(editorExport ? "Show editor project in Finder" : "Show in Finder")
                 }
             }
             .transition(.scale.combined(with: .opacity))
@@ -255,11 +254,9 @@ private struct QueueRow: View {
                     Button { openInEditor(editor) } label: { Label("Open \(editor.name)", systemImage: "film.stack") }
                 }
                 Button { revealProject() } label: { Label("Reveal Editor Project", systemImage: "folder") }
-                if outputURL != nil {
-                    Button { copyOutputPath() } label: { Label("Copy Timeline Path", systemImage: "doc.on.doc") }
-                }
-            } else if let url = outputURL {
-                Button { revealOutput() } label: { Label("Show in Finder", systemImage: "folder") }
+            }
+            if let url = outputURL {
+                Button { revealOutput() } label: { Label("Show Video in Finder", systemImage: "film") }
                 Button { copyOutputPath() } label: { Label("Copy Output Path", systemImage: "doc.on.doc") }
                 Button { player.toggle(url) } label: {
                     Label(player.isPlaying(url) ? "Stop Preview" : "Play Preview",
@@ -267,7 +264,7 @@ private struct QueueRow: View {
                 }
             }
             // The split-track stems, when the clean produced them.
-            if !editorExport, let video = stemURL(item.result?.videoOutput) {
+            if let video = stemURL(item.result?.videoOutput) {
                 Button { reveal(video) } label: { Label("Show Video Track", systemImage: "film") }
             }
             if let audio = stemURL(item.result?.audioOutput) {

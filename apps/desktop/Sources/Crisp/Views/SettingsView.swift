@@ -211,11 +211,11 @@ struct SettingsView: View {
     @ViewBuilder private var editorSection: some View {
         Section {
             if let editor = EditorDetector.resolve() {
-                Toggle("Hand off to \(editor.name) instead of rendering", isOn: $settings.exportToEditor)
-                Text("After cutting, Crisp writes a project folder — a copy of your original plus a timeline (.fcpxml) you open in \(editor.name) (File ▸ Import ▸ Timeline). The cuts are there but every one stays adjustable, and your footage is never re-encoded or touched. Detected \(editor.name).")
+                Toggle("Also export a \(editor.name) project", isOn: $settings.exportToEditor)
+                Text("Alongside the cleaned video, Crisp writes a project folder — a copy of your original plus a timeline (.fcpxml) you open in \(editor.name) (File ▸ Import ▸ Timeline). Every cut stays adjustable and your footage is never touched. Detected \(editor.name).")
                     .font(.caption).foregroundStyle(.secondary)
             } else {
-                Toggle("Hand off to a video editor instead of rendering", isOn: .constant(false))
+                Toggle("Also export a video-editor project", isOn: .constant(false))
                     .disabled(true)
                 Text("No supported editor found. Crisp can hand its cuts to DaVinci Resolve (the free edition works) as a ready-to-edit timeline — install Resolve to enable this.")
                     .font(.caption).foregroundStyle(.secondary)
@@ -223,7 +223,7 @@ struct SettingsView: View {
         } header: {
             Text("Editor handoff")
         } footer: {
-            Text("A non-destructive timeline — zero re-encode, edit the cuts in your editor. Replaces the rendered video while it\u{2019}s on.")
+            Text("A non-destructive timeline written next to the cleaned video — edit the cuts in your editor. Zero extra re-encode for constant-frame-rate footage.")
                 .font(.caption).foregroundStyle(.secondary)
         }
     }

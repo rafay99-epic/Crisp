@@ -101,10 +101,10 @@ def main():
                         "— required in that mode (0 is unset and errors). 'auto' ignores "
                         "this and uses the source's own rate")
     p.add_argument("--export-timeline", choices=["none", "fcpxml"], default=DEFAULT_EXPORT_TIMELINE,
-                   help="instead of rendering a cleaned video, write a non-destructive "
-                        "editor project: a copy of the original + an .fcpxml timeline "
-                        "(referencing the kept ranges) that DaVinci Resolve can import. "
-                        f"Zero re-encode for CFR sources (default {DEFAULT_EXPORT_TIMELINE})")
+                   help="alongside the cleaned video, also write a non-destructive editor "
+                        "project: a copy of the original + an .fcpxml timeline (referencing "
+                        "the kept ranges) that DaVinci Resolve can import. The project copy "
+                        f"is zero re-encode for CFR sources (default {DEFAULT_EXPORT_TIMELINE})")
     p.add_argument("--project-dir", default=None,
                    help="folder to write the editor project into when --export-timeline "
                         "is set (default: a '<name> (Crisp)' folder beside the input)")
