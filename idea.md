@@ -98,9 +98,6 @@ impact-per-effort. Living doc — add/reorder freely.
 13. **Chapter detection + export** — auto-generate YouTube / podcast chapter markers
     from long pauses + transcript topic shifts; export as chapter metadata or a
     timestamp list. Reuses the existing transcript; concrete, visible creator value.
-13. **Chapter detection + export** — auto-generate YouTube / podcast chapter markers
-    from long pauses + transcript topic shifts; export as chapter metadata or a
-    timestamp list. Reuses the existing transcript; concrete, visible creator value.
 
 ## 🤝 Trust (build on what just shipped — retakes)
 
