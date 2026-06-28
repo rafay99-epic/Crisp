@@ -1,0 +1,21 @@
+apps/desktop/Sources/Crisp/Views/EditorPickerSheet.swift
+  s_1c9eefb4447eda::t_65af5863255a3d 1-119
+apps/desktop/Sources/Crisp/Views/QueueView.swift
+  s_1c9eefb4447eda::t_818d3e02e4ceb0 107-113
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "1966585ab2e5bf04efac94accafdee10a39cd18d",
+  "prompts": {},
+  "sessions": {
+    "s_1c9eefb4447eda": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e19c83fe-6f19-40d2-8102-46ce01d7fa72",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
