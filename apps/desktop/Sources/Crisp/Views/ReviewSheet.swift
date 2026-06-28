@@ -21,7 +21,9 @@ struct ReviewSheet: View {
     /// default — so the detected cuts match a normal clean. (Only the cut knobs +
     /// silence floor matter for detection.)
     private var params: CleanParameters {
-        if let preset = settings.preset(withID: item.presetID) { return preset.parameters() }
+        if let preset = settings.preset(withID: item.presetID) {
+            return preset.parameters(exportToEditor: settings.exportToEditor)
+        }
         return model.strength.parameters(using: settings.config)
     }
 

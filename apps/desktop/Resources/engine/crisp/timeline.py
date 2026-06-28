@@ -62,11 +62,12 @@ def timeline_seconds(keep: list, num: int, den: int) -> float:
     return total_frames * den / num
 
 
-# FCPXML audioRate is an enumerated token set, not a free integer — a bare "32000"
-# is invalid and Resolve may ignore it. Map the standard rates; fall back to 48k.
+# FCPXML audioRate is a fixed enumerated token set (per Apple's DTD), NOT a free
+# integer — only these values are valid. Anything else (16k/22.05k/24k/…) must fall
+# back to a valid token rather than emit a non-conformant rate that breaks import.
 _AUDIO_RATE_TOKENS = {
-    16000: "16k", 22050: "22.05k", 24000: "24k", 32000: "32k", 44100: "44.1k",
-    48000: "48k", 88200: "88.2k", 96000: "96k", 176400: "176.4k", 192000: "192k",
+    32000: "32k", 44100: "44.1k", 48000: "48k",
+    88200: "88.2k", 96000: "96k", 176400: "176.4k", 192000: "192k",
 }
 
 

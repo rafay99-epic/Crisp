@@ -783,9 +783,18 @@ final class CrispTests: XCTestCase {
         cfg.outputDirectory = "/Volumes/NAS"; cfg.backupOriginal = false
         for strength in [Strength.gentle, .aggressive, .custom] {
             let preset = Preset(name: "P", strength: strength, config: cfg)
-            XCTAssertEqual(preset.parameters(), strength.parameters(using: cfg),
+            XCTAssertEqual(preset.parameters(exportToEditor: cfg.exportToEditor),
+                           strength.parameters(using: cfg),
                            "\(strength.rawValue) preset should match the global path")
         }
+    }
+
+    func testPresetHonorsEditorHandoff() {
+        // The global editor-handoff mode must apply to preset-backed rows too (else they
+        // silently render while "Send to editor" is on).
+        let preset = Preset(name: "P", strength: .balanced, config: .defaults)
+        XCTAssertEqual(preset.parameters(exportToEditor: true).exportTimeline, "fcpxml")
+        XCTAssertEqual(preset.parameters(exportToEditor: false).exportTimeline, "none")
     }
 
     func testPresetRoundTripsThroughConfig() throws {

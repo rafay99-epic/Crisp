@@ -78,6 +78,11 @@ def _export_editor_project(src, keep, out_dir, project_dir, target_fps,
     except OSError as e:
         raise CleanError(f"Couldn't create the editor project folder \"{pdir}\".\n{e}") from e
 
+    # Write to temp files and atomically swap them in only once BOTH are ready — so a
+    # failed re-export can never corrupt an existing project (the live media/.fcpxml are
+    # untouched until the final os.replace), and a partial run leaves only temp files.
+    media_tmp = media_copy.with_name(media_copy.name + ".crisp-tmp")
+    fcpxml_tmp = fcpxml_path.with_name(fcpxml_path.name + ".crisp-tmp")
     try:
         if target_fps or force_encode:
             on_log(f"Making an editor-ready copy at {target_fps} fps…" if target_fps
@@ -87,40 +92,42 @@ def _export_editor_project(src, keep, out_dir, project_dir, target_fps,
                 fps_args = ["-r", str(target_fps)] if target_fps else []
                 cmd = [ffmpeg_bin(), "-y", "-i", str(src),
                        *video_args(video_codec, hw, quality), *fps_args,
-                       *audio_args(audio_codec, audio_bitrate), str(media_copy)]
+                       *audio_args(audio_codec, audio_bitrate), str(media_tmp)]
                 logger.command(f"ffmpeg editor-copy ({'hw' if hw else 'sw'})", cmd)
                 r = subprocess.run(cmd, capture_output=True, text=True)
                 logger.tool_result("ffmpeg editor-copy", r.returncode, r.stderr)
                 return r
 
             res = _normalize(hardware)
-            if (res.returncode != 0 or not media_copy.exists()) and hardware:
+            if (res.returncode != 0 or not media_tmp.exists()) and hardware:
                 # Hardware encoding can be unavailable (e.g. a VM with no media engine);
                 # fall back to software so the handoff still works — mirrors render().
                 logger.notice("Hardware encode failed for the editor copy — retrying in software")
                 on_log("Hardware encoding failed — falling back to software encoding…")
                 res = _normalize(False)
-            if res.returncode != 0 or not media_copy.exists():
+            if res.returncode != 0 or not media_tmp.exists():
                 raise CleanError(f"Couldn't prepare the editor copy.\n{res.stderr[-1000:]}")
         else:
             # CFR, editor-friendly container: a plain copy — no re-encode, no loss, fast.
             on_log("Copying your footage for the editor…")
-            shutil.copy2(src, media_copy)
+            shutil.copy2(src, media_tmp)
 
-        meta = probe_stream_meta(media_copy, logger=logger)
-        dur = ffprobe_duration(media_copy, logger=logger)
+        meta = probe_stream_meta(media_tmp, logger=logger)
+        dur = ffprobe_duration(media_tmp, logger=logger)
         xml = build_fcpxml(
             media_uri=media_copy.resolve().as_uri(), name=Path(src).stem,
             num=meta["fps_num"], den=meta["fps_den"], width=meta["width"], height=meta["height"],
             audio_rate=meta["audio_rate"], audio_channels=meta["audio_channels"],
             has_audio=meta["audio_channels"] > 0, duration=dur, keep=keep)
-        fcpxml_path.write_text(xml, encoding="utf-8")
-    except OSError as e:
-        _cleanup_partial_project(pdir, media_copy, fcpxml_path, created)
+        fcpxml_tmp.write_text(xml, encoding="utf-8")
+        # Atomic publish — only now do the live files change.
+        os.replace(media_tmp, media_copy)
+        os.replace(fcpxml_tmp, fcpxml_path)
+    except (OSError, CleanError) as e:
+        _cleanup_temp_project(media_tmp, fcpxml_tmp, pdir, created)
+        if isinstance(e, CleanError):
+            raise
         raise CleanError(f"Couldn't write the editor project.\n{e}") from e
-    except CleanError:
-        _cleanup_partial_project(pdir, media_copy, fcpxml_path, created)
-        raise
 
     # Tag the media copy with its source so a later re-export reuses this folder and a
     # different same-stem source dedups instead of clobbering it.
@@ -130,19 +137,18 @@ def _export_editor_project(src, keep, out_dir, project_dir, target_fps,
     return fcpxml_path, pdir, media_copy, snapped
 
 
-def _cleanup_partial_project(pdir, media_copy, fcpxml_path, created):
-    """Best-effort removal of a half-written editor project after a failure, so the UI
-    never offers to open a broken handoff. Skipped entirely when the folder was reused
-    (a re-export into an existing project) — we must never delete a prior good export —
-    and the dir is removed only if it's now empty."""
-    if not created:
-        return
-    for p in (media_copy, fcpxml_path):
+def _cleanup_temp_project(media_tmp, fcpxml_tmp, pdir, created):
+    """Remove the temp files from a failed export (the live media/.fcpxml were never
+    touched). Only removes the project dir if THIS run created it and it's now empty —
+    a reused folder (re-export) and its prior good export are always left intact."""
+    for p in (media_tmp, fcpxml_tmp):
         try:
             if p.exists():
                 p.unlink()
         except OSError:
             pass
+    if not created:
+        return
     try:
         if pdir.exists() and not any(pdir.iterdir()):
             pdir.rmdir()

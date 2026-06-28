@@ -133,7 +133,10 @@ def probe_stream_meta(path: Path, logger=None) -> dict:
         elif kind == "audio" and not have_audio:
             have_audio = True
             meta["audio_rate"] = _int(s.get("sample_rate"), meta["audio_rate"])
-            meta["audio_channels"] = _int(s.get("channels"), meta["audio_channels"])
+            # An audio stream EXISTS — if its channel count is missing/unparseable,
+            # default to 2 (stereo), not 0. 0 is reserved for "no audio stream at all";
+            # dropping audio just because channels didn't parse would be wrong.
+            meta["audio_channels"] = _int(s.get("channels"), 2)
     return meta
 
 

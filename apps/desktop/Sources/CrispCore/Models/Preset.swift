@@ -66,8 +66,10 @@ public struct Preset: Identifiable, Codable, Equatable, Sendable {
     ///
     /// `exportToEditor` is a global *output mode* (editor handoff), not a per-preset
     /// recipe knob, so the live setting is threaded in — otherwise a preset-backed row
-    /// would silently render a video even while "Send to editor" is on.
-    public func parameters(exportToEditor: Bool = false) -> CleanParameters {
+    /// would silently render a video even while "Send to editor" is on. No default:
+    /// callers must pass the live setting (or an intentional `false`) so the
+    /// silent-render failure mode can't sneak back in.
+    public func parameters(exportToEditor: Bool) -> CleanParameters {
         var cfg = EngineConfig.defaults
         cfg.pauseThreshold = pauseThreshold
         cfg.silenceFloorDB = silenceFloorDB
