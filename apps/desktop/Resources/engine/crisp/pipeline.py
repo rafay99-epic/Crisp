@@ -115,6 +115,11 @@ def _export_editor_project(src, keep, out_dir, project_dir, target_fps,
             shutil.copy2(src, media_tmp)
 
         meta = probe_stream_meta(media_tmp, logger=logger)
+        if meta is None:
+            # A wrong fps/resolution in an FCPXML is silently catastrophic (every cut
+            # lands at the wrong source time), so refuse rather than emit a timeline
+            # built on fabricated defaults.
+            raise CleanError("Couldn't read the editor copy's video properties.")
         dur = ffprobe_duration(media_tmp, logger=logger)
         if dur <= 0:
             # ffprobe_duration returns 0.0 on failure; build_fcpxml would turn that into

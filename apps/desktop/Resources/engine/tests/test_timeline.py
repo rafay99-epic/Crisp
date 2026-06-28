@@ -7,6 +7,7 @@ from crisp.errors import CleanError
 from crisp.timeline import (
     FCPXML_VERSION, build_fcpxml, frame_time, project_paths, secs_to_frames, timeline_seconds,
 )
+from crisp.tools import parse_stream_meta
 
 
 class FrameTimeTests(unittest.TestCase):
@@ -160,6 +161,46 @@ class ProjectPathsTests(unittest.TestCase):
         proj, media, fcpxml = project_paths("/v/talk.mkv", out_dir="/out")
         self.assertEqual(str(proj), "/out/talk (Crisp)")
         self.assertEqual(str(media), "/out/talk (Crisp)/talk.mkv")
+
+
+class ParseStreamMetaTests(unittest.TestCase):
+    """A total probe failure must return None (so the handoff fails loud) rather than
+    fabricate 1920x1080/30fps — a wrong fps in the FCPXML lands every cut at the wrong
+    source time. Individual missing fields still default."""
+
+    VIDEO = '{"codec_type":"video","width":3840,"height":2160,"r_frame_rate":"30000/1001"}'
+    AUDIO = '{"codec_type":"audio","sample_rate":"44100","channels":"1"}'
+
+    def _json(self, *streams):
+        return '{"streams":[' + ",".join(streams) + "]}"
+
+    def test_good_probe_reads_real_values(self):
+        meta = parse_stream_meta(0, self._json(self.VIDEO, self.AUDIO))
+        self.assertEqual((meta["width"], meta["height"]), (3840, 2160))
+        self.assertEqual((meta["fps_num"], meta["fps_den"]), (30000, 1001))
+        self.assertEqual((meta["audio_rate"], meta["audio_channels"]), (44100, 1))
+
+    def test_nonzero_exit_is_failure(self):
+        self.assertIsNone(parse_stream_meta(1, self._json(self.VIDEO)))
+
+    def test_malformed_json_is_failure(self):
+        self.assertIsNone(parse_stream_meta(0, "not json{"))
+
+    def test_no_video_stream_is_failure(self):
+        # Audio-only / metadata-only: can't build a video timeline — signal failure, not
+        # a fabricated 30fps asset.
+        self.assertIsNone(parse_stream_meta(0, self._json(self.AUDIO)))
+
+    def test_missing_individual_fields_default(self):
+        # Video present but no r_frame_rate / size → per-field defaults, still usable.
+        meta = parse_stream_meta(0, self._json('{"codec_type":"video"}'))
+        self.assertEqual((meta["fps_num"], meta["fps_den"]), (30, 1))
+        self.assertEqual((meta["width"], meta["height"]), (1920, 1080))
+        self.assertEqual(meta["audio_channels"], 0)   # no audio stream → 0, no phantom track
+
+    def test_audio_channels_default_to_stereo_when_unparseable(self):
+        meta = parse_stream_meta(0, self._json(self.VIDEO, '{"codec_type":"audio"}'))
+        self.assertEqual(meta["audio_channels"], 2)   # stream exists but channels missing
 
 
 if __name__ == "__main__":
