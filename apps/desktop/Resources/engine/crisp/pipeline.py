@@ -19,15 +19,16 @@ from .edit import (_output_owner, build_keep_segments, gate_fillers_by_silence, 
                    output_duration, render, snap_keep_to_zero_crossings, tag_output_source,
                    unique_output_path)
 from .encode import (
-    audio_args, container_args, default_output_path, is_high_bit_depth, resolve_codecs,
-    resolve_container, resolve_pix_fmt, video_args,
+    audio_args, container_args, default_output_path, hdr_x265_params, is_high_bit_depth,
+    resolve_codecs, resolve_container, resolve_pix_fmt, video_args,
 )
 from .enginelog import EngineLogger
 from .errors import CleanError
 from .framerate import resolve_target_fps
 from .timeline import build_fcpxml, fcpxml_colorspace, project_paths, timeline_seconds
 from .tools import (
-    ffmpeg_bin, ffprobe_duration, probe_stream_meta, probe_video_fps, which_filler, which_whisper,
+    ffmpeg_bin, ffprobe_duration, probe_hdr10_metadata, probe_stream_meta, probe_video_fps,
+    which_filler, which_whisper,
 )
 
 
@@ -55,6 +56,20 @@ def _source_color_flags(src_meta) -> list:
         if val and val != "unknown":
             flags += [flag, val]
     return flags
+
+
+# Transfers that carry HDR10 static metadata worth probing for (PQ; HLG occasionally does).
+_HDR_TRANSFERS = {"smpte2084", "arib-std-b67"}
+
+
+def _source_hdr_params(src, src_meta, video_codec, logger):
+    """The libx265 `-x265-params` carrying the source's HDR10 static metadata (mastering
+    display + content light), or None. Gated to where it actually applies — an HDR (PQ/HLG)
+    source encoded as HEVC, the only encoder we drive that can write it — so SDR or
+    other-codec cleans never pay for the extra frame-side-data probe."""
+    if video_codec != "hevc" or src_meta.get("color_transfer") not in _HDR_TRANSFERS:
+        return None
+    return hdr_x265_params(probe_hdr10_metadata(src, logger=logger))
 
 
 # The editor project's "which source made me" identity, used to reuse (and overwrite) the
@@ -156,8 +171,10 @@ def _export_editor_project(src, keep, out_dir, project_dir, target_fps,
         if src_meta is None:
             raise CleanError("Couldn't read the source video's properties.")
         # Carry the source's color characteristics onto the re-encoded copy (and into the
-        # timeline) so an HDR / Rec.2020 source isn't silently flattened to Rec.709.
+        # timeline) so an HDR / Rec.2020 source isn't silently flattened to Rec.709 — the
+        # signal-level tags plus HDR10 static metadata (libx265 path only).
         color_flags = _source_color_flags(src_meta)
+        hdr_params = _source_hdr_params(src, src_meta, video_codec, logger)
 
         if target_fps or force_encode:
             on_log(f"Making an editor-ready copy at {target_fps} fps…" if target_fps
@@ -177,7 +194,8 @@ def _export_editor_project(src, keep, out_dir, project_dir, target_fps,
                 # declares (audioSources="1"); `0:a:0?` makes audio optional so a silent
                 # source still works. (Mapping ALL audio would contradict that declaration.)
                 cmd = [ffmpeg_bin(), "-y", "-i", str(src), "-map", "0:v:0", "-map", "0:a:0?",
-                       *video_args(video_codec, hw, quality, pix), *fps_args, *color_flags,
+                       *video_args(video_codec, hw, quality, pix, hdr_params=hdr_params),
+                       *fps_args, *color_flags,
                        *audio_args(audio_codec, audio_bitrate), str(media_tmp)]
                 logger.command(f"ffmpeg editor-copy ({'hw' if hw else 'sw'}, {pix})", cmd)
                 r = subprocess.run(cmd, capture_output=True, text=True)
@@ -670,6 +688,11 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
     for note in depth_notes:
         on_log(note)
     color_flags = _source_color_flags(src_meta)
+    # HDR10 static metadata (mastering display + content light) carried onto the libx265
+    # encode so an HDR source isn't tone-mapped blind by players. None for SDR / non-HEVC.
+    hdr_params = _source_hdr_params(src, src_meta, video_codec, logger)
+    if hdr_params:
+        on_log("Preserving the source's HDR10 metadata.")
 
     # Encode attempts, tried in order; each fallback SAYS what it gave up (never a silent
     # quality drop). High-bit-depth formats need the software encoder (VideoToolbox is
@@ -685,8 +708,8 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
     for i, (hw, pix) in enumerate(attempts):
         try:
             render(src, keep, out_path, on_log, stage(0.60, 1.0),
-                   video_args(video_codec, hw, quality, pix) + color_flags, audio, mux,
-                   fade=fade_s, crossfade=crossfade_s, fps=target_fps, logger=logger)
+                   video_args(video_codec, hw, quality, pix, hdr_params=hdr_params) + color_flags,
+                   audio, mux, fade=fade_s, crossfade=crossfade_s, fps=target_fps, logger=logger)
             break
         except CleanError:
             if i == last:

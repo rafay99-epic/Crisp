@@ -8,7 +8,7 @@ from crisp.timeline import (
     FCPXML_VERSION, build_fcpxml, fcpxml_colorspace, frame_time, project_paths,
     secs_to_frames, timeline_seconds,
 )
-from crisp.tools import parse_stream_meta
+from crisp.tools import parse_hdr10_metadata, parse_stream_meta
 
 
 class FrameTimeTests(unittest.TestCase):
@@ -315,6 +315,52 @@ class SourceColorFlagsTests(unittest.TestCase):
         self.assertEqual(_source_color_flags(meta), [])
         # A real range still comes through even when the others are unknown/missing.
         self.assertEqual(_source_color_flags({"color_range": "tv"}), ["-color_range", "tv"])
+
+
+class ParseHdr10MetadataTests(unittest.TestCase):
+    """HDR10 static metadata read from the first frame's side-data (physical units;
+    encoder-unit conversion is tested separately in test_encode)."""
+
+    MASTERING = ('{"side_data_type":"Mastering display metadata",'
+                 '"red_x":"35400/50000","red_y":"14600/50000",'
+                 '"green_x":"8500/50000","green_y":"39850/50000",'
+                 '"blue_x":"6550/50000","blue_y":"2300/50000",'
+                 '"white_point_x":"15635/50000","white_point_y":"16450/50000",'
+                 '"min_luminance":"1/10000","max_luminance":"10000000/10000"}')
+    CLL = '{"side_data_type":"Content light level metadata","max_content":1000,"max_average":400}'
+
+    def _frame(self, *side):
+        return '{"frames":[{"side_data_list":[' + ",".join(side) + "]}]}"
+
+    def test_reads_mastering_and_cll_as_physical_values(self):
+        meta = parse_hdr10_metadata(0, self._frame(self.MASTERING, self.CLL))
+        md = meta["mastering_display"]
+        self.assertAlmostEqual(md["red_x"], 0.708)
+        self.assertAlmostEqual(md["max_luminance"], 1000.0)
+        self.assertAlmostEqual(md["min_luminance"], 0.0001)
+        self.assertEqual(meta["content_light"], {"max_cll": 1000, "max_fall": 400})
+
+    def test_each_block_is_optional(self):
+        self.assertIsNone(parse_hdr10_metadata(0, self._frame(self.MASTERING))["content_light"])
+        self.assertIsNone(parse_hdr10_metadata(0, self._frame(self.CLL))["mastering_display"])
+
+    def test_incomplete_mastering_is_dropped_not_partial(self):
+        # All-or-nothing: a partial mastering block is dropped (never a malformed x265
+        # master-display= string downstream). Alone it leaves nothing usable → overall None;
+        # alongside a valid CLL the mastering is None but the CLL still comes through.
+        partial = '{"side_data_type":"Mastering display metadata","red_x":"35400/50000"}'
+        self.assertIsNone(parse_hdr10_metadata(0, self._frame(partial)))
+        with_cll = parse_hdr10_metadata(0, self._frame(partial, self.CLL))
+        self.assertIsNone(with_cll["mastering_display"])
+        self.assertEqual(with_cll["content_light"], {"max_cll": 1000, "max_fall": 400})
+
+    def test_no_hdr_side_data_returns_none(self):
+        # SDR frame (no HDR side-data), no frames, bad exit, and malformed JSON all yield None.
+        self.assertIsNone(parse_hdr10_metadata(0, '{"frames":[{"side_data_list":[]}]}'))
+        self.assertIsNone(parse_hdr10_metadata(0, '{"frames":[]}'))
+        self.assertIsNone(parse_hdr10_metadata(1, self._frame(self.MASTERING)))
+        self.assertIsNone(parse_hdr10_metadata(0, "not json{"))
+        self.assertIsNone(parse_hdr10_metadata(0, "[1,2,3]"))
 
 
 if __name__ == "__main__":

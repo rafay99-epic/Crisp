@@ -5,8 +5,8 @@ from pathlib import Path
 
 from crisp.encode import (
     HARDWARE_QV, SOFTWARE_CRF, TEN_BIT_PIX_FMT, audio_args, container_args, default_output_path,
-    is_deep_pix_fmt, is_high_bit_depth, resolve_codecs, resolve_container, resolve_pix_fmt,
-    video_args,
+    hdr_x265_params, is_deep_pix_fmt, is_high_bit_depth, resolve_codecs, resolve_container,
+    resolve_pix_fmt, video_args,
 )
 
 
@@ -161,6 +161,48 @@ class HighBitDepthTests(unittest.TestCase):
         # The editor copy passes the source's own pixel format instead of forcing 8-bit.
         self.assertIn("yuv420p10le", video_args("hevc", False, "high", "yuv420p10le"))
         self.assertIn("yuv420p", video_args("hevc", False, "high"))   # default unchanged
+
+    def test_hdr_params_only_ride_libx265(self):
+        params = "master-display=G(8500,39850)B(6550,2300)R(35400,14600)WP(15635,16450)L(10000000,1)"
+        # Software HEVC (libx265) is the only encoder we drive that carries HDR10 metadata.
+        sw_hevc = video_args("hevc", False, "high", "yuv420p10le", hdr_params=params)
+        self.assertIn("-x265-params", sw_hevc)
+        self.assertEqual(sw_hevc[sw_hevc.index("-x265-params") + 1], params)
+        # Hardware HEVC (VideoToolbox), H.264, and VP9 must NOT receive -x265-params.
+        self.assertNotIn("-x265-params", video_args("hevc", True, "high", "yuv420p10le", hdr_params=params))
+        self.assertNotIn("-x265-params", video_args("h264", False, "high", "yuv420p10le", hdr_params=params))
+        self.assertNotIn("-x265-params", video_args("vp9", False, "high", "yuv420p10le", hdr_params=params))
+        # No metadata → no flag, even on libx265.
+        self.assertNotIn("-x265-params", video_args("hevc", False, "high", "yuv420p10le"))
+
+
+class HdrX265ParamsTests(unittest.TestCase):
+    """HDR10 static metadata → libx265 `-x265-params` string (physical → encoder units)."""
+
+    # BT.2020 primaries, D65 white point, 1000-nit / 0.0001-nit mastering display.
+    MASTERING = {"red_x": 0.708, "red_y": 0.292, "green_x": 0.170, "green_y": 0.797,
+                 "blue_x": 0.131, "blue_y": 0.046, "white_point_x": 0.3127,
+                 "white_point_y": 0.3290, "min_luminance": 0.0001, "max_luminance": 1000.0}
+
+    def test_full_metadata_formats_master_display_and_cll(self):
+        s = hdr_x265_params({"mastering_display": self.MASTERING,
+                             "content_light": {"max_cll": 1000, "max_fall": 400}})
+        # Chromaticity ×50000, luminance ×10000, in x265's G-B-R-WP-L order.
+        self.assertEqual(
+            s, "master-display=G(8500,39850)B(6550,2300)R(35400,14600)"
+               "WP(15635,16450)L(10000000,1):max-cll=1000,400")
+
+    def test_mastering_only_or_cll_only(self):
+        self.assertEqual(hdr_x265_params({"mastering_display": None,
+                                          "content_light": {"max_cll": 600, "max_fall": 120}}),
+                         "max-cll=600,120")
+        self.assertTrue(hdr_x265_params({"mastering_display": self.MASTERING,
+                                         "content_light": None}).startswith("master-display="))
+
+    def test_absent_metadata_is_none(self):
+        self.assertIsNone(hdr_x265_params(None))
+        self.assertIsNone(hdr_x265_params({}))
+        self.assertIsNone(hdr_x265_params({"mastering_display": None, "content_light": None}))
 
     def test_deep_excludes_wide_chroma_but_high_includes_it(self):
         # is_deep_pix_fmt is bit-depth ONLY; 8-bit 4:2:2/4:4:4 is wide-chroma, not deep.

@@ -176,6 +176,98 @@ def probe_stream_meta(path: Path, logger=None, require_fps: bool = True) -> dict
     return meta
 
 
+def _ratio(value):
+    """ffprobe prints HDR chromaticity/luminance as rationals ("13250/50000"); turn one
+    into a float, or None if it's missing/garbage. Tolerates a plain number too."""
+    if value is None:
+        return None
+    try:
+        text = str(value)
+        if "/" in text:
+            num, den = text.split("/", 1)
+            den = float(den)
+            return float(num) / den if den else None
+        return float(text)
+    except (ValueError, TypeError):
+        return None
+
+
+def parse_hdr10_metadata(returncode: int, stdout: str) -> dict | None:
+    """Pure parse of `ffprobe … -show_frames` JSON into HDR10 static metadata — the
+    mastering-display color volume (primaries/white-point/luminance, in PHYSICAL units:
+    chromaticity 0–1, luminance cd/m²) and the content light level (MaxCLL/MaxFALL) — read
+    from the first frame's side-data. Returns `{"mastering_display": {...} | None,
+    "content_light": {...} | None}`, or None when neither is present / the probe failed.
+    Encoder-unit conversion + formatting lives in `encode.hdr_x265_params` (this stays a
+    pure read of what the source declares). No subprocess, so it's unit-testable."""
+    if returncode != 0:
+        return None
+    try:
+        payload = json.loads(stdout)
+    except (ValueError, TypeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    frames = payload.get("frames", [])
+    if not isinstance(frames, list):
+        return None
+
+    mastering = content_light = None
+    for frame in frames:
+        if not isinstance(frame, dict):
+            continue
+        for sd in frame.get("side_data_list", []) or []:
+            if not isinstance(sd, dict):
+                continue
+            kind = sd.get("side_data_type")
+            if kind == "Mastering display metadata" and mastering is None:
+                mastering = _parse_mastering_display(sd)
+            elif kind == "Content light level metadata" and content_light is None:
+                content_light = _parse_content_light(sd)
+    if not mastering and not content_light:
+        return None
+    return {"mastering_display": mastering, "content_light": content_light}
+
+
+def _parse_mastering_display(sd: dict) -> dict | None:
+    """Read every mastering-display field as a physical value; ALL-or-nothing (returns None
+    if any field is missing/unparseable) so a partial probe can never yield a malformed
+    x265 `master-display=` string."""
+    keys = ("red_x", "red_y", "green_x", "green_y", "blue_x", "blue_y",
+            "white_point_x", "white_point_y", "min_luminance", "max_luminance")
+    out = {}
+    for key in keys:
+        v = _ratio(sd.get(key))
+        if v is None:
+            return None
+        out[key] = v
+    return out
+
+
+def _parse_content_light(sd: dict) -> dict | None:
+    """Read MaxCLL/MaxFALL (cd/m², integers); None if either is missing/unparseable."""
+    try:
+        return {"max_cll": int(sd["max_content"]), "max_fall": int(sd["max_average"])}
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def probe_hdr10_metadata(path: Path, logger=None) -> dict | None:
+    """Probe the source's first frame for HDR10 static metadata (see `parse_hdr10_metadata`).
+    Best-effort: a miss just means there's nothing to carry, so failures return None rather
+    than raise (an HDR clean must never fail over optional metadata). `-read_intervals %+#1`
+    reads only the first frame, so this is one cheap probe (the caller gates it to PQ/HLG)."""
+    res = subprocess.run(
+        [ffprobe_bin(), "-v", "error", "-select_streams", "v:0",
+         "-read_intervals", "%+#1", "-show_frames", "-of", "json", str(path)],
+        capture_output=True, text=True,
+    )
+    meta = parse_hdr10_metadata(res.returncode, res.stdout)
+    if meta is None and logger is not None:
+        logger.debug(f"no HDR10 static metadata in {path} (exit {res.returncode})")
+    return meta
+
+
 def ffprobe_duration(path: Path, logger=None) -> float:
     out = subprocess.run(
         [ffprobe_bin(), "-v", "error", "-show_entries", "format=duration",

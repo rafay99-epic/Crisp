@@ -104,10 +104,47 @@ def resolve_pix_fmt(color_depth: str, src_pix_fmt: str):
     return "yuv420p", notes
 
 
-def video_args(codec: str, hardware: bool, quality: str, pix_fmt: str = "yuv420p") -> list:
+def hdr_x265_params(hdr_meta) -> str | None:
+    """Build the libx265 `-x265-params` value that carries HDR10 static metadata from the
+    source — the mastering-display color volume and content light level — or None when the
+    probed metadata (see `tools.parse_hdr10_metadata`) is absent. x265 wants chromaticity in
+    units of 0.00002 and luminance in 0.0001 cd/m² (so the probed physical values are scaled
+    by 50000 / 10000), in a fixed `master-display=G(…)B(…)R(…)WP(…)L(max,min):max-cll=…`
+    shape. Because the parse is all-or-nothing, a non-None result here is always well-formed.
+
+    libx265 only — it's the encoder we drive for 10-bit/HDR (Apple VideoToolbox can't take
+    these params), so `video_args` applies it solely on the libx265 path."""
+    if not hdr_meta:
+        return None
+    parts = []
+    md = hdr_meta.get("mastering_display")
+    if md:
+        def chroma(key):     # 0–1 chromaticity → 0.00002 units
+            return int(round(md[key] * 50000))
+
+        def lum(key):        # cd/m² → 0.0001 cd/m² units
+            return int(round(md[key] * 10000))
+
+        parts.append(
+            "master-display="
+            f"G({chroma('green_x')},{chroma('green_y')})"
+            f"B({chroma('blue_x')},{chroma('blue_y')})"
+            f"R({chroma('red_x')},{chroma('red_y')})"
+            f"WP({chroma('white_point_x')},{chroma('white_point_y')})"
+            f"L({lum('max_luminance')},{lum('min_luminance')})")
+    cll = hdr_meta.get("content_light")
+    if cll:
+        parts.append(f"max-cll={cll['max_cll']},{cll['max_fall']}")
+    return ":".join(parts) if parts else None
+
+
+def video_args(codec: str, hardware: bool, quality: str, pix_fmt: str = "yuv420p",
+               hdr_params: str | None = None) -> list:
     """ffmpeg `-c:v …` arguments for the chosen video encoder + quality level. `pix_fmt`
     defaults to 8-bit 4:2:0 (`yuv420p`, the compatible output for the rendered clean); the
-    editor copy passes the source's own format to avoid a silent bit-depth/chroma downgrade."""
+    editor copy passes the source's own format to avoid a silent bit-depth/chroma downgrade.
+    `hdr_params` (from `hdr_x265_params`) carries HDR10 static metadata — applied only on the
+    libx265 path, the encoder that drives 10-bit/HDR; every other encoder ignores it."""
     quality = quality if quality in HARDWARE_QV else "high"
     pix_fmt = pix_fmt or "yuv420p"
 
@@ -132,7 +169,12 @@ def video_args(codec: str, hardware: bool, quality: str, pix_fmt: str = "yuv420p
 
     encoder = "libx265" if codec == "hevc" else "libx264"
     crf = SOFTWARE_CRF[codec][quality]
-    return ["-c:v", encoder, "-preset", "veryfast", "-crf", str(crf)] + hevc_tag + ["-pix_fmt", pix_fmt]
+    args = ["-c:v", encoder, "-preset", "veryfast", "-crf", str(crf)] + hevc_tag + ["-pix_fmt", pix_fmt]
+    # HDR10 static metadata rides on libx265 only (the 10-bit/HDR path). One -x265-params
+    # element, colon-joined; libx264/VP9/VideoToolbox have no equivalent we carry.
+    if hdr_params and encoder == "libx265":
+        args += ["-x265-params", hdr_params]
+    return args
 
 
 def audio_args(codec: str, bitrate_kbps: int) -> list:
