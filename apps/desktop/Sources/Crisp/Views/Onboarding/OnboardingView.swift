@@ -95,7 +95,7 @@ struct OnboardingView: View {
             featureRow("shippingbox.fill", "Your format, your call",
                        "Export an MP4 with H.264 or HEVC, or a web-friendly WebM, and choose the audio quality and hardware encoding — Crisp keeps incompatible combinations from happening.")
             featureRow("film.stack", "Or hand the cuts to your editor",
-                       "Prefer to finish in your own editor? Crisp can pass the cuts to DaVinci Resolve as a ready-to-edit timeline — no re-rendering, and every cut stays adjustable. Turn it on a couple of steps ahead.")
+                       "Prefer to finish in your own editor? Crisp can pass the cuts to DaVinci Resolve as a ready-to-edit timeline — no finished video to render, and every cut stays adjustable. Turn it on in the “Make it automatic” step.")
             Text("It all happens automatically on smart defaults — fine-tune any of it later in Settings (⌘,).")
                 .font(.callout).foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
