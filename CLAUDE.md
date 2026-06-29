@@ -253,6 +253,8 @@ so the next round re-reviews. Keep iterating until the automated reviews come ba
 Then do your own pass: confirm the change is solid and production-ready — no dead code, no
 needless complexity, everything on point.
 
-## PR making 
-When making PR simple, don't PR summary, just the tilte wll be great becase these AI Model will be adding Ai summary and that is much better.
-- Make sure that the commit messgae are to the point and following the industry commiting rules as well. 
+## PR making
+
+Keep PRs simple: a clear title is enough — skip the long summary, since the automated
+reviewers add their own AI summary, which is better.
+- Keep commit messages concise and to the point, following industry-standard commit conventions.
