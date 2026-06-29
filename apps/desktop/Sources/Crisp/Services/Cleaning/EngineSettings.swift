@@ -34,6 +34,7 @@ final class EngineSettings {
     var splitTracks: Bool { didSet { save() } }          // also write separate video/audio files
     var splitAudioFormat: String { didSet { save() } }   // "match" | "wav"
     var captionsFormat: String { didSet { save() } }     // "none" | "srt" | "vtt" | "both"
+    var burnCaptions: Bool { didSet { save() } }         // burn subtitles into video (open captions)
     var retakeSensitivity: String { didSet { save() } }  // "gentle" | "balanced" | "aggressive"
     // Backup (applied to every clean)
     var backupOriginal: Bool { didSet { save() } }
@@ -80,7 +81,7 @@ final class EngineSettings {
                      exportToEditor: exportToEditor,
                      outputDirectory: outputDirectory,
                      splitTracks: splitTracks, splitAudioFormat: splitAudioFormat,
-                     captionsFormat: captionsFormat,
+                     captionsFormat: captionsFormat, burnCaptions: burnCaptions,
                      retakeSensitivity: retakeSensitivity,
                      backupOriginal: backupOriginal,
                      watchEnabled: watchEnabled, watchFolderPath: watchFolderPath,
@@ -133,6 +134,7 @@ final class EngineSettings {
         // always has a valid selection and the engine never gets a bogus --captions.
         captionsFormat = CaptionFormat(rawValue: cfg.captionsFormat)?.rawValue
             ?? EngineConfig.defaults.captionsFormat
+        burnCaptions = cfg.burnCaptions
         retakeSensitivity = RetakeSensitivity(rawValue: cfg.retakeSensitivity)?.rawValue
             ?? EngineConfig.defaults.retakeSensitivity
         backupOriginal = cfg.backupOriginal

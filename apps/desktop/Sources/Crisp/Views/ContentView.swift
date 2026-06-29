@@ -25,7 +25,8 @@ struct ContentView: View {
     /// per-row preset that turns captions on is covered). Captions always use whisper.
     private var anyCaptions: Bool {
         model.queue.contains { item in
-            item.status == .waiting && resolveParameters(item).captionsFormat != "none"
+            let params = resolveParameters(item)
+            return item.status == .waiting && (params.captionsFormat != "none" || params.burnCaptions)
         }
     }
     /// The fast on-device classifier is the active filler backend: it's only used when

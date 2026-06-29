@@ -17,7 +17,22 @@ def _resolve_tool(env_var: str, candidates: tuple, hint: str) -> str:
     override = os.environ.get(env_var)
     if override and Path(override).exists():
         return override
+    
+    import sys
+    if sys.platform == "win32":
+        # On Windows, prioritize explicit .exe candidates to avoid matching
+        # non-executable bash scripts or .CPL files that throw WinError 193.
+        win_candidates = [c + ".exe" for c in candidates if not c.endswith(".exe")]
+        candidates = tuple(win_candidates) + candidates
+
+    engine_dir = str(Path(__file__).parent.parent.resolve())
+    
     for name in candidates:
+        # Check engine directory first
+        local_path = shutil.which(name, path=engine_dir)
+        if local_path:
+            return local_path
+        # Then check system PATH
         path = shutil.which(name)
         if path:
             return path

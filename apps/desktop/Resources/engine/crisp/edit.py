@@ -81,7 +81,7 @@ try:
     _libc.setxattr.restype = ctypes.c_int
     _libc.setxattr.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_void_p,
                                ctypes.c_size_t, ctypes.c_uint32, ctypes.c_int]
-except (OSError, AttributeError):  # pragma: no cover - platform without these symbols
+except (OSError, AttributeError, TypeError):  # pragma: no cover - platform without these symbols
     _libc = None
 
 
@@ -319,7 +319,7 @@ def output_duration(keep, crossfade=0.0):
     return total
 
 
-def build_filter_graph(keep, fade=0.0, crossfade=0.0):
+def build_filter_graph(keep, fade=0.0, crossfade=0.0, burn_subtitle_path=None):
     """The `-filter_complex_script` lines that trim `keep` (list of (start, end) secs)
     out of input 0 and join the pieces into `[outv][outa]`. Factored out of `render`
     so the cut-smoothing graph is pure and unit-testable (no ffmpeg needed).
@@ -335,10 +335,22 @@ def build_filter_graph(keep, fade=0.0, crossfade=0.0):
     n = len(keep)
     durs = [e - s for s, e in keep]
     lines = []
+    
+    v_in = "0:v"
+    if burn_subtitle_path:
+        # ffmpeg requires escaping backslashes and colons in filter arguments
+        sub_path = str(burn_subtitle_path).replace('\\', '/').replace(':', r'\:')
+        if n > 1:
+            splits = "".join(f"[v_sub{i}]" for i in range(n))
+            lines.append(f"[0:v]subtitles=filename='{sub_path}',split={n}{splits};")
+        else:
+            lines.append(f"[0:v]subtitles=filename='{sub_path}'[v_sub0];")
+
     # Microsecond precision (.6f): millisecond rounding would re-round the
     # zero-crossing snap away (8 samples at 16 kHz) and let cut positions drift.
     for i, (s, e) in enumerate(keep):
-        lines.append(f"[0:v]trim=start={s:.6f}:end={e:.6f},setpts=PTS-STARTPTS[v{i}];")
+        vin = f"v_sub{i}" if burn_subtitle_path else "0:v"
+        lines.append(f"[{vin}]trim=start={s:.6f}:end={e:.6f},setpts=PTS-STARTPTS[v{i}];")
         a = f"[0:a]atrim=start={s:.6f}:end={e:.6f},asetpts=PTS-STARTPTS"
         if crossfade <= 0 and fade > 0:
             f = min(fade, durs[i] / 2)
@@ -367,14 +379,14 @@ def build_filter_graph(keep, fade=0.0, crossfade=0.0):
 
 
 def render(src, keep, out_path, on_log, on_progress, video_opts, audio_opts, mux_opts=(),
-           fade=0.0, crossfade=0.0, fps=None, logger=None):
+           fade=0.0, crossfade=0.0, fps=None, logger=None, burn_subtitle_path=None):
     logger = logger or EngineLogger(None)
     on_log(f"Rendering cleaned video ({len(keep)} segments kept)...")
     # Progress denominator = the actual output length (a crossfade shortens it by
     # (n-1)*c), so out_time_* reaches 100% instead of stalling under it.
     total = output_duration(keep, crossfade) or 1.0
 
-    lines = build_filter_graph(keep, fade=fade, crossfade=crossfade)
+    lines = build_filter_graph(keep, fade=fade, crossfade=crossfade, burn_subtitle_path=burn_subtitle_path)
 
     with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False) as tf:
         tf.write("\n".join(lines))

@@ -140,8 +140,11 @@ public struct CleanRunner {
             // the fast model is never silently bypassed to run whisper just for captions.
             let usingFastFiller = options.removeFillers && options.fillerBackend == "coreml"
                 && options.fillerModelPath != nil
-            let wantCaptions = parameters.captionsFormat != "none" && !usingFastFiller
-            if wantCaptions { args += ["--captions", parameters.captionsFormat] }
+            let wantCaptions = (parameters.captionsFormat != "none" || parameters.burnCaptions) && !usingFastFiller
+            if wantCaptions {
+                if parameters.captionsFormat != "none" { args += ["--captions", parameters.captionsFormat] }
+                if parameters.burnCaptions { args.append("--burn-captions") }
+            }
             // The model is needed for the transcript — for filler removal, captions
             // (which re-time the same transcription onto the cut timeline), *or* retake
             // detection (which matches repeated runs in that transcript).

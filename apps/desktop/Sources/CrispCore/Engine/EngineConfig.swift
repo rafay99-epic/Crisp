@@ -52,6 +52,7 @@ public struct EngineConfig: Codable, Equatable, Sendable {
     // Captions — write re-timed subtitle sidecars (.srt/.vtt) beside the cleaned
     // video. "none" writes nothing; any other value needs the speech model.
     public var captionsFormat: String    // "none" | "srt" | "vtt" | "both"
+    public var burnCaptions: Bool        // burn subtitles into video (open captions)
     public var retakeSensitivity: String // "gentle" | "balanced" | "aggressive"
     // Backup
     public var backupOriginal: Bool      // copy the source aside before cutting
@@ -104,7 +105,7 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         exportToEditor: false,
         outputDirectory: "",
         splitTracks: false, splitAudioFormat: "match",
-        captionsFormat: "none",
+        captionsFormat: "none", burnCaptions: false,
         // Aggressive by default — validated on real footage to catch natural
         // mid-sentence restarts; mirrors crisp/config.py DEFAULT_RETAKE_SENSITIVITY.
         retakeSensitivity: "aggressive",
@@ -121,7 +122,7 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         case fadeMs, crossfadeMs, snapMs
         case videoCodec, hardwareEncoding, videoQuality, audioCodec, audioBitrateKbps
         case outputContainer, colorDepth, frameRateMode, frameRateValue, exportToEditor
-        case outputDirectory, splitTracks, splitAudioFormat, captionsFormat
+        case outputDirectory, splitTracks, splitAudioFormat, captionsFormat, burnCaptions
         case retakeSensitivity, backupOriginal
         case watchEnabled, watchFolderPath, watchRemoveFillers
         case presets, defaultPresetID
@@ -139,6 +140,7 @@ public struct EngineConfig: Codable, Equatable, Sendable {
                 exportToEditor: Bool = false,
                 outputDirectory: String,
                 splitTracks: Bool, splitAudioFormat: String, captionsFormat: String = "none",
+                burnCaptions: Bool = false,
                 retakeSensitivity: String = "aggressive",
                 backupOriginal: Bool,
                 watchEnabled: Bool, watchFolderPath: String, watchRemoveFillers: Bool,
@@ -170,6 +172,7 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         self.splitTracks = splitTracks
         self.splitAudioFormat = splitAudioFormat
         self.captionsFormat = captionsFormat
+        self.burnCaptions = burnCaptions
         self.retakeSensitivity = retakeSensitivity
         self.backupOriginal = backupOriginal
         self.watchEnabled = watchEnabled
@@ -212,6 +215,7 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         splitTracks        = try c.decodeIfPresent(Bool.self, forKey: .splitTracks) ?? d.splitTracks
         splitAudioFormat   = try c.decodeIfPresent(String.self, forKey: .splitAudioFormat) ?? d.splitAudioFormat
         captionsFormat     = try c.decodeIfPresent(String.self, forKey: .captionsFormat) ?? d.captionsFormat
+        burnCaptions       = try c.decodeIfPresent(Bool.self, forKey: .burnCaptions) ?? d.burnCaptions
         retakeSensitivity  = try c.decodeIfPresent(String.self, forKey: .retakeSensitivity) ?? d.retakeSensitivity
         backupOriginal     = try c.decodeIfPresent(Bool.self, forKey: .backupOriginal) ?? d.backupOriginal
         watchEnabled       = try c.decodeIfPresent(Bool.self, forKey: .watchEnabled) ?? d.watchEnabled

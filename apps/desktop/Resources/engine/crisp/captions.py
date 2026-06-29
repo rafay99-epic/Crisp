@@ -183,3 +183,17 @@ def write_captions(out_path, words, keep, fmt):
     except OSError:
         pass
     return srt_out, vtt_out
+
+
+def write_original_captions(words, duration, out_path):
+    """Write an SRT mapped to the ORIGINAL (uncut) timeline. Drops filler words
+    but preserves absolute timing so ffmpeg can burn it before trimming.
+    Returns the path, or None if no cues were generated."""
+    cues = build_captions(words, [(0.0, duration)])
+    if not cues:
+        return None
+    try:
+        Path(out_path).write_text(to_srt(cues), encoding="utf-8")
+        return str(out_path)
+    except OSError:
+        return None

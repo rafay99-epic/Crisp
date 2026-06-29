@@ -290,6 +290,7 @@ struct SettingsView: View {
             Picker("Subtitle files", selection: $settings.captionsFormat) {
                 ForEach(CaptionFormat.allCases) { Text($0.label).tag($0.rawValue) }
             }
+            Toggle("Burn into video", isOn: $settings.burnCaptions)
             // Captions are transcribed, which only the speech model can do — the custom
             // fast filler model (Wren) detects filler audio but can't produce text. So
             // captions are unavailable while the fast model is on (it's cleared on enable).
@@ -305,7 +306,7 @@ struct SettingsView: View {
         } header: {
             Text("Captions")
         } footer: {
-            Text(settings.captionsFormat == "none"
+            Text((settings.captionsFormat == "none" && !settings.burnCaptions)
                  ? "Turn this on to also write a subtitle file (.srt or .vtt) next to each cleaned video \u{2014} ready for YouTube, Premiere, or the web. Captions are transcribed, so they need the speech model."
                  : "Crisp writes the subtitles re-timed to the cut video, so they stay in sync after pauses and fillers are removed. Filler words are left out of the captions.")
                 .font(.caption).foregroundStyle(.secondary)

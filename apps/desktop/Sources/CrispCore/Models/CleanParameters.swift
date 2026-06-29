@@ -25,6 +25,7 @@ public struct CleanParameters: Equatable, Sendable {
     public let splitTracks: Bool         // also write separate video/audio files
     public let splitAudioFormat: String  // "match" | "wav" — audio stem format
     public let captionsFormat: String    // "none" | "srt" | "vtt" | "both"
+    public let burnCaptions: Bool
     public let retakeSensitivity: String // "gentle" | "balanced" | "aggressive"
     public let backupOriginal: Bool
 
@@ -36,7 +37,8 @@ public struct CleanParameters: Equatable, Sendable {
                 frameRateMode: String = "auto", frameRateValue: Double = 30,
                 exportTimeline: String = "none",
                 outputDirectory: String, splitTracks: Bool, splitAudioFormat: String,
-                captionsFormat: String = "none", retakeSensitivity: String = "aggressive",
+                captionsFormat: String = "none", burnCaptions: Bool = false,
+                retakeSensitivity: String = "aggressive",
                 backupOriginal: Bool) {
         self.pause = pause
         self.noiseDB = noiseDB
@@ -59,6 +61,7 @@ public struct CleanParameters: Equatable, Sendable {
         self.splitTracks = splitTracks
         self.splitAudioFormat = splitAudioFormat
         self.captionsFormat = captionsFormat
+        self.burnCaptions = burnCaptions
         self.retakeSensitivity = retakeSensitivity
         self.backupOriginal = backupOriginal
     }
@@ -93,6 +96,7 @@ extension Strength {
             splitTracks: config.splitTracks,
             splitAudioFormat: config.splitAudioFormat,
             captionsFormat: config.captionsFormat,
+            burnCaptions: config.burnCaptions,
             // Clamp a hand-edited/corrupt value to the default preset so the engine's
             // --retake-sensitivity (which has fixed choices) never hard-fails a clean.
             retakeSensitivity: RetakeSensitivity(rawValue: config.retakeSensitivity)?.rawValue

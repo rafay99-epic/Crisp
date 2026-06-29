@@ -363,7 +363,7 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
                 container=DEFAULT_CONTAINER, color_depth=DEFAULT_COLOR_DEPTH, remove_fillers=True,
                 remove_retakes=DEFAULT_REMOVE_RETAKES, backup=DEFAULT_BACKUP,
                 backup_dir=None, out_dir=None, split_tracks=False, split_audio="match",
-                waveform_buckets=0, keep_file=None, captions="none",
+                waveform_buckets=0, keep_file=None, captions="none", burn_captions=False,
                 filler_backend="whisper", filler_model=None,
                 fade_ms=DEFAULT_FADE_MS, crossfade_ms=DEFAULT_CROSSFADE_MS, snap_ms=DEFAULT_SNAP_MS,
                 retake_sensitivity=DEFAULT_RETAKE_SENSITIVITY,
@@ -435,7 +435,7 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
     if export_timeline == "fcpxml" and captions != "none":
         on_log("Captions aren't written for an editor handoff — add them in your editor.")
         captions = "none"
-    want_captions = captions != "none"
+    want_captions = captions != "none" or burn_captions
     # Retake detection needs a real transcript, which the Core ML classifier can't
     # produce. Rather than silently switch a classifier run onto whisper, the engine
     # owns the invariant: retakes are skipped whenever the classifier is the backend.
@@ -698,6 +698,14 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
     # loop, on the attempt that actually used software, never on a hardware attempt.
     hdr_params = _source_hdr_params(src, src_meta, video_codec, logger)
 
+    burn_subtitle_path = None
+    if burn_captions and words:
+        from .captions import write_original_captions
+        temp_srt = out_path.with_name(out_path.name + ".temp.srt")
+        path_str = write_original_captions(words, duration, temp_srt)
+        if path_str:
+            burn_subtitle_path = Path(path_str)
+
     # Encode attempts, tried in order; each fallback SAYS what it gave up (never a silent
     # quality drop). High-bit-depth formats need the software encoder (VideoToolbox is
     # unreliable for >8-bit / wide chroma), so they start there; an 8-bit encode keeps the
@@ -713,7 +721,8 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
         try:
             render(src, keep, out_path, on_log, stage(0.60, 1.0),
                    video_args(video_codec, hw, quality, pix, hdr_params=hdr_params) + color_flags,
-                   audio, mux, fade=fade_s, crossfade=crossfade_s, fps=target_fps, logger=logger)
+                   audio, mux, fade=fade_s, crossfade=crossfade_s, fps=target_fps, logger=logger,
+                   burn_subtitle_path=burn_subtitle_path)
             # hdr_params is written only by libx265 on a deep (≥10-bit) encode (see
             # video_args), so claim preservation only when this attempt was exactly that —
             # never on a hardware attempt or the 8-bit fallback.
@@ -787,3 +796,11 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
         "project_dir": "",
         "media_output": "",
     }
+
+    if burn_subtitle_path and burn_subtitle_path.exists():
+        try:
+            burn_subtitle_path.unlink()
+        except OSError:
+            pass
+
+    return result
