@@ -1,0 +1,39 @@
+apps/desktop-win/Services/EngineSettings.cs
+  s_a7c256b1cebfbb::t_805c581c952a05 39-52
+  s_a7c256b1cebfbb::t_df95dcb832e607 96-97
+  s_a7c256b1cebfbb::t_8f2ebe40ad1299 130-131
+apps/desktop-win/Views/SettingsWindow.axaml
+  s_a7c256b1cebfbb::t_d9d672aa08d35b 95-116
+  s_a7c256b1cebfbb::t_e4e1f11425621c 4
+apps/desktop-win/Program.cs
+  s_a7c256b1cebfbb::t_1a1a964714c914 112-113,117-123
+apps/desktop-win/Models/ModelSpec.cs
+  s_a7c256b1cebfbb::t_743b5312cc0c45 1-3,7,14-15,17-20,33-52
+apps/desktop-win/Models/EngineConfig.cs
+  s_a7c256b1cebfbb::t_f77c9ad054ed5a 47-51
+apps/desktop-win/Services/ModelStore.cs
+  s_a7c256b1cebfbb::t_fcf6ba88da26fc 49-62
+  s_a7c256b1cebfbb::t_1689d96edcb963 21,25-27
+  s_a7c256b1cebfbb::t_6d157b849f4871 28
+apps/desktop-win/ViewModels/MainWindowViewModel.cs
+  s_a7c256b1cebfbb::t_bbb1cd8ab0aa26 66-67,70-72
+  s_a7c256b1cebfbb::t_6a95045f886cec 99-110,112-113
+  s_a7c256b1cebfbb::t_f3fe0981ff083a 245
+  s_a7c256b1cebfbb::t_a683ae64e1595e 73
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "2a5e5e21e70579956fa8c702dc95bbf883c891c4",
+  "prompts": {},
+  "sessions": {
+    "s_a7c256b1cebfbb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "401b41ed-870a-49c3-bff6-f7b868451ef6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
