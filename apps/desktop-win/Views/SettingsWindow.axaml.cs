@@ -15,8 +15,7 @@ public partial class SettingsWindow : Window
 
     private void OnRevealLogs(object? sender, RoutedEventArgs e)
     {
-        var dir = System.IO.Path.Combine(
-            System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile), ".crisp", "logs");
+        var dir = Channels.LogsDirectory;
         try
         {
             System.IO.Directory.CreateDirectory(dir);

@@ -46,8 +46,7 @@ public sealed class CrispEngine
         SetIfExists(psi, "CRISP_FFPROBE", Path.Combine(binDir, "ffprobe" + exe));
         SetIfExists(psi, "CRISP_WHISPER", Path.Combine(binDir, "whisper-cli" + exe));
         // Tell the engine where to log (same per-day file convention as the app).
-        var logDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".crisp", "logs");
+        var logDir = Channels.LogsDirectory;
         try { Directory.CreateDirectory(logDir); psi.Environment["CRISP_LOG_DIR"] = logDir; } catch { /* best effort */ }
 
         using var proc = new Process { StartInfo = psi };

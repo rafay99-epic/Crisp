@@ -73,10 +73,7 @@ public sealed class EngineConfig
         WriteIndented = true,
     };
 
-    public static string FilePath => Path.Combine(
-        Environment.GetEnvironmentVariable("CRISP_CONFIG_DIR")
-            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".crisp", "config"),
-        "settings.json");
+    public static string FilePath => Path.Combine(Channels.ConfigDirectory, "settings.json");
 
     /// True when a present settings.json couldn't be read (transient I/O). The caller
     /// then runs on defaults but must NOT save over the existing file.

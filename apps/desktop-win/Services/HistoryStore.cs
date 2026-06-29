@@ -14,10 +14,7 @@ public partial class HistoryStore : ObservableObject
     public ObservableCollection<HistoryEntry> Entries { get; } = new();
     public bool IsEmpty => Entries.Count == 0;
 
-    private static string FilePath => Path.Combine(
-        Environment.GetEnvironmentVariable("CRISP_DATA_DIR")
-            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".crisp"),
-        "history.jsonl");
+    private static string FilePath => Path.Combine(Channels.DataDirectory, "history.jsonl");
 
     private static readonly JsonSerializerOptions Opts = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 

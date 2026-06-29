@@ -55,7 +55,7 @@ public partial class App : Application
                 return;
             }
             var vm = new MainWindowViewModel();
-            desktop.MainWindow = new MainWindow { DataContext = vm };
+            desktop.MainWindow = new MainWindow { DataContext = vm, Title = Crisp.Channels.Current.DisplayName() };
 
             // "Open With" / file-association: video paths on the command line are queued
             // (both Windows and macOS pass argv).

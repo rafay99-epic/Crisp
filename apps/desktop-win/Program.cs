@@ -63,6 +63,11 @@ sealed class Program
         if (args.Length >= 1 && args[0] == "--preset-test")
             return RunPresetTest();
 
+        // Headless channel-identity check (data-dir isolation + badges).
+        //   dotnet run -- --channel-test
+        if (args.Length >= 1 && args[0] == "--channel-test")
+            return RunChannelTest();
+
         // Headless shell-integration probe (no-op off Windows).
         //   dotnet run -- --shell-test
         if (args.Length >= 1 && args[0] == "--shell-test")
@@ -265,6 +270,36 @@ sealed class Program
 
         try { Directory.Delete(dir, true); } catch { }
         Console.WriteLine($"preset-test: {(ok ? "PASS" : "FAIL")}");
+        return ok ? 0 : 1;
+    }
+
+    private static int RunChannelTest()
+    {
+        var ok = true;
+        void Check(bool c, string what) { Console.WriteLine($"  [{(c ? "ok" : "FAIL")}] {what}"); ok &= c; }
+
+        Check(Crisp.Channel.Stable.DisplayName() == "Crisp"
+              && Crisp.Channel.Nightly.DisplayName() == "Crisp Nightly"
+              && Crisp.Channel.Dev.DisplayName() == "Crisp Dev", "display names");
+        Check(Crisp.Channel.Stable.Badge() is null
+              && Crisp.Channel.Nightly.Badge() == "NIGHTLY"
+              && Crisp.Channel.Dev.Badge() == "DEV", "badges");
+        Check(Crisp.Channel.Stable.DataDirSuffix() == ".crisp"
+              && Crisp.Channel.Nightly.DataDirSuffix() == ".crisp-nightly"
+              && Crisp.Channel.Dev.DataDirSuffix() == ".crisp-dev", "data dir suffixes are distinct (side-by-side installs)");
+        Check(!Crisp.Channel.Dev.UpdatesEnabled()
+              && Crisp.Channel.Stable.UpdatesEnabled()
+              && Crisp.Channel.Nightly.UpdatesEnabled(), "dev has no updater");
+        Check(Crisp.Channel.Nightly.IsPrerelease() && !Crisp.Channel.Stable.IsPrerelease(), "nightly is a prerelease channel");
+        Check(Crisp.Channel.Dev.AssetName() is null && Crisp.Channel.Stable.AssetName() is not null, "dev publishes no installer");
+
+        var tmp = Path.Combine(Path.GetTempPath(), "crisp-chan");
+        Environment.SetEnvironmentVariable("CRISP_DATA_DIR", tmp);
+        Check(Crisp.Channels.DataDirectory == tmp, "CRISP_DATA_DIR overrides the data home");
+        Check(Crisp.Channels.ConfigDirectory == Path.Combine(tmp, "config"), "config/models/logs derive from the data home");
+        Environment.SetEnvironmentVariable("CRISP_DATA_DIR", null);
+
+        Console.WriteLine($"channel-test: {(ok ? "PASS" : "FAIL")}");
         return ok ? 0 : 1;
     }
 

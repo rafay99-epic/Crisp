@@ -34,16 +34,31 @@ public partial class Updater : ObservableObject
     public async Task CheckAsync()
     {
         if (State == UpdaterState.Checking) return;
+        // Dev builds have no updater — rebuild to change them (mirrors macOS Channel.dev).
+        if (!Channels.Current.UpdatesEnabled()) { State = UpdaterState.UpToDate; return; }
         State = UpdaterState.Checking;
         try
         {
-            // Stable channel tracks the latest full release (nightly prerelease: later,
-            // with the Channel port). 404-with-no-token means the private repo isn't visible.
-            var json = await GetAsync($"https://api.github.com/repos/{Repository}/releases/latest");
-            if (json is null) { State = UpdaterState.UpToDate; return; }
+            // Stable tracks the latest full release; Nightly tracks the newest pre-release.
+            // 404-with-no-token means the private repo isn't visible.
+            JsonElement root;
+            if (Channels.Current.IsPrerelease())
+            {
+                var listJson = await GetAsync($"https://api.github.com/repos/{Repository}/releases?per_page=20");
+                if (listJson is null) { State = UpdaterState.UpToDate; return; }
+                using var listDoc = JsonDocument.Parse(listJson);
+                var prerelease = FirstPrerelease(listDoc.RootElement);
+                if (prerelease is null) { State = UpdaterState.UpToDate; return; }
+                root = prerelease.Value.Clone(); // survive listDoc disposal
+            }
+            else
+            {
+                var json = await GetAsync($"https://api.github.com/repos/{Repository}/releases/latest");
+                if (json is null) { State = UpdaterState.UpToDate; return; }
+                using var doc = JsonDocument.Parse(json);
+                root = doc.RootElement.Clone();
+            }
 
-            using var doc = JsonDocument.Parse(json);
-            var root = doc.RootElement;
             var tag = root.GetProperty("tag_name").GetString() ?? "";
             var version = tag.StartsWith('v') ? tag[1..] : tag;
             ReleaseUrl = AssetUrl(root) ?? (root.TryGetProperty("html_url", out var h) ? h.GetString() ?? "" : "");
@@ -76,6 +91,20 @@ public partial class Updater : ObservableObject
     }
 
     /// The Windows installer asset on the release, if one is published yet.
+    /// The newest pre-release in a /releases list (nightly feed), skipping drafts and
+    /// full releases. The list is already newest-first.
+    private static JsonElement? FirstPrerelease(JsonElement releases)
+    {
+        if (releases.ValueKind != JsonValueKind.Array) return null;
+        foreach (var r in releases.EnumerateArray())
+        {
+            var draft = r.TryGetProperty("draft", out var d) && d.GetBoolean();
+            var pre = r.TryGetProperty("prerelease", out var p) && p.GetBoolean();
+            if (!draft && pre) return r;
+        }
+        return null;
+    }
+
     private static string? AssetUrl(JsonElement release)
     {
         if (!release.TryGetProperty("assets", out var assets) || assets.ValueKind != JsonValueKind.Array)

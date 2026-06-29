@@ -56,7 +56,7 @@ Legend: ✅ done · 🔜 remaining · 🟡 partial · ⛔ N/A on Windows (Apple-
 - 🔜 Open in detected editor (← EditorDetector; today: reveal the project)
 - ✅ What's New after an update (release notes viewer)
 - ✅ Diagnostics: reveal the log file
-- 🔜 Channel system (stable/nightly/dev) — partial (`CrispVersion`)
+- ✅ Channel system (stable/nightly/dev) — `Channel` enum (CRISP_CHANNEL), isolated data homes (~/.crisp / -nightly / -dev), display name + header badge, dev has no updater, nightly tracks pre-releases (`--channel-test`)
 
 ## Shipping
 - 🟡 Cross-publish `win-x64` self-contained — verified from macOS

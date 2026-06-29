@@ -36,10 +36,9 @@ public partial class ModelStore : ObservableObject
     public bool IsReady => State == ModelState.Ready;
     public bool IsBusy => State is ModelState.Checking or ModelState.Downloading or ModelState.Verifying;
 
-    // ponytail: CRISP_MODELS_DIR override (tests/CI); default is the channel data home.
-    // Channel-specific dirs (~/.crisp-nightly etc.) come with the Channel port later.
-    public string ModelsDir => Environment.GetEnvironmentVariable("CRISP_MODELS_DIR")
-        ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".crisp", "models");
+    // CRISP_MODELS_DIR override (tests/CI), else the per-channel data home — nightly/dev
+    // keep their own model so the channels stay isolated.
+    public string ModelsDir => Channels.ModelsDirectory;
     public string ModelPath => Path.Combine(ModelsDir, _spec.FileName);
     private string PartPath => ModelPath + ".part";
 

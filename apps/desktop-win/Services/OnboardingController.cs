@@ -9,10 +9,7 @@ namespace Crisp.Services;
 /// reappears. Derived from disk at construction, like the Mac.
 public partial class OnboardingController : ObservableObject
 {
-    private static string MarkerPath => Path.Combine(
-        Environment.GetEnvironmentVariable("CRISP_DATA_DIR")
-            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".crisp"),
-        ".onboarded");
+    private static string MarkerPath => Path.Combine(Channels.DataDirectory, ".onboarded");
 
     [ObservableProperty] private bool _isPresented;
 
