@@ -1,0 +1,28 @@
+apps/desktop-win/Services/WatchFolder.cs
+  s_a7c256b1cebfbb::t_9b92212bdc1e81 102
+  s_a7c256b1cebfbb::t_890cff1554382e 48,51,56,60-62,64
+  s_a7c256b1cebfbb::t_297debca3a1cde 22
+apps/desktop-win/Models/EngineConfig.cs
+  s_a7c256b1cebfbb::t_97b86d802f312d 109-110,112-113
+  s_a7c256b1cebfbb::t_f28fe230e2dc30 93-94,98-100
+apps/desktop-win/Services/Updater.cs
+  s_a7c256b1cebfbb::t_f6a7312684d26f 125-127
+apps/desktop-win/Services/ShellIntegration.cs
+  s_a7c256b1cebfbb::t_dd4c5e2975287b 13-19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "c41e221c75e3954318ddc6d3a0fa7a4ab6b7edff",
+  "prompts": {},
+  "sessions": {
+    "s_a7c256b1cebfbb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "401b41ed-870a-49c3-bff6-f7b868451ef6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
