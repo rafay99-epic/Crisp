@@ -82,6 +82,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Build app and installer
+        env:
+          CRISP_POLAR_ORG_ID: ${{ secrets.CRISP_POLAR_ORG_ID }}
+          CRISP_POLAR_CHECKOUT_URL: ${{ secrets.CRISP_POLAR_CHECKOUT_URL }}
+          CRISP_POLAR_PORTAL_URL: ${{ secrets.CRISP_POLAR_PORTAL_URL }}
+          CRISP_POLAR_LOOKUP_URL: ${{ secrets.CRISP_POLAR_LOOKUP_URL }}
         run: |
           ./build.sh
           ./make-dmg.sh
@@ -115,6 +120,11 @@ jobs:
         run: echo "VERSION=0.$(git rev-list --count HEAD)" >> "$GITHUB_ENV"
 
       - name: Build app and installer
+        env:
+          CRISP_POLAR_ORG_ID: ${{ secrets.CRISP_POLAR_ORG_ID }}
+          CRISP_POLAR_CHECKOUT_URL: ${{ secrets.CRISP_POLAR_CHECKOUT_URL }}
+          CRISP_POLAR_PORTAL_URL: ${{ secrets.CRISP_POLAR_PORTAL_URL }}
+          CRISP_POLAR_LOOKUP_URL: ${{ secrets.CRISP_POLAR_LOOKUP_URL }}
         run: |
           export CRISP_VERSION="$VERSION"
           ./build.sh
