@@ -1,0 +1,26 @@
+apps/desktop-win/PARITY.md
+  s_a7c256b1cebfbb::t_6fa92a73af9931 51
+apps/desktop-win/Services/ReviewPlan.cs
+  s_a7c256b1cebfbb::t_c593e0a1b0ca94 1-45
+apps/desktop-win/Program.cs
+  s_a7c256b1cebfbb::t_7461c99c93272b 321-356
+  s_a7c256b1cebfbb::t_7184fc5aaf517c 71-75
+apps/desktop-win/Models/CutRegion.cs
+  s_a7c256b1cebfbb::t_929b261de065f6 1-17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "d5d42ed6ee48103f1c3edba0b6bf3334a18fb871",
+  "prompts": {},
+  "sessions": {
+    "s_a7c256b1cebfbb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "401b41ed-870a-49c3-bff6-f7b868451ef6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
