@@ -12,6 +12,8 @@ the real editing.
 Your original is **never touched**: it's backed up first, and the result is saved
 as a new `…_cleaned.mp4` next to it.
 
+**📖 [Read the docs](https://www.cubic.dev/wikis/rafay99-epic/Crisp)**
+
 </div>
 
 ---
