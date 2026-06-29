@@ -268,6 +268,31 @@ class ResolvePixFmtTests(unittest.TestCase):
             self.assertIn(pix, self.LIBX265_PLANAR, f"{src} -> {pix} not encodable")
             self.assertTrue(notes, src)
 
+    def test_9bit_source_maps_up_to_10bit_not_down_to_8(self):
+        # 9-bit formats are >8-bit but no encoder has a 9-bit mode — they must round UP to
+        # 10-bit (lossless), never fall through to 8-bit (the silent downgrade cubic flagged).
+        for src in ("yuv420p9le", "yuv422p9le", "yuv444p9le", "gbrp9le", "yuv420p9be"):
+            for mode in ("auto", "10"):
+                pix = resolve_pix_fmt(mode, src)[0]
+                self.assertTrue(is_deep_pix_fmt(pix), f"{mode}/{src} -> {pix}")
+                self.assertEqual(pix[-4:], "10le", f"{mode}/{src} -> {pix}")  # 10-bit, never 8
+
+    def test_depth_is_capped_to_the_encoder_ceiling(self):
+        # H.264 (libx264) tops out at 10-bit and this VP9 build at 8-bit, so a deeper source
+        # is capped to what the chosen encoder accepts — never handed a depth it would reject
+        # and then fall back to 8-bit on. (HEVC/libx265 keeps 12-bit.)
+        self.assertEqual(resolve_pix_fmt("auto", "yuv420p12le", "hevc")[0], "yuv420p12le")
+        self.assertEqual(resolve_pix_fmt("auto", "yuv420p12le", "h264")[0], "yuv420p10le")
+        self.assertEqual(resolve_pix_fmt("auto", "yuv422p10le", "h264")[0], "yuv422p10le")
+        # VP9 (this build) has no high bit depth at all → 8-bit, keeping chroma, and SAYS so.
+        pix, notes = resolve_pix_fmt("auto", "yuv422p10le", "vp9")
+        self.assertEqual(pix, "yuv422p")
+        self.assertTrue(notes)                                  # the depth drop is surfaced
+        # Force-10 on an encoder that can't do 10-bit lands at 8-bit with a note, not a lie.
+        pix, notes = resolve_pix_fmt("10", "yuv420p", "vp9")
+        self.assertEqual(pix, "yuv420p")
+        self.assertTrue(any("8-bit" in n for n in notes))
+
     def test_resolved_format_is_always_encoder_safe(self):
         # Invariant across every mode × a broad spread of sources: the result is always a
         # libx265-encodable planar format (or 8-bit 4:2:0), never a raw semi-planar/packed one.

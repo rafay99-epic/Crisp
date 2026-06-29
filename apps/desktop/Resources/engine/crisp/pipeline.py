@@ -185,7 +185,7 @@ def _export_editor_project(src, keep, out_dir, project_dir, target_fps,
             # the resolver runs in "auto" (match-source) mode regardless of the user's
             # Color-depth setting. Apple's VideoToolbox is unreliable for high-bit-depth /
             # wide-chroma formats, so a preserved copy uses the software encoder.
-            enc_pix, _ = resolve_pix_fmt("auto", src_meta["pix_fmt"])
+            enc_pix, _ = resolve_pix_fmt("auto", src_meta["pix_fmt"], video_codec)
             preserve = is_high_bit_depth(enc_pix)
 
             def _normalize(hw, pix):
@@ -684,7 +684,7 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
     # 8-bit (philosophy #3). `color_depth` ("auto"|"8"|"10") can override the match. A
     # probe failure degrades to the safe 8-bit default rather than breaking the clean.
     src_meta = probe_stream_meta(src, logger=logger, require_fps=False) or {}
-    enc_pix, depth_notes = resolve_pix_fmt(color_depth, src_meta.get("pix_fmt", ""))
+    enc_pix, depth_notes = resolve_pix_fmt(color_depth, src_meta.get("pix_fmt", ""), video_codec)
     for note in depth_notes:
         on_log(note)
     color_flags = _source_color_flags(src_meta)

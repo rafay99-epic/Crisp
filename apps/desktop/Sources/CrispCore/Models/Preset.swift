@@ -58,10 +58,15 @@ public struct Preset: Identifiable, Codable, Equatable, Sendable {
     // `presets` array under one `try`, a single failed preset would throw away ALL the
     // user's settings (load() falls back to defaults). decodeIfPresent prevents that.
     //
-    // MAINTENANCE: when adding a field, update it in THREE places — the stored property +
-    // memberwise init, `CodingKeys` below, AND `init(from:)`. A new field that callers must
-    // not lose on an old file should `decodeIfPresent(…) ?? <default>` (like colorDepth), so
-    // a preset saved before the field still decodes. Forgetting either silently breaks loads.
+    // MAINTENANCE: a recipe field added here must be threaded through FIVE places, or it's
+    // silently dropped on save, load, or use:
+    //   1. the stored property + memberwise `init`
+    //   2. `CodingKeys` below + `init(from:)` — use `decodeIfPresent(…) ?? <default>` (like
+    //      colorDepth) so a preset saved before the field still decodes (forward-compat)
+    //   3. the snapshot `init(name:strength:config:)` — copy it from the `EngineConfig`
+    //   4. `parameters(exportToEditor:)` — restore it onto the throwaway `EngineConfig`
+    // (1)+(2) keep it on disk; (3)+(4) keep it flowing config → preset → clean, so a preset
+    // saved at e.g. colorDepth "10" actually renders at "10" instead of reverting to default.
     enum CodingKeys: String, CodingKey {
         case id, name, strength, pauseThreshold, silenceFloorDB, breathingRoom, minKeep
         case videoCodec, hardwareEncoding, videoQuality, audioCodec, audioBitrateKbps
