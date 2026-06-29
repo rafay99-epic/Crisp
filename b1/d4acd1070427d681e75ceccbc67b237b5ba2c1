@@ -1,0 +1,49 @@
+apps/desktop-win/PARITY.md
+  s_a7c256b1cebfbb::t_6f439db0d86e40 59
+apps/desktop-win/Views/SettingsWindow.axaml.cs
+  s_a7c256b1cebfbb::t_48516915cbfa53 18
+apps/desktop-win/Services/CrispEngine.cs
+  s_a7c256b1cebfbb::t_db90f8fc15d6a7 49
+apps/desktop-win/Common/Channel.cs
+  s_a7c256b1cebfbb::t_3a038f8aec211c 1-100
+apps/desktop-win/Program.cs
+  s_a7c256b1cebfbb::t_9f6a055e79651a 66-70
+  s_a7c256b1cebfbb::t_998c53d4faae5f 276-305
+apps/desktop-win/Services/EngineSettings.cs
+  s_a7c256b1cebfbb::t_1f754cd0fd2280 266-267
+apps/desktop-win/Services/ModelStore.cs
+  s_a7c256b1cebfbb::t_17430fe3076459 39-41
+apps/desktop-win/App.axaml.cs
+  s_a7c256b1cebfbb::t_bbc2b4884eb741 58
+apps/desktop-win/Services/Updater.cs
+  s_a7c256b1cebfbb::t_f36ea309d5f396 94-107
+  s_a7c256b1cebfbb::t_bf2662f0975bb4 52
+  s_a7c256b1cebfbb::t_8ce23edcf8c5c5 37-38,42-51,53-60
+apps/desktop-win/ViewModels/MainWindowViewModel.cs
+  s_a7c256b1cebfbb::t_d9e0f97f9d6f3d 40-42
+  s_a7c256b1cebfbb::t_e1c813d79b0608 38-39
+apps/desktop-win/Services/OnboardingController.cs
+  s_a7c256b1cebfbb::t_9f7878b78ea781 12
+apps/desktop-win/Services/HistoryStore.cs
+  s_a7c256b1cebfbb::t_29a377c8cb70a4 17
+apps/desktop-win/Models/EngineConfig.cs
+  s_a7c256b1cebfbb::t_32acc44566147c 76
+apps/desktop-win/Views/MainWindow.axaml
+  s_a7c256b1cebfbb::t_7676409034695b 29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "b1d4acd1070427d681e75ceccbc67b237b5ba2c1",
+  "prompts": {},
+  "sessions": {
+    "s_a7c256b1cebfbb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "401b41ed-870a-49c3-bff6-f7b868451ef6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
