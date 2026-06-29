@@ -1,0 +1,35 @@
+apps/desktop-win/Views/MainWindow.axaml
+  s_a7c256b1cebfbb::t_60a859b8450c8b 187-197
+apps/desktop-win/Views/SettingsWindow.axaml
+  s_a7c256b1cebfbb::t_d44f7922de2726 144-177
+apps/desktop-win/ViewModels/MainWindowViewModel.cs
+  s_a7c256b1cebfbb::t_b8830ac5abf8a8 127-132
+  s_a7c256b1cebfbb::t_08ae542017648a 161-167
+  s_a7c256b1cebfbb::t_88b203c9d5228f 47-51
+apps/desktop-win/Services/EngineSettings.cs
+  s_a7c256b1cebfbb::t_80d9ca815f939e 56-58,61
+apps/desktop-win/Views/SettingsWindow.axaml.cs
+  s_a7c256b1cebfbb::t_ba0acc2887e347 5
+  s_a7c256b1cebfbb::t_61cd3febe7c53b 47-53,57-70
+  s_a7c256b1cebfbb::t_bc399b059b541c 54-56
+apps/desktop-win/PARITY.md
+  s_a7c256b1cebfbb::t_96e49d5ddaa1c4 47
+.vscode/settings.json
+  s_a7c256b1cebfbb::t_5eac8c54230877 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "cbbe5f440afd3303c1667e0b8c88a778b157a64d",
+  "prompts": {},
+  "sessions": {
+    "s_a7c256b1cebfbb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "401b41ed-870a-49c3-bff6-f7b868451ef6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
