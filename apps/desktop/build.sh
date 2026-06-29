@@ -103,6 +103,20 @@ fi
 # Channel.licensingEnabled; absent/NO ⇒ the app behaves as if licensing didn't exist.
 "$PB" -c "Add :CrispLicensingEnabled string ${CRISP_LICENSING:-NO}" "$APP/Contents/Info.plist" 2>/dev/null \
   || "$PB" -c "Set :CrispLicensingEnabled ${CRISP_LICENSING:-NO}" "$APP/Contents/Info.plist"
+# Polar account identifiers (org id + checkout/portal/lookup URLs) — injected from
+# CRISP_POLAR_* env vars so they live in build secrets, not committed source (read by
+# PolarConfig). Only written when set; absent ⇒ PolarConfig returns nil (fine while
+# the feature ships dark). Source for dev: a gitignored apps/desktop/.polar.env that
+# dev.sh/nightly.sh load; for release: GitHub Actions secrets.
+set_plist() {  # key, value — write only if value is non-empty
+  [ -z "$2" ] && return 0
+  "$PB" -c "Add :$1 string $2" "$APP/Contents/Info.plist" 2>/dev/null \
+    || "$PB" -c "Set :$1 $2" "$APP/Contents/Info.plist"
+}
+set_plist CrispPolarOrgID        "${CRISP_POLAR_ORG_ID:-}"
+set_plist CrispPolarCheckoutURL  "${CRISP_POLAR_CHECKOUT_URL:-}"
+set_plist CrispPolarPortalURL    "${CRISP_POLAR_PORTAL_URL:-}"
+set_plist CrispPolarLookupURL    "${CRISP_POLAR_LOOKUP_URL:-}"
 
 # Watch-folder LaunchAgent. Staged into Contents/Library/LaunchAgents/ with a
 # per-channel Label + AssociatedBundleIdentifiers so the three channels each get

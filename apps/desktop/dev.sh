@@ -5,6 +5,10 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+# Load Polar account identifiers (gitignored, not committed) so the Dev build's
+# licensing endpoints are injected. Optional — if absent, licensing stays inert.
+[ -f .polar.env ] && set -a && . ./.polar.env && set +a
+
 CRISP_CHANNEL=dev ./build.sh
 
 APP="build/Crisp Dev.app"

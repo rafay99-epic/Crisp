@@ -218,12 +218,12 @@ final class LicenseStore {
     // MARK: - Links & display
 
     func openCheckout() {
-        guard Channel.licensingEnabled else { return }
-        NSWorkspace.shared.open(PolarConfig.checkoutURL)
+        guard Channel.licensingEnabled, let url = PolarConfig.checkoutURL else { return }
+        NSWorkspace.shared.open(url)
     }
     func openPortal() {
-        guard Channel.licensingEnabled else { return }
-        NSWorkspace.shared.open(PolarConfig.portalURL)
+        guard Channel.licensingEnabled, let url = PolarConfig.portalURL else { return }
+        NSWorkspace.shared.open(url)
     }
 
     /// Masked form of the stored key for display, e.g. "•••• •••• 1A2B".

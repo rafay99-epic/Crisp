@@ -19,6 +19,11 @@ apps/desktop/.vendor/
 __pycache__/
 *.pyc
 
+# Polar licensing account identifiers — injected into Info.plist at build time by
+# dev.sh/nightly.sh/build.sh. Real values stay out of the repo (copy .polar.env.example
+# to .polar.env; release builds inject from GitHub Actions secrets).
+.polar.env
+
 # Node / Turborepo / Vite (apps/web). Package manager: bun (bun.lock is committed).
 node_modules/
 dist/
