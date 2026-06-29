@@ -1,0 +1,38 @@
+apps/desktop-win/ViewModels/MainWindowViewModel.cs
+  s_a7c256b1cebfbb::t_34207bbd901729 42
+  s_a7c256b1cebfbb::t_a8b7afbeb3090a 171-173
+apps/desktop-win/Program.cs
+  s_a7c256b1cebfbb::t_ef46efb6cffaad 103-126
+  s_a7c256b1cebfbb::t_28a42064254003 36-40
+  s_a7c256b1cebfbb::t_6def103b3c7ec4 3-5
+apps/desktop-win/Models/EngineConfig.cs
+  s_a7c256b1cebfbb::t_4bafa552511787 1-82
+apps/desktop-win/Services/EngineSettings.cs
+  s_a7c256b1cebfbb::t_9bf3d245c674e6 1-146
+apps/desktop-win/Views/SettingsWindow.axaml
+  s_a7c256b1cebfbb::t_677a8d36fd0c2f 1-106
+apps/desktop-win/Views/MainWindow.axaml.cs
+  s_a7c256b1cebfbb::t_7ea00b4d13b8c3 44-50
+apps/desktop-win/Views/SettingsWindow.axaml.cs
+  s_a7c256b1cebfbb::t_73d67ecdea5b51 1-11
+apps/desktop-win/App.axaml.cs
+  s_a7c256b1cebfbb::t_f6da3d412703d0 24-30
+apps/desktop-win/Views/MainWindow.axaml
+  s_a7c256b1cebfbb::t_aa4e51a3620758 22-24,32-37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "4bfa512c32822341427c60f9c6a29a3f404aa4f1",
+  "prompts": {},
+  "sessions": {
+    "s_a7c256b1cebfbb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "401b41ed-870a-49c3-bff6-f7b868451ef6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
