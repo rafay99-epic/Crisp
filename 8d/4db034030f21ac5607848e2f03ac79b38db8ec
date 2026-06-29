@@ -1,0 +1,19 @@
+.github/workflows/ci.yml
+  s_43fc4f80da48b2::t_e2d3f5dcdac43f 70-82
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "8d4db034030f21ac5607848e2f03ac79b38db8ec",
+  "prompts": {},
+  "sessions": {
+    "s_43fc4f80da48b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "925d565a-8133-40da-9ad5-d203a0dc7970",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
