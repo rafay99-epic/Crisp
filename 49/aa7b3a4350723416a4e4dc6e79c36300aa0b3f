@@ -1,0 +1,22 @@
+apps/desktop-win/PARITY.md
+  s_a7c256b1cebfbb::t_6c412ac7844d18 71-72
+.github/workflows/windows.yml
+  s_a7c256b1cebfbb::t_745fe6d4364582 88-92,94,109-113
+  s_a7c256b1cebfbb::t_a998e592c93738 114
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "49aa7b3a4350723416a4e4dc6e79c36300aa0b3f",
+  "prompts": {},
+  "sessions": {
+    "s_a7c256b1cebfbb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "401b41ed-870a-49c3-bff6-f7b868451ef6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
