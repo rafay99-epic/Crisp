@@ -1,0 +1,29 @@
+apps/desktop-win/PARITY.md
+  s_a7c256b1cebfbb::t_c3330f88f3650b 46,48
+apps/desktop-win/ViewModels/MainWindowViewModel.cs
+  s_a7c256b1cebfbb::t_d73c1a488ada61 251-296
+  s_a7c256b1cebfbb::t_167898966afb67 173
+apps/desktop-win/Program.cs
+  s_a7c256b1cebfbb::t_b91a82a8e8e6ae 193-201
+  s_a7c256b1cebfbb::t_2f9b8426bac46a 56-60
+apps/desktop-win/Services/CrispEngine.cs
+  s_a7c256b1cebfbb::t_22e20c5229f01e 95-113
+apps/desktop-win/Views/MainWindow.axaml
+  s_a7c256b1cebfbb::t_06bebcf0bbd78c 84-99,101-109
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "d523f927fd0f25d3048dc843a1ae64fed2da88af",
+  "prompts": {},
+  "sessions": {
+    "s_a7c256b1cebfbb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "401b41ed-870a-49c3-bff6-f7b868451ef6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
