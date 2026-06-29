@@ -1,0 +1,45 @@
+apps/desktop-win/Services/CrispEngine.cs
+  s_a7c256b1cebfbb::t_854e3809c23c5c 1-69
+apps/desktop-win/.gitignore
+  s_a7c256b1cebfbb::t_12f42b71bcf21d 1-8
+apps/desktop-win/Views/MainWindow.axaml
+  s_a7c256b1cebfbb::t_5bd9a537e55e67 1-21,23-45
+  s_a7c256b1cebfbb::t_6c30ef124677be 22
+apps/desktop-win/app.manifest
+  s_a7c256b1cebfbb::t_d92ea5d9add150 1-18
+apps/desktop-win/App.axaml
+  s_a7c256b1cebfbb::t_d92ea5d9add150 1-15
+apps/desktop-win/Program.cs
+  s_a7c256b1cebfbb::t_67ff0ef6b4a648 3-6,16-52
+  s_a7c256b1cebfbb::t_d92ea5d9add150 1-2,7-15,53-63
+apps/desktop-win/Crisp.csproj
+  s_a7c256b1cebfbb::t_d92ea5d9add150 1-26
+apps/desktop-win/App.axaml.cs
+  s_a7c256b1cebfbb::t_d92ea5d9add150 1-31
+apps/desktop-win/Views/MainWindow.axaml.cs
+  s_a7c256b1cebfbb::t_2c4a8710a7f301 1-31
+apps/desktop-win/Models/EngineEvent.cs
+  s_a7c256b1cebfbb::t_229de602b577f6 1-37
+apps/desktop-win/ViewModels/ViewModelBase.cs
+  s_a7c256b1cebfbb::t_d92ea5d9add150 1-7
+apps/desktop-win/ViewLocator.cs
+  s_a7c256b1cebfbb::t_d92ea5d9add150 1-37
+apps/desktop-win/ViewModels/MainWindowViewModel.cs
+  s_a7c256b1cebfbb::t_a549c36a06c467 1-94
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "a1045854e580e24b442d134f782f3212bfe57d70",
+  "prompts": {},
+  "sessions": {
+    "s_a7c256b1cebfbb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "401b41ed-870a-49c3-bff6-f7b868451ef6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}

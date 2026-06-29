@@ -1,0 +1,30 @@
+apps/desktop-win/App.axaml
+  s_a7c256b1cebfbb::t_06d0a2fbc8c959 1-87
+apps/desktop-win/Views/Controls/WaveformMark.axaml
+  s_a7c256b1cebfbb::t_f9326aad77bb9f 1-12,14-27
+  s_a7c256b1cebfbb::t_c8a14087c48b32 13
+apps/desktop-win/Views/MainWindow.axaml
+  s_a7c256b1cebfbb::t_b500fca742dcce 65-78
+  s_a7c256b1cebfbb::t_e55d8bc3f37ffb 12
+  s_a7c256b1cebfbb::t_76b6050732599e 5,11,19,22-24,26-27,29-30,34-49,52-61,63-64,79-80,82,84,86-102,104,106-110,112,115-123,125-129,132-139
+  s_a7c256b1cebfbb::t_4fa7c0737a66e8 85
+  s_a7c256b1cebfbb::t_9efb84b1a8d88f 124
+apps/desktop-win/Views/Controls/WaveformMark.axaml.cs
+  s_a7c256b1cebfbb::t_d90881a89f8056 1-9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "7fe14cc43e54d543dd65a2d64c03ac827aab5be1",
+  "prompts": {},
+  "sessions": {
+    "s_a7c256b1cebfbb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "401b41ed-870a-49c3-bff6-f7b868451ef6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
