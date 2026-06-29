@@ -1,0 +1,23 @@
+apps/desktop/Sources/CrispCore/Licensing/LicenseStorage.swift
+  s_43fc4f80da48b2::t_6a7e3e09b08eb6 71-75,78,80
+apps/desktop/Sources/Crisp/Services/Cleaning/CleanModel.swift
+  s_43fc4f80da48b2::t_400bd1aec27384 329-335
+apps/desktop/Sources/Crisp/Services/Licensing/LicenseStore.swift
+  s_43fc4f80da48b2::t_971ae3ffb7b5be 103-108
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "62443e9c13b0e4aff54a77dce2720fe002afaed6",
+  "prompts": {},
+  "sessions": {
+    "s_43fc4f80da48b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "925d565a-8133-40da-9ad5-d203a0dc7970",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
