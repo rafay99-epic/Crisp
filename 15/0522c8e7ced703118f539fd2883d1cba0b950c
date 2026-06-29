@@ -1,0 +1,24 @@
+apps/desktop-win/App.axaml.cs
+  s_a7c256b1cebfbb::t_1d927641f0da12 2,4,19-36
+  s_a7c256b1cebfbb::t_ffe5b55c0e1fe5 37
+apps/desktop-win/PARITY.md
+  s_a7c256b1cebfbb::t_b5882ca700cfdf 53
+apps/desktop-win/App.axaml
+  s_a7c256b1cebfbb::t_2a3c72e4b4dc33 8-21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "150522c8e7ced703118f539fd2883d1cba0b950c",
+  "prompts": {},
+  "sessions": {
+    "s_a7c256b1cebfbb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "401b41ed-870a-49c3-bff6-f7b868451ef6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
