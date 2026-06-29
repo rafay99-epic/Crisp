@@ -9,6 +9,7 @@ Legend: ✅ done · 🔜 remaining · 🟡 partial · ⛔ N/A on Windows (Apple-
 - ✅ Engine subprocess driver + NDJSON streaming (`CrispEngine` ← `CleanRunner`)
 - ✅ OS-aware encoders — macOS VideoToolbox untouched; Windows NVENC→QSV→AMF→software
 - ✅ Process teardown guarded for Windows (`sys.platform`)
+- ✅ Engine imports + runs on real Windows (Windows CI caught + fixed: CDLL(None) TypeError, log-handle file lock)
 - ✅ Cut detection / filler / retake removal (engine, via flags)
 - ✅ Engine tool/log env contract (`CRISP_FFMPEG/FFPROBE/WHISPER/LOG_DIR`)
 - 🟡 HW pixel formats for 10-bit (auto-converts today; p010le tuning needs a Windows GPU)
