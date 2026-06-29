@@ -1,0 +1,27 @@
+apps/desktop-win/Program.cs
+  s_a7c256b1cebfbb::t_23373330cb3df2 61-68
+apps/desktop-win/Services/ShellIntegration.cs
+  s_a7c256b1cebfbb::t_0c29f5ab8db82f 1-58
+apps/desktop-win/PARITY.md
+  s_a7c256b1cebfbb::t_0ecfce563b1eab 54
+apps/desktop-win/Views/SettingsWindow.axaml
+  s_a7c256b1cebfbb::t_06001219b20167 158-160
+apps/desktop-win/Services/EngineSettings.cs
+  s_a7c256b1cebfbb::t_34332bdacdc49f 51-57
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "fbea7bfca574b1c30487b2b826c1908d2a8461ee",
+  "prompts": {},
+  "sessions": {
+    "s_a7c256b1cebfbb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "401b41ed-870a-49c3-bff6-f7b868451ef6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
