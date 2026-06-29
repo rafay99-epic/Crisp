@@ -185,7 +185,8 @@ def video_args(codec: str, hardware: bool, quality: str, pix_fmt: str = "yuv420p
     defaults to 8-bit 4:2:0 (`yuv420p`, the compatible output for the rendered clean); the
     editor copy passes the source's own format to avoid a silent bit-depth/chroma downgrade.
     `hdr_params` (from `hdr_x265_params`) carries HDR10 static metadata — applied only on the
-    libx265 path, the encoder that drives 10-bit/HDR; every other encoder ignores it."""
+    libx265 path AND only when the pixel format is actually ≥10-bit; every other encoder, and
+    an 8-bit fallback, ignores it (HDR10 SEI on 8-bit SDR would make players tone-map it)."""
     quality = quality if quality in HARDWARE_QV else "high"
     pix_fmt = pix_fmt or "yuv420p"
 
@@ -211,9 +212,11 @@ def video_args(codec: str, hardware: bool, quality: str, pix_fmt: str = "yuv420p
     encoder = "libx265" if codec == "hevc" else "libx264"
     crf = SOFTWARE_CRF[codec][quality]
     args = ["-c:v", encoder, "-preset", "veryfast", "-crf", str(crf)] + hevc_tag + ["-pix_fmt", pix_fmt]
-    # HDR10 static metadata rides on libx265 only (the 10-bit/HDR path). One -x265-params
-    # element, colon-joined; libx264/VP9/VideoToolbox have no equivalent we carry.
-    if hdr_params and encoder == "libx265":
+    # HDR10 static metadata rides on libx265 only (the 10-bit/HDR path) AND only when the
+    # output is actually deep — never on an 8-bit fallback (the ladder can drop a failed
+    # 10-bit encode to yuv420p with the SAME codec + hdr_params; writing HDR10 SEI onto 8-bit
+    # SDR would make players tone-map content that was never HDR). One colon-joined element.
+    if hdr_params and encoder == "libx265" and is_deep_pix_fmt(pix_fmt):
         args += ["-x265-params", hdr_params]
     return args
 

@@ -57,6 +57,11 @@ public struct Preset: Identifiable, Codable, Equatable, Sendable {
     // decode an older preset missing the key — and because EngineConfig decodes its whole
     // `presets` array under one `try`, a single failed preset would throw away ALL the
     // user's settings (load() falls back to defaults). decodeIfPresent prevents that.
+    //
+    // MAINTENANCE: when adding a field, update it in THREE places — the stored property +
+    // memberwise init, `CodingKeys` below, AND `init(from:)`. A new field that callers must
+    // not lose on an old file should `decodeIfPresent(…) ?? <default>` (like colorDepth), so
+    // a preset saved before the field still decodes. Forgetting either silently breaks loads.
     enum CodingKeys: String, CodingKey {
         case id, name, strength, pauseThreshold, silenceFloorDB, breathingRoom, minKeep
         case videoCodec, hardwareEncoding, videoQuality, audioCodec, audioBitrateKbps

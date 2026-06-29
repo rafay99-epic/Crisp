@@ -171,7 +171,7 @@ class HighBitDepthTests(unittest.TestCase):
 
     def test_hdr_params_only_ride_libx265(self):
         params = "master-display=G(8500,39850)B(6550,2300)R(35400,14600)WP(15635,16450)L(10000000,1)"
-        # Software HEVC (libx265) is the only encoder we drive that carries HDR10 metadata.
+        # Software HEVC (libx265) on a DEEP pixel format is the only place HDR10 metadata rides.
         sw_hevc = video_args("hevc", False, "high", "yuv420p10le", hdr_params=params)
         self.assertIn("-x265-params", sw_hevc)
         self.assertEqual(sw_hevc[sw_hevc.index("-x265-params") + 1], params)
@@ -181,6 +181,18 @@ class HighBitDepthTests(unittest.TestCase):
         self.assertNotIn("-x265-params", video_args("vp9", False, "high", "yuv420p10le", hdr_params=params))
         # No metadata → no flag, even on libx265.
         self.assertNotIn("-x265-params", video_args("hevc", False, "high", "yuv420p10le"))
+
+    def test_hdr_params_never_written_to_8bit_fallback(self):
+        # Critical: the render/editor ladder can drop a failed 10-bit encode to 8-bit yuv420p
+        # with the SAME codec + hdr_params. Writing HDR10 SEI onto 8-bit SDR makes players
+        # tone-map non-HDR content, so libx265 on a NON-deep pixel format must drop the params.
+        params = "max-cll=1000,400"
+        for pix in ("yuv420p", "yuv422p", "yuv444p"):   # all 8-bit
+            self.assertNotIn("-x265-params",
+                             video_args("hevc", False, "high", pix, hdr_params=params), pix)
+        # …but a 12-bit fallback is still deep, so it keeps the metadata.
+        self.assertIn("-x265-params",
+                      video_args("hevc", False, "high", "yuv420p12le", hdr_params=params))
 
 
 class HdrX265ParamsTests(unittest.TestCase):

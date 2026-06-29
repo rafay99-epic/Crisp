@@ -19,8 +19,8 @@ from .edit import (_output_owner, build_keep_segments, gate_fillers_by_silence, 
                    output_duration, render, snap_keep_to_zero_crossings, tag_output_source,
                    unique_output_path)
 from .encode import (
-    audio_args, container_args, default_output_path, hdr_x265_params, is_high_bit_depth,
-    resolve_codecs, resolve_container, resolve_pix_fmt, video_args,
+    audio_args, container_args, default_output_path, hdr_x265_params, is_deep_pix_fmt,
+    is_high_bit_depth, resolve_codecs, resolve_container, resolve_pix_fmt, video_args,
 )
 from .enginelog import EngineLogger
 from .errors import CleanError
@@ -710,9 +710,10 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
             render(src, keep, out_path, on_log, stage(0.60, 1.0),
                    video_args(video_codec, hw, quality, pix, hdr_params=hdr_params) + color_flags,
                    audio, mux, fade=fade_s, crossfade=crossfade_s, fps=target_fps, logger=logger)
-            # hdr_params rides libx265 only, so it was actually written iff this was a
-            # software encode — claim preservation only then (never on a hardware attempt).
-            if hdr_params and not hw:
+            # hdr_params is written only by libx265 on a deep (≥10-bit) encode (see
+            # video_args), so claim preservation only when this attempt was exactly that —
+            # never on a hardware attempt or the 8-bit fallback.
+            if hdr_params and not hw and is_deep_pix_fmt(pix):
                 on_log("Preserving the source's HDR10 metadata.")
             break
         except CleanError:
