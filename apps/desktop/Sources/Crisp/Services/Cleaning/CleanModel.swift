@@ -326,11 +326,15 @@ final class CleanModel {
     /// message and returns false so the run never begins — defense-in-depth behind the
     /// already-disabled Clean button.
     private func ensureLicenseAllowsClean() -> Bool {
-        if let reason = LicenseGate.blockReason() {
-            errorMessage = reason
+        do {
+            // `checkClean()` (not `blockReason()`) so a successful GUI clean also advances
+            // the rollback watermark, exactly like the headless path.
+            try LicenseGate.checkClean()
+            return true
+        } catch {
+            errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             return false
         }
-        return true
     }
 
     /// Clean a single reviewed file with the user's hand-edited keep-list — the

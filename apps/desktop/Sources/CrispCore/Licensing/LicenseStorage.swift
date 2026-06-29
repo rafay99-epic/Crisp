@@ -68,9 +68,16 @@ public enum LicenseStorage {
     /// Stable per-device id used for Polar activation. A random UUID minted once and
     /// persisted; it survives app reinstalls via the Keychain. (We deliberately don't
     /// read the hardware serial — a stored id is enough for binding and avoids IOKit.)
+    ///
+    /// If the Keychain write fails, we still cache the minted id in-process so the
+    /// identity stays **stable for this session** — otherwise each access would mint a
+    /// different UUID and break the activate↔validate device match.
+    private static var cachedDeviceID: String?
     public static var deviceID: String {
         if let existing = Keychain.string(for: Account.deviceID) { return existing }
+        if let cached = cachedDeviceID { return cached }
         let id = UUID().uuidString
+        cachedDeviceID = id
         Keychain.set(id, for: Account.deviceID)
         return id
     }

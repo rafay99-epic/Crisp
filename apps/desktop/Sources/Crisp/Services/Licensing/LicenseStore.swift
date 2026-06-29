@@ -100,6 +100,12 @@ final class LicenseStore {
                 LicenseStorage.requiresActivation = false
             }
             LicenseStorage.licenseKey = key
+            // Confirm it actually persisted — a dropped Keychain write must not be
+            // reported as a successful activation (the gate would later see no key).
+            guard LicenseStorage.licenseKey == key else {
+                message = "Couldn’t save your license on this Mac (Keychain write failed). Please try again."
+                return
+            }
             LicenseStorage.isRevoked = false
             LicenseStorage.lastValidatedAt = Date()
             message = "License activated — thank you!"
