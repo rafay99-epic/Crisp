@@ -1,0 +1,21 @@
+README.md
+  s_bf1cd4843c0110::t_a656e40be7f62a 15-16
+apps/desktop/Sources/Crisp/App/CrispApp.swift
+  s_bf1cd4843c0110::t_811a308d280212 79-80,83-85
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "2fab0c2455c8ad8c0d968618f3e4885d5eb51dc0",
+  "prompts": {},
+  "sessions": {
+    "s_bf1cd4843c0110": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c1bdac3f-c2b1-4540-9817-613a6f6cb0c3",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
