@@ -123,10 +123,10 @@
                                       HorizontalAlignment="Right" IsChecked="{Binding ExportToEditor}"/></Grid>
                     <TextBlock Classes="lbl" FontSize="12" TextWrapping="Wrap"
                                Text="Writes a project folder with an .fcpxml timeline + a copy of your footage (no re-encode) — import it into DaVinci Resolve or another editor."/>
-                    <Grid ColumnDefinitions="*,Auto"><TextBlock Grid.Column="0" Classes="lbl" Text="Also write separate video + audio files"/>
+                    <Grid ColumnDefinitions="*,Auto" IsEnabled="{Binding !ExportToEditor}"><TextBlock Grid.Column="0" Classes="lbl" Text="Also write separate video + audio files"/>
                         <ToggleSwitch Grid.Column="1" AutomationProperties.Name="Also write separate video and audio files"
                                       HorizontalAlignment="Right" IsChecked="{Binding SplitTracks}"/></Grid>
-                    <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding SplitTracks}"><TextBlock Grid.Column="0" Classes="lbl" Text="Split audio format"/>
+                    <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding SplitTracks}" IsEnabled="{Binding !ExportToEditor}"><TextBlock Grid.Column="0" Classes="lbl" Text="Split audio format"/>
                         <ComboBox Grid.Column="1" AutomationProperties.Name="Split audio format"
                                   ItemsSource="{Binding SplitAudioFormats}" SelectedItem="{Binding SplitAudioFormat}"/></Grid>
                     <Grid ColumnDefinitions="*,Auto"><TextBlock Grid.Column="0" Classes="lbl" Text="Clean up to N files at once"/>

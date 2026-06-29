@@ -94,10 +94,11 @@ public sealed class CrispEngine
     {
         string? raw = null;
         var capture = new ActionProgress(ev => { if (ev.Event == "analysis") raw = ev.Raw; });
-        try { await RunAsync(videoPath, new[] { "--analyze" }, capture, ct); }
+        int code;
+        try { code = await RunAsync(videoPath, new[] { "--analyze" }, capture, ct); }
         catch (OperationCanceledException) { throw; }
         catch { return null; }
-        return raw;
+        return code == 0 ? raw : null; // a captured payload from a failed run is not trustworthy
     }
 
     private sealed class ActionProgress : IProgress<EngineEvent>

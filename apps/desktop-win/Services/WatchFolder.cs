@@ -16,7 +16,8 @@ public sealed class WatchFolder : IDisposable
     };
 
     private readonly Action<string> _onVideo;
-    private readonly HashSet<string> _seen = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _seen = new(StringComparer.OrdinalIgnoreCase); // reported
+    private readonly HashSet<string> _pending = new(StringComparer.OrdinalIgnoreCase); // stabilizing
     private FileSystemWatcher? _watcher;
 
     public WatchFolder(Action<string> onVideo) => _onVideo = onVideo;
@@ -33,23 +34,39 @@ public sealed class WatchFolder : IDisposable
             NotifyFilter = NotifyFilters.FileName | NotifyFilters.Size,
             EnableRaisingEvents = true,
         };
+        // Changed (alongside Created/Renamed) is what retries a file whose copy outlasted
+        // the stabilize budget: the dedup guards below make the event spam harmless.
         _watcher.Created += (_, e) => OnAppeared(e.FullPath);
         _watcher.Renamed += (_, e) => OnAppeared(e.FullPath);
+        _watcher.Changed += (_, e) => OnAppeared(e.FullPath);
     }
 
     private async void OnAppeared(string path)
     {
         if (!VideoExts.Contains(Path.GetExtension(path))) return;
-        lock (_seen) { if (!_seen.Add(path)) return; }
-        if (await WaitStableAsync(path)) _onVideo(path);
+        lock (_seen)
+        {
+            if (_seen.Contains(path)) return;   // already reported
+            if (!_pending.Add(path)) return;    // a stabilizer is already running for it
+        }
+        var ok = await WaitStableAsync(path);
+        lock (_seen)
+        {
+            _pending.Remove(path);
+            if (ok) _seen.Add(path); // only now is it "seen"; a failed wait can retry on the next event
+        }
+        if (ok) _onVideo(path);
     }
 
     /// True once the file has stopped growing and can be opened for reading (i.e. the
-    /// copy/recording finished). Gives up after ~15s.
+    /// copy/recording finished). A still-growing file keeps resetting the patience budget,
+    /// so a long copy is waited out rather than abandoned; only ~30s of genuine no-progress
+    /// gives up (and a later write event re-runs this via the Changed subscription).
     private static async Task<bool> WaitStableAsync(string path)
     {
         long last = -1;
-        for (var i = 0; i < 30; i++)
+        var stalls = 0;
+        while (stalls < 60)
         {
             try
             {
@@ -59,9 +76,10 @@ public sealed class WatchFolder : IDisposable
                     using var f = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.Read);
                     return true;
                 }
-                last = len;
+                if (len != last) { last = len; stalls = 0; } else stalls++;
             }
-            catch (IOException) { /* still being written */ }
+            catch (IOException) { stalls = 0; /* still being written/locked — keep waiting */ }
+            catch (UnauthorizedAccessException) { stalls = 0; }
             await Task.Delay(500);
         }
         return false;
@@ -75,7 +93,7 @@ public sealed class WatchFolder : IDisposable
             _watcher.Dispose();
             _watcher = null;
         }
-        lock (_seen) _seen.Clear();
+        lock (_seen) { _seen.Clear(); _pending.Clear(); }
     }
 
     public void Dispose() => Stop();
