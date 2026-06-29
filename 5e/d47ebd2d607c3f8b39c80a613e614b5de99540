@@ -1,0 +1,19 @@
+idea.md
+  s_43fc4f80da48b2::t_2119f41aca1906 7-10,17-21,42,45,47-51,55,63-68,74,80,84-89,97-100
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "5ed47ebd2d607c3f8b39c80a613e614b5de99540",
+  "prompts": {},
+  "sessions": {
+    "s_43fc4f80da48b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "925d565a-8133-40da-9ad5-d203a0dc7970",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
