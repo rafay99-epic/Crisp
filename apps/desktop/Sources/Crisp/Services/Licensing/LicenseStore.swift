@@ -82,11 +82,34 @@ final class LicenseStore {
         // Honour the dark-ship contract, and guard against re-entry so rapid taps
         // can't enqueue overlapping activations (which would burn extra Polar seats).
         guard Channel.licensingEnabled, !isWorking else { return }
-        let key = rawKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !key.isEmpty else { message = "Enter your license key."; return }
         isWorking = true
         message = nil
         defer { isWorking = false }
+        await performActivation(key: rawKey)
+    }
+
+    /// Finish a purchase automatically after the `crisp://activate?checkout_id=…` deep
+    /// link: resolve the key from the serverless lookup, then activate it — no copy-paste.
+    func activateFromCheckout(checkoutID: String) async {
+        guard Channel.licensingEnabled, !isWorking else { return }
+        isWorking = true
+        message = "Finishing your purchase…"
+        defer { isWorking = false }
+        do {
+            let key = try await LicenseLookup().key(forCheckout: checkoutID)
+            await performActivation(key: key)
+        } catch {
+            // Lookup not ready/configured — fall back to manual entry rather than fail hard.
+            message = "We couldn’t finish automatically — paste the key from your confirmation email below."
+            Self.log.error("checkout lookup failed: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    /// The shared activate core (validate → bind device → persist). Assumes the caller
+    /// owns the `isWorking`/re-entry guard.
+    private func performActivation(key rawKey: String) async {
+        let key = rawKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !key.isEmpty else { message = "Enter your license key."; return }
         do {
             let result = try await polar.validate(key: key)
             guard result.granted else {

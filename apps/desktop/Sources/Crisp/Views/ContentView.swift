@@ -148,11 +148,23 @@ struct ContentView: View {
     var body: some View {
         // The welcome flow owns the whole window on first launch — the main app
         // stays hidden until onboarding is finished or skipped.
-        if onboarding.isPresented {
-            OnboardingView(onboarding: onboarding, modelStore: modelStore,
-                           settings: settings, watchAgent: watchAgent, licenseStore: licenseStore)
-        } else {
-            workspace
+        Group {
+            if onboarding.isPresented {
+                OnboardingView(onboarding: onboarding, modelStore: modelStore,
+                               settings: settings, watchAgent: watchAgent, licenseStore: licenseStore)
+            } else {
+                workspace
+            }
+        }
+        // Post-purchase deep link: Polar's checkout Success URL is
+        // `crisp://activate?checkout_id=…`, so completing a purchase reopens Crisp and
+        // finishes activation automatically (no copy-paste).
+        .onOpenURL { url in
+            guard url.scheme == "crisp", url.host == "activate",
+                  let checkoutID = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                      .queryItems?.first(where: { $0.name == "checkout_id" })?.value,
+                  !checkoutID.isEmpty else { return }
+            Task { await licenseStore.activateFromCheckout(checkoutID: checkoutID) }
         }
     }
 

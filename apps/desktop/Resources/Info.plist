@@ -28,5 +28,16 @@
 	<string>© 2026 Syntax Lab Technology. Licensed under GPL-3.0.</string>
 	<key>CrispChannel</key>
 	<string>stable</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.syntaxlabtechnology.crisp.activate</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>crisp</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

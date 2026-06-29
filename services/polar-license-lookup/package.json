@@ -1,0 +1,7 @@
+{
+  "name": "polar-license-lookup",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Maps a Polar checkout_id to its license key for Crisp's auto-activation deep link."
+}

@@ -20,6 +20,14 @@ public enum PolarConfig {
     /// subscription, copy their license key, and deactivate devices there.
     public static let portalURL = URL(string: "https://polar.sh/crisp/portal")!
 
+    /// Serverless endpoint that maps a Polar `checkout_id` → license key, so the app
+    /// can finish a purchase automatically after the `crisp://activate` deep link. The
+    /// Polar API token lives in that function (server-side), never in this client.
+    /// **TODO(licensing): set to your deployed function URL** (see
+    /// `services/polar-license-lookup/`). `nil` ⇒ auto-activation is disabled and the
+    /// user falls back to pasting the key.
+    public static let licenseLookupURL: URL? = nil
+
     /// Shown in paywall copy. No annual / lifetime tier for now.
     public static let priceText = "$8/mo"
 
