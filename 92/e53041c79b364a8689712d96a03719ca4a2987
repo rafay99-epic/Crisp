@@ -1,0 +1,33 @@
+apps/desktop/Sources/Crisp/Services/Licensing/LicenseStore.swift
+  s_43fc4f80da48b2::t_50357c351de7ee 88-112
+apps/desktop/Sources/Crisp/Services/Licensing/LicenseLookup.swift
+  s_43fc4f80da48b2::t_563cddf61d9c84 1-42
+apps/desktop/Sources/Crisp/Views/ContentView.swift
+  s_43fc4f80da48b2::t_372b4b5410308b 151-167
+services/polar-license-lookup/api/license.js
+  s_43fc4f80da48b2::t_0937605eaffcd6 1-62
+apps/desktop/Resources/Info.plist
+  s_43fc4f80da48b2::t_e50b5fd2a1b66a 31-41
+services/polar-license-lookup/package.json
+  s_43fc4f80da48b2::t_bf1184d35d7f5b 1-7
+apps/desktop/Sources/CrispCore/Licensing/PolarConfig.swift
+  s_43fc4f80da48b2::t_a47ee21fbd6ab8 23-30
+services/polar-license-lookup/README.md
+  s_43fc4f80da48b2::t_807172ca7d7c9f 1-36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "92e53041c79b364a8689712d96a03719ca4a2987",
+  "prompts": {},
+  "sessions": {
+    "s_43fc4f80da48b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "925d565a-8133-40da-9ad5-d203a0dc7970",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
