@@ -31,7 +31,7 @@ class NoOpLoggerTests(unittest.TestCase):
 
     def test_logger_from_env_uses_env(self):
         import os
-        with TemporaryDirectory() as d:
+        with TemporaryDirectory(ignore_cleanup_errors=True) as d:
             prev = os.environ.get("CRISP_LOG_DIR")
             os.environ["CRISP_LOG_DIR"] = d
             try:
@@ -50,7 +50,7 @@ class FileWriteTests(unittest.TestCase):
         return Path(d) / f"{date.today().isoformat()}.log"
 
     def test_writes_daily_file_with_format(self):
-        with TemporaryDirectory() as d:
+        with TemporaryDirectory(ignore_cleanup_errors=True) as d:
             log = EngineLogger(d, tag="clip.mp4")
             log.info("hello world")
             text = self._today_file(d).read_text()
@@ -60,7 +60,7 @@ class FileWriteTests(unittest.TestCase):
             self.assertIn(f"[engine:clip.mp4#{log.pid}]", text)
 
     def test_appends_multiple_lines(self):
-        with TemporaryDirectory() as d:
+        with TemporaryDirectory(ignore_cleanup_errors=True) as d:
             log = EngineLogger(d)
             log.info("first")
             log.error("second")
@@ -71,7 +71,7 @@ class FileWriteTests(unittest.TestCase):
             self.assertIn("second", lines[1])
 
     def test_creates_missing_directory(self):
-        with TemporaryDirectory() as d:
+        with TemporaryDirectory(ignore_cleanup_errors=True) as d:
             nested = Path(d) / "logs"
             log = EngineLogger(nested)
             self.assertTrue(nested.exists())
@@ -88,7 +88,7 @@ class FileWriteTests(unittest.TestCase):
             self.assertRegex(ln, LINE_RE)
 
     def test_tool_result_logs_stderr_on_failure(self):
-        with TemporaryDirectory() as d:
+        with TemporaryDirectory(ignore_cleanup_errors=True) as d:
             log = EngineLogger(d)
             log.tool_result("ffmpeg render", 1, "Invalid data found\nmoov atom not found")
             text = self._today_file(d).read_text()
@@ -99,7 +99,7 @@ class FileWriteTests(unittest.TestCase):
             self._assert_every_line_well_formed(self._today_file(d))
 
     def test_tool_result_quiet_on_success(self):
-        with TemporaryDirectory() as d:
+        with TemporaryDirectory(ignore_cleanup_errors=True) as d:
             log = EngineLogger(d)
             log.tool_result("ffmpeg render", 0, "noise we don't care about")
             text = self._today_file(d).read_text()
@@ -108,7 +108,7 @@ class FileWriteTests(unittest.TestCase):
             self.assertNotIn("ERROR", text)
 
     def test_reuses_one_descriptor_across_writes(self):
-        with TemporaryDirectory() as d:
+        with TemporaryDirectory(ignore_cleanup_errors=True) as d:
             log = EngineLogger(d)
             log.info("first")
             fd_after_first = log._fd
@@ -119,7 +119,7 @@ class FileWriteTests(unittest.TestCase):
             self.assertEqual(len(self._today_file(d).read_text().splitlines()), 2)
 
     def test_reopens_after_close(self):
-        with TemporaryDirectory() as d:
+        with TemporaryDirectory(ignore_cleanup_errors=True) as d:
             log = EngineLogger(d)
             log.info("before close")
             log.close()
@@ -131,14 +131,14 @@ class FileWriteTests(unittest.TestCase):
             self.assertIn("after close", lines[1])
 
     def test_command_is_shell_quoted(self):
-        with TemporaryDirectory() as d:
+        with TemporaryDirectory(ignore_cleanup_errors=True) as d:
             log = EngineLogger(d)
             log.command("ffmpeg", ["ffmpeg", "-i", "my video.mp4"])
             text = self._today_file(d).read_text()
             self.assertIn("'my video.mp4'", text)
 
     def test_exception_records_traceback(self):
-        with TemporaryDirectory() as d:
+        with TemporaryDirectory(ignore_cleanup_errors=True) as d:
             log = EngineLogger(d)
             try:
                 raise ValueError("kaboom")

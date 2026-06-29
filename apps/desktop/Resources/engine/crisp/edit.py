@@ -81,7 +81,9 @@ try:
     _libc.setxattr.restype = ctypes.c_int
     _libc.setxattr.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_void_p,
                                ctypes.c_size_t, ctypes.c_uint32, ctypes.c_int]
-except (OSError, AttributeError):  # pragma: no cover - platform without these symbols
+except (OSError, AttributeError, TypeError):  # pragma: no cover - platform without these symbols
+    # Windows raises TypeError from CDLL(None) ("argument 1 must be str, not None");
+    # xattr is BSD-only anyway, so degrade to the dedup fallback there.
     _libc = None
 
 
