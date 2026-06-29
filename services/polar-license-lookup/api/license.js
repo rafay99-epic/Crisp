@@ -24,8 +24,13 @@ export default async function handler(req, res) {
   const auth = { headers: { Authorization: `Bearer ${token}` } };
 
   try {
-    // 1) checkout → customer (needs checkouts:read)
-    const coRes = await fetch(`${POLAR_API}/v1/checkouts/${encodeURIComponent(checkoutId)}`, auth);
+    // 1) checkout → customer. Polar identifies a checkout two ways: the client_secret
+    //    (`polar_c_…`, in the confirmation URL) via a PUBLIC endpoint needing no auth,
+    //    and the checkout id (UUID) via an authed endpoint (needs checkouts:read).
+    //    Support both so it works whatever the deep link's {CHECKOUT_ID} carries.
+    const coRes = checkoutId.startsWith("polar_c_")
+      ? await fetch(`${POLAR_API}/v1/checkouts/client/${encodeURIComponent(checkoutId)}`)
+      : await fetch(`${POLAR_API}/v1/checkouts/${encodeURIComponent(checkoutId)}`, auth);
     if (!coRes.ok) {
       return res.status(coRes.status === 404 ? 404 : 502)
         .json({ error: "checkout lookup failed", step: "checkout", status: coRes.status });
