@@ -1,0 +1,43 @@
+apps/desktop-win/Views/SettingsWindow.axaml
+  s_a7c256b1cebfbb::t_db19bb9e3b321b 58,60,63
+  s_a7c256b1cebfbb::t_6e266defeb3014 39,41,43,45,47,49
+  s_a7c256b1cebfbb::t_083143ec0156da 98-100,102
+  s_a7c256b1cebfbb::t_cc7038466f29c1 90
+apps/desktop-win/Models/QueueItem.cs
+  s_a7c256b1cebfbb::t_9321e4a0791c3b 31-33,36-38
+apps/desktop-win/Views/MainWindow.axaml
+  s_a7c256b1cebfbb::t_2e1b2915955be5 33
+  s_a7c256b1cebfbb::t_928314ec01c735 185
+apps/desktop-win/Services/EngineSettings.cs
+  s_a7c256b1cebfbb::t_b267f3d284c73d 49,55
+  s_a7c256b1cebfbb::t_146677c60eb521 86
+apps/desktop-win/ViewModels/MainWindowViewModel.cs
+  s_a7c256b1cebfbb::t_a77c7edbc8039c 328-333,341-342
+  s_a7c256b1cebfbb::t_262c8fe3189292 260,263
+apps/desktop-win/Program.cs
+  s_a7c256b1cebfbb::t_145b15bd5a44f2 73-77
+apps/desktop-win/Models/EngineConfig.cs
+  s_a7c256b1cebfbb::t_cc067a07ca3c78 61-68,71,74-83
+apps/desktop-win/Services/CrispEngine.cs
+  s_a7c256b1cebfbb::t_b32a77a65158d6 83-84,87-91
+apps/desktop-win/Views/MainWindow.axaml.cs
+  s_a7c256b1cebfbb::t_e2b96e157c2003 53-54,56,58-68
+apps/desktop-win/App.axaml.cs
+  s_a7c256b1cebfbb::t_51762ab92488cd 23-24,27,31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "5969d4af981c0f97e09fd7c4a804683f22982f6c",
+  "prompts": {},
+  "sessions": {
+    "s_a7c256b1cebfbb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "401b41ed-870a-49c3-bff6-f7b868451ef6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
