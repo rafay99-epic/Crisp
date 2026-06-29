@@ -34,6 +34,11 @@ def _enable_group_cancel():
     this, the Swift app terminating us would orphan the encoder, which would keep
     running. Only used in --ndjson (app) mode so a terminal user keeps normal
     Ctrl-C job control."""
+    # Windows has no POSIX process groups (os.setpgrp/getpgrp/killpg don't exist) —
+    # the C#/Avalonia parent uses Process.Kill(entireProcessTree) to reap children
+    # instead, so this is a no-op there rather than an AttributeError crash.
+    if sys.platform == "win32":
+        return
     os.setpgrp()
 
     def _handler(_signum, _frame):

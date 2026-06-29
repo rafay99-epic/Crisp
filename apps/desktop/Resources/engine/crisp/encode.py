@@ -8,6 +8,7 @@ raw scales. Not every codec fits every container (VP9 is WebM-only; the mp4
 family can't hold it), so `resolve_codecs` coerces the choice to the container.
 """
 
+import sys
 from pathlib import Path
 
 # Quality level → CRF for software encoders (lower = better). Each codec's CRF
@@ -20,6 +21,43 @@ SOFTWARE_CRF = {
 }
 # Quality level → VideoToolbox -q:v (higher = better).
 HARDWARE_QV = {"maximum": 80, "high": 65, "balanced": 55, "smaller": 45}
+
+# Hardware encoder candidates per platform, in preference order. macOS has the one
+# VideoToolbox media engine; Windows ffmpeg builds (BtbN/gyan) ship all three vendor
+# encoders, so we list NVIDIA → Intel → AMD and pick the first one ffmpeg actually
+# exposes. A pick the host GPU can't run still falls back to software at render time
+# (the pipeline's existing HW-fail retry). ponytail: family selection only — true
+# per-GPU probing is a follow-up; the software fallback keeps it correct meanwhile.
+_HW_CANDIDATES = {
+    "darwin": {"h264": ["h264_videotoolbox"], "hevc": ["hevc_videotoolbox"]},
+    "win32":  {"h264": ["h264_nvenc", "h264_qsv", "h264_amf"],
+               "hevc": ["hevc_nvenc", "hevc_qsv", "hevc_amf"]},
+}
+
+
+def pick_hardware_encoder(codec: str, platform: str, available: set) -> str | None:
+    """First hardware encoder for `codec` that this `platform` offers AND ffmpeg lists
+    in `available`, else None (→ caller uses software). Pure, so it's unit-testable."""
+    for name in _HW_CANDIDATES.get(platform, {}).get(codec, []):
+        if name in available:
+            return name
+    return None
+
+
+def hardware_quality_args(encoder: str, codec: str, quality: str) -> list:
+    """Constant-quality flags for a hardware encoder. VideoToolbox uses -q:v (higher =
+    better); the Windows encoders use a CRF-like target (lower = better), so we reuse
+    the software CRF for the codec. Pure / unit-testable."""
+    if encoder.endswith("_videotoolbox"):
+        return ["-q:v", str(HARDWARE_QV[quality])]
+    cq = str(SOFTWARE_CRF[codec][quality])
+    if encoder.endswith("_nvenc"):
+        return ["-rc", "vbr", "-cq", cq]
+    if encoder.endswith("_qsv"):
+        return ["-global_quality", cq]
+    if encoder.endswith("_amf"):
+        return ["-rc", "cqp", "-qp_i", cq, "-qp_p", cq]
+    return ["-q:v", str(HARDWARE_QV[quality])]
 
 
 def is_deep_pix_fmt(pix_fmt: str) -> bool:
@@ -243,8 +281,18 @@ def video_args(codec: str, hardware: bool, quality: str, pix_fmt: str = "yuv420p
     hevc_tag = ["-tag:v", "hvc1"] if codec == "hevc" else []  # QuickTime-friendly HEVC
 
     if hardware:
-        encoder = "hevc_videotoolbox" if codec == "hevc" else "h264_videotoolbox"
-        return ["-c:v", encoder, "-q:v", str(HARDWARE_QV[quality])] + hevc_tag + ["-pix_fmt", pix_fmt]
+        if sys.platform == "darwin":
+            # VideoToolbox is always present on Apple Silicon — emit it directly, with no
+            # ffmpeg probe, so macOS behavior is unchanged and the stdlib-only engine tests
+            # (which run without ffmpeg) still pass.
+            enc = "hevc_videotoolbox" if codec == "hevc" else "h264_videotoolbox"
+        else:
+            # Windows/Linux: probe which vendor encoder ffmpeg actually exposes (NVENC/QSV/AMF).
+            from .tools import available_hw_encoders  # lazy: keeps this module subprocess-free to import
+            enc = pick_hardware_encoder(codec, sys.platform, available_hw_encoders())
+        if enc:
+            return ["-c:v", enc] + hardware_quality_args(enc, codec, quality) + hevc_tag + ["-pix_fmt", pix_fmt]
+        # No usable hardware encoder on this platform → fall through to software.
 
     encoder = "libx265" if codec == "hevc" else "libx264"
     crf = SOFTWARE_CRF[codec][quality]

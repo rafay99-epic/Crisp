@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -30,6 +31,26 @@ def ffmpeg_bin() -> str:
 
 def ffprobe_bin() -> str:
     return _resolve_tool("CRISP_FFPROBE", ("ffprobe",), "Install it with:  brew install ffmpeg")
+
+
+_HW_ENCODER_CACHE = None
+
+
+def available_hw_encoders() -> set:
+    """The hardware video encoders this ffmpeg build exposes — the `*_videotoolbox`
+    (macOS) / `*_nvenc` / `*_qsv` / `*_amf` (Windows) names, parsed from
+    `ffmpeg -encoders`. Cached (one subprocess per run); empty set if ffmpeg is
+    missing or the probe fails, so the caller cleanly falls back to software."""
+    global _HW_ENCODER_CACHE
+    if _HW_ENCODER_CACHE is None:
+        try:
+            res = subprocess.run([ffmpeg_bin(), "-hide_banner", "-encoders"],
+                                 capture_output=True, text=True, timeout=15)
+            _HW_ENCODER_CACHE = set(re.findall(
+                r"\b([a-z0-9]+_(?:videotoolbox|nvenc|qsv|amf))\b", res.stdout))
+        except Exception:
+            _HW_ENCODER_CACHE = set()
+    return _HW_ENCODER_CACHE
 
 
 def which_whisper():
