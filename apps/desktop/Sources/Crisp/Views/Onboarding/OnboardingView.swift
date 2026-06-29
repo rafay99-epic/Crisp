@@ -16,7 +16,7 @@ struct OnboardingView: View {
     @State private var index = 0
 
     private enum Step: CaseIterable {
-        case welcome, capabilities, howItWorks, fillers, preferences, automate, done
+        case welcome, capabilities, fidelity, howItWorks, fillers, preferences, automate, done
     }
 
     private var steps: [Step] { Step.allCases }
@@ -82,6 +82,24 @@ struct OnboardingView: View {
             featureRow("arrow.uturn.backward", "Repeated takes",
                        "Flub a line and immediately say it again? Crisp keeps the corrected take and cuts the flubbed one — the tedious edit you’d normally do by hand. Needs the Whisper speech model.",
                        badge: "New")
+
+        case .fidelity:
+            header(symbol: "dial.high.fill", title: "What Crisp preserves",
+                   subtitle: "Cutting is only half the job. Crisp protects what makes your footage look right — automatically, and never downgrades it.")
+            featureRow("speedometer", "Stays perfectly in sync",
+                       "Screen recordings often vary their frame rate, which can drift audio out of sync after cutting. Crisp detects that and re-times them to a steady rate — ordinary footage is left exactly as it is.",
+                       badge: "New")
+            featureRow("paintpalette.fill", "Keeps your color and HDR",
+                       "10-bit and HDR recordings stay 10-bit and HDR — Crisp matches your source’s color depth instead of silently flattening it to a washed-out copy.",
+                       badge: "New")
+            featureRow("shippingbox.fill", "Your format, your call",
+                       "Export an MP4 with H.264 or HEVC, or a web-friendly WebM, and choose the audio quality and hardware encoding — Crisp keeps incompatible combinations from happening.")
+            featureRow("film.stack", "Or hand the cuts to your editor",
+                       "Prefer to finish in your own editor? Crisp can pass the cuts to DaVinci Resolve as a ready-to-edit timeline — no re-rendering, and every cut stays adjustable. Turn it on a couple of steps ahead.")
+            Text("It all happens automatically on smart defaults — fine-tune any of it later in Settings (⌘,).")
+                .font(.callout).foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
 
         case .howItWorks:
             header(symbol: "wand.and.stars", title: "Clean your videos in seconds",
