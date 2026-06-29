@@ -69,6 +69,7 @@ final class LicenseStore {
     // MARK: - Trial
 
     func startTrial() {
+        guard Channel.licensingEnabled else { return }
         LicenseGate.startTrialIfNeeded()
         state = mappedEntitlement()
     }
@@ -76,6 +77,9 @@ final class LicenseStore {
     // MARK: - Activation
 
     func activate(key rawKey: String) async {
+        // Honour the dark-ship contract, and guard against re-entry so rapid taps
+        // can't enqueue overlapping activations (which would burn extra Polar seats).
+        guard Channel.licensingEnabled, !isWorking else { return }
         let key = rawKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !key.isEmpty else { message = "Enter your license key."; return }
         isWorking = true
@@ -118,7 +122,9 @@ final class LicenseStore {
             LicenseStorage.requiresActivation = true
             return
         }
-        let label = Host.current().localizedName ?? "Mac"
+        // A non-PII label: the user's computer name often contains their real name, so
+        // we send a generic label disambiguated by a short slice of the random device id.
+        let label = "Mac · \(LicenseStorage.deviceID.prefix(8))"
         let result = try await polar.activate(key: key, label: label, deviceID: LicenseStorage.deviceID)
         LicenseStorage.activationID = result.activationID
         LicenseStorage.requiresActivation = true
@@ -127,13 +133,21 @@ final class LicenseStore {
     // MARK: - Deactivation
 
     func deactivate() async {
+        guard Channel.licensingEnabled, !isWorking else { return }
         isWorking = true
         defer { isWorking = false }
-        // Best-effort: free this device's Polar seat so it isn't orphaned.
+        // Free this device's Polar seat first. If that fails (e.g. offline), keep the
+        // stored key + activation id so the user can retry — clearing them now would
+        // both orphan the seat and discard the data needed to release it later.
         if LicenseStorage.requiresActivation,
            let key = LicenseStorage.licenseKey,
            let activationID = LicenseStorage.activationID {
-            try? await polar.deactivate(key: key, activationID: activationID)
+            do {
+                try await polar.deactivate(key: key, activationID: activationID)
+            } catch {
+                message = "Couldn’t reach the license server to release this Mac. Try again when you’re online."
+                return
+            }
         }
         LicenseStorage.clearLicense()
         message = nil
@@ -169,8 +183,14 @@ final class LicenseStore {
 
     // MARK: - Links & display
 
-    func openCheckout() { NSWorkspace.shared.open(PolarConfig.checkoutURL) }
-    func openPortal() { NSWorkspace.shared.open(PolarConfig.portalURL) }
+    func openCheckout() {
+        guard Channel.licensingEnabled else { return }
+        NSWorkspace.shared.open(PolarConfig.checkoutURL)
+    }
+    func openPortal() {
+        guard Channel.licensingEnabled else { return }
+        NSWorkspace.shared.open(PolarConfig.portalURL)
+    }
 
     /// Masked form of the stored key for display, e.g. "•••• •••• 1A2B".
     var maskedKey: String? {

@@ -87,14 +87,25 @@ public enum LicenseGate {
 
     /// May this install clean right now? Always `true` when the feature is disabled.
     public static func allowsClean(now: Date = Date()) -> Bool {
-        !isEnabled || currentEntitlement(now: now).allowsClean
+        cleanAllowed(enabled: isEnabled, entitlement: currentEntitlement(now: now))
     }
 
     /// Throw if cleaning is blocked — used by the headless `QuickClean` path so the
     /// watch folder, the Shortcuts intent, and the menu-bar drop all refuse with a
     /// clear message instead of silently producing output. A no-op when allowed.
+    ///
+    /// Also advances the rollback watermark: these headless surfaces may be the *only*
+    /// way the app runs (watch-folder-only usage), so without this a stale `lastSeenAt`
+    /// would let a clock rollback recover trial days.
     public static func checkClean(now: Date = Date()) throws {
+        if isEnabled { recordSeen(now: now) }
         if let reason = blockReason(now: now) { throw LicenseBlockedError(message: reason) }
+    }
+
+    /// Pure clean-permission rule, exposed for testing: cleaning is always allowed when
+    /// the feature is disabled, regardless of entitlement.
+    static func cleanAllowed(enabled: Bool, entitlement: Entitlement) -> Bool {
+        !enabled || entitlement.allowsClean
     }
 
     /// A user-facing reason cleaning is blocked, or `nil` when it's allowed (and

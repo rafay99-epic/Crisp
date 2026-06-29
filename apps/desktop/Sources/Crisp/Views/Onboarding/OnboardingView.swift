@@ -336,10 +336,14 @@ struct OnboardingView: View {
                         ? "Your license is active — thank you for supporting Crisp."
                         : "Your free trial is active. Enjoy Crisp!")
         } else {
-            Button { licenseStore.startTrial() } label: {
-                Text("Start \(PolarConfig.trialDays)-Day Free Trial").frame(maxWidth: .infinity)
+            // Only the never-started state can be satisfied by starting a trial;
+            // expired/revoked users must enter a key or subscribe (matches LicenseBanner).
+            if case .unlicensed = licenseStore.state {
+                Button { licenseStore.startTrial() } label: {
+                    Text("Start \(PolarConfig.trialDays)-Day Free Trial").frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent).controlSize(.large)
             }
-            .buttonStyle(.borderedProminent).controlSize(.large)
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("Already have a license key?").font(.callout).foregroundStyle(.secondary)

@@ -145,13 +145,7 @@ final class CleanModel {
                provisioner: ModelProvisioner? = nil) async {
         let waiting = queue.filter { $0.status == .waiting }
         guard !waiting.isEmpty, !isRunning else { return }
-        // Licensing gate (no-op while shipped dark). The Clean button is already
-        // disabled when blocked — this is defense-in-depth so no programmatic start
-        // can bypass the paywall.
-        if let reason = LicenseGate.blockReason() {
-            errorMessage = reason
-            return
-        }
+        guard ensureLicenseAllowsClean() else { return }
         isRunning = true
         cancelled = false
         errorMessage = nil
@@ -327,6 +321,18 @@ final class CleanModel {
         return result
     }
 
+    /// Licensing gate shared by every in-app clean entry point (`start` and
+    /// `cleanReviewed`). No-op while licensing ships dark; otherwise sets a paywall
+    /// message and returns false so the run never begins — defense-in-depth behind the
+    /// already-disabled Clean button.
+    private func ensureLicenseAllowsClean() -> Bool {
+        if let reason = LicenseGate.blockReason() {
+            errorMessage = reason
+            return false
+        }
+        return true
+    }
+
     /// Clean a single reviewed file with the user's hand-edited keep-list — the
     /// "Clean with these cuts" action from the review timeline. Unlike `start`, this
     /// touches only the one item and needs no speech model (the engine renders the
@@ -336,6 +342,7 @@ final class CleanModel {
         guard !isRunning,
               let idx = queue.firstIndex(where: { $0.id == id }),
               queue[idx].status == .waiting else { return }
+        guard ensureLicenseAllowsClean() else { return }
         queue[idx].editedKeep = keep
         isRunning = true
         cancelled = false

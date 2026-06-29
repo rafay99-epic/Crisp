@@ -94,4 +94,34 @@ final class LicensingTests: XCTestCase {
         XCTAssertNil(LicenseGate.blockReason())
         XCTAssertNoThrow(try LicenseGate.checkClean())
     }
+
+    func testDarkShipBypassesEvenBlockedEntitlement() {
+        // The stronger guarantee: with the feature disabled, cleaning is allowed for
+        // ANY entitlement — including the blocked ones. Tested via the pure rule so it
+        // needs no Keychain (and can't pollute the real Stable keychain on the runner).
+        for blocked in [Entitlement.unlicensed, .trialExpired, .revoked] {
+            XCTAssertTrue(LicenseGate.cleanAllowed(enabled: false, entitlement: blocked),
+                          "disabled gate must allow \(blocked)")
+            XCTAssertFalse(LicenseGate.cleanAllowed(enabled: true, entitlement: blocked),
+                           "enabled gate must block \(blocked)")
+        }
+        XCTAssertTrue(LicenseGate.cleanAllowed(enabled: true, entitlement: .licensed))
+        XCTAssertTrue(LicenseGate.cleanAllowed(enabled: true, entitlement: .trial(daysLeft: 1)))
+    }
+
+    // MARK: - Product contract
+
+    func testTrialLengthContractIsFourteenDays() {
+        // Literal pin so changing the production constant trips this test (CodeRabbit).
+        XCTAssertEqual(PolarConfig.trialDays, 14)
+        let start = Date(timeIntervalSince1970: 1_000_000)
+        XCTAssertEqual(LicenseGate.entitlement(isRevoked: false, hasLicenseKey: false,
+                                               trialStartedAt: start, lastSeenAt: nil,
+                                               now: start, trialDays: 14),
+                       .trial(daysLeft: 14))
+        XCTAssertEqual(LicenseGate.entitlement(isRevoked: false, hasLicenseKey: false,
+                                               trialStartedAt: start, lastSeenAt: nil,
+                                               now: start.addingTimeInterval(14 * 86_400), trialDays: 14),
+                       .trialExpired)
+    }
 }
