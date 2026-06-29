@@ -40,7 +40,7 @@ struct LicenseBanner: View {
     private var info: Info? {
         guard Channel.licensingEnabled else { return nil }
         switch license.state {
-        case .checking, .licensed, .failed:
+        case .checking, .licensed:
             return nil
         case .trial(let daysLeft):
             guard daysLeft <= 3 else { return nil }   // only nag near the end

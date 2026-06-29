@@ -44,7 +44,7 @@ struct LicenseSettingsView: View {
             Label("Inactive", systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
         case .checking:
             Label("Checking…", systemImage: "ellipsis").foregroundStyle(.secondary)
-        case .unlicensed, .failed:
+        case .unlicensed:
             Label("Not licensed", systemImage: "circle.dashed").foregroundStyle(.secondary)
         }
     }

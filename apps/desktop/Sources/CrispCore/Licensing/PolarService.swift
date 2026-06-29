@@ -9,6 +9,7 @@ public struct PolarService: Sendable {
     public init() {}
 
     private static let base = URL(string: "https://api.polar.sh")!
+    private static let log = AppInfo.logger("polar")
 
     public struct ValidateResult: Sendable {
         public let granted: Bool
@@ -93,6 +94,9 @@ public struct PolarService: Sendable {
         do {
             return try JSONDecoder().decode(T.self, from: data)
         } catch {
+            // Surface the real decode failure to the log so a future Polar API change is
+            // diagnosable; the caller still gets the clean user-facing `.decoding` message.
+            Self.log.error("Polar response decode failed: \(error.localizedDescription, privacy: .public)")
             throw PolarError.decoding
         }
     }

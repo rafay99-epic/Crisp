@@ -22,7 +22,6 @@ final class LicenseStore {
         case trialExpired
         case unlicensed
         case revoked
-        case failed(String)
 
         /// Licensed and in-trial may clean; everything else can't. (The real gate is
         /// `LicenseGate`; this mirrors it for the UI.)

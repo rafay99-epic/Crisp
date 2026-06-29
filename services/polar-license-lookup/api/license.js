@@ -59,7 +59,8 @@ export default async function handler(req, res) {
     if (!item || !item.key) return res.status(404).json({ error: "no license key for customer" });
 
     return res.status(200).json({ key: item.key });
-  } catch (err) {
-    return res.status(502).json({ error: "lookup failed", detail: String(err && err.message || err) });
+  } catch {
+    // Don't echo raw error text back to the client.
+    return res.status(502).json({ error: "lookup failed" });
   }
 }
