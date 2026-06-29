@@ -76,12 +76,15 @@ public enum Keychain {
     }
 
     private static func baseQuery(_ account: String) -> [String: Any] {
+        // The default (file-based) keychain — NOT the data-protection keychain, which
+        // requires a keychain-access-group entitlement Crisp doesn't ship; without it
+        // saves fail with errSecMissingEntitlement and the gate would wrongly treat a
+        // paying user as unlicensed. Items aren't synced to iCloud (no
+        // kSecAttrSynchronizable), so a license stays per-Mac.
         [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-            // Device-local; never synced to iCloud Keychain (a license is per-Mac).
-            kSecUseDataProtectionKeychain as String: true
+            kSecAttrAccount as String: account
         ]
     }
 }

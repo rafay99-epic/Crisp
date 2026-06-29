@@ -68,6 +68,8 @@ struct LicenseBanner: View {
                 Button("Start Free Trial") { license.startTrial() }
                     .buttonStyle(.borderedProminent)
                 Button("Subscribe") { license.openCheckout() }
+                // Returning paid users land here too — give them a direct key path.
+                SettingsLink { Text("Enter Key") }
             } else {
                 Button("Subscribe") { license.openCheckout() }
                     .buttonStyle(.borderedProminent)

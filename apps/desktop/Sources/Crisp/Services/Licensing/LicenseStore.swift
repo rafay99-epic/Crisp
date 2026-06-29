@@ -50,9 +50,11 @@ final class LicenseStore {
     /// Recompute state from stored entitlement; if licensed and due, re-validate online.
     /// Called from the launch `.task`, mirroring `ModelStore.refresh()`.
     func refresh() async {
+        // When dark, only read state for display — never write the rollback watermark
+        // (that would mutate stored state, breaking the "behaves as today" contract).
+        guard Channel.licensingEnabled else { state = mappedEntitlement(); return }
         LicenseGate.recordSeen()
         state = mappedEntitlement()
-        guard Channel.licensingEnabled else { return }
         await revalidateIfDue()
     }
 
@@ -170,6 +172,9 @@ final class LicenseStore {
             } else {
                 granted = try await polar.validate(key: key).granted
             }
+            // The key may have been changed/removed (deactivate, re-activate) while this
+            // request was in flight — don't apply a stale verdict to a different key.
+            guard LicenseStorage.licenseKey == key else { return }
             if granted {
                 LicenseStorage.lastValidatedAt = Date()
             } else {
