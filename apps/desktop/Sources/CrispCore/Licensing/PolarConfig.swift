@@ -14,7 +14,9 @@ import Foundation
 /// but keeping them out of the public repo is cleaner and avoids casual probing.)
 public enum PolarConfig {
     /// Polar organization id (UUID), used to scope license-key validate/activate calls.
-    public static var organizationID: String { string("CrispPolarOrgID") ?? "" }
+    /// `nil` when not injected — consistent with the URL accessors, so a missing config
+    /// surfaces as "not configured" (PolarService throws) rather than a silent empty id.
+    public static var organizationID: String? { string("CrispPolarOrgID") }
 
     /// Hosted checkout for the Crisp Pro $8/mo subscription.
     public static var checkoutURL: URL? { url("CrispPolarCheckoutURL") }

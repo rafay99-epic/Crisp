@@ -26,7 +26,7 @@ public struct PolarService: Sendable {
     /// whether it requires device activation.
     public func validate(key: String) async throws -> ValidateResult {
         let data = try await post("/v1/customer-portal/license-keys/validate",
-                                  body: ["key": key, "organization_id": PolarConfig.organizationID])
+                                  body: ["key": key, "organization_id": orgID()])
         let resp = try decode(ValidateResponse.self, from: data)
         let limit = resp.limitActivations ?? 0
         return ValidateResult(granted: resp.status == "granted",
@@ -38,7 +38,7 @@ public struct PolarService: Sendable {
     public func validate(key: String, activationID: String) async throws -> Bool {
         let data = try await post("/v1/customer-portal/license-keys/validate",
                                   body: ["key": key,
-                                         "organization_id": PolarConfig.organizationID,
+                                         "organization_id": orgID(),
                                          "activation_id": activationID])
         return try decode(ValidateResponse.self, from: data).status == "granted"
     }
@@ -47,7 +47,7 @@ public struct PolarService: Sendable {
     public func activate(key: String, label: String, deviceID: String) async throws -> ActivateResult {
         let data = try await post("/v1/customer-portal/license-keys/activate",
                                   body: ["key": key,
-                                         "organization_id": PolarConfig.organizationID,
+                                         "organization_id": orgID(),
                                          "label": label,
                                          "meta": ["device_id": deviceID]])
         let resp = try decode(ActivateResponse.self, from: data)
@@ -60,11 +60,19 @@ public struct PolarService: Sendable {
     public func deactivate(key: String, activationID: String) async throws {
         _ = try await post("/v1/customer-portal/license-keys/deactivate",
                            body: ["key": key,
-                                  "organization_id": PolarConfig.organizationID,
+                                  "organization_id": orgID(),
                                   "activation_id": activationID])
     }
 
     // MARK: - Plumbing
+
+    /// The Polar organization id, or a clear error if it wasn't configured at build
+    /// time (`CRISP_POLAR_ORG_ID` → `CrispPolarOrgID`) — so a misconfigured build fails
+    /// fast instead of sending an empty `organization_id` to Polar.
+    private func orgID() throws -> String {
+        guard let id = PolarConfig.organizationID, !id.isEmpty else { throw PolarError.notConfigured }
+        return id
+    }
 
     private func post(_ path: String, body: [String: Any]) async throws -> Data {
         var request = URLRequest(url: Self.base.appending(path: path))
@@ -117,6 +125,7 @@ private struct LicenseKeyInfo: Decodable {
 
 /// Errors surfaced by `PolarService`, each with user-facing copy.
 public enum PolarError: LocalizedError, Equatable {
+    case notConfigured
     case keyNotFound
     case activationLimitReached
     case server(Int)
@@ -124,6 +133,8 @@ public enum PolarError: LocalizedError, Equatable {
 
     public var errorDescription: String? {
         switch self {
+        case .notConfigured:
+            return "Licensing isn’t configured in this build. Please contact support."
         case .keyNotFound:
             return "License key not found. Check it for typos, or copy it again from your purchase email."
         case .activationLimitReached:

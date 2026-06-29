@@ -19,8 +19,13 @@ The Polar API token lives **only here** (a Vercel env var) — never in the ship
 
 ## Wire it up
 
-- In the app: set `PolarConfig.licenseLookupURL` to the deployed `/api/license` URL.
-- In Polar: set the **checkout link's Success URL** to
+- **In the app:** the deployed `/api/license` URL is not hardcoded — it's injected at
+  build time. Set the **`CRISP_POLAR_LOOKUP_URL`** environment variable (in the
+  gitignored `apps/desktop/.polar.env` for local dev builds, or as a GitHub Actions
+  secret for release builds); `apps/desktop/build.sh` writes it into the app's
+  Info.plist as **`CrispPolarLookupURL`**, which `PolarConfig.licenseLookupURL` reads at
+  runtime. (Same pattern for `CRISP_POLAR_ORG_ID` / `CHECKOUT_URL` / `PORTAL_URL`.)
+- **In Polar:** set the **checkout link's Success URL** to
   `crisp://activate?checkout_id={CHECKOUT_ID}`.
 
 ## Test
