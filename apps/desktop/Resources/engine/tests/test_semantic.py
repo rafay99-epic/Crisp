@@ -8,6 +8,7 @@ never breaks a clean" — so every failure must degrade to judge=None, never rai
 
 import os
 import stat
+import sys
 import tempfile
 import textwrap
 import unittest
@@ -29,6 +30,10 @@ class _Fake:
     (reads stdin, writes stdout). Installed into CRISP_EMBED for the test's duration."""
 
     def __init__(self, body):
+        # The fake is made executable via a Unix shebang + chmod; Windows can't exec a
+        # .py directly (the real crisp-embed.exe covers the Windows production path).
+        if sys.platform == "win32":
+            raise unittest.SkipTest("fake crisp-embed relies on Unix shebang/chmod exec")
         fd, self.path = tempfile.mkstemp(suffix=".py", prefix="fake_embed_")
         os.write(fd, ("#!/usr/bin/env python3\n" + textwrap.dedent(body)).encode())
         os.close(fd)

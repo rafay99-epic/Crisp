@@ -65,8 +65,10 @@ class VideoArgsPlatformTests(unittest.TestCase):
 class GroupCancelGuardTests(unittest.TestCase):
     def test_noop_on_windows(self):
         import clean_video
+        # create=True: os.setpgrp doesn't exist on Windows, so the patch must be able to
+        # create the attribute to assert it's never called.
         with mock.patch.object(clean_video.sys, "platform", "win32"), \
-             mock.patch.object(clean_video.os, "setpgrp", side_effect=AssertionError("called on win32")):
+             mock.patch.object(clean_video.os, "setpgrp", create=True, side_effect=AssertionError("called on win32")):
             clean_video._enable_group_cancel()  # must return without touching POSIX process groups
 
 
