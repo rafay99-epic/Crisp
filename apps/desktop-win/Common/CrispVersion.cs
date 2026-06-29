@@ -6,5 +6,12 @@ namespace Crisp;
 /// the macOS build); dev defaults low so any published release reads as newer.
 public static class CrispVersion
 {
-    public static string Current => Environment.GetEnvironmentVariable("CRISP_VERSION") ?? "0.0";
+    public static string Current
+    {
+        get
+        {
+            var v = Environment.GetEnvironmentVariable("CRISP_VERSION");
+            return string.IsNullOrWhiteSpace(v) ? "0.0" : v;
+        }
+    }
 }

@@ -144,6 +144,7 @@ public partial class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(CountLabel));
         OnPropertyChanged(nameof(SummaryText));
         CleanAllCommand.NotifyCanExecuteChanged();
+        UpdateOverall(); // keep the batch bar in sync when rows change state, not just on progress
     }
 
     private void ApplyWatchSettings()
@@ -436,10 +437,10 @@ public partial class MainWindowViewModel : ViewModelBase
                 RevealInOS(path);
     }
 
-    // Reveal a file in the OS browser. ponytail: per-OS one-liners, no library.
+    // Reveal a file (or a project folder, for editor exports) in the OS browser.
     private static void RevealInOS(string? path)
     {
-        if (string.IsNullOrEmpty(path) || !File.Exists(path)) return;
+        if (string.IsNullOrEmpty(path) || (!File.Exists(path) && !Directory.Exists(path))) return;
         try
         {
             if (OperatingSystem.IsWindows())

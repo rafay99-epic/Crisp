@@ -86,17 +86,26 @@ public sealed class EngineConfig
         if (!File.Exists(FilePath)) return new EngineConfig();
         try
         {
-            return JsonSerializer.Deserialize<EngineConfig>(File.ReadAllText(FilePath), Opts) ?? new EngineConfig();
+            var cfg = JsonSerializer.Deserialize<EngineConfig>(File.ReadAllText(FilePath), Opts);
+            if (cfg is not null) return cfg;
+            Quarantine(); // a top-level `null` is a corrupt file, not a fresh default
+            return new EngineConfig();
         }
         catch (JsonException)
         {
-            try { File.Move(FilePath, FilePath + ".corrupt", overwrite: true); } catch { /* best effort */ }
+            Quarantine();
             return new EngineConfig();
         }
-        catch (IOException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             return new EngineConfig { LoadFailed = true }; // don't overwrite a file we couldn't read
         }
+    }
+
+    // Preserve a corrupt settings.json (rename to .corrupt) so its keys aren't lost.
+    private static void Quarantine()
+    {
+        try { File.Move(FilePath, FilePath + ".corrupt", overwrite: true); } catch { /* best effort */ }
     }
 
     /// Atomic write (temp + move), preserving unmodeled keys.

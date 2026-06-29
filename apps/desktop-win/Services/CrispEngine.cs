@@ -53,10 +53,10 @@ public sealed class CrispEngine
         using var proc = new Process { StartInfo = psi };
         proc.Start();
 
-        // Drain stderr with a single reader (engine logs ffmpeg failures / tracebacks here).
-        // ponytail: stdout=ReadLineAsync + stderr=ReadToEndAsync is the standard non-deadlocking
-        // pair — never two line-readers on one stream (the macOS stderr-contention bug).
-        var stderrTask = proc.StandardError.ReadToEndAsync(ct);
+        // Drain stderr with a single reader, keeping only the tail so a verbose tool can't
+        // balloon memory (full text is on disk via CRISP_LOG_DIR). ponytail: stdout=ReadLine +
+        // stderr=single-reader is the standard non-deadlocking pair (macOS stderr-contention bug).
+        var stderrTask = DrainTailAsync(proc.StandardError, 8000, ct);
 
         var sawError = false;
         try
@@ -84,11 +84,7 @@ public sealed class CrispEngine
         // surfaced text — full stderr is already on disk via CRISP_LOG_DIR.
         var stderr = await stderrTask;
         if (proc.ExitCode != 0 && !sawError && !string.IsNullOrWhiteSpace(stderr))
-        {
-            var trimmed = stderr.Trim();
-            if (trimmed.Length > 2000) trimmed = "…" + trimmed[^2000..];
-            progress.Report(new EngineEvent { Event = "error", Message = trimmed, Raw = stderr });
-        }
+            progress.Report(new EngineEvent { Event = "error", Message = stderr.Trim(), Raw = stderr });
         return proc.ExitCode;
     }
 
@@ -124,5 +120,20 @@ public sealed class CrispEngine
     private static void SetIfExists(ProcessStartInfo psi, string key, string path)
     {
         if (File.Exists(path)) psi.Environment[key] = path;
+    }
+
+    /// Read a stream to EOF keeping only the last `cap` chars — bounded memory for a
+    /// potentially-verbose stderr.
+    private static async Task<string> DrainTailAsync(StreamReader reader, int cap, CancellationToken ct)
+    {
+        var buf = new char[8192];
+        var sb = new System.Text.StringBuilder();
+        int n;
+        while ((n = await reader.ReadAsync(buf.AsMemory(), ct)) > 0)
+        {
+            sb.Append(buf, 0, n);
+            if (sb.Length > cap * 2) sb.Remove(0, sb.Length - cap);
+        }
+        return sb.Length > cap ? sb.ToString(sb.Length - cap, cap) : sb.ToString();
     }
 }

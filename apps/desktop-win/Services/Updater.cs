@@ -137,9 +137,14 @@ public partial class Updater : ObservableObject
                     UseShellExecute = false,
                 });
                 if (p is null) continue;
-                var token = p.StandardOutput.ReadToEnd().Trim();
-                p.WaitForExit(10_000);
-                if (p.ExitCode == 0 && !string.IsNullOrEmpty(token)) return token;
+                // Drain both streams async (so a full stderr pipe can't stall the child) and
+                // actually enforce the 10s bound — ReadToEnd() alone ignores WaitForExit's timeout.
+                var stdoutTask = p.StandardOutput.ReadToEndAsync();
+                var stderrTask = p.StandardError.ReadToEndAsync();
+                if (!p.WaitForExit(10_000)) { try { p.Kill(true); } catch { /* ignore */ } continue; }
+                var token = stdoutTask.GetAwaiter().GetResult().Trim();
+                _ = stderrTask.GetAwaiter().GetResult();
+                if (p.ExitCode == 0 && token.Length > 0) return token;
             }
             catch { /* try next candidate */ }
         }

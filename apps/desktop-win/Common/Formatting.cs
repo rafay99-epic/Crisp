@@ -10,13 +10,11 @@ public static class Formatting
     public static string Duration(double seconds)
     {
         if (seconds <= 0) return "0s";
-        if (seconds >= 60)
-        {
-            var t = TimeSpan.FromSeconds(Math.Round(seconds));
-            return t.Hours > 0
-                ? $"{t.Hours}:{t.Minutes:00}:{t.Seconds:00}"
-                : $"{t.Minutes}:{t.Seconds:00}";
-        }
-        return seconds.ToString("0.#", CultureInfo.InvariantCulture) + "s";
+        // Round before deciding the format so 59.6s reads "1:00", not "59.6s".
+        if (Math.Round(seconds) < 60) return seconds.ToString("0.#", CultureInfo.InvariantCulture) + "s";
+        var t = TimeSpan.FromSeconds(Math.Round(seconds));
+        return t.TotalHours >= 1
+            ? $"{(int)t.TotalHours}:{t.Minutes:00}:{t.Seconds:00}" // TotalHours preserves >24h
+            : $"{t.Minutes}:{t.Seconds:00}";
     }
 }

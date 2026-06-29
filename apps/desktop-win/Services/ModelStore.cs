@@ -130,12 +130,23 @@ public partial class ModelStore : ObservableObject
     private async Task StreamToPartAsync(CancellationToken ct)
     {
         long have = File.Exists(PartPath) ? new FileInfo(PartPath).Length : 0;
-        if (have >= _spec.ApproxBytes) { TryDelete(PartPath); have = 0; } // never range past EOF
+        // ApproxBytes is only a heuristic to skip an obviously-complete .part — the 416
+        // handler below and the SHA-256 verify are the authoritative correctness checks.
+        if (have >= _spec.ApproxBytes) { TryDelete(PartPath); have = 0; }
 
         using var req = new HttpRequestMessage(HttpMethod.Get, _spec.Url);
         if (have > 0) req.Headers.Range = new RangeHeaderValue(have, null);
 
-        using var resp = await Http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+        // The 60s idle watchdog only covers reading the body; bound the connect/headers too,
+        // so a stalled handshake fails instead of hanging forever (Http.Timeout is infinite).
+        HttpResponseMessage resp;
+        using (var headerCts = CancellationTokenSource.CreateLinkedTokenSource(ct))
+        {
+            headerCts.CancelAfter(TimeSpan.FromSeconds(30));
+            try { resp = await Http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, headerCts.Token); }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested) { throw new TimeoutException("The download stalled."); }
+        }
+        using var _response = resp;
         // A stale .part the server rejects as out-of-range → discard and restart from 0.
         if (resp.StatusCode == System.Net.HttpStatusCode.RequestedRangeNotSatisfiable && have > 0)
         {
