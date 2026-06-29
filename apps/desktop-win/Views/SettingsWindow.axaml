@@ -36,17 +36,17 @@
                 <StackPanel Spacing="10">
                     <TextBlock Classes="head" Text="Encoding"/>
                     <Grid ColumnDefinitions="*,Auto"><TextBlock Grid.Column="0" Classes="lbl" Text="Video codec"/>
-                        <ComboBox Grid.Column="1" ItemsSource="{Binding VideoCodecs}" SelectedItem="{Binding VideoCodec}"/></Grid>
+                        <ComboBox Grid.Column="1" AutomationProperties.Name="Video codec" ItemsSource="{Binding VideoCodecs}" SelectedItem="{Binding VideoCodec}"/></Grid>
                     <Grid ColumnDefinitions="*,Auto"><TextBlock Grid.Column="0" Classes="lbl" Text="Hardware acceleration"/>
-                        <ToggleSwitch Grid.Column="1" HorizontalAlignment="Right" IsChecked="{Binding HardwareEncoding}"/></Grid>
+                        <ToggleSwitch Grid.Column="1" AutomationProperties.Name="Hardware acceleration" HorizontalAlignment="Right" IsChecked="{Binding HardwareEncoding}"/></Grid>
                     <Grid ColumnDefinitions="*,Auto"><TextBlock Grid.Column="0" Classes="lbl" Text="Quality"/>
-                        <ComboBox Grid.Column="1" ItemsSource="{Binding Qualities}" SelectedItem="{Binding VideoQuality}"/></Grid>
+                        <ComboBox Grid.Column="1" AutomationProperties.Name="Quality" ItemsSource="{Binding Qualities}" SelectedItem="{Binding VideoQuality}"/></Grid>
                     <Grid ColumnDefinitions="*,Auto"><TextBlock Grid.Column="0" Classes="lbl" Text="Container"/>
-                        <ComboBox Grid.Column="1" ItemsSource="{Binding Containers}" SelectedItem="{Binding OutputContainer}"/></Grid>
+                        <ComboBox Grid.Column="1" AutomationProperties.Name="Container" ItemsSource="{Binding Containers}" SelectedItem="{Binding OutputContainer}"/></Grid>
                     <Grid ColumnDefinitions="*,Auto"><TextBlock Grid.Column="0" Classes="lbl" Text="Color depth"/>
-                        <ComboBox Grid.Column="1" ItemsSource="{Binding ColorDepths}" SelectedItem="{Binding ColorDepth}"/></Grid>
+                        <ComboBox Grid.Column="1" AutomationProperties.Name="Color depth" ItemsSource="{Binding ColorDepths}" SelectedItem="{Binding ColorDepth}"/></Grid>
                     <Grid ColumnDefinitions="*,Auto"><TextBlock Grid.Column="0" Classes="lbl" Text="Frame rate"/>
-                        <ComboBox Grid.Column="1" ItemsSource="{Binding FrameRateModes}" SelectedItem="{Binding FrameRateMode}"/></Grid>
+                        <ComboBox Grid.Column="1" AutomationProperties.Name="Frame rate mode" ItemsSource="{Binding FrameRateModes}" SelectedItem="{Binding FrameRateMode}"/></Grid>
                 </StackPanel>
             </Border>
 
@@ -55,12 +55,12 @@
                 <StackPanel Spacing="10">
                     <TextBlock Classes="head" Text="Audio"/>
                     <Grid ColumnDefinitions="*,Auto"><TextBlock Grid.Column="0" Classes="lbl" Text="Audio codec"/>
-                        <ComboBox Grid.Column="1" ItemsSource="{Binding AudioCodecs}" SelectedItem="{Binding AudioCodec}"/></Grid>
+                        <ComboBox Grid.Column="1" AutomationProperties.Name="Audio codec" ItemsSource="{Binding AudioCodecs}" SelectedItem="{Binding AudioCodec}"/></Grid>
                     <Grid ColumnDefinitions="*,Auto"><TextBlock Grid.Column="0" Classes="lbl" Text="Bitrate (kbps)"/>
-                        <NumericUpDown Grid.Column="1" HorizontalAlignment="Right" Width="140" Minimum="64" Maximum="512"
+                        <NumericUpDown Grid.Column="1" AutomationProperties.Name="Audio bitrate in kbps" HorizontalAlignment="Right" Width="140" Minimum="64" Maximum="512"
                                        Increment="32" Value="{Binding AudioBitrateKbps}"/></Grid>
                     <Grid ColumnDefinitions="*,Auto"><TextBlock Grid.Column="0" Classes="lbl" Text="Captions"/>
-                        <ComboBox Grid.Column="1" ItemsSource="{Binding CaptionFormats}" SelectedItem="{Binding CaptionsFormat}"/></Grid>
+                        <ComboBox Grid.Column="1" AutomationProperties.Name="Captions format" ItemsSource="{Binding CaptionFormats}" SelectedItem="{Binding CaptionsFormat}"/></Grid>
                 </StackPanel>
             </Border>
 
@@ -87,7 +87,7 @@
                         <Slider Minimum="0" Maximum="0.5" Value="{Binding MinKeep}"/>
                     </StackPanel>
                     <Grid ColumnDefinitions="*,Auto"><TextBlock Grid.Column="0" Classes="lbl" Text="Repeated-take sensitivity"/>
-                        <ComboBox Grid.Column="1" ItemsSource="{Binding RetakeSensitivities}" SelectedItem="{Binding RetakeSensitivity}"/></Grid>
+                        <ComboBox Grid.Column="1" AutomationProperties.Name="Repeated-take sensitivity" ItemsSource="{Binding RetakeSensitivities}" SelectedItem="{Binding RetakeSensitivity}"/></Grid>
                 </StackPanel>
             </Border>
 
@@ -95,10 +95,11 @@
             <Border Classes="card">
                 <StackPanel Spacing="10">
                     <TextBlock Classes="head" Text="Output"/>
-                    <Grid ColumnDefinitions="*,Auto"><TextBlock Grid.Column="0" Classes="lbl" Text="Back up the original first"/>
-                        <ToggleSwitch Grid.Column="1" HorizontalAlignment="Right" IsChecked="{Binding BackupOriginal}"/></Grid>
+                    <Grid ColumnDefinitions="*,Auto"><TextBlock Grid.Column="0" Classes="lbl" Text="Keep a backup copy of each original"/>
+                        <ToggleSwitch Grid.Column="1" AutomationProperties.Name="Keep a backup copy of each original"
+                                      HorizontalAlignment="Right" IsChecked="{Binding BackupOriginal}"/></Grid>
                     <TextBlock Classes="lbl" FontSize="12" TextWrapping="Wrap"
-                               Text="Crisp only ever writes a new cleaned file — your originals are never overwritten."/>
+                               Text="Crisp always writes a separate cleaned file and never touches the source. With this on, it also keeps an extra pristine copy in ~/.crisp/Originals before cleaning."/>
                 </StackPanel>
             </Border>
 

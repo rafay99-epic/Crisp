@@ -80,10 +80,15 @@ public sealed class CrispEngine
         }
 
         // Only surface raw stderr when the engine didn't already emit a clean error event,
-        // so a friendly NDJSON message isn't clobbered by a Python traceback.
+        // so a friendly NDJSON message isn't clobbered by a Python traceback. Cap the
+        // surfaced text — full stderr is already on disk via CRISP_LOG_DIR.
         var stderr = await stderrTask;
         if (proc.ExitCode != 0 && !sawError && !string.IsNullOrWhiteSpace(stderr))
-            progress.Report(new EngineEvent { Event = "error", Message = stderr.Trim(), Raw = stderr });
+        {
+            var trimmed = stderr.Trim();
+            if (trimmed.Length > 2000) trimmed = "…" + trimmed[^2000..];
+            progress.Report(new EngineEvent { Event = "error", Message = trimmed, Raw = stderr });
+        }
         return proc.ExitCode;
     }
 

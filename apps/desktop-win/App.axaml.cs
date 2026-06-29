@@ -20,14 +20,15 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            var vm = new MainWindowViewModel();
-            // Dev: --settings opens the Settings window directly (for screenshots).
+            // Dev: --settings opens the Settings window directly (for screenshots) — construct
+            // EngineSettings alone, not the full VM (which would start engine/model resolution).
             if (desktop.Args?.Contains("--settings") == true)
             {
-                desktop.MainWindow = new SettingsWindow { DataContext = vm.Settings };
+                desktop.MainWindow = new SettingsWindow { DataContext = new Crisp.Services.EngineSettings() };
                 base.OnFrameworkInitializationCompleted();
                 return;
             }
+            var vm = new MainWindowViewModel();
             desktop.MainWindow = new MainWindow { DataContext = vm };
 
             // "Open With" / file-association: video paths on the command line are queued

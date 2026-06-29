@@ -257,9 +257,10 @@ public partial class MainWindowViewModel : ViewModelBase
             item.OutputPath = r.TryGetProperty("output", out var o) ? o.GetString() : null;
             item.OrigSeconds = Num(r, "orig_seconds");
             item.SavedSeconds = Num(r, "saved_seconds");
-            int pauses = (int)Num(r, "pauses"), fillers = (int)Num(r, "fillers");
+            int pauses = (int)Num(r, "pauses"), fillers = (int)Num(r, "fillers"), retakes = (int)Num(r, "retakes");
             var parts = new List<string>();
             if (fillers > 0) parts.Add($"{fillers} filler{(fillers == 1 ? "" : "s")}");
+            if (retakes > 0) parts.Add($"{retakes} retake{(retakes == 1 ? "" : "s")}");
             if (pauses > 0) parts.Add($"{pauses} pause{(pauses == 1 ? "" : "s")}");
             item.CutsSummary = parts.Count > 0 ? string.Join(" · ", parts) : "";
         }
@@ -324,6 +325,12 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         var env = Environment.GetEnvironmentVariable("CRISP_ENGINE_SCRIPT");
         if (!string.IsNullOrEmpty(env)) return env;
+
+        // Shipped layout: the engine is bundled beside the .exe.
+        var bundled = Path.Combine(AppContext.BaseDirectory, "engine", "clean_video.py");
+        if (File.Exists(bundled)) return bundled;
+
+        // Dev layout: walk up to the shared engine in the repo.
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir is not null)
         {
@@ -331,6 +338,7 @@ public partial class MainWindowViewModel : ViewModelBase
             if (File.Exists(candidate)) return candidate;
             dir = dir.Parent;
         }
-        return "clean_video.py";
+        // Last resort: the absolute bundled path (so CrispEngine's working dir isn't ".").
+        return bundled;
     }
 }

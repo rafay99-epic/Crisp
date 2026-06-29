@@ -70,6 +70,11 @@ sealed class Program
     private static async Task<int> RunHeadless(string[] args)
     {
         var video = args[1];
+        if (video.StartsWith('-') || !File.Exists(video))
+        {
+            Console.Error.WriteLine("usage: --headless <video> [--engine <clean_video.py>]");
+            return 2;
+        }
         var engineIdx = Array.IndexOf(args, "--engine");
         var script = engineIdx >= 0 && engineIdx + 1 < args.Length
             ? args[engineIdx + 1]

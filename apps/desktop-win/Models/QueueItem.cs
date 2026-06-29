@@ -28,10 +28,14 @@ public partial class QueueItem : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(KeptFraction))]
     private double _origSeconds;
-    [ObservableProperty] private double _savedSeconds;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(KeptFraction), nameof(SavedText))]
+    private double _savedSeconds;
     [ObservableProperty] private string _cutsSummary = "";
     [ObservableProperty] private string? _outputPath;
-    [ObservableProperty] private string? _error;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ErrorText))]
+    private string? _error;
 
     public bool IsWaiting => Status == QueueStatus.Waiting;
     public bool IsRunning => Status == QueueStatus.Running;

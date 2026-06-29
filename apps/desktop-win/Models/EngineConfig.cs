@@ -58,16 +58,30 @@ public sealed class EngineConfig
             ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".crisp", "config"),
         "settings.json");
 
-    /// Load, filling any missing key with its default; returns defaults if absent/corrupt.
+    /// True when a present settings.json couldn't be read (transient I/O). The caller
+    /// then runs on defaults but must NOT save over the existing file.
+    [JsonIgnore] public bool LoadFailed { get; private set; }
+
+    /// Load, filling any missing key with its default. Missing file → defaults. A
+    /// corrupt file is quarantined to settings.json.corrupt (never silently overwritten,
+    /// so unmodeled keys aren't lost). A transient read error returns defaults flagged
+    /// LoadFailed so the caller leaves the file untouched.
     public static EngineConfig Load()
     {
+        if (!File.Exists(FilePath)) return new EngineConfig();
         try
         {
-            if (File.Exists(FilePath))
-                return JsonSerializer.Deserialize<EngineConfig>(File.ReadAllText(FilePath), Opts) ?? new EngineConfig();
+            return JsonSerializer.Deserialize<EngineConfig>(File.ReadAllText(FilePath), Opts) ?? new EngineConfig();
         }
-        catch (Exception) { /* corrupt → defaults */ }
-        return new EngineConfig();
+        catch (JsonException)
+        {
+            try { File.Move(FilePath, FilePath + ".corrupt", overwrite: true); } catch { /* best effort */ }
+            return new EngineConfig();
+        }
+        catch (IOException)
+        {
+            return new EngineConfig { LoadFailed = true }; // don't overwrite a file we couldn't read
+        }
     }
 
     /// Atomic write (temp + move), preserving unmodeled keys.

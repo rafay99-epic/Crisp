@@ -46,11 +46,13 @@ public partial class EngineSettings : ObservableObject
     public string[] RetakeSensitivities { get; } = { "gentle", "balanced", "aggressive" };
 
     private readonly EngineConfig _config;
+    private readonly bool _canSave;
     private bool _loading = true;
 
     public EngineSettings()
     {
         _config = EngineConfig.Load();
+        _canSave = !_config.LoadFailed; // a present-but-unreadable file must not be clobbered
         PauseThreshold = _config.PauseThreshold;
         SilenceFloorDB = _config.SilenceFloorDB;
         BreathingRoom = _config.BreathingRoom;
@@ -81,6 +83,7 @@ public partial class EngineSettings : ObservableObject
 
     private void Save()
     {
+        if (!_canSave) return;
         _config.PauseThreshold = PauseThreshold;
         _config.SilenceFloorDB = SilenceFloorDB;
         _config.BreathingRoom = BreathingRoom;

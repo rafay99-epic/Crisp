@@ -50,16 +50,21 @@ public partial class MainWindow : Window
 
     private async void OnBrowse(object? sender, RoutedEventArgs e)
     {
-        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        // async void: any exception here would crash the app, so swallow picker failures.
+        try
         {
-            Title = "Choose videos",
-            AllowMultiple = true,
-            FileTypeFilter = new[]
+            var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
-                new FilePickerFileType("Video") { Patterns = new[] { "*.mp4", "*.mov", "*.mkv", "*.m4v", "*.webm" } },
-            },
-        });
-        var paths = files.Select(f => f.TryGetLocalPath()).Where(p => p is not null).Select(p => p!).ToList();
-        if (paths.Count > 0 && Vm is { } vm) vm.AddFiles(paths);
+                Title = "Choose videos",
+                AllowMultiple = true,
+                FileTypeFilter = new[]
+                {
+                    new FilePickerFileType("Video") { Patterns = new[] { "*.mp4", "*.mov", "*.mkv", "*.m4v", "*.webm" } },
+                },
+            });
+            var paths = files.Select(f => f.TryGetLocalPath()).Where(p => p is not null).Select(p => p!).ToList();
+            if (paths.Count > 0 && Vm is { } vm) vm.AddFiles(paths);
+        }
+        catch { /* picker cancelled / failed — nothing to add */ }
     }
 }
