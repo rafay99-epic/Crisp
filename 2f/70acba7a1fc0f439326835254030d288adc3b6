@@ -1,0 +1,21 @@
+apps/desktop/Resources/engine/tests/test_enginelog.py
+  s_a7c256b1cebfbb::t_f9bfa55924613b 34,53,63,74,91,102,111,122,134,141
+apps/desktop/Resources/engine/crisp/edit.py
+  s_a7c256b1cebfbb::t_71024be97f27ea 84-86
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "2f70acba7a1fc0f439326835254030d288adc3b6",
+  "prompts": {},
+  "sessions": {
+    "s_a7c256b1cebfbb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "401b41ed-870a-49c3-bff6-f7b868451ef6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
