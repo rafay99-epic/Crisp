@@ -219,9 +219,11 @@ def video_args(codec: str, hardware: bool, quality: str, pix_fmt: str = "yuv420p
     """ffmpeg `-c:v …` arguments for the chosen video encoder + quality level. `pix_fmt`
     defaults to 8-bit 4:2:0 (`yuv420p`, the compatible output for the rendered clean); the
     editor copy passes the source's own format to avoid a silent bit-depth/chroma downgrade.
-    `hdr_params` (from `hdr_x265_params`) carries HDR10 static metadata — applied only on the
-    libx265 path AND only when the pixel format is actually ≥10-bit; every other encoder, and
-    an 8-bit fallback, ignores it (HDR10 SEI on 8-bit SDR would make players tone-map it)."""
+    `hdr_params` (from `hdr_x265_params`) carries HDR10 static metadata — written explicitly
+    only on the libx265 path AND only when the pixel format is actually ≥10-bit. We don't add
+    it on an 8-bit fallback (no point), but we don't strip it either: ffmpeg auto-propagates
+    the source's mastering metadata, and since the engine never tone-maps, an 8-bit encode of
+    an HDR source is still PQ/BT.2020, so keeping that signaling is correct (see body)."""
     quality = quality if quality in HARDWARE_QV else "high"
     pix_fmt = pix_fmt or "yuv420p"
 
