@@ -96,7 +96,7 @@ public final class LicenseStore {
         do {
             let response = try await PolarAPIClient.shared.validate(key: key)
             if response.isActive {
-                saveKeyToKeychain(key)
+                try saveKeyToKeychain(key)
                 defaults.set(Date(), forKey: lastValidationDateKey)
                 state = .active
             } else {
@@ -109,7 +109,7 @@ public final class LicenseStore {
                 state = .invalid("Activation failed. Please check your internet connection and try again.")
             }
         } catch {
-            state = .invalid("Activation failed. Please check your internet connection and try again.")
+            state = .invalid("Activation failed: Could not save license key securely on your device.")
         }
     }
     
@@ -189,7 +189,7 @@ public final class LicenseStore {
     
     // MARK: - Keychain Helpers
     
-    private func saveKeyToKeychain(_ key: String) {
+    private func saveKeyToKeychain(_ key: String) throws {
         let data = key.data(using: .utf8)!
         let deleteQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
@@ -204,7 +204,10 @@ public final class LicenseStore {
             kSecAttrAccount as String: keychainAccount,
             kSecValueData as String: data
         ]
-        SecItemAdd(addQuery as CFDictionary, nil)
+        let status = SecItemAdd(addQuery as CFDictionary, nil)
+        if status != errSecSuccess {
+            throw NSError(domain: NSOSStatusErrorDomain, code: Int(status), userInfo: nil)
+        }
     }
     
     private func loadKeyFromKeychain() -> String? {
