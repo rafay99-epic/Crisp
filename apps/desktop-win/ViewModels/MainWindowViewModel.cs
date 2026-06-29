@@ -76,7 +76,9 @@ public partial class MainWindowViewModel : ViewModelBase
     public int DoneCount => Queue.Count(q => q.Status == QueueStatus.Done);
     public bool BottomShowsRecipe => !IsRunning && PendingCount > 0;
     public bool BottomShowsSummary => !IsRunning && PendingCount == 0 && DoneCount > 0;
-    public string CleanButtonLabel => PendingCount == 1 ? "Clean Video" : $"Clean {PendingCount} Videos";
+    public string CleanButtonLabel => Settings.ExportToEditor
+        ? (PendingCount == 1 ? "Prepare for Editor" : $"Prepare {PendingCount} for Editor")
+        : (PendingCount == 1 ? "Clean Video" : $"Clean {PendingCount} Videos");
     public string CountLabel => IsRunning ? $"{DoneCount} of {Queue.Count} done"
         : PendingCount == Queue.Count ? $"{Queue.Count} video{(Queue.Count == 1 ? "" : "s")}"
         : $"{DoneCount} done · {PendingCount} waiting";
@@ -107,6 +109,8 @@ public partial class MainWindowViewModel : ViewModelBase
                 OnPropertyChanged(nameof(CanClean));
                 CleanAllCommand.NotifyCanExecuteChanged();
             }
+            if (e.PropertyName == nameof(EngineSettings.ExportToEditor))
+                OnPropertyChanged(nameof(CleanButtonLabel));
         };
         Queue.CollectionChanged += (_, _) => RefreshCounts();
         if (Settings.SelectedModelId != Models.Spec.Id) _ = Models.UseAsync(Settings.SelectedModelId);
@@ -287,6 +291,15 @@ public partial class MainWindowViewModel : ViewModelBase
             using var doc = JsonDocument.Parse(rawJson);
             var r = doc.RootElement;
             item.OutputPath = r.TryGetProperty("output", out var o) ? o.GetString() : null;
+
+            // Editor handoff: the result is a project folder (FCPXML + media copy), not a
+            // rendered video — point Reveal at the project and tag the row.
+            if (r.TryGetProperty("export_timeline", out var et) && et.GetString() == "fcpxml")
+            {
+                item.IsEditorExport = true;
+                if (r.TryGetProperty("project_dir", out var pd) && pd.GetString() is { Length: > 0 } proj)
+                    item.OutputPath = proj;
+            }
             item.OrigSeconds = Num(r, "orig_seconds");
             item.SavedSeconds = Num(r, "saved_seconds");
             int pauses = (int)Num(r, "pauses"), fillers = (int)Num(r, "fillers"), retakes = (int)Num(r, "retakes");
@@ -294,7 +307,10 @@ public partial class MainWindowViewModel : ViewModelBase
             if (fillers > 0) parts.Add($"{fillers} filler{(fillers == 1 ? "" : "s")}");
             if (retakes > 0) parts.Add($"{retakes} retake{(retakes == 1 ? "" : "s")}");
             if (pauses > 0) parts.Add($"{pauses} pause{(pauses == 1 ? "" : "s")}");
-            item.CutsSummary = parts.Count > 0 ? string.Join(" · ", parts) : "";
+            var summary = parts.Count > 0 ? string.Join(" · ", parts) : "";
+            if (item.IsEditorExport)
+                summary = string.IsNullOrEmpty(summary) ? "Editor timeline (FCPXML)" : summary + " · editor timeline";
+            item.CutsSummary = summary;
 
             History.Record(new HistoryEntry
             {

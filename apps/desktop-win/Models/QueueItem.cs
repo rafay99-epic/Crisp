@@ -33,6 +33,7 @@ public partial class QueueItem : ObservableObject
     private double _savedSeconds;
     [ObservableProperty] private string _cutsSummary = "";
     [ObservableProperty] private string? _outputPath;
+    [ObservableProperty] private bool _isEditorExport; // result is an editor project, not a render
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ErrorText))]
     private string? _error;

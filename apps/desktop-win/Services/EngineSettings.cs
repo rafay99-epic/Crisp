@@ -41,6 +41,7 @@ public partial class EngineSettings : ObservableObject
     [NotifyPropertyChangedFor(nameof(SelectedModel))]
     private string _selectedModelId = "base.en";
     [ObservableProperty] private string _customModelPath = "";
+    [ObservableProperty] private bool _exportToEditor; // FCPXML timeline instead of a render
 
     public IReadOnlyList<ModelSpec> ModelOptions => ModelCatalog.All;
     public ModelSpec SelectedModel
@@ -95,6 +96,7 @@ public partial class EngineSettings : ObservableObject
         MaxParallel = _config.ManualConcurrency;
         SelectedModelId = _config.SelectedModelId;
         CustomModelPath = _config.CustomModelPath;
+        ExportToEditor = _config.ExportToEditor;
         _loading = false;
     }
 
@@ -129,6 +131,7 @@ public partial class EngineSettings : ObservableObject
         _config.ManualConcurrency = MaxParallel;
         _config.SelectedModelId = SelectedModelId;
         _config.CustomModelPath = CustomModelPath;
+        _config.ExportToEditor = ExportToEditor;
         _config.Save();
     }
 
@@ -172,6 +175,7 @@ public partial class EngineSettings : ObservableObject
         }
 
         if (CaptionsFormat != "none") { a.Add("--captions"); a.Add(CaptionsFormat); }
+        if (ExportToEditor) { a.Add("--export-timeline"); a.Add("fcpxml"); } // editor handoff, no render
 
         if (BackupOriginal)
         {

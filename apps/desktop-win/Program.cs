@@ -57,6 +57,7 @@ sealed class Program
         var vm = new Crisp.ViewModels.MainWindowViewModel();
         if (args.Contains("--fillers")) vm.RemoveFillers = true;
         if (args.Contains("--retakes")) vm.RemoveRetakes = true;
+        if (args.Contains("--export")) vm.Settings.ExportToEditor = true;
         var videos = args.Where(a => !a.StartsWith("--")).ToArray();
         vm.AddFiles(videos);
         Console.WriteLine($"toggles: fillers={vm.RemoveFillers} retakes={vm.RemoveRetakes} needsModel={vm.NeedsModel}");
@@ -68,7 +69,7 @@ sealed class Program
         var ok = true;
         foreach (var item in vm.Queue)
         {
-            Console.WriteLine($"  {item.Status,-9} {item.FileName}  saved={item.SavedText}  cuts=[{item.CutsSummary}]  err={item.Error}");
+            Console.WriteLine($"  {item.Status,-9} {item.FileName}  editor={item.IsEditorExport}  out={item.OutputPath}  cuts=[{item.CutsSummary}]  err={item.Error}");
             ok &= item.Status == Crisp.Models.QueueStatus.Done;
         }
         Console.WriteLine($"summary: {vm.SummaryText}");

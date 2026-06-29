@@ -48,6 +48,8 @@ public sealed class EngineConfig
     [JsonPropertyName("selectedModelID")] public string SelectedModelId { get; set; } = "base.en";
     // A user-supplied whisper .bin to use instead of a catalog model ("" = use catalog).
     public string CustomModelPath { get; set; } = "";
+    // Prepare an editor timeline (FCPXML + media copy) instead of rendering a cut.
+    public bool ExportToEditor { get; set; }
 
     /// Every other key in the file (presets, watch, concurrency, model ids, …) —
     /// preserved verbatim on round-trip so the Windows app never drops them.
