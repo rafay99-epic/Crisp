@@ -2,12 +2,11 @@
 // desktop app can finish a purchase automatically (crisp://activate?checkout_id=…).
 //
 // The Polar API token lives ONLY here (Vercel env var), never in the shipped app.
-// The endpoint returns just the key string for a completed checkout. checkout_ids are
-// unguessable, and a key is only returned for a finished purchase.
+// Returns just the key string for a completed checkout.
 //
-// Env vars (set in Vercel → Project → Settings → Environment Variables):
-//   POLAR_TOKEN   — a Polar Organization Access Token (read access to checkouts +
-//                   license keys)
+// Env vars (Vercel → Project → Settings → Environment Variables):
+//   POLAR_TOKEN   — Polar Organization Access Token with `checkouts:read` AND
+//                   `license_keys:read`.
 //   POLAR_ORG_ID  — your Polar organization id (ae6a2275-…)
 
 const POLAR_API = "https://api.polar.sh";
@@ -25,38 +24,37 @@ export default async function handler(req, res) {
   const auth = { headers: { Authorization: `Bearer ${token}` } };
 
   try {
-    // 1) checkout → customer (and confirm it actually completed)
-    const checkout = await getJSON(`${POLAR_API}/v1/checkouts/${encodeURIComponent(checkoutId)}`, auth);
-    if (!checkout) return res.status(404).json({ error: "checkout not found" });
+    // 1) checkout → customer (needs checkouts:read)
+    const coRes = await fetch(`${POLAR_API}/v1/checkouts/${encodeURIComponent(checkoutId)}`, auth);
+    if (!coRes.ok) {
+      return res.status(coRes.status === 404 ? 404 : 502)
+        .json({ error: "checkout lookup failed", step: "checkout", status: coRes.status });
+    }
+    const checkout = await coRes.json();
     const status = checkout.status;
     if (status && !["succeeded", "confirmed", "complete"].includes(status)) {
-      return res.status(409).json({ error: `checkout not complete (${status})` });
+      return res.status(409).json({ error: "checkout not complete", status });
     }
     const customerId = checkout.customer_id || (checkout.customer && checkout.customer.id);
     if (!customerId) return res.status(404).json({ error: "no customer on checkout" });
 
-    // 2) that customer's license key for this org
-    const list = await getJSON(
-      `${POLAR_API}/v1/license-keys?organization_id=${encodeURIComponent(org)}` +
+    // 2) that customer's granted license key — the list response includes the full key,
+    //    so no extra per-key fetch is needed (needs license_keys:read).
+    const lkRes = await fetch(
+      `${POLAR_API}/v1/license-keys/?organization_id=${encodeURIComponent(org)}` +
         `&customer_id=${encodeURIComponent(customerId)}`,
       auth
     );
-    const item = list && list.items && list.items[0];
-    if (!item || !item.id) return res.status(404).json({ error: "no license key for customer" });
+    if (!lkRes.ok) {
+      return res.status(502).json({ error: "license lookup failed", step: "license_keys", status: lkRes.status });
+    }
+    const list = await lkRes.json();
+    const items = (list && list.items) || [];
+    const item = items.find((k) => k.status === "granted") || items[0];
+    if (!item || !item.key) return res.status(404).json({ error: "no license key for customer" });
 
-    // 3) full key (list endpoints return a masked/display key)
-    const lk = await getJSON(`${POLAR_API}/v1/license-keys/${encodeURIComponent(item.id)}`, auth);
-    if (!lk || !lk.key) return res.status(404).json({ error: "key unavailable" });
-
-    return res.status(200).json({ key: lk.key });
+    return res.status(200).json({ key: item.key });
   } catch (err) {
-    return res.status(502).json({ error: "lookup failed" });
+    return res.status(502).json({ error: "lookup failed", detail: String(err && err.message || err) });
   }
-}
-
-async function getJSON(url, opts) {
-  const r = await fetch(url, opts);
-  if (r.status === 404) return null;
-  if (!r.ok) throw new Error(`${url} -> ${r.status}`);
-  return r.json();
 }
