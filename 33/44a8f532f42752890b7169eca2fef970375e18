@@ -1,0 +1,30 @@
+apps/desktop-win/Views/Controls/WaveformView.cs
+  s_a7c256b1cebfbb::t_6f06c4f3fd70f6 5
+  s_a7c256b1cebfbb::t_5ea1674dae957b 1-4,6-65
+apps/desktop-win/ViewModels/MainWindowViewModel.cs
+  s_a7c256b1cebfbb::t_f77230cef3cd1a 330-389
+  s_a7c256b1cebfbb::t_9351b279a67b5c 49-52
+  s_a7c256b1cebfbb::t_a212b1ea7a62b0 206
+apps/desktop-win/Models/CutPreview.cs
+  s_a7c256b1cebfbb::t_9cb034b463d255 1-27
+apps/desktop-win/Views/MainWindow.axaml
+  s_a7c256b1cebfbb::t_6f5b23515aa30c 106-116,119-128
+apps/desktop-win/PARITY.md
+  s_a7c256b1cebfbb::t_16d87660b1989b 50-51
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "3344a8f532f42752890b7169eca2fef970375e18",
+  "prompts": {},
+  "sessions": {
+    "s_a7c256b1cebfbb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "401b41ed-870a-49c3-bff6-f7b868451ef6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
