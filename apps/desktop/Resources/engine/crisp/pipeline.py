@@ -185,7 +185,11 @@ def _export_editor_project(src, keep, out_dir, project_dir, target_fps,
             # the resolver runs in "auto" (match-source) mode regardless of the user's
             # Color-depth setting. Apple's VideoToolbox is unreliable for high-bit-depth /
             # wide-chroma formats, so a preserved copy uses the software encoder.
-            enc_pix, _ = resolve_pix_fmt("auto", src_meta["pix_fmt"], video_codec)
+            enc_pix, depth_notes = resolve_pix_fmt("auto", src_meta["pix_fmt"], video_codec)
+            # Surface any depth change (e.g. a WebM/VP9 editor copy that can't hold the
+            # source's 10-bit) instead of downgrading silently — mirrors the render path.
+            for note in depth_notes:
+                on_log(note)
             preserve = is_high_bit_depth(enc_pix)
 
             def _normalize(hw, pix):

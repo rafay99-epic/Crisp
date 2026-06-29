@@ -67,6 +67,13 @@ TEN_BIT_PIX_FMT = "yuv420p10le"
 # (which would otherwise fail and fall back to 8-bit). Default 12 for any unlisted codec.
 _MAX_SOFTWARE_DEPTH = {"h264": 10, "hevc": 12, "vp9": 8}
 
+# Display names for the codec keys, for user-facing notes ("H.264 can't keep…").
+_CODEC_LABELS = {"h264": "H.264", "hevc": "HEVC", "vp9": "VP9"}
+
+
+def _codec_label(video_codec: str) -> str:
+    return _CODEC_LABELS.get(video_codec, video_codec.upper())
+
 
 def _chroma_class(pix_fmt: str) -> str:
     """A source's chroma sampling as "444", "422", or "420" — covering the alias names that
@@ -143,13 +150,17 @@ def resolve_pix_fmt(color_depth: str, src_pix_fmt: str, video_codec: str = "hevc
 
     if color_depth == "10":
         # Already >8-bit keeps its own depth+chroma; an 8-bit source is upconverted to (at
-        # least) 10-bit, keeping its chroma — unless the encoder can't do 10-bit (e.g. VP9
-        # here), in which case it lands at 8-bit and we say so.
+        # least) 10-bit, keeping its chroma — unless the encoder's ceiling is lower (e.g. VP9
+        # here is 8-bit, H.264 is 10-bit), in which case it lands lower and we say so.
         target = _encodable_pix_fmt(src, min_depth=10, max_depth=max_depth)
-        if not is_deep_pix_fmt(target):
-            notes.append(f"{video_codec.upper()} can't encode 10-bit — using 8-bit instead.")
+        tgt_depth = _bit_depth(target)
+        if tgt_depth < 10:
+            notes.append(f"{_codec_label(video_codec)} can't encode 10-bit — using {tgt_depth}-bit instead.")
         elif not src_deep:
             notes.append("Encoding 8-bit source as 10-bit — your setting forces it (no quality gain).")
+        elif _bit_depth(src) > tgt_depth:
+            notes.append(f"Encoding {tgt_depth}-bit — {_codec_label(video_codec)} can't keep the "
+                         f"source's {_bit_depth(src)}-bit depth.")
         return target, notes
 
     # "auto" (and any unexpected value): match the source. A high-bit-depth / wide-chroma
@@ -157,9 +168,12 @@ def resolve_pix_fmt(color_depth: str, src_pix_fmt: str, video_codec: str = "hevc
     # empty/unknown or plain 8-bit 4:2:0 source stays the safe 8-bit 4:2:0.
     if src_high:
         target = _encodable_pix_fmt(src, max_depth=max_depth)
-        if src_deep and not is_deep_pix_fmt(target):
-            # The encoder can't carry the source's bit depth (e.g. a 10-bit source as VP9).
-            notes.append(f"Encoding 8-bit — {video_codec.upper()} can't keep the source's bit depth.")
+        src_depth, tgt_depth = _bit_depth(src), _bit_depth(target)
+        if src_depth > tgt_depth:
+            # The encoder can't carry the source's full bit depth (a 12-bit source as H.264
+            # → 10-bit, a 10-bit source as VP9 → 8-bit): say what we actually landed at.
+            notes.append(f"Encoding {tgt_depth}-bit — {_codec_label(video_codec)} can't keep the "
+                         f"source's {src_depth}-bit depth.")
         else:
             notes.append(f"Preserving the source's color depth ({target}).")
         return target, notes

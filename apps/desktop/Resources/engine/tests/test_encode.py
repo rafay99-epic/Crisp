@@ -282,7 +282,14 @@ class ResolvePixFmtTests(unittest.TestCase):
         # is capped to what the chosen encoder accepts — never handed a depth it would reject
         # and then fall back to 8-bit on. (HEVC/libx265 keeps 12-bit.)
         self.assertEqual(resolve_pix_fmt("auto", "yuv420p12le", "hevc")[0], "yuv420p12le")
-        self.assertEqual(resolve_pix_fmt("auto", "yuv420p12le", "h264")[0], "yuv420p10le")
+        # A 12-bit source as H.264 lands at 10-bit — and SAYS so (not a false "preserved").
+        for mode in ("auto", "10"):
+            pix, notes = resolve_pix_fmt(mode, "yuv420p12le", "h264")
+            self.assertEqual(pix, "yuv420p10le", mode)
+            self.assertTrue(any("12-bit" in n and "10-bit" in n for n in notes), (mode, notes))
+        # A 12-bit source that fits (HEVC) preserves — and is NOT mislabeled as a downgrade.
+        _, hevc_notes = resolve_pix_fmt("auto", "yuv420p12le", "hevc")
+        self.assertTrue(any("Preserving" in n for n in hevc_notes), hevc_notes)
         self.assertEqual(resolve_pix_fmt("auto", "yuv422p10le", "h264")[0], "yuv422p10le")
         # VP9 (this build) has no high bit depth at all → 8-bit, keeping chroma, and SAYS so.
         pix, notes = resolve_pix_fmt("auto", "yuv422p10le", "vp9")
