@@ -1,6 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.IO;
+using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -10,12 +14,34 @@ using Crisp.Services;
 
 namespace Crisp.ViewModels;
 
+public enum AppState { Empty, Ready, Running, Done }
+
 public partial class MainWindowViewModel : ViewModelBase
 {
-    [ObservableProperty] private string _videoPath = "";
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsEmpty), nameof(IsReady), nameof(IsRunning), nameof(IsDone))]
+    private AppState _state = AppState.Empty;
+
+    public bool IsEmpty => State == AppState.Empty;
+    public bool IsReady => State == AppState.Ready;
+    public bool IsRunning => State == AppState.Running;
+    public bool IsDone => State == AppState.Done;
+
+    [ObservableProperty] private string? _videoPath;
+    [ObservableProperty] private string _fileName = "";
     [ObservableProperty] private double _progress;
-    [ObservableProperty] private string _status = "Drop a video, then Clean.";
-    [ObservableProperty] private bool _isRunning;
+    [ObservableProperty] private string _status = "";
+    [ObservableProperty] private string _resultSummary = "";
+    [ObservableProperty] private string? _outputPath;
+    [ObservableProperty] private bool _isDropTargeted;
+
+    // Strength picker. Filler/retake removal needs the speech model (a later
+    // iteration), so it's surfaced disabled in the view — pauses-only runs today.
+    public IReadOnlyList<StrengthPreset> StrengthOptions { get; } = Strengths.All;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SelectedStrengthDetail))]
+    private StrengthPreset _selectedStrength = Strengths.Of(Strength.Aggressive);
+    public string SelectedStrengthDetail => SelectedStrength.Detail;
 
     public ObservableCollection<string> Log { get; } = new();
 
@@ -27,35 +53,50 @@ public partial class MainWindowViewModel : ViewModelBase
         _engine = new CrispEngine { ScriptPath = ResolveEngineScript() };
     }
 
+    /// Drag-drop / picker entry point. One file for now (queue is a later iteration).
+    public void SetFile(string path)
+    {
+        if (IsRunning) return;
+        VideoPath = path;
+        FileName = Path.GetFileName(path);
+        Log.Clear();
+        Progress = 0;
+        ResultSummary = "";
+        OutputPath = null;
+        Status = "";
+        State = AppState.Ready;
+    }
+
+    [RelayCommand]
+    private void Reset() => State = AppState.Empty;
+
     [RelayCommand]
     private async Task Clean()
     {
-        if (string.IsNullOrWhiteSpace(VideoPath) || !File.Exists(VideoPath))
-        {
-            Status = "Pick a real video file first.";
-            return;
-        }
+        if (VideoPath is null || !File.Exists(VideoPath)) { State = AppState.Empty; return; }
 
-        IsRunning = true;
+        State = AppState.Running;
         Progress = 0;
         Log.Clear();
-        Status = "Cleaning…";
+        Status = "Starting…";
         _cts = new CancellationTokenSource();
         var progress = new Progress<EngineEvent>(OnEvent); // captures UI thread
 
+        // Pauses-only: --no-fillers/--no-retakes skip whisper (no speech model in dev yet).
+        var args = new List<string>(Strengths.ToArgs(SelectedStrength.Value))
+        {
+            "--no-fillers", "--no-retakes", "--no-backup",
+        };
+
         try
         {
-            // Pauses-only for the proof: --no-fillers/--no-retakes skip whisper, so this
-            // runs on ffmpeg alone (no speech model needed in dev).
-            var code = await _engine.RunAsync(
-                VideoPath,
-                new[] { "--no-fillers", "--no-retakes", "--no-backup" },
-                progress, _cts.Token);
-            if (Status is "Cleaning…") Status = code == 0 ? "Done." : $"Engine exited {code}.";
+            var code = await _engine.RunAsync(VideoPath, args, progress, _cts.Token);
+            State = code == 0 ? AppState.Done : AppState.Ready;
+            if (code != 0) Status = $"Engine exited {code}.";
         }
-        catch (OperationCanceledException) { Status = "Cancelled."; }
-        catch (Exception ex) { Status = "Failed to launch engine."; Log.Add("EXC: " + ex.Message); }
-        finally { IsRunning = false; _cts = null; }
+        catch (OperationCanceledException) { State = AppState.Ready; Status = "Cancelled."; }
+        catch (Exception ex) { State = AppState.Ready; Status = "Failed to launch engine."; Log.Add("EXC: " + ex.Message); }
+        finally { _cts = null; }
     }
 
     [RelayCommand]
@@ -70,9 +111,35 @@ public partial class MainWindowViewModel : ViewModelBase
                 if (!string.IsNullOrWhiteSpace(ev.Label)) Status = ev.Label!;
                 break;
             case "log": Log.Add(ev.Message ?? ""); break;
-            case "result": Log.Add("✅ result: " + ev.Raw); Progress = 100; Status = "Done."; break;
-            case "error": Log.Add("⛔️ error: " + (ev.Message ?? ev.Raw)); Status = "Error."; break;
+            case "result": ApplyResult(ev.Raw); Progress = 100; break;
+            case "error": Log.Add("⛔️ " + (ev.Message ?? ev.Raw)); Status = "Error."; break;
         }
+    }
+
+    private void ApplyResult(string rawJson)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(rawJson);
+            var r = doc.RootElement;
+            OutputPath = r.TryGetProperty("output", out var o) ? o.GetString() : null;
+            double orig = Num(r, "orig_seconds"), neu = Num(r, "new_seconds"), saved = Num(r, "saved_seconds");
+            int pauses = (int)Num(r, "pauses");
+            ResultSummary = $"{Fmt(orig)} → {Fmt(neu)}   ·   saved {Fmt(saved)}   ·   {pauses} pauses cut";
+            Status = "Done.";
+        }
+        catch (JsonException) { ResultSummary = "Done."; }
+    }
+
+    private static double Num(JsonElement e, string name) =>
+        e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDouble() : 0;
+
+    private static string Fmt(double seconds)
+    {
+        var t = TimeSpan.FromSeconds(seconds);
+        return t.TotalMinutes >= 1
+            ? $"{(int)t.TotalMinutes}m {t.Seconds}s"
+            : seconds.ToString("0.#", CultureInfo.InvariantCulture) + "s";
     }
 
     // ponytail: dev-only path resolution. Walk up to the shared engine; override with
@@ -89,6 +156,6 @@ public partial class MainWindowViewModel : ViewModelBase
             if (File.Exists(candidate)) return candidate;
             dir = dir.Parent;
         }
-        return "clean_video.py"; // last resort; will fail loudly at launch
+        return "clean_video.py";
     }
 }
