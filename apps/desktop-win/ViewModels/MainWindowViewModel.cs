@@ -155,20 +155,29 @@ public partial class MainWindowViewModel : ViewModelBase
         IsRunning = true;
         RefreshCounts();
         _cts = new CancellationTokenSource();
+        var ct = _cts.Token;
         var args = BuildArgs();
+        using var slot = new SemaphoreSlim(Settings.Concurrency);
 
         try
         {
-            foreach (var item in waiting)
+            // Clean up to Settings.Concurrency files at once; the semaphore bounds how many
+            // heavy ffmpeg/whisper runs overlap.
+            var tasks = waiting.Select(async item =>
             {
-                if (_cts.IsCancellationRequested) break;
-                try { await CleanItem(item, args, _cts.Token); }
-                catch (OperationCanceledException) { item.Status = QueueStatus.Cancelled; break; }
-                // A failure to even launch the engine (e.g. Python missing) must fail the
-                // row and move on — never escape the loop and wedge IsRunning stuck true.
+                try
+                {
+                    await slot.WaitAsync(ct);
+                    try { await CleanItem(item, args, ct); }
+                    finally { slot.Release(); }
+                }
+                catch (OperationCanceledException) { item.Status = QueueStatus.Cancelled; }
+                // A failure to even launch the engine (e.g. Python missing) fails that row,
+                // never escaping to wedge IsRunning stuck true.
                 catch (Exception ex) { item.Status = QueueStatus.Failed; item.Error = LaunchError(ex); }
                 RefreshCounts();
-            }
+            });
+            await Task.WhenAll(tasks);
         }
         finally
         {

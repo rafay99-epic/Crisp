@@ -42,6 +42,7 @@ public sealed class EngineConfig
     public string CaptionsFormat { get; set; } = "none";
     public string RetakeSensitivity { get; set; } = "aggressive";
     public bool BackupOriginal { get; set; } = true;
+    public int ManualConcurrency { get; set; } = 2; // how many files to clean at once
 
     /// Every other key in the file (presets, watch, concurrency, model ids, …) —
     /// preserved verbatim on round-trip so the Windows app never drops them.

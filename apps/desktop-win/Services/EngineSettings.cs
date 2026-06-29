@@ -34,6 +34,12 @@ public partial class EngineSettings : ObservableObject
     [ObservableProperty] private string _captionsFormat = "none";
     [ObservableProperty] private string _retakeSensitivity = "aggressive";
     [ObservableProperty] private bool _backupOriginal = true;
+    [ObservableProperty] private int _maxParallel = 2; // clean up to N files at once
+
+    /// Bounded parallelism for a batch clean (1–4), so heavy ffmpeg/whisper runs don't
+    /// thrash a machine. Mirrors the Mac's manualConcurrency (the full ResourceGovernor
+    /// auto/ultra modes aren't ported).
+    public int Concurrency => System.Math.Clamp(MaxParallel, 1, 4);
 
     // Choices for the Settings pickers.
     public string[] VideoCodecs { get; } = { "h264", "hevc" };
@@ -72,6 +78,7 @@ public partial class EngineSettings : ObservableObject
         CaptionsFormat = _config.CaptionsFormat;
         RetakeSensitivity = _config.RetakeSensitivity;
         BackupOriginal = _config.BackupOriginal;
+        MaxParallel = _config.ManualConcurrency;
         _loading = false;
     }
 
@@ -103,6 +110,7 @@ public partial class EngineSettings : ObservableObject
         _config.CaptionsFormat = CaptionsFormat;
         _config.RetakeSensitivity = RetakeSensitivity;
         _config.BackupOriginal = BackupOriginal;
+        _config.ManualConcurrency = MaxParallel;
         _config.Save();
     }
 

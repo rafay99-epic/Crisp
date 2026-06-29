@@ -95,6 +95,10 @@
             <Border Classes="card">
                 <StackPanel Spacing="10">
                     <TextBlock Classes="head" Text="Output"/>
+                    <Grid ColumnDefinitions="*,Auto"><TextBlock Grid.Column="0" Classes="lbl" Text="Clean up to N files at once"/>
+                        <NumericUpDown Grid.Column="1" AutomationProperties.Name="Clean up to N files at once"
+                                       HorizontalAlignment="Right" Width="140" Minimum="1" Maximum="4"
+                                       Increment="1" Value="{Binding MaxParallel}"/></Grid>
                     <Grid ColumnDefinitions="*,Auto"><TextBlock Grid.Column="0" Classes="lbl" Text="Keep a backup copy of each original"/>
                         <ToggleSwitch Grid.Column="1" AutomationProperties.Name="Keep a backup copy of each original"
                                       HorizontalAlignment="Right" IsChecked="{Binding BackupOriginal}"/></Grid>
