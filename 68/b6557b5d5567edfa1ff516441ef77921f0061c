@@ -1,0 +1,32 @@
+apps/desktop-win/Views/MainWindow.axaml.cs
+  s_a7c256b1cebfbb::t_ea577b8ef1a44e 67-71
+apps/desktop-win/Views/WhatsNewWindow.axaml.cs
+  s_a7c256b1cebfbb::t_88d14cc53674c0 1-18
+apps/desktop-win/PARITY.md
+  s_a7c256b1cebfbb::t_55542f0a3e8bc3 57
+apps/desktop-win/Services/Updater.cs
+  s_a7c256b1cebfbb::t_c8e8fa247542b0 50
+  s_a7c256b1cebfbb::t_5c19d1b519c73d 27
+apps/desktop-win/Views/WhatsNewWindow.axaml
+  s_a7c256b1cebfbb::t_b0f96ec99edcd5 1-30
+apps/desktop-win/Views/MainWindow.axaml
+  s_a7c256b1cebfbb::t_b550ce1f5f66ba 53-57
+apps/desktop-win/Program.cs
+  s_a7c256b1cebfbb::t_3fedc0c63fd3de 174
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "68b6557b5d5567edfa1ff516441ef77921f0061c",
+  "prompts": {},
+  "sessions": {
+    "s_a7c256b1cebfbb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "401b41ed-870a-49c3-bff6-f7b868451ef6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
