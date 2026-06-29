@@ -1,0 +1,25 @@
+apps/desktop-win/Services/CrispEngine.cs
+  s_a7c256b1cebfbb::t_4db0343a0128c8 97-98,101
+apps/desktop-win/Views/SettingsWindow.axaml
+  s_a7c256b1cebfbb::t_775f7f82eb2564 126,129
+apps/desktop-win/Services/WatchFolder.cs
+  s_a7c256b1cebfbb::t_881aa9068a1584 37-38,41,47-58,62-64,68-69,79,81-82
+  s_a7c256b1cebfbb::t_5b2799bf23c3d3 19-20
+  s_a7c256b1cebfbb::t_bf1a6c395cdb35 96
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "69919d61a9a150f0e3769ec04e73fe7133402fcb",
+  "prompts": {},
+  "sessions": {
+    "s_a7c256b1cebfbb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "401b41ed-870a-49c3-bff6-f7b868451ef6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
