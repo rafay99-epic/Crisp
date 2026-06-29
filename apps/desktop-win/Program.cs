@@ -68,6 +68,11 @@ sealed class Program
         if (args.Length >= 1 && args[0] == "--channel-test")
             return RunChannelTest();
 
+        // Headless review keep-list math check (the --keep-file inverse).
+        //   dotnet run -- --review-test
+        if (args.Length >= 1 && args[0] == "--review-test")
+            return RunReviewTest();
+
         // Headless editor-detection probe (lists installed editors).
         //   dotnet run -- --editor-test
         if (args.Length >= 1 && args[0] == "--editor-test")
@@ -310,6 +315,42 @@ sealed class Program
         Environment.SetEnvironmentVariable("CRISP_DATA_DIR", null);
 
         Console.WriteLine($"channel-test: {(ok ? "PASS" : "FAIL")}");
+        return ok ? 0 : 1;
+    }
+
+    private static int RunReviewTest()
+    {
+        var ok = true;
+        void Check(bool c, string what) { Console.WriteLine($"  [{(c ? "ok" : "FAIL")}] {what}"); ok &= c; }
+
+        // duration 10; remove [2,3] and [6,7]; a disabled cut at [8,9] stays in the output.
+        var regions = new[]
+        {
+            new Crisp.Models.CutRegion { Start = 2, End = 3, Remove = true },
+            new Crisp.Models.CutRegion { Start = 6, End = 7, Remove = true },
+            new Crisp.Models.CutRegion { Start = 8, End = 9, Remove = false },
+        };
+        var keeps = Crisp.Services.ReviewPlan.KeepSegments(10, regions);
+        Check(keeps.Count == 3, "3 keep segments");
+        Check(keeps[0][0] == 0 && keeps[0][1] == 2, "keep 0..2");
+        Check(keeps[1][0] == 3 && keeps[1][1] == 6, "keep 3..6");
+        Check(keeps[2][0] == 7 && keeps[2][1] == 10, "keep 7..10 (disabled cut kept)");
+
+        // Overlapping removals merge into one gap.
+        var overlap = new[]
+        {
+            new Crisp.Models.CutRegion { Start = 1, End = 4, Remove = true },
+            new Crisp.Models.CutRegion { Start = 3, End = 5, Remove = true },
+        };
+        var k2 = Crisp.Services.ReviewPlan.KeepSegments(8, overlap);
+        Check(k2.Count == 2 && k2[0][1] == 1 && k2[1][0] == 5, "overlapping cuts merge (keep 0..1, 5..8)");
+
+        var f = Crisp.Services.ReviewPlan.WriteKeepFile(10, regions);
+        var content = System.IO.File.ReadAllText(f);
+        System.IO.File.Delete(f);
+        Check(content.Contains("\"keep\""), "keep-file has the keep key");
+
+        Console.WriteLine($"review-test: {(ok ? "PASS" : "FAIL")}");
         return ok ? 0 : 1;
     }
 
