@@ -20,6 +20,11 @@ sealed class Program
         if (args.Length >= 2 && args[0] == "--headless")
             return RunHeadless(args).GetAwaiter().GetResult();
 
+        // Headless model check: derive state from disk, download if absent.
+        //   dotnet run -- --model-test
+        if (args.Length >= 1 && args[0] == "--model-test")
+            return RunModelTest().GetAwaiter().GetResult();
+
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
         return 0;
     }
@@ -49,6 +54,21 @@ sealed class Program
             progress, CancellationToken.None);
         Console.WriteLine($"engine exit code: {code}");
         return code;
+    }
+
+    private static async Task<int> RunModelTest()
+    {
+        var store = new Crisp.Services.ModelStore();
+        Console.WriteLine($"models dir: {store.ModelsDir}");
+        await store.RefreshAsync();
+        Console.WriteLine($"after refresh: state={store.State} ready={store.IsReady} path={store.ReadyModelPath}");
+        if (store.State == Crisp.Services.ModelState.Absent)
+        {
+            Console.WriteLine("absent → downloading…");
+            await store.DownloadAsync();
+            Console.WriteLine($"after download: state={store.State} msg={store.Message}");
+        }
+        return store.IsReady ? 0 : 1;
     }
 
     // Avalonia configuration, don't remove; also used by visual designer.

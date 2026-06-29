@@ -64,10 +64,34 @@
                 <TextBlock Text="{Binding SelectedStrengthDetail}" Foreground="Gray" FontSize="12"/>
             </StackPanel>
 
-            <CheckBox Content="Remove filler words (needs speech model — coming soon)" IsEnabled="False"/>
+            <CheckBox Content="Remove filler words (um, uh, hmm…)" IsChecked="{Binding RemoveFillers}"/>
+
+            <!-- Model install: shown only when fillers are requested but the model isn't ready -->
+            <Border IsVisible="{Binding NeedsModel}" Background="#14808080" CornerRadius="8" Padding="12">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Filler-word removal needs the speech model." FontWeight="SemiBold"/>
+                    <!-- idle / failed: offer the download -->
+                    <StackPanel Orientation="Horizontal" Spacing="8"
+                                IsVisible="{Binding !Models.IsBusy}">
+                        <Button Content="{Binding Models.SizeText, StringFormat='Download speech model ({0})'}"
+                                Command="{Binding DownloadModelCommand}" Classes="accent"/>
+                        <TextBlock Text="{Binding Models.Message}" Foreground="#E06666" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <!-- busy: progress -->
+                    <StackPanel Spacing="4" IsVisible="{Binding Models.IsBusy}">
+                        <ProgressBar Minimum="0" Maximum="1" Value="{Binding Models.Progress}" Height="6"/>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Grid.Column="0" Foreground="Gray" FontSize="12"
+                                       Text="{Binding Models.Progress, StringFormat='Downloading… {0:P0}'}"/>
+                            <Button Grid.Column="1" Content="Cancel" Command="{Binding CancelModelCommand}"/>
+                        </Grid>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
 
             <StackPanel Orientation="Horizontal" Spacing="8">
-                <Button Content="Clean" Command="{Binding CleanCommand}" Classes="accent"/>
+                <Button Content="Clean" Command="{Binding CleanCommand}"
+                        IsEnabled="{Binding CanClean}" Classes="accent"/>
                 <Button Content="Choose another…" Click="OnBrowse"/>
             </StackPanel>
         </StackPanel>
