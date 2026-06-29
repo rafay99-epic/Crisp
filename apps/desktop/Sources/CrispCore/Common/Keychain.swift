@@ -6,11 +6,13 @@ import Security
 /// **per-channel** service, so Stable / Nightly / Dev never read each other's
 /// license (mirrors how `Channel.dataDirectory` keeps channels isolated).
 ///
-/// Dev builds (ad-hoc-signed by `./dev.sh`) can re-sign on every rebuild, which can
-/// break Keychain item access, so **non-secret** Dev state may fall back to
-/// `UserDefaults` for dogfooding convenience. **Secrets never do** — callers pass
-/// `allowDevFallback: false` for the license key and activation id so credential
-/// material is never written to plaintext preferences, even on Dev.
+/// **Dev uses `UserDefaults`, not the Keychain.** `./dev.sh` re-signs the app
+/// ad-hoc on every rebuild, which makes previously-stored Keychain items unreadable
+/// by the next build — so a Dev session would "forget" the license/activation after
+/// each rebuild and re-activation would hit the device limit. Dev is local-only and
+/// never shipped, so a plaintext fallback there is an acceptable trade for reliable
+/// dogfooding. **Stable and Nightly (the shipped builds) always use the real
+/// Keychain** — that's the security boundary that matters.
 public enum Keychain {
     private static let log = AppInfo.logger("keychain")
 
@@ -18,11 +20,11 @@ public enum Keychain {
         AppInfo.bundleIdentifier + Channel.current.bundleSuffix + ".license"
     }
 
-    private static var isDev: Bool { Channel.current == .dev }
+    private static var usesFallback: Bool { Channel.current == .dev }
     private static func fallbackKey(_ account: String) -> String { "LicenseKeychain.\(account)" }
 
-    public static func string(for account: String, allowDevFallback: Bool = true) -> String? {
-        if isDev && allowDevFallback { return UserDefaults.standard.string(forKey: fallbackKey(account)) }
+    public static func string(for account: String) -> String? {
+        if usesFallback { return UserDefaults.standard.string(forKey: fallbackKey(account)) }
         var query = baseQuery(account)
         query[kSecReturnData as String] = true
         query[kSecMatchLimit as String] = kSecMatchLimitOne
@@ -39,9 +41,9 @@ public enum Keychain {
     /// succeeded, so callers (e.g. activation) can surface a failure instead of leaving
     /// licensing state silently stale.
     @discardableResult
-    public static func set(_ value: String?, for account: String, allowDevFallback: Bool = true) -> Bool {
-        guard let value else { return remove(account, allowDevFallback: allowDevFallback) }
-        if isDev && allowDevFallback {
+    public static func set(_ value: String?, for account: String) -> Bool {
+        guard let value else { return remove(account) }
+        if usesFallback {
             UserDefaults.standard.set(value, forKey: fallbackKey(account))
             return true
         }
@@ -62,8 +64,8 @@ public enum Keychain {
     }
 
     @discardableResult
-    public static func remove(_ account: String, allowDevFallback: Bool = true) -> Bool {
-        if isDev && allowDevFallback {
+    public static func remove(_ account: String) -> Bool {
+        if usesFallback {
             UserDefaults.standard.removeObject(forKey: fallbackKey(account))
             return true
         }

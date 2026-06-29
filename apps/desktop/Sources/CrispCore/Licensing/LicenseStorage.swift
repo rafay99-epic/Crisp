@@ -18,17 +18,14 @@ public enum LicenseStorage {
         static let deviceID = "deviceID"
     }
 
-    // The license key and activation id are credential material, so they bypass the
-    // Dev UserDefaults fallback (`allowDevFallback: false`) — they always live in the
-    // real Keychain, never plaintext preferences, on every channel.
     public static var licenseKey: String? {
-        get { Keychain.string(for: Account.licenseKey, allowDevFallback: false) }
-        set { Keychain.set(newValue, for: Account.licenseKey, allowDevFallback: false) }
+        get { Keychain.string(for: Account.licenseKey) }
+        set { Keychain.set(newValue, for: Account.licenseKey) }
     }
 
     public static var activationID: String? {
-        get { Keychain.string(for: Account.activationID, allowDevFallback: false) }
-        set { Keychain.set(newValue, for: Account.activationID, allowDevFallback: false) }
+        get { Keychain.string(for: Account.activationID) }
+        set { Keychain.set(newValue, for: Account.activationID) }
     }
 
     /// When the free trial began (nil ⇒ never started).

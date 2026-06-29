@@ -78,17 +78,23 @@ struct LicenseSettingsView: View {
             HStack(spacing: 8) {
                 TextField("XXXX-XXXX-XXXX", text: $keyField)
                     .textFieldStyle(.roundedBorder)
-                    .frame(minWidth: 200)
+                    .frame(minWidth: 180)
                     .onSubmit { activate() }
-                Button("Activate", action: activate)
+                    .disabled(license.isWorking)
+                if license.isWorking {
+                    ProgressView().controlSize(.small)
+                }
+                Button(license.isWorking ? "Activating…" : "Activate", action: activate)
                     .disabled(license.isWorking || keyField.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
 
         HStack {
             Button("Subscribe (\(PolarConfig.priceText))") { license.openCheckout() }
+                .disabled(license.isWorking)
             Spacer()
-            Button("Lost your key?") { license.openPortal() }.buttonStyle(.link)
+            // The portal is also where buyers free up a device when they hit the limit.
+            Button("Manage devices / lost key") { license.openPortal() }.buttonStyle(.link)
         }
     }
 
