@@ -1,7 +1,7 @@
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Data.Core;
-using Avalonia.Data.Core.Plugins;
+using System;
 using System.Linq;
 using Avalonia.Markup.Xaml;
 using Crisp.ViewModels;
@@ -14,6 +14,25 @@ public partial class App : Application
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
+    }
+
+    // System-tray handlers (the menu-bar quick access).
+    private void OnTrayClicked(object? sender, EventArgs e) => ShowMainWindow();
+    private void OnTrayOpen(object? sender, EventArgs e) => ShowMainWindow();
+
+    private void OnTrayQuit(object? sender, EventArgs e)
+    {
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime d) d.Shutdown();
+    }
+
+    private void ShowMainWindow()
+    {
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime d && d.MainWindow is { } w)
+        {
+            w.Show();
+            w.WindowState = WindowState.Normal;
+            w.Activate();
+        }
     }
 
     public override void OnFrameworkInitializationCompleted()

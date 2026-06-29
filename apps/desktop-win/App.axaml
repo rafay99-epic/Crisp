@@ -5,6 +5,20 @@
              RequestedThemeVariant="Default">
              <!-- "Default" ThemeVariant follows system theme variant. -->
 
+    <!-- System tray presence (port of the macOS menu-bar item) -->
+    <TrayIcon.Icons>
+        <TrayIcons>
+            <TrayIcon Icon="/Assets/avalonia-logo.ico" ToolTipText="Crisp" Clicked="OnTrayClicked">
+                <TrayIcon.Menu>
+                    <NativeMenu>
+                        <NativeMenuItem Header="Open Crisp" Click="OnTrayOpen"/>
+                        <NativeMenuItem Header="Quit Crisp" Click="OnTrayQuit"/>
+                    </NativeMenu>
+                </TrayIcon.Menu>
+            </TrayIcon>
+        </TrayIcons>
+    </TrayIcon.Icons>
+
     <Application.Resources>
         <ResourceDictionary>
             <!-- Theme-adaptive surfaces (the Fluent WinUI brush aliases vary by version,

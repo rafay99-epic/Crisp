@@ -50,7 +50,7 @@ Legend: ✅ done · 🔜 remaining · 🟡 partial · ⛔ N/A on Windows (Apple-
 - 🔜 Review & edit cuts (waveform timeline, manual keep/cut)
 - 🔜 Cut preview (waveform of what will be removed)
 - ✅ Notifications when a batch finishes (in-app toast; OS-level toast = follow-up)
-- 🔜 Tray / menu-bar quick-drop
+- ✅ Tray icon (menu: Open Crisp / Quit; click to show) — port of the menu-bar item
 - 🔜 Explorer right-click "Clean with Crisp" (← macOS Quick Action)
 - 🔜 Restore original from backup
 - 🔜 Open in detected editor (← EditorDetector; today: reveal the project)
