@@ -1,0 +1,38 @@
+apps/desktop/Sources/Crisp/Services/Licensing/LicenseStore.swift
+  s_43fc4f80da48b2::t_450915f476f143 136,139-141,145-150
+  s_43fc4f80da48b2::t_550f51f9cc485a 125-127
+  s_43fc4f80da48b2::t_2d45e243c443bd 72,80-82
+  s_43fc4f80da48b2::t_ee0e1550338452 186-193
+apps/desktop/Sources/Crisp/Views/Onboarding/OnboardingView.swift
+  s_43fc4f80da48b2::t_cac9bd81709bb4 339-345
+apps/desktop/Tests/CrispTests/LicensingTests.swift
+  s_43fc4f80da48b2::t_46958fc9fc30f1 97-126
+apps/desktop/Sources/CrispCore/Common/Keychain.swift
+  s_43fc4f80da48b2::t_189c3ce9341327 9-13,15-16,21,24-25,30-34,38-44,46,50,55,57-61,64-66,68-73,75
+apps/desktop/Sources/CrispCore/Licensing/LicenseGate.swift
+  s_43fc4f80da48b2::t_a11f28fe5c0d6d 96-99,101,105-108
+  s_43fc4f80da48b2::t_cef9708e74ea37 90
+  s_43fc4f80da48b2::t_d31d26ce0f2cc8 109-110
+apps/desktop/Sources/CrispCore/Licensing/LicenseStorage.swift
+  s_43fc4f80da48b2::t_b0eeb471c89947 21-23,25-26,30-31
+apps/desktop/Sources/Crisp/Services/Cleaning/CleanModel.swift
+  s_43fc4f80da48b2::t_0f0e3ce03e1976 324-335
+  s_43fc4f80da48b2::t_4ba46ffc6d3e1e 345
+  s_43fc4f80da48b2::t_00304325b31230 148
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "f029a82c301f7131f8d0ace64318bf1717ed561b",
+  "prompts": {},
+  "sessions": {
+    "s_43fc4f80da48b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "925d565a-8133-40da-9ad5-d203a0dc7970",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
