@@ -1,0 +1,45 @@
+apps/desktop/Resources/engine/clean_video.py
+  s_a7c256b1cebfbb::t_0dd5e328b9d47f 191-198
+apps/desktop/Resources/engine/crisp/tools.py
+  s_a7c256b1cebfbb::t_edf3da7b1e4fc1 8
+  s_a7c256b1cebfbb::t_03e741a940d581 22-27
+apps/desktop-win/Common/VideoTypes.cs
+  s_a7c256b1cebfbb::t_2211d99c4dada1 1-21
+apps/desktop-win/Views/MainWindow.axaml.cs
+  s_a7c256b1cebfbb::t_ba6ff9211646f0 16
+  s_a7c256b1cebfbb::t_a8758abeff27f6 51-53,55-56
+  s_a7c256b1cebfbb::t_97104b6cddba78 86-96
+  s_a7c256b1cebfbb::t_91820d3c6826e7 110
+apps/desktop-win/Views/SettingsWindow.axaml
+  s_a7c256b1cebfbb::t_8b3ecbe4513818 76,80,84,88
+apps/desktop-win/Services/WatchFolder.cs
+  s_a7c256b1cebfbb::t_2389772851a0e6 42
+apps/desktop-win/ViewModels/MainWindowViewModel.cs
+  s_a7c256b1cebfbb::t_3f61aad3be7edd 268
+  s_a7c256b1cebfbb::t_99ff6d7b0944e8 235
+  s_a7c256b1cebfbb::t_77b682e9363607 76-77
+  s_a7c256b1cebfbb::t_1afe1f7435df10 347,360
+  s_a7c256b1cebfbb::t_136f3c506bd4c4 197
+apps/desktop-win/Services/ShellIntegration.cs
+  s_a7c256b1cebfbb::t_c1847a8840df36 2
+  s_a7c256b1cebfbb::t_c57c907b912e5f 14
+apps/desktop-win/Services/Updater.cs
+  s_a7c256b1cebfbb::t_526a3200ef5f2c 158,171-172,175-179
+  s_a7c256b1cebfbb::t_b8ec88f6ed70a0 125
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "078bfc814b4b449690abcf70f3357e83b6e0f81f",
+  "prompts": {},
+  "sessions": {
+    "s_a7c256b1cebfbb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "401b41ed-870a-49c3-bff6-f7b868451ef6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
