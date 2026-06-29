@@ -45,13 +45,39 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public ObservableCollection<string> Log { get; } = new();
 
+    // Filler-word removal needs the whisper speech model. The store derives its
+    // state from disk; the toggle + Clean gate on it.
+    public ModelStore Models { get; } = new();
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(NeedsModel), nameof(CanClean))]
+    private bool _removeFillers;
+
+    /// Fillers requested but the model isn't downloaded yet — show the install control.
+    public bool NeedsModel => RemoveFillers && !Models.IsReady;
+    public bool CanClean => !NeedsModel;
+
     private readonly CrispEngine _engine;
     private CancellationTokenSource? _cts;
 
     public MainWindowViewModel()
     {
         _engine = new CrispEngine { ScriptPath = ResolveEngineScript() };
+        Models.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(ModelStore.State) or nameof(ModelStore.IsReady))
+            {
+                OnPropertyChanged(nameof(NeedsModel));
+                OnPropertyChanged(nameof(CanClean));
+            }
+        };
+        _ = Models.RefreshAsync(); // derive model state from disk at launch
     }
+
+    [RelayCommand]
+    private Task DownloadModel() => Models.DownloadAsync();
+
+    [RelayCommand]
+    private void CancelModel() => Models.Cancel();
 
     /// Drag-drop / picker entry point. One file for now (queue is a later iteration).
     public void SetFile(string path)
@@ -82,11 +108,19 @@ public partial class MainWindowViewModel : ViewModelBase
         _cts = new CancellationTokenSource();
         var progress = new Progress<EngineEvent>(OnEvent); // captures UI thread
 
-        // Pauses-only: --no-fillers/--no-retakes skip whisper (no speech model in dev yet).
-        var args = new List<string>(Strengths.ToArgs(SelectedStrength.Value))
+        var args = new List<string>(Strengths.ToArgs(SelectedStrength.Value));
+        if (RemoveFillers && Models.ReadyModelPath is { } modelPath)
         {
-            "--no-fillers", "--no-retakes", "--no-backup",
-        };
+            // Fillers on: whisper transcribes via this model. Retakes stay off — a
+            // distinct toggle in a later iteration.
+            args.Add("--model"); args.Add(modelPath);
+            args.Add("--no-retakes");
+        }
+        else
+        {
+            args.Add("--no-fillers"); args.Add("--no-retakes"); // pauses-only
+        }
+        args.Add("--no-backup");
 
         try
         {
