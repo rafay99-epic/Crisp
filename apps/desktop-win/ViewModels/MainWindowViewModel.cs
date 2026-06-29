@@ -40,6 +40,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public ModelStore Models { get; } = new();
     public EngineSettings Settings { get; } = new();
+    public Updater Updater { get; } = new();
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(NeedsModel), nameof(CanClean))]
     [NotifyCanExecuteChangedFor(nameof(CleanAllCommand))]
@@ -90,7 +91,11 @@ public partial class MainWindowViewModel : ViewModelBase
         };
         Queue.CollectionChanged += (_, _) => RefreshCounts();
         _ = Models.RefreshAsync();
+        _ = Updater.CheckAsync(); // check for a newer release on launch (banner if found)
     }
+
+    [RelayCommand]
+    private void DownloadUpdate() => Updater.OpenDownload();
 
     private void RefreshCounts()
     {

@@ -38,6 +38,11 @@ sealed class Program
         if (args.Length >= 1 && args[0] == "--settings-test")
             return RunSettingsTest();
 
+        // Headless updater check: version-compare + a real GitHub release query.
+        //   dotnet run -- --update-test
+        if (args.Length >= 1 && args[0] == "--update-test")
+            return RunUpdateTest();
+
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
         return 0;
     }
@@ -126,6 +131,20 @@ sealed class Program
         var ok = back.VideoCodec == "h264" && back.Extra.ContainsKey("presets");
         Console.WriteLine($"round-trip: codec={back.VideoCodec} extraPreserved={back.Extra.ContainsKey("presets")} -> {(ok ? "OK" : "FAIL")}");
         return ok ? 0 : 1;
+    }
+
+    private static int RunUpdateTest()
+    {
+        Console.WriteLine($"current version: {CrispVersion.Current}");
+        // Version-compare sanity (the 0.9 vs 0.10 case catches a naive string compare).
+        Console.WriteLine($"IsNewer(0.15,0.14)={Updater.IsNewer("0.15", "0.14")} " +
+                          $"IsNewer(0.14,0.14)={Updater.IsNewer("0.14", "0.14")} " +
+                          $"IsNewer(0.9,0.10)={Updater.IsNewer("0.9", "0.10")}");
+        var u = new Updater();
+        u.CheckAsync().GetAwaiter().GetResult();
+        Console.WriteLine($"check: state={u.State} available={u.AvailableVersion} url={u.ReleaseUrl} msg={u.Message}");
+        var compareOk = Updater.IsNewer("0.15", "0.14") && !Updater.IsNewer("0.14", "0.14") && !Updater.IsNewer("0.9", "0.10");
+        return compareOk && u.State is UpdaterState.Available or UpdaterState.UpToDate ? 0 : 1;
     }
 
     // Avalonia configuration, don't remove; also used by visual designer.

@@ -36,6 +36,16 @@
             </Button>
         </Grid>
 
+        <!-- Update banner (shown when a newer release is available) -->
+        <Border DockPanel.Dock="Top" IsVisible="{Binding Updater.IsAvailable}" Margin="26,0,26,12"
+                Background="{DynamicResource CrispAccent}" CornerRadius="8" Padding="14,10">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="White"
+                           Text="{Binding Updater.AvailableVersion, StringFormat='A new version of Crisp ({0}) is available.'}"/>
+                <Button Grid.Column="1" Content="Download" Command="{Binding DownloadUpdateCommand}"/>
+            </Grid>
+        </Border>
+
         <!-- BOTTOM BAR (pinned) -->
         <Border DockPanel.Dock="Bottom" Background="{DynamicResource CrispCard}"
                 BorderBrush="{DynamicResource CrispCardBorder}" BorderThickness="0,1,0,0"
