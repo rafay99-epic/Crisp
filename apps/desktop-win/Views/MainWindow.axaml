@@ -2,120 +2,141 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Crisp.ViewModels"
         xmlns:models="using:Crisp.Models"
+        xmlns:controls="using:Crisp.Views.Controls"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="640" d:DesignHeight="560"
         x:Class="Crisp.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
-        Width="640" Height="560" MinWidth="560" MinHeight="460"
+        Width="640" Height="560" MinWidth="560" MinHeight="480"
+        Background="{DynamicResource CrispWindowBg}"
         Title="Crisp">
 
     <Design.DataContext>
         <vm:MainWindowViewModel/>
     </Design.DataContext>
 
-    <Grid Margin="24" RowDefinitions="Auto,*">
+    <Grid Margin="26,22" RowDefinitions="Auto,*">
 
         <!-- Header: identity + tagline (always shown) -->
-        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="14" Margin="0,0,0,18">
-            <TextBlock Text="〜" FontSize="40" VerticalAlignment="Center" Foreground="{DynamicResource SystemAccentColor}"/>
-            <StackPanel VerticalAlignment="Center" Spacing="2">
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="14" Margin="0,0,0,22">
+            <controls:WaveformMark Height="42" VerticalAlignment="Center"/>
+            <StackPanel VerticalAlignment="Center" Spacing="3">
                 <StackPanel Orientation="Horizontal" Spacing="8">
-                    <TextBlock Text="Crisp" FontSize="24" FontWeight="Bold"/>
-                    <Border Background="#33808080" CornerRadius="6" Padding="6,2" VerticalAlignment="Center">
-                        <TextBlock Text="WIN" FontSize="10" FontWeight="Bold"/>
-                    </Border>
+                    <TextBlock Text="Crisp" FontSize="26" FontWeight="Bold"/>
+                    <Border Classes="badge"><TextBlock Text="WIN"/></Border>
                 </StackPanel>
-                <TextBlock Text="Remove pauses &amp; filler words from your recordings."
-                           Foreground="Gray" FontSize="13"/>
+                <TextBlock Classes="secondary" FontSize="13"
+                           Text="Remove pauses &amp; filler words from your recordings."/>
             </StackPanel>
         </StackPanel>
 
-        <!-- EMPTY: the drop hero -->
-        <Border Grid.Row="1" Name="DropZone" IsVisible="{Binding IsEmpty}"
-                CornerRadius="14" Padding="0,40" VerticalAlignment="Center"
-                Background="#14808080" BorderBrush="#40808080" BorderThickness="1.5">
-            <StackPanel HorizontalAlignment="Center" Spacing="10">
-                <TextBlock Text="〜" FontSize="40" HorizontalAlignment="Center"
-                           Foreground="{DynamicResource SystemAccentColor}"/>
-                <TextBlock Text="{Binding IsDropTargeted, Converter={x:Static vm:Converters.DropText}}"
-                           FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center"/>
-                <TextBlock Text="Drag videos here, or" Foreground="Gray" HorizontalAlignment="Center"/>
-                <Button Content="Choose videos…" Click="OnBrowse" HorizontalAlignment="Center" Classes="accent"/>
-            </StackPanel>
-        </Border>
+        <!-- EMPTY: the drop hero, centered, capped width like the Mac -->
+        <Grid Grid.Row="1" IsVisible="{Binding IsEmpty}" MaxWidth="430"
+              VerticalAlignment="Center" HorizontalAlignment="Center">
+            <Border Classes="card" Padding="36,48">
+                <StackPanel HorizontalAlignment="Center" Spacing="14">
+                    <controls:WaveformMark Height="40" Opacity="0.85"/>
+                    <TextBlock FontSize="17" FontWeight="SemiBold" HorizontalAlignment="Center"
+                               Text="{Binding IsDropTargeted, Converter={x:Static vm:Converters.DropText}}"/>
+                    <TextBlock Classes="secondary" Text="Drag videos here, or" HorizontalAlignment="Center"/>
+                    <Button Content="Choose videos…" Click="OnBrowse" Classes="accent"
+                            HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+            <Rectangle RadiusX="14" RadiusY="14" StrokeThickness="1.5" StrokeDashArray="7,5"
+                       IsHitTestVisible="False" Stroke="#4DFFFFFF"/>
+        </Grid>
 
         <!-- READY: file chosen, pick strength, clean -->
-        <StackPanel Grid.Row="1" IsVisible="{Binding IsReady}" Spacing="16" VerticalAlignment="Top">
-            <TextBlock Text="{Binding FileName}" FontWeight="SemiBold" FontSize="15"/>
+        <ScrollViewer Grid.Row="1" IsVisible="{Binding IsReady}" VerticalAlignment="Top">
+            <StackPanel Spacing="16">
+                <Border Classes="card">
+                    <StackPanel Spacing="16">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <PathIcon Width="16" Height="16" VerticalAlignment="Center"
+                                      Data="M4,2 H12 L18,8 V20 a2,2 0 0 1 -2,2 H4 a2,2 0 0 1 -2,-2 V4 a2,2 0 0 1 2,-2 Z"/>
+                            <TextBlock Text="{Binding FileName}" FontWeight="SemiBold" FontSize="15"
+                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
 
-            <StackPanel Spacing="6">
-                <TextBlock Text="Strength" FontWeight="SemiBold"/>
-                <ListBox ItemsSource="{Binding StrengthOptions}" SelectedItem="{Binding SelectedStrength}">
-                    <ListBox.ItemsPanel>
-                        <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="4"/></ItemsPanelTemplate>
-                    </ListBox.ItemsPanel>
-                    <ListBox.ItemTemplate>
-                        <DataTemplate x:DataType="models:StrengthPreset">
-                            <TextBlock Text="{Binding PickerLabel}" Padding="6,2"/>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
-                <TextBlock Text="{Binding SelectedStrengthDetail}" Foreground="Gray" FontSize="12"/>
-            </StackPanel>
+                        <StackPanel Spacing="7">
+                            <TextBlock Text="Strength" FontWeight="SemiBold"/>
+                            <Border Background="{DynamicResource CrispInset}" CornerRadius="9" Padding="3">
+                                <ListBox Classes="segment" ItemsSource="{Binding StrengthOptions}"
+                                         SelectedItem="{Binding SelectedStrength}">
+                                    <ListBox.ItemsPanel>
+                                        <ItemsPanelTemplate><UniformGrid Rows="1"/></ItemsPanelTemplate>
+                                    </ListBox.ItemsPanel>
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate x:DataType="models:StrengthPreset">
+                                            <TextBlock Text="{Binding PickerLabel}" HorizontalAlignment="Center"
+                                                       Padding="6,5"/>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Border>
+                            <TextBlock Classes="secondary" FontSize="12" Text="{Binding SelectedStrengthDetail}"/>
+                        </StackPanel>
 
-            <CheckBox Content="Remove filler words (um, uh, hmm…)" IsChecked="{Binding RemoveFillers}"/>
+                        <CheckBox Content="Remove filler words (um, uh, hmm…)" IsChecked="{Binding RemoveFillers}"/>
 
-            <!-- Model install: shown only when fillers are requested but the model isn't ready -->
-            <Border IsVisible="{Binding NeedsModel}" Background="#14808080" CornerRadius="8" Padding="12">
-                <StackPanel Spacing="8">
-                    <TextBlock Text="Filler-word removal needs the speech model." FontWeight="SemiBold"/>
-                    <!-- idle / failed: offer the download -->
-                    <StackPanel Orientation="Horizontal" Spacing="8"
-                                IsVisible="{Binding !Models.IsBusy}">
-                        <Button Content="{Binding Models.SizeText, StringFormat='Download speech model ({0})'}"
-                                Command="{Binding DownloadModelCommand}" Classes="accent"/>
-                        <TextBlock Text="{Binding Models.Message}" Foreground="#E06666" VerticalAlignment="Center"/>
+                        <!-- Model install: only when fillers are requested but the model isn't ready -->
+                        <Border IsVisible="{Binding NeedsModel}" Background="{DynamicResource CrispInset}" CornerRadius="8" Padding="14">
+                            <StackPanel Spacing="9">
+                                <TextBlock Text="Filler-word removal needs the speech model." FontWeight="SemiBold"/>
+                                <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding !Models.IsBusy}">
+                                    <Button Content="{Binding Models.SizeText, StringFormat='Download speech model ({0})'}"
+                                            Command="{Binding DownloadModelCommand}" Classes="accent"/>
+                                    <TextBlock Text="{Binding Models.Message}" Foreground="#FFE06666" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <StackPanel Spacing="5" IsVisible="{Binding Models.IsBusy}">
+                                    <ProgressBar Minimum="0" Maximum="1" Value="{Binding Models.Progress}" Height="6"/>
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Grid.Column="0" Classes="secondary" FontSize="12"
+                                                   Text="{Binding Models.Progress, StringFormat='Downloading… {0:P0}'}"/>
+                                        <Button Grid.Column="1" Content="Cancel" Command="{Binding CancelModelCommand}"/>
+                                    </Grid>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
-                    <!-- busy: progress -->
-                    <StackPanel Spacing="4" IsVisible="{Binding Models.IsBusy}">
-                        <ProgressBar Minimum="0" Maximum="1" Value="{Binding Models.Progress}" Height="6"/>
-                        <Grid ColumnDefinitions="*,Auto">
-                            <TextBlock Grid.Column="0" Foreground="Gray" FontSize="12"
-                                       Text="{Binding Models.Progress, StringFormat='Downloading… {0:P0}'}"/>
-                            <Button Grid.Column="1" Content="Cancel" Command="{Binding CancelModelCommand}"/>
-                        </Grid>
-                    </StackPanel>
+                </Border>
+
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                    <Button Content="Clean" Command="{Binding CleanCommand}" IsEnabled="{Binding CanClean}"
+                            Classes="accent" MinWidth="92"/>
+                    <Button Content="Choose another…" Click="OnBrowse"/>
                 </StackPanel>
-            </Border>
-
-            <StackPanel Orientation="Horizontal" Spacing="8">
-                <Button Content="Clean" Command="{Binding CleanCommand}"
-                        IsEnabled="{Binding CanClean}" Classes="accent"/>
-                <Button Content="Choose another…" Click="OnBrowse"/>
             </StackPanel>
-        </StackPanel>
+        </ScrollViewer>
 
         <!-- RUNNING: progress + log -->
-        <DockPanel Grid.Row="1" IsVisible="{Binding IsRunning}" LastChildFill="True">
-            <TextBlock DockPanel.Dock="Top" Text="{Binding FileName}" FontWeight="SemiBold" Margin="0,0,0,8"/>
-            <ProgressBar DockPanel.Dock="Top" Minimum="0" Maximum="100" Value="{Binding Progress}" Height="6"/>
-            <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,6,0,10">
-                <TextBlock Grid.Column="0" Text="{Binding Status}" Foreground="Gray" VerticalAlignment="Center"/>
-                <Button Grid.Column="1" Content="Cancel" Command="{Binding CancelCommand}"/>
-            </Grid>
-            <Border BorderBrush="#33808080" BorderThickness="1" CornerRadius="6">
-                <ListBox ItemsSource="{Binding Log}" FontFamily="monospace" FontSize="12"/>
-            </Border>
-        </DockPanel>
+        <Border Grid.Row="1" Classes="card" IsVisible="{Binding IsRunning}" VerticalAlignment="Stretch">
+            <DockPanel LastChildFill="True">
+                <TextBlock DockPanel.Dock="Top" Text="{Binding FileName}" FontWeight="SemiBold"
+                           TextTrimming="CharacterEllipsis" Margin="0,0,0,10"/>
+                <ProgressBar DockPanel.Dock="Top" Minimum="0" Maximum="100" Value="{Binding Progress}" Height="6"/>
+                <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,8,0,12">
+                    <TextBlock Grid.Column="0" Classes="secondary" Text="{Binding Status}" VerticalAlignment="Center"/>
+                    <Button Grid.Column="1" Content="Cancel" Command="{Binding CancelCommand}"/>
+                </Grid>
+                <Border Background="{DynamicResource CrispInset}" CornerRadius="8">
+                    <ListBox ItemsSource="{Binding Log}" FontFamily="Cascadia Mono,Menlo,Consolas,monospace"
+                             FontSize="12" Background="Transparent"/>
+                </Border>
+            </DockPanel>
+        </Border>
 
         <!-- DONE: result -->
-        <StackPanel Grid.Row="1" IsVisible="{Binding IsDone}" Spacing="14" VerticalAlignment="Center" HorizontalAlignment="Center">
-            <TextBlock Text="✓ Cleaned" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center"/>
-            <TextBlock Text="{Binding ResultSummary}" HorizontalAlignment="Center"/>
-            <TextBlock Text="{Binding OutputPath}" Foreground="Gray" FontSize="11" HorizontalAlignment="Center"
-                       TextWrapping="Wrap" MaxWidth="500"/>
-            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+        <StackPanel Grid.Row="1" IsVisible="{Binding IsDone}" Spacing="16"
+                    VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="460">
+            <controls:WaveformMark Height="34"/>
+            <TextBlock Text="Cleaned" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center"/>
+            <TextBlock Text="{Binding ResultSummary}" HorizontalAlignment="Center" FontSize="14"/>
+            <TextBlock Classes="secondary" Text="{Binding OutputPath}" FontSize="11" HorizontalAlignment="Center"
+                       TextWrapping="Wrap" TextAlignment="Center"/>
+            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
                 <Button Content="Reveal in folder" Click="OnReveal"/>
                 <Button Content="Clean another" Command="{Binding ResetCommand}" Classes="accent"/>
             </StackPanel>

@@ -3,13 +3,85 @@
              x:Class="Crisp.App"
              xmlns:local="using:Crisp"
              RequestedThemeVariant="Default">
-             <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
+             <!-- "Default" ThemeVariant follows system theme variant. -->
 
     <Application.DataTemplates>
         <local:ViewLocator/>
     </Application.DataTemplates>
-  
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <!-- Theme-adaptive surfaces (the Fluent WinUI brush aliases vary by version,
+                 so we define our own and key them by theme variant). -->
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="CrispWindowBg" Color="#1C1C1E"/>
+                    <SolidColorBrush x:Key="CrispCard" Color="#2C2C2E"/>
+                    <SolidColorBrush x:Key="CrispCardBorder" Color="#33FFFFFF"/>
+                    <SolidColorBrush x:Key="CrispInset" Color="#1A000000"/>
+                    <SolidColorBrush x:Key="CrispSecondary" Color="#99FFFFFF"/>
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="CrispWindowBg" Color="#ECECEE"/>
+                    <SolidColorBrush x:Key="CrispCard" Color="#FFFFFF"/>
+                    <SolidColorBrush x:Key="CrispCardBorder" Color="#14000000"/>
+                    <SolidColorBrush x:Key="CrispInset" Color="#0F000000"/>
+                    <SolidColorBrush x:Key="CrispSecondary" Color="#99000000"/>
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+            <!-- A brush from the OS accent Color (SystemAccentColor is a Color, not a brush). -->
+            <SolidColorBrush x:Key="CrispAccent" Color="{DynamicResource SystemAccentColor}"/>
+        </ResourceDictionary>
+    </Application.Resources>
+
     <Application.Styles>
         <FluentTheme />
+
+        <!-- The app's standard rounded card surface (mirrors macOS .cardBackground). -->
+        <Style Selector="Border.card">
+            <Setter Property="CornerRadius" Value="14"/>
+            <Setter Property="Background" Value="{DynamicResource CrispCard}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource CrispCardBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="18"/>
+        </Style>
+
+        <!-- Channel pill (WIN / DEV / NIGHTLY). -->
+        <Style Selector="Border.badge">
+            <Setter Property="CornerRadius" Value="5"/>
+            <Setter Property="Padding" Value="6,2"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Background" Value="{DynamicResource CrispAccent}"/>
+        </Style>
+        <Style Selector="Border.badge > TextBlock">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+
+        <Style Selector="TextBlock.secondary">
+            <Setter Property="Foreground" Value="{DynamicResource CrispSecondary}"/>
+        </Style>
+
+        <!-- Segmented strength picker: flat items in a rounded inset track; the
+             selected segment is an accent pill. -->
+        <Style Selector="ListBox.segment">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Padding" Value="0"/>
+        </Style>
+        <Style Selector="ListBox.segment > ListBoxItem">
+            <Setter Property="CornerRadius" Value="7"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        </Style>
+        <Style Selector="ListBox.segment > ListBoxItem:selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource CrispAccent}"/>
+            <Setter Property="CornerRadius" Value="7"/>
+        </Style>
+        <Style Selector="ListBox.segment > ListBoxItem:selected">
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
     </Application.Styles>
 </Application>

@@ -1,0 +1,27 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Crisp.Views.Controls.WaveformMark">
+    <!-- The signature mark: rounded audio bars (mirrors the macOS "waveform" symbol).
+         A Viewbox scales the fixed bar layout to whatever Height the host sets. -->
+    <Viewbox Stretch="Uniform">
+        <StackPanel Orientation="Horizontal" Spacing="3" Height="40" VerticalAlignment="Center">
+            <StackPanel.Styles>
+                <Style Selector="Border">
+                    <Setter Property="Width" Value="4"/>
+                    <Setter Property="CornerRadius" Value="2"/>
+                    <Setter Property="VerticalAlignment" Value="Center"/>
+                    <Setter Property="Background" Value="{DynamicResource CrispAccent}"/>
+                </Style>
+            </StackPanel.Styles>
+            <Border Height="14"/>
+            <Border Height="24"/>
+            <Border Height="36"/>
+            <Border Height="20"/>
+            <Border Height="40"/>
+            <Border Height="28"/>
+            <Border Height="16"/>
+            <Border Height="32"/>
+            <Border Height="22"/>
+        </StackPanel>
+    </Viewbox>
+</UserControl>
