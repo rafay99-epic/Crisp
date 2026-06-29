@@ -35,6 +35,8 @@ public enum Entitlement: Equatable, Sendable {
 /// exactly as it did before licensing existed. That's the safety guarantee for
 /// shipping this dark.
 public enum LicenseGate {
+    private static let log = AppInfo.logger("license")
+
     public static var isEnabled: Bool { Channel.licensingEnabled }
 
     /// Record that the app is running *now*, advancing the rollback watermark.
@@ -99,7 +101,10 @@ public enum LicenseGate {
     /// would let a clock rollback recover trial days.
     public static func checkClean(now: Date = Date()) throws {
         if isEnabled { recordSeen(now: now) }
-        if let reason = blockReason(now: now) { throw LicenseBlockedError(message: reason) }
+        if let reason = blockReason(now: now) {
+            log.error("license: clean blocked — \(reason, privacy: .public)")
+            throw LicenseBlockedError(message: reason)
+        }
     }
 
     /// Pure clean-permission rule, exposed for testing: cleaning is always allowed when
