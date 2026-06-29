@@ -67,6 +67,19 @@ jobs:
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v7
+      - name: DEBUG engine resolution
+        run: |
+          python3 --version
+          echo "--- encode.py / .pyc on disk ---"
+          find Resources/engine -name 'encode.py' -o -name '*.pyc' | head
+          echo "--- which crisp.encode does discover import + what does video_args do ---"
+          python3 - <<'PY'
+          import sys; sys.path.insert(0, "Resources/engine")
+          import crisp.encode as e, inspect
+          print("ENCODE_FILE:", e.__file__)
+          print("SIG:", inspect.signature(e.video_args))
+          print("HW_TRUE:", e.video_args("hevc", hardware=True, quality="high"))
+          PY
       - name: Run engine unit tests
         run: python3 -m unittest discover -s Resources/engine/tests -t Resources/engine
 
