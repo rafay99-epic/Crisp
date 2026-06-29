@@ -1,0 +1,20 @@
+apps/desktop/Resources/engine/tests/test_semantic.py
+  s_a7c256b1cebfbb::t_d151d72b0d0482 116-117
+  s_a7c256b1cebfbb::t_db1ad54ca0f2ec 158-159
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "3656f3472e1f8140d03da1325abd4eeb5fe2cd54",
+  "prompts": {},
+  "sessions": {
+    "s_a7c256b1cebfbb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "401b41ed-870a-49c3-bff6-f7b868451ef6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
