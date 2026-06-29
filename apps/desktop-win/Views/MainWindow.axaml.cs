@@ -64,6 +64,11 @@ public partial class MainWindow : Window
         new SettingsWindow { DataContext = vm.Settings }.ShowDialog(this);
     }
 
+    private void OnWhatsNew(object? sender, RoutedEventArgs e)
+    {
+        if (Vm is { } vm) new WhatsNewWindow { DataContext = vm.Updater }.ShowDialog(this);
+    }
+
     private void OnHistory(object? sender, RoutedEventArgs e)
     {
         if (Vm is not { } vm) return;

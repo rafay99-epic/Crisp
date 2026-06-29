@@ -24,6 +24,7 @@ public partial class Updater : ObservableObject
     [ObservableProperty] private UpdaterState _state = UpdaterState.Idle;
     [ObservableProperty] private string _availableVersion = "";
     [ObservableProperty] private string _releaseUrl = "";
+    [ObservableProperty] private string _notes = "";
     [ObservableProperty] private string _message = "";
 
     public bool IsAvailable => State == UpdaterState.Available;
@@ -46,6 +47,7 @@ public partial class Updater : ObservableObject
             var tag = root.GetProperty("tag_name").GetString() ?? "";
             var version = tag.StartsWith('v') ? tag[1..] : tag;
             ReleaseUrl = AssetUrl(root) ?? (root.TryGetProperty("html_url", out var h) ? h.GetString() ?? "" : "");
+            Notes = (root.TryGetProperty("body", out var b) ? b.GetString() : null)?.Trim() ?? "";
 
             if (IsNewer(version, CrispVersion.Current))
             {

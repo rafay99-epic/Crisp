@@ -54,7 +54,7 @@ Legend: ✅ done · 🔜 remaining · 🟡 partial · ⛔ N/A on Windows (Apple-
 - 🔜 Explorer right-click "Clean with Crisp" (← macOS Quick Action)
 - 🔜 Restore original from backup
 - 🔜 Open in detected editor (← EditorDetector; today: reveal the project)
-- 🔜 What's New after an update
+- ✅ What's New after an update (release notes viewer)
 - ✅ Diagnostics: reveal the log file
 - 🔜 Channel system (stable/nightly/dev) — partial (`CrispVersion`)
 

@@ -171,7 +171,7 @@ sealed class Program
                           $"IsNewer(0.9,0.10)={Updater.IsNewer("0.9", "0.10")}");
         var u = new Updater();
         u.CheckAsync().GetAwaiter().GetResult();
-        Console.WriteLine($"check: state={u.State} available={u.AvailableVersion} url={u.ReleaseUrl} msg={u.Message}");
+        Console.WriteLine($"check: state={u.State} available={u.AvailableVersion} url={u.ReleaseUrl} notesLen={u.Notes.Length} msg={u.Message}");
         var compareOk = Updater.IsNewer("0.15", "0.14") && !Updater.IsNewer("0.14", "0.14") && !Updater.IsNewer("0.9", "0.10");
         return compareOk && u.State is UpdaterState.Available or UpdaterState.UpToDate ? 0 : 1;
     }
