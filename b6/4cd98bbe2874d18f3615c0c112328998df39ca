@@ -1,0 +1,42 @@
+apps/desktop-win/ViewModels/MainWindowViewModel.cs
+  s_a7c256b1cebfbb::t_dc81d7edba5db5 433-435
+  s_a7c256b1cebfbb::t_662eaad748b6f0 330-366
+  s_a7c256b1cebfbb::t_3bb379d69dcbfd 446,453-460
+  s_a7c256b1cebfbb::t_b6ed6d282fc43e 461
+apps/desktop-win/Views/ReviewWindow.axaml
+  s_a7c256b1cebfbb::t_42fd51d9294df4 1-50
+apps/desktop-win/PARITY.md
+  s_a7c256b1cebfbb::t_b5dace36d13d92 51
+apps/desktop-win/ViewModels/ReviewModel.cs
+  s_a7c256b1cebfbb::t_e4b8de5d0e8732 27-32
+  s_a7c256b1cebfbb::t_53d11bc6163295 1-26,33-107
+apps/desktop-win/Views/MainWindow.axaml
+  s_a7c256b1cebfbb::t_707933832ba4a6 240-241
+apps/desktop-win/Models/QueueItem.cs
+  s_a7c256b1cebfbb::t_282ec493c1c0ee 30-33
+apps/desktop-win/Views/ReviewWindow.axaml.cs
+  s_a7c256b1cebfbb::t_8667f15aa9d4ca 1-12
+apps/desktop-win/Views/MainWindow.axaml.cs
+  s_a7c256b1cebfbb::t_13c2040e2b75d7 79-88
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "b64cd98bbe2874d18f3615c0c112328998df39ca",
+  "prompts": {},
+  "humans": {
+    "h_1e0ba4a9f2a4b4": {
+      "author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_a7c256b1cebfbb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "401b41ed-870a-49c3-bff6-f7b868451ef6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
