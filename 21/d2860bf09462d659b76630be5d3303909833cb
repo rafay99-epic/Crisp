@@ -1,0 +1,30 @@
+apps/desktop/Sources/Crisp/Services/Licensing/LicenseStore.swift
+  s_43fc4f80da48b2::t_c9b0a1b9acf05c 162,171
+  s_43fc4f80da48b2::t_99157746188524 180,191,198
+  s_43fc4f80da48b2::t_86dafc2f649e93 77
+  s_43fc4f80da48b2::t_0616fd82fae7aa 57
+  s_43fc4f80da48b2::t_d38e0a0b92fcce 210,220-223,226,230,233
+  s_43fc4f80da48b2::t_11215f2165dad1 100
+  s_43fc4f80da48b2::t_3d367fc0de1418 120,134,141,144,149,152
+  s_43fc4f80da48b2::t_ef12fd28ee24cb 253-264
+  s_43fc4f80da48b2::t_56f2b54dc631af 89
+apps/desktop/Sources/CrispCore/Licensing/LicenseGate.swift
+  s_43fc4f80da48b2::t_4d79acb7867013 38-39
+  s_43fc4f80da48b2::t_5adf8ebae2646c 104-107
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "21d2860bf09462d659b76630be5d3303909833cb",
+  "prompts": {},
+  "sessions": {
+    "s_43fc4f80da48b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "925d565a-8133-40da-9ad5-d203a0dc7970",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
