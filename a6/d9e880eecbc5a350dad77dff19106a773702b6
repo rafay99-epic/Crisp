@@ -1,0 +1,26 @@
+apps/desktop-win/Scripts/vendor-win.ps1
+  s_a7c256b1cebfbb::t_72a305fac43648 1-98
+apps/desktop-win/Services/CrispEngine.cs
+  s_a7c256b1cebfbb::t_0a70e2c99e3f32 115-121
+apps/desktop-win/PARITY.md
+  s_a7c256b1cebfbb::t_fda9839bb2c639 65
+.github/workflows/windows.yml
+  s_a7c256b1cebfbb::t_12edd302990038 21
+  s_a7c256b1cebfbb::t_1a5a00f46467b1 87-122
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "a6d9e880eecbc5a350dad77dff19106a773702b6",
+  "prompts": {},
+  "sessions": {
+    "s_a7c256b1cebfbb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "401b41ed-870a-49c3-bff6-f7b868451ef6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
