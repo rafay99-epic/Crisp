@@ -76,9 +76,13 @@ struct CrispApp: App {
                 }
                 .disabled(!Channel.current.updatesEnabled || updater.isBusy)
             }
-            // Replace the (unused) default Help book with a way back into the tour.
+            // Replace the (unused) default Help book with a way back into the tour
+            // and a link to the online docs.
             CommandGroup(replacing: .help) {
                 Button("Welcome to \(Channel.current.displayName)") { onboarding.present() }
+                Button("Crisp Documentation") {
+                    NSWorkspace.shared.open(URL(string: "https://www.cubic.dev/wikis/rafay99-epic/Crisp")!)
+                }
             }
         }
 
