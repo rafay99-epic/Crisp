@@ -1,0 +1,39 @@
+apps/desktop-win/Views/MainWindow.axaml.cs
+  s_a7c256b1cebfbb::t_fb57e045feb566 51-57
+apps/desktop-win/Views/HistoryWindow.axaml
+  s_a7c256b1cebfbb::t_36cd102e6adf56 1-47
+apps/desktop-win/Services/HistoryStore.cs
+  s_a7c256b1cebfbb::t_ba3d7f2a349861 1-65
+apps/desktop-win/Views/HistoryWindow.axaml.cs
+  s_a7c256b1cebfbb::t_520fe366de3ca4 1-39
+apps/desktop-win/Models/HistoryEntry.cs
+  s_a7c256b1cebfbb::t_887958581f560e 20-22,24
+  s_a7c256b1cebfbb::t_4d6d1c544305c9 1-2,4-19,23,25-36
+  s_a7c256b1cebfbb::t_8e0fcd65464698 3
+apps/desktop-win/App.axaml.cs
+  s_a7c256b1cebfbb::t_872b4268be4844 31-37
+apps/desktop-win/Program.cs
+  s_a7c256b1cebfbb::t_023977ea895461 163-179
+  s_a7c256b1cebfbb::t_ffc74176c09ec8 46-50
+apps/desktop-win/ViewModels/MainWindowViewModel.cs
+  s_a7c256b1cebfbb::t_08420343dc9c4e 276-285
+  s_a7c256b1cebfbb::t_be3dc62542dbb7 44
+apps/desktop-win/Views/MainWindow.axaml
+  s_a7c256b1cebfbb::t_3f7ab54eafaa3e 32-43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "b30672232ccf4eeb8e4a60fdcf818a43f3dc67fa",
+  "prompts": {},
+  "sessions": {
+    "s_a7c256b1cebfbb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "401b41ed-870a-49c3-bff6-f7b868451ef6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
