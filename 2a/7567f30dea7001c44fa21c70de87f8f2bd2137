@@ -1,0 +1,73 @@
+apps/desktop/Sources/CrispCore/Engine/QuickClean.swift
+  s_43fc4f80da48b2::t_8a32e4d2a9ca92 24-28
+apps/desktop/Sources/Crisp/Views/Licensing/LicenseSettingsView.swift
+  s_43fc4f80da48b2::t_a15dc79320382b 1-109
+apps/desktop/Sources/CrispCore/Licensing/LicenseGate.swift
+  s_43fc4f80da48b2::t_f2f9713f7fad58 3-9
+  s_43fc4f80da48b2::t_130815ff18fbce 58-75,78-79,81-85
+  s_43fc4f80da48b2::t_f215c5d70d1e87 93-99
+  s_43fc4f80da48b2::t_e594e783f52219 1-2,10-57,76-77,80,86-92,100-115
+apps/desktop/Sources/CrispCore/Licensing/LicenseStorage.swift
+  s_43fc4f80da48b2::t_8aa9f2638b4ad7 1-102
+apps/desktop/build.sh
+  s_43fc4f80da48b2::t_00bdac70e27ab5 101-105
+apps/desktop/Sources/CrispCore/Common/Channel.swift
+  s_43fc4f80da48b2::t_6bb76bea5ec5f4 114-140
+apps/desktop/Sources/Crisp/Views/Licensing/LicenseBanner.swift
+  s_43fc4f80da48b2::t_380767b1b99488 27
+  s_43fc4f80da48b2::t_b231539f593260 55
+  s_43fc4f80da48b2::t_0d3bfd5220bea5 1-26,28-54,56-80
+apps/desktop/Sources/CrispCore/Common/Keychain.swift
+  s_43fc4f80da48b2::t_1631a1430b283e 1-68
+apps/desktop/Sources/Crisp/Services/Licensing/LicenseStore.swift
+  s_43fc4f80da48b2::t_16ec9c5bc052d4 1-180
+apps/desktop/Sources/Crisp/App/CrispApp.swift
+  s_43fc4f80da48b2::t_eca6033526f11b 22-24
+  s_43fc4f80da48b2::t_2d112e64389577 88-89
+  s_43fc4f80da48b2::t_7d66e0f36d2e10 31,35
+apps/desktop/Sources/CrispCore/Licensing/PolarService.swift
+  s_43fc4f80da48b2::t_4f4c5f10ec7d0c 85-89,91,93-100,102,104-109,111-115
+  s_43fc4f80da48b2::t_4d171895ce3bc3 1-84,90,92,101,103,110,116-137
+apps/desktop/Sources/Crisp/Views/BottomBar.swift
+  s_43fc4f80da48b2::t_794322cf6956c2 190
+  s_43fc4f80da48b2::t_da3f163807df24 13-15
+apps/desktop/Sources/Crisp/Services/Cleaning/CleanModel.swift
+  s_43fc4f80da48b2::t_ddc41523aa6e2e 148-154
+apps/desktop/Sources/Crisp/Views/Onboarding/OnboardingView.swift
+  s_43fc4f80da48b2::t_8381fa4c0fc7c2 16,21,24-28
+  s_43fc4f80da48b2::t_a2d25c1ebff575 18
+  s_43fc4f80da48b2::t_1b1c803371a6e5 557-560
+  s_43fc4f80da48b2::t_fb052b3aa96705 325-372
+  s_43fc4f80da48b2::t_c2235a29313b64 146-148
+  s_43fc4f80da48b2::t_8558daf840795b 436-438,440,442-445
+apps/desktop/Sources/Crisp/Views/SettingsView.swift
+  s_43fc4f80da48b2::t_fbe6f43f4efb8d 18
+  s_43fc4f80da48b2::t_b74906c9afc808 74-82
+apps/desktop/Sources/Crisp/Views/ContentView.swift
+  s_43fc4f80da48b2::t_32385a2bf6f408 167-168
+  s_43fc4f80da48b2::t_dc4ab9341fb7aa 190
+  s_43fc4f80da48b2::t_403b0a608a26b4 16
+  s_43fc4f80da48b2::t_74622bec1d965a 139-146
+  s_43fc4f80da48b2::t_ffd97b6ecfadbd 166,169
+  s_43fc4f80da48b2::t_f5489e9c1ee3f2 153
+apps/desktop/Sources/CrispCore/Licensing/PolarConfig.swift
+  s_43fc4f80da48b2::t_08ac7c6f9d4730 1-28
+apps/desktop/Tests/CrispTests/LicensingTests.swift
+  s_43fc4f80da48b2::t_40ac293befe251 1-97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "2a7567f30dea7001c44fa21c70de87f8f2bd2137",
+  "prompts": {},
+  "sessions": {
+    "s_43fc4f80da48b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "925d565a-8133-40da-9ad5-d203a0dc7970",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
