@@ -1,0 +1,23 @@
+apps/desktop-win/Scripts/crisp.iss
+  s_a7c256b1cebfbb::t_dd7341aeb1591e 1-49
+apps/desktop-win/PARITY.md
+  s_a7c256b1cebfbb::t_85aed33c456275 65
+.github/workflows/windows.yml
+  s_a7c256b1cebfbb::t_12901798d831eb 123-135
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "a0dd6dca49c8e902d7910db31d1685320d48be05",
+  "prompts": {},
+  "sessions": {
+    "s_a7c256b1cebfbb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "401b41ed-870a-49c3-bff6-f7b868451ef6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
