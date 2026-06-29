@@ -1,0 +1,38 @@
+apps/desktop-win/ViewModels/MainWindowViewModel.cs
+  s_a7c256b1cebfbb::t_900a3acd19dd59 115-116,118-119
+  s_a7c256b1cebfbb::t_eaa557c50e180b 87
+  s_a7c256b1cebfbb::t_c9b6d243eafb0a 145-162
+  s_a7c256b1cebfbb::t_0c5607e1ad0945 163
+apps/desktop-win/Models/EngineConfig.cs
+  s_a7c256b1cebfbb::t_4ab05e2053cd78 57-60
+apps/desktop-win/Services/EngineSettings.cs
+  s_a7c256b1cebfbb::t_6b7aea84699002 107-108
+  s_a7c256b1cebfbb::t_79869733ee0bf2 48-49
+  s_a7c256b1cebfbb::t_d051670d61b8fe 146-147
+apps/desktop-win/Views/SettingsWindow.axaml.cs
+  s_a7c256b1cebfbb::t_e9117b0b4e8527 1,4-5,14-28
+apps/desktop-win/Views/SettingsWindow.axaml
+  s_a7c256b1cebfbb::t_62365a5fdce83d 144-160
+apps/desktop-win/Services/WatchFolder.cs
+  s_a7c256b1cebfbb::t_a4986522d11318 1-82
+apps/desktop-win/Program.cs
+  s_a7c256b1cebfbb::t_84b61ca1953985 51-55
+  s_a7c256b1cebfbb::t_7106258f2c559a 188-200
+  s_a7c256b1cebfbb::t_cd6e79733e48fa 201-202
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "6f79880ae17778bd2add1962a806eddce3a68984",
+  "prompts": {},
+  "sessions": {
+    "s_a7c256b1cebfbb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "401b41ed-870a-49c3-bff6-f7b868451ef6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
