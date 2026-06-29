@@ -182,17 +182,17 @@ class HighBitDepthTests(unittest.TestCase):
         # No metadata → no flag, even on libx265.
         self.assertNotIn("-x265-params", video_args("hevc", False, "high", "yuv420p10le"))
 
-    def test_hdr_params_never_written_to_8bit_fallback(self):
-        # Critical: the render/editor ladder can drop a failed 10-bit encode to 8-bit yuv420p
-        # with the SAME codec + hdr_params. Writing HDR10 SEI onto 8-bit SDR makes players
-        # tone-map non-HDR content, so libx265 on a NON-deep pixel format must drop the params.
+    def test_hdr_params_only_explicitly_written_on_deep_output(self):
+        # We only add the explicit HDR10 -x265-params on a deep (≥10-bit) output; an 8-bit
+        # fallback gets no explicit params (ffmpeg auto-propagates the source's own metadata,
+        # which is correct for the still-PQ pixels — we don't strip, since we don't tone-map).
         params = "max-cll=1000,400"
-        for pix in ("yuv420p", "yuv422p", "yuv444p"):   # all 8-bit
+        for pix in ("yuv420p", "yuv422p", "yuv444p"):   # all 8-bit → no explicit HDR params
             self.assertNotIn("-x265-params",
                              video_args("hevc", False, "high", pix, hdr_params=params), pix)
-        # …but a 12-bit fallback is still deep, so it keeps the metadata.
-        self.assertIn("-x265-params",
-                      video_args("hevc", False, "high", "yuv420p12le", hdr_params=params))
+        for pix in ("yuv420p10le", "yuv420p12le"):      # deep → explicit params written
+            self.assertIn("-x265-params",
+                          video_args("hevc", False, "high", pix, hdr_params=params), pix)
 
 
 class HdrX265ParamsTests(unittest.TestCase):

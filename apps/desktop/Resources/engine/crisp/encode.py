@@ -233,10 +233,12 @@ def video_args(codec: str, hardware: bool, quality: str, pix_fmt: str = "yuv420p
     encoder = "libx265" if codec == "hevc" else "libx264"
     crf = SOFTWARE_CRF[codec][quality]
     args = ["-c:v", encoder, "-preset", "veryfast", "-crf", str(crf)] + hevc_tag + ["-pix_fmt", pix_fmt]
-    # HDR10 static metadata rides on libx265 only (the 10-bit/HDR path) AND only when the
-    # output is actually deep — never on an 8-bit fallback (the ladder can drop a failed
-    # 10-bit encode to yuv420p with the SAME codec + hdr_params; writing HDR10 SEI onto 8-bit
-    # SDR would make players tone-map content that was never HDR). One colon-joined element.
+    # HDR10 static metadata rides on libx265 only (the 10-bit/HDR path), and we only WRITE it
+    # explicitly on a deep output — there's no point adding it to an 8-bit fallback (the ladder
+    # can drop a failed 10-bit encode to yuv420p with the same codec). Note we don't try to
+    # STRIP it on 8-bit: ffmpeg auto-propagates the source's mastering metadata, and since the
+    # engine never tone-maps, an 8-bit encode of an HDR source is still PQ/BT.2020 — keeping the
+    # HDR signaling is correct (stripping it would make players read PQ pixels as SDR).
     if hdr_params and encoder == "libx265" and is_deep_pix_fmt(pix_fmt):
         args += ["-x265-params", hdr_params]
     return args
