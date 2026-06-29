@@ -348,7 +348,9 @@ struct OnboardingView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Already have a license key?").font(.callout).foregroundStyle(.secondary)
                 HStack(spacing: 8) {
-                    TextField("XXXX-XXXX-XXXX", text: $licenseKeyField)
+                    TextField("License key", text: $licenseKeyField,
+                              prompt: Text("CRISP-XXXX-XXXX-XXXX"))
+                        .labelsHidden()
                         .textFieldStyle(.roundedBorder)
                         .onSubmit { activateOnboardingKey() }
                     Button("Activate", action: activateOnboardingKey)

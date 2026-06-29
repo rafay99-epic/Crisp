@@ -10,18 +10,17 @@ struct LicenseSettingsView: View {
     @State private var keyField = ""
     @State private var confirmingDeactivate = false
 
+    private var keyTrimmed: String { keyField.trimmingCharacters(in: .whitespacesAndNewlines) }
+
     var body: some View {
         Section {
-            switch license.state {
-            case .licensed:
+            LabeledContent("Status") { statusBadge }
+            if license.state == .licensed {
                 activeRows
-            default:
+            } else {
                 inactiveRows
             }
-            if let message = license.message {
-                Text(message).font(.caption).foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+            if let message = license.message { messageRow(message) }
         } header: {
             Text("License")
         } footer: {
@@ -30,23 +29,35 @@ struct LicenseSettingsView: View {
         }
     }
 
+    // MARK: - Status badge
+
+    @ViewBuilder private var statusBadge: some View {
+        switch license.state {
+        case .licensed:
+            Label("Active", systemImage: "checkmark.seal.fill").foregroundStyle(.green)
+        case .trial(let days):
+            Label("Trial — \(days) day\(days == 1 ? "" : "s") left", systemImage: "clock")
+                .foregroundStyle(days <= 3 ? AnyShapeStyle(.orange) : AnyShapeStyle(.secondary))
+        case .trialExpired:
+            Label("Trial ended", systemImage: "lock.fill").foregroundStyle(.orange)
+        case .revoked:
+            Label("Inactive", systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+        case .checking:
+            Label("Checking…", systemImage: "ellipsis").foregroundStyle(.secondary)
+        case .unlicensed, .failed:
+            Label("Not licensed", systemImage: "circle.dashed").foregroundStyle(.secondary)
+        }
+    }
+
     // MARK: - Licensed
 
     @ViewBuilder private var activeRows: some View {
-        LabeledContent("Status") {
-            Label("Active", systemImage: "checkmark.seal.fill").foregroundStyle(.green)
-        }
         if let masked = license.maskedKey {
             LabeledContent("Key") {
                 HStack(spacing: 6) {
                     Text(masked).monospaced()
-                    Button {
-                        NSPasteboard.general.clearContents()
-                        if let key = LicenseStorage.licenseKey {
-                            NSPasteboard.general.setString(key, forType: .string)
-                        }
-                    } label: { Image(systemName: "doc.on.doc") }
-                    .buttonStyle(.borderless).help("Copy license key")
+                    Button(action: copyKey) { Image(systemName: "doc.on.doc") }
+                        .buttonStyle(.borderless).help("Copy license key")
                 }
             }
         }
@@ -68,24 +79,38 @@ struct LicenseSettingsView: View {
     // MARK: - Unlicensed / trial / expired
 
     @ViewBuilder private var inactiveRows: some View {
-        LabeledContent("Status") { Text(statusText) }
-
+        // The primary CTA for someone who's never started: a free trial.
         if case .unlicensed = license.state {
-            Button("Start Free \(PolarConfig.trialDays)-Day Trial") { license.startTrial() }
+            Button { license.startTrial() } label: {
+                Label("Start \(PolarConfig.trialDays)-Day Free Trial", systemImage: "sparkles")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .disabled(license.isWorking)
         }
 
-        LabeledContent("License key") {
+        // License-key entry on its own full-width row (no longer cramped in a label's
+        // trailing edge). Field expands; Activate is the prominent action beside it.
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Have a license key?").font(.callout).foregroundStyle(.secondary)
             HStack(spacing: 8) {
-                TextField("XXXX-XXXX-XXXX", text: $keyField)
+                // `prompt:` renders the hint INSIDE the field; `.labelsHidden()` drops the
+                // leading label macOS would otherwise show beside it.
+                TextField("License key", text: $keyField, prompt: Text("CRISP-XXXX-XXXX-XXXX"))
+                    .labelsHidden()
                     .textFieldStyle(.roundedBorder)
-                    .frame(minWidth: 180)
-                    .onSubmit { activate() }
+                    .onSubmit(activate)
                     .disabled(license.isWorking)
-                if license.isWorking {
-                    ProgressView().controlSize(.small)
+                Button(action: activate) {
+                    if license.isWorking {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Text("Activate")
+                    }
                 }
-                Button(license.isWorking ? "Activating…" : "Activate", action: activate)
-                    .disabled(license.isWorking || keyField.trimmingCharacters(in: .whitespaces).isEmpty)
+                .buttonStyle(.borderedProminent)
+                .disabled(license.isWorking || keyTrimmed.isEmpty)
             }
         }
 
@@ -94,17 +119,27 @@ struct LicenseSettingsView: View {
                 .disabled(license.isWorking)
             Spacer()
             // The portal is also where buyers free up a device when they hit the limit.
-            Button("Manage devices / lost key") { license.openPortal() }.buttonStyle(.link)
+            Button("Manage devices / lost key") { license.openPortal() }
+                .buttonStyle(.link)
         }
     }
 
-    private var statusText: String {
-        switch license.state {
-        case .trial(let d):  return "Trial — \(d) day\(d == 1 ? "" : "s") left"
-        case .trialExpired:  return "Trial ended"
-        case .revoked:       return "License inactive"
-        case .checking:      return "Checking…"
-        default:             return "Not licensed"
+    // MARK: - Inline feedback
+
+    @ViewBuilder private func messageRow(_ message: String) -> some View {
+        let ok = license.state.canClean   // success path lands on licensed/trial
+        Label(message, systemImage: ok ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+            .font(.callout)
+            .foregroundStyle(ok ? AnyShapeStyle(.green) : AnyShapeStyle(.orange))
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    // MARK: - Actions
+
+    private func copyKey() {
+        NSPasteboard.general.clearContents()
+        if let key = LicenseStorage.licenseKey {
+            NSPasteboard.general.setString(key, forType: .string)
         }
     }
 
