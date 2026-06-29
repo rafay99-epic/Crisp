@@ -1,0 +1,47 @@
+apps/desktop-win/ViewModels/MainWindowViewModel.cs
+  s_a7c256b1cebfbb::t_35a91c8481432b 227
+  s_a7c256b1cebfbb::t_b71039b986b957 320,323-325
+  s_a7c256b1cebfbb::t_a4f9012c8075ef 177
+  s_a7c256b1cebfbb::t_ecfa8af2545e29 302,308-309
+apps/desktop-win/Program.cs
+  s_a7c256b1cebfbb::t_71a008bc850fdb 234-270
+  s_a7c256b1cebfbb::t_e8a66868aac410 61-65
+apps/desktop-win/Models/QueueItem.cs
+  s_a7c256b1cebfbb::t_2b24f2c44f3ced 26-29
+apps/desktop-win/Models/EngineConfig.cs
+  s_a7c256b1cebfbb::t_5d22f784e5797d 61-65
+apps/desktop-win/Models/Strength.cs
+  s_a7c256b1cebfbb::t_a9787084e7ed1a 41-50
+apps/desktop-win/Services/EngineSettings.cs
+  s_a7c256b1cebfbb::t_922e0af471f6f8 205-206
+  s_a7c256b1cebfbb::t_35979930f7bc88 53-98
+  s_a7c256b1cebfbb::t_717eb2e713dd7e 258
+  s_a7c256b1cebfbb::t_146304321ebf1e 2,5
+  s_a7c256b1cebfbb::t_95cae016b92733 215-219,222,224,226-227,231,235-236,241-247
+  s_a7c256b1cebfbb::t_90c5b3c96957ae 164-165
+apps/desktop-win/PARITY.md
+  s_a7c256b1cebfbb::t_c824eb16dcac35 47
+apps/desktop-win/Models/Preset.cs
+  s_a7c256b1cebfbb::t_5679f36a869767 1-36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "77583bb50d14ed9284e1d9ccd7ef10a55277f06e",
+  "prompts": {},
+  "humans": {
+    "h_1e0ba4a9f2a4b4": {
+      "author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_a7c256b1cebfbb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "401b41ed-870a-49c3-bff6-f7b868451ef6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
