@@ -15,6 +15,7 @@ struct SettingsView: View {
     @Bindable var fillerUpdater: FillerModelUpdater
     @Bindable var fillerVersions: FillerModelVersions
     @Bindable var model: CleanModel
+    @Bindable var licenseStore: LicenseStore
 
     @State private var newPresetName = ""
     /// Force-10-bit confirmation: it upconverts an 8-bit source for no real gain, so the
@@ -70,8 +71,15 @@ struct SettingsView: View {
             tab { watchSection; menuBarSection }
                 .tabItem { Label("Automation", systemImage: "wand.and.rays") }
 
-            tab { performanceSection; softwareUpdateSection; diagnosticsSection; restoreDefaultsSection }
-                .tabItem { Label("General", systemImage: "gearshape") }
+            tab {
+                performanceSection
+                softwareUpdateSection
+                // License section appears only when the feature flag is on (ships dark).
+                if Channel.licensingEnabled { LicenseSettingsView(license: licenseStore) }
+                diagnosticsSection
+                restoreDefaultsSection
+            }
+            .tabItem { Label("General", systemImage: "gearshape") }
         }
         .frame(width: 520, height: 560)
         .onAppear { watchAgent.refresh(); snapshot = SystemProbe.snapshot() }

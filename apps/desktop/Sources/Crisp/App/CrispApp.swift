@@ -19,16 +19,20 @@ struct CrispApp: App {
     @State private var player = PreviewPlayer()
     @State private var quickDrop = QuickDropModel()
     @State private var whatsNew = WhatsNewController()
+    // Polar.sh licensing. Ships dark (Channel.licensingEnabled == false) — inert until
+    // the flag is flipped on, at which point this gates cleaning + the onboarding step.
+    @State private var licenseStore = LicenseStore()
 
     var body: some Scene {
         Window(Channel.current.displayName, id: "main") {
             ContentView(model: model, updater: updater, modelStore: modelStore,
                         fillerModelStore: fillerModelStore, fillerUpdater: fillerUpdater,
                         settings: settings, watchAgent: watchAgent, onboarding: onboarding,
-                        player: player, whatsNew: whatsNew)
+                        player: player, whatsNew: whatsNew, licenseStore: licenseStore)
                 .task { logLaunch() }
                 .task { updater.checkOnLaunch() }
                 .task { await modelStore.refresh() }
+                .task { await licenseStore.refresh() }
                 .task {
                     if settings.fillerModelEnabled {
                         // Apply the persisted selection (the store inits to the default),
@@ -81,7 +85,8 @@ struct CrispApp: App {
         Settings {
             SettingsView(settings: settings, updater: updater, watchAgent: watchAgent,
                          modelStore: modelStore, fillerModelStore: fillerModelStore,
-                         fillerUpdater: fillerUpdater, fillerVersions: fillerVersions, model: model)
+                         fillerUpdater: fillerUpdater, fillerVersions: fillerVersions, model: model,
+                         licenseStore: licenseStore)
         }
 
         // A library of past cleans (every surface records to it). Opened from the

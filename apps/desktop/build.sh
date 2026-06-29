@@ -98,6 +98,11 @@ fi
 "$PB" -c "Add :CFBundleDisplayName string $APP_NAME" "$APP/Contents/Info.plist" 2>/dev/null \
   || "$PB" -c "Set :CFBundleDisplayName $APP_NAME" "$APP/Contents/Info.plist"
 "$PB" -c "Set :CrispChannel $CHANNEL" "$APP/Contents/Info.plist"
+# Polar.sh licensing kill-switch. Ships OFF — the feature is dark until this is
+# flipped to YES (CRISP_LICENSING=YES ./build.sh). Read at runtime by
+# Channel.licensingEnabled; absent/NO ⇒ the app behaves as if licensing didn't exist.
+"$PB" -c "Add :CrispLicensingEnabled string ${CRISP_LICENSING:-NO}" "$APP/Contents/Info.plist" 2>/dev/null \
+  || "$PB" -c "Set :CrispLicensingEnabled ${CRISP_LICENSING:-NO}" "$APP/Contents/Info.plist"
 
 # Watch-folder LaunchAgent. Staged into Contents/Library/LaunchAgents/ with a
 # per-channel Label + AssociatedBundleIdentifiers so the three channels each get

@@ -10,8 +10,9 @@ struct BottomBar: View {
     @Bindable var model: CleanModel
     @Bindable var settings: EngineSettings
     @Bindable var estimate: EstimateModel
-    /// Fillers need the speech model; true while it's missing/downloading.
-    let modelBlocks: Bool
+    /// Whether the primary action is blocked — the speech model isn't ready, or
+    /// licensing blocks cleaning (trial ended / unlicensed, when the feature is on).
+    let startBlocked: Bool
     let onStart: () -> Void
     let onEstimate: () -> Void
 
@@ -186,7 +187,7 @@ struct BottomBar: View {
             }
             .buttonStyle(.borderedProminent).controlSize(.large)
             .fixedSize()        // always show the full label — never clip to "Cle…"
-            .disabled(modelBlocks)
+            .disabled(startBlocked)
             .keyboardShortcut(.return, modifiers: .command)
         } else if !model.results.isEmpty {
             Button { model.reset() } label: { Text("Clear") }

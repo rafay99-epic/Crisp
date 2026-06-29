@@ -111,4 +111,31 @@ public enum Channel: String {
     public static var buildInfo: String? {
         Bundle.main.infoDictionary?["CrispBuildInfo"] as? String
     }
+
+    /// Master kill-switch for the Polar.sh licensing / paywall system. **Defaults to
+    /// `false`** so the feature ships *dark*: with it off, the gate (`LicenseGate`)
+    /// always allows cleaning, the onboarding license step is skipped, and the app
+    /// behaves exactly as it did before licensing existed.
+    ///
+    /// Baked per channel via the `CrispLicensingEnabled` Info.plist key (set by
+    /// `build.sh`). On **Dev and Nightly only**, a runtime override lets it be flipped
+    /// without a rebuild for dogfooding — the `CRISP_LICENSING` env var (`1`/`0`) or a
+    /// `CrispLicensingOverride` UserDefaults bool. Stable honours only the baked value,
+    /// so the gate can't be switched off by an end user.
+    public static var licensingEnabled: Bool {
+        if current != .stable {
+            if let env = ProcessInfo.processInfo.environment["CRISP_LICENSING"] {
+                return truthy(env)
+            }
+            if let override = UserDefaults.standard.object(forKey: "CrispLicensingOverride") as? Bool {
+                return override
+            }
+        }
+        guard let raw = Bundle.main.infoDictionary?["CrispLicensingEnabled"] as? String else { return false }
+        return truthy(raw)
+    }
+
+    private static func truthy(_ value: String) -> Bool {
+        ["1", "true", "yes"].contains(value.lowercased())
+    }
 }

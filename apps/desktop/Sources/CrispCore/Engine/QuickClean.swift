@@ -21,6 +21,11 @@ public struct QuickClean {
                       allowDownload: Bool = true,
                       provisioner: ModelProvisioner = .forSelectedModel(),
                       onEvent: (@Sendable (CleanRunner.Progress) -> Void)? = nil) async throws -> CleanResult {
+        // Licensing gate (no-op unless the feature flag is on): the watch folder, the
+        // Shortcuts intent, and the menu-bar drop all funnel through here, so a single
+        // check covers every headless entry point. Trusts stored entitlement — never
+        // blocks on the network from a one-shot clean.
+        try LicenseGate.checkClean()
         var config = EngineConfigStore.load()
         // Anything that reads the transcript needs the speech model online first: filler
         // removal, caption export, *and* retake detection (which matches the words).

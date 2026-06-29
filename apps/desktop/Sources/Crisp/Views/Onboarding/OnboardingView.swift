@@ -13,13 +13,19 @@ struct OnboardingView: View {
     @Bindable var modelStore: ModelStore
     @Bindable var settings: EngineSettings
     @Bindable var watchAgent: WatchAgentController
+    @Bindable var licenseStore: LicenseStore
     @State private var index = 0
+    @State private var licenseKeyField = ""
 
     private enum Step: CaseIterable {
-        case welcome, capabilities, fidelity, howItWorks, fillers, preferences, automate, done
+        case welcome, capabilities, fidelity, howItWorks, fillers, preferences, automate, licensing, done
     }
 
-    private var steps: [Step] { Step.allCases }
+    /// The licensing step only exists when the feature flag is on, so the tour is
+    /// identical to today while shipped dark.
+    private var steps: [Step] {
+        Step.allCases.filter { $0 != .licensing || Channel.licensingEnabled }
+    }
     private var step: Step { steps[index] }
     private var isLast: Bool { index == steps.count - 1 }
 
@@ -136,6 +142,9 @@ struct OnboardingView: View {
             editorHandoffSetup
             menuBarSetup
             watchSetup
+
+        case .licensing:
+            licenseStep
 
         case .done:
             header(symbol: "checkmark.seal.fill", title: "You’re all set",
@@ -313,6 +322,54 @@ struct OnboardingView: View {
         }
     }
 
+    // MARK: - Licensing (mandatory when the feature is on — gates the step)
+
+    /// The licensing step is satisfied once the user is licensed or in an active trial.
+    private var licenseAllows: Bool { licenseStore.state.canClean }
+
+    @ViewBuilder private var licenseStep: some View {
+        header(symbol: "sparkles", title: "Try Crisp free",
+               subtitle: "Start a \(PolarConfig.trialDays)-day free trial — no card needed. Subscribe any time for \(PolarConfig.priceText); Crisp stays open source.")
+        if licenseAllows {
+            featureRow("checkmark.seal.fill", "You’re ready",
+                       licenseStore.state == .licensed
+                        ? "Your license is active — thank you for supporting Crisp."
+                        : "Your free trial is active. Enjoy Crisp!")
+        } else {
+            Button { licenseStore.startTrial() } label: {
+                Text("Start \(PolarConfig.trialDays)-Day Free Trial").frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent).controlSize(.large)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Already have a license key?").font(.callout).foregroundStyle(.secondary)
+                HStack(spacing: 8) {
+                    TextField("XXXX-XXXX-XXXX", text: $licenseKeyField)
+                        .textFieldStyle(.roundedBorder)
+                        .onSubmit { activateOnboardingKey() }
+                    Button("Activate", action: activateOnboardingKey)
+                        .disabled(licenseStore.isWorking
+                                  || licenseKeyField.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+                Button("Subscribe (\(PolarConfig.priceText))") { licenseStore.openCheckout() }
+                    .buttonStyle(.link)
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .cardBackground(.tint.opacity(0.08))
+            if let message = licenseStore.message {
+                Text(message).font(.callout).foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func activateOnboardingKey() {
+        let key = licenseKeyField
+        Task { await licenseStore.activate(key: key) }
+    }
+
     // MARK: - Speech model choice (mandatory — gates the model step)
 
     /// True once the selected model is on disk and verified. Onboarding can't move
@@ -376,13 +433,16 @@ struct OnboardingView: View {
         modelStore.use(spec)   // synchronous: closes the gate immediately, then rechecks disk
     }
 
-    /// "Skip" still routes through the mandatory model step until one is installed —
-    /// a returning user who already has a model can leave immediately.
+    /// "Skip" routes through whichever mandatory step is still unsatisfied — the speech
+    /// model first, then the trial/license gate (only present when licensing is on) —
+    /// and finishes only when both are clear.
     private func skip() {
-        if modelReady {
-            onboarding.finish()
-        } else {
+        if !modelReady {
             withAnimation(.snappy) { index = steps.firstIndex(of: .fillers) ?? index }
+        } else if Channel.licensingEnabled && !licenseAllows {
+            withAnimation(.snappy) { index = steps.firstIndex(of: .licensing) ?? index }
+        } else {
+            onboarding.finish()
         }
     }
 
@@ -494,9 +554,10 @@ struct OnboardingView: View {
             }
             .buttonStyle(.borderedProminent).controlSize(.large)
             .keyboardShortcut(.defaultAction)
-            // A speech model is required — the model step can't be passed until one
-            // is installed (a returning user's model is already ready, so no friction).
-            .disabled(step == .fillers && !modelReady)
+            // Mandatory gates: the model step needs a model installed, and (when
+            // licensing is on) the licensing step needs an active trial or license.
+            .disabled((step == .fillers && !modelReady)
+                      || (step == .licensing && !licenseAllows))
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 14)

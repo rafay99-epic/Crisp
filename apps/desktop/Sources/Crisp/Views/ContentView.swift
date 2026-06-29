@@ -13,6 +13,7 @@ struct ContentView: View {
     @Bindable var onboarding: OnboardingController
     @Bindable var player: PreviewPlayer
     @Bindable var whatsNew: WhatsNewController
+    @Bindable var licenseStore: LicenseStore
     @Environment(\.openWindow) private var openWindow
     @State private var importing = false
     @State private var showUltraSheet = false
@@ -135,13 +136,21 @@ struct ContentView: View {
         (needsWhisper && !modelStore.state.isReady)
             || (needsFillerModel && !fillerModelReady)
     }
+    /// Licensing gate (no-op while the feature ships dark): blocks the Clean action
+    /// when the trial has ended / there's no license. Mirrors `LicenseGate`, which is
+    /// what actually enforces the headless entry points.
+    private var licenseBlocks: Bool {
+        Channel.licensingEnabled && !licenseStore.state.canClean
+    }
+    /// The Clean button is disabled when the model isn't ready *or* licensing blocks.
+    private var startBlocked: Bool { modelBlocks || licenseBlocks }
 
     var body: some View {
         // The welcome flow owns the whole window on first launch — the main app
         // stays hidden until onboarding is finished or skipped.
         if onboarding.isPresented {
             OnboardingView(onboarding: onboarding, modelStore: modelStore,
-                           settings: settings, watchAgent: watchAgent)
+                           settings: settings, watchAgent: watchAgent, licenseStore: licenseStore)
         } else {
             workspace
         }
@@ -154,6 +163,10 @@ struct ContentView: View {
     private var workspace: some View {
         VStack(spacing: 0) {
             UpdateBanner(updater: updater)
+            // Paywall surface — renders nothing while licensing ships dark, or when
+            // licensed / early in a trial (see LicenseBanner). Owns its own padding so
+            // the hidden case leaves no gap.
+            LicenseBanner(license: licenseStore)
             // A newer filler model is on Hugging Face — offer the update here too,
             // not only in Settings (mirrors the app's update banner).
             if settings.fillerModelEnabled {
@@ -174,7 +187,7 @@ struct ContentView: View {
                 QueueView(model: model, settings: settings, player: player)
                 Divider()
                 BottomBar(model: model, settings: settings, estimate: estimate,
-                          modelBlocks: modelBlocks, onStart: attemptStart, onEstimate: runEstimate)
+                          startBlocked: startBlocked, onStart: attemptStart, onEstimate: runEstimate)
             }
         }
         // Min width keeps the bottom bar's recipe + action on one line (no wrapping)

@@ -145,6 +145,13 @@ final class CleanModel {
                provisioner: ModelProvisioner? = nil) async {
         let waiting = queue.filter { $0.status == .waiting }
         guard !waiting.isEmpty, !isRunning else { return }
+        // Licensing gate (no-op while shipped dark). The Clean button is already
+        // disabled when blocked — this is defense-in-depth so no programmatic start
+        // can bypass the paywall.
+        if let reason = LicenseGate.blockReason() {
+            errorMessage = reason
+            return
+        }
         isRunning = true
         cancelled = false
         errorMessage = nil
