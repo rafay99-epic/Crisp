@@ -1,0 +1,25 @@
+apps/desktop-win/Views/MainWindow.axaml
+  s_a7c256b1cebfbb::t_3b4c4dcc8b40f0 19
+  s_a7c256b1cebfbb::t_b4c49651bc3071 204-222
+apps/desktop-win/Services/OnboardingController.cs
+  s_a7c256b1cebfbb::t_ed4bea895eb9c1 1-31
+apps/desktop-win/ViewModels/MainWindowViewModel.cs
+  s_a7c256b1cebfbb::t_7307e96185aba9 45
+  s_a7c256b1cebfbb::t_62720db34ee11a 102-104
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "2b7e40749d62097eb0d9451cc5ef8def9d3054df",
+  "prompts": {},
+  "sessions": {
+    "s_a7c256b1cebfbb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "401b41ed-870a-49c3-bff6-f7b868451ef6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
