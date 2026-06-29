@@ -157,6 +157,13 @@ class HighBitDepthTests(unittest.TestCase):
         for pf in ("rgb24", "rgba", "bgr24", "0rgb"):   # 8-bit RGB stays 8-bit
             self.assertFalse(is_high_bit_depth(pf), pf)
 
+    def test_alias_wide_chroma_names_are_high(self):
+        # 8-bit wide-chroma formats whose names lack the 444/422 digits must still count as
+        # high (worth preserving) — otherwise auto mode silently subsamples them to 4:2:0.
+        for pf in ("nv16", "nv61", "nv24", "nv42", "gbrp", "gbrap"):
+            self.assertTrue(is_high_bit_depth(pf), pf)
+        self.assertFalse(is_high_bit_depth("nv12"), "nv12 is 4:2:0 8-bit, not high")
+
     def test_video_args_threads_pix_fmt(self):
         # The editor copy passes the source's own pixel format instead of forcing 8-bit.
         self.assertIn("yuv420p10le", video_args("hevc", False, "high", "yuv420p10le"))
@@ -218,12 +225,46 @@ class HdrX265ParamsTests(unittest.TestCase):
 class ResolvePixFmtTests(unittest.TestCase):
     """Color-depth → output pixel format (the source-aware bit-depth decision)."""
 
-    def test_auto_preserves_high_bit_depth_source(self):
-        # A 10-bit / wide-chroma source is matched exactly (incl. its chroma), with a note.
+    # Every planar YUV pixel format the bundled libx265 accepts — the encoder we drive for
+    # high-bit-depth — so the tests can assert resolve_pix_fmt never emits an unencodable one.
+    LIBX265_PLANAR = {
+        "yuv420p", "yuvj420p", "yuv422p", "yuvj422p", "yuv444p", "yuvj444p",
+        "yuv420p10le", "yuv422p10le", "yuv444p10le", "yuv420p12le", "yuv422p12le", "yuv444p12le"}
+
+    def test_auto_preserves_standard_high_bit_depth_source_unchanged(self):
+        # A source that's already a standard planar high-bit/wide-chroma format is matched
+        # exactly (incl. its chroma + depth), with a note.
         for src in ("yuv420p10le", "yuv422p10le", "yuv444p10le", "yuv420p12le", "yuv422p"):
             pix, notes = resolve_pix_fmt("auto", src)
             self.assertEqual(pix, src, src)
             self.assertTrue(notes, src)   # the preserve is surfaced, never silent
+
+    def test_auto_normalizes_exotic_source_to_encodable_keeping_chroma(self):
+        # The fix: semi-planar / packed / RGB / alias sources are NOT passed through raw (the
+        # encoder would reject them and fall back to 4:2:0) — they're normalized to the
+        # encodable planar format that KEEPS their chroma + (clamped) bit depth.
+        cases = {
+            "nv16": "yuv422p", "nv61": "yuv422p", "nv24": "yuv444p", "nv42": "yuv444p",
+            "gbrp": "yuv444p", "gbrap": "yuv444p", "yuyv422": "yuv422p", "uyvy422": "yuv422p",
+            "p010le": "yuv420p10le", "p210le": "yuv422p10le", "p410le": "yuv444p10le",
+            "x2rgb10le": "yuv444p10le", "rgb48le": "yuv444p12le", "rgba64le": "yuv444p12le",
+            "yuv420p16le": "yuv420p12le",  # libx265 tops out at 12-bit
+        }
+        for src, want in cases.items():
+            pix, notes = resolve_pix_fmt("auto", src)
+            self.assertEqual(pix, want, src)
+            self.assertIn(pix, self.LIBX265_PLANAR, f"{src} -> {pix} not encodable")
+            self.assertTrue(notes, src)
+
+    def test_resolved_format_is_always_encoder_safe(self):
+        # Invariant across every mode × a broad spread of sources: the result is always a
+        # libx265-encodable planar format (or 8-bit 4:2:0), never a raw semi-planar/packed one.
+        srcs = ("yuv420p", "nv12", "nv16", "nv24", "gbrp", "yuyv422", "p010le", "p210le",
+                "p410le", "rgb48le", "x2rgb10le", "yuv422p10le", "yuv420p16le", "")
+        for mode in ("auto", "8", "10"):
+            for src in srcs:
+                pix = resolve_pix_fmt(mode, src)[0]
+                self.assertIn(pix, self.LIBX265_PLANAR | {"yuv420p"}, f"{mode}/{src} -> {pix}")
 
     def test_auto_keeps_8bit_and_unknown_at_yuv420p(self):
         # Plain 8-bit and an unreadable/empty pix_fmt both stay the safe 8-bit 4:2:0 — no note.

@@ -38,53 +38,82 @@ def is_deep_pix_fmt(pix_fmt: str) -> bool:
     return deep or rgb_deep
 
 
-def is_high_bit_depth(pix_fmt: str) -> bool:
-    """True for >8-bit OR non-4:2:0 pixel formats worth preserving on the editor copy
-    instead of crushing to 8-bit yuv420p — real high bit depth (see `is_deep_pix_fmt`)
-    plus 4:2:2 / 4:4:4 chroma. Used to decide what to PRESERVE; for the bit-depth-only
-    question (is this actually 10-bit?), use `is_deep_pix_fmt`."""
-    pf = (pix_fmt or "").lower()
-    wide_chroma = "422" in pf or "444" in pf
-    return is_deep_pix_fmt(pf) or wide_chroma
-
-
-# The 10-bit 4:2:0 software pixel format every encoder we drive understands
-# (libx264 High 10, libx265 Main10, libvpx-vp9 profile 2). It's the target when an 8-bit
-# source is forced to 10-bit and isn't wider chroma (4:2:2/4:4:4 keep their chroma — see
-# the "10" branch of resolve_pix_fmt). We never synthesize wider chroma than the source had.
-TEN_BIT_PIX_FMT = "yuv420p10le"
-
-# 8-bit wide-chroma formats whose ffmpeg names DON'T contain "444"/"422" (semi-planar, or
-# planar GBR which is full-chroma) — a substring check alone misses them, so list them out.
+# Wide-chroma (4:2:2 / 4:4:4) formats whose ffmpeg names DON'T contain "444"/"422" — the
+# semi-planar nv* variants and planar GBR (full-chroma) — so a substring check misses them.
 _WIDE_444_ALIASES = ("gbrp", "gbrap", "nv24", "nv42")
 _WIDE_422_ALIASES = ("nv16", "nv61")
 
 
-def _ten_bit_keeping_chroma(pix_fmt: str) -> str:
-    """The 10-bit target that keeps an 8-bit source's chroma sampling when forcing 10-bit:
-    4:4:4 → yuv444p10le, 4:2:2 → yuv422p10le, anything else → 10-bit 4:2:0. Matches the
-    "444"/"422" name substrings AND the named formats that lack them (nv24/gbrp/nv16…), so
-    wide chroma is never silently subsampled on the upconvert."""
+def is_high_bit_depth(pix_fmt: str) -> bool:
+    """True for >8-bit OR non-4:2:0 pixel formats worth preserving on the editor copy
+    instead of crushing to 8-bit yuv420p — real high bit depth (see `is_deep_pix_fmt`)
+    plus 4:2:2 / 4:4:4 chroma, INCLUDING the alias names that lack the digits (nv16/nv24/
+    gbrp…). Used to decide what to PRESERVE; for the bit-depth-only question (is this
+    actually 10-bit?), use `is_deep_pix_fmt`."""
     pf = (pix_fmt or "").lower()
-    if "444" in pf or pf in _WIDE_444_ALIASES:
-        return "yuv444p10le"
-    if "422" in pf or pf in _WIDE_422_ALIASES:
-        return "yuv422p10le"
-    return TEN_BIT_PIX_FMT
+    wide_chroma = ("422" in pf or "444" in pf
+                   or pf in _WIDE_422_ALIASES or pf in _WIDE_444_ALIASES)
+    return is_deep_pix_fmt(pf) or wide_chroma
+
+
+# The 10-bit 4:2:0 software pixel format every encoder we drive understands (libx264 High
+# 10, libx265 Main10, libvpx-vp9 profile 2) — the floor when nothing wider is preserved.
+TEN_BIT_PIX_FMT = "yuv420p10le"
+
+
+def _chroma_class(pix_fmt: str) -> str:
+    """A source's chroma sampling as "444", "422", or "420" — covering the alias names that
+    lack the digits (nv24/gbrp → 444, nv16 → 422), the semi-planar p###  family (its 2nd
+    digit is the chroma: p2## = 4:2:2, p4## = 4:4:4, p0## = 4:2:0), and RGB (treated as
+    full-chroma 4:4:4)."""
+    pf = (pix_fmt or "").lower()
+    if ("444" in pf or pf in _WIDE_444_ALIASES or pf.startswith("p4")
+            or "rgb" in pf or "bgr" in pf or pf.startswith("gbr")):
+        return "444"
+    if "422" in pf or pf in _WIDE_422_ALIASES or pf.startswith("p2"):
+        return "422"
+    return "420"
+
+
+def _bit_depth(pix_fmt: str) -> int:
+    """A source's bit depth as 8, 10, or 12 — clamped to 12, the deepest libx265 (and the
+    other encoders we drive) accepts, so a 14/16-bit source lands at 12 rather than crushing
+    to 8. Covers the semi-planar p0xx prefixes and packed high-bit-depth RGB."""
+    pf = (pix_fmt or "").lower()
+    if (pf.endswith(("12le", "12be", "14le", "14be", "16le", "16be"))
+            or pf.startswith(("p012", "p016", "p216", "p416"))
+            or any(t in pf for t in ("rgb48", "bgr48", "rgba64", "bgra64", "argb64", "abgr64"))):
+        return 12
+    if (pf.endswith(("10le", "10be")) or pf.startswith(("p010", "p210", "p410"))
+            or any(t in pf for t in ("x2rgb10", "x2bgr10", "rgb30"))):
+        return 10
+    return 8
+
+
+def _encodable_pix_fmt(pix_fmt: str, min_depth: int = 0) -> str:
+    """A libx265-safe PLANAR YUV pixel format that keeps the source's chroma sampling and at
+    least `min_depth` bits (the source's own depth when min_depth=0) — mapping semi-planar /
+    packed / RGB sources (nv16, p010, yuyv422, rgb48, gbrp…) onto the `yuv###p[##le]` the
+    encoders actually accept, instead of handing them a raw format they'd reject (and then
+    fall back to 8-bit 4:2:0 on — the very chroma loss we're avoiding)."""
+    depth = max(_bit_depth(pix_fmt), min_depth)
+    return f"yuv{_chroma_class(pix_fmt)}p" + ("" if depth <= 8 else f"{depth}le")
 
 
 def resolve_pix_fmt(color_depth: str, src_pix_fmt: str):
     """Pick the output pixel format for the rendered clean from the color-depth mode
     and the source's own format, returning `(pix_fmt, notes)` — `notes` is a list of
-    human-readable strings so any depth change is surfaced, never silent.
+    human-readable strings so any depth change is surfaced, never silent. The result is
+    always an encoder-safe planar format (see `_encodable_pix_fmt`) that keeps the source's
+    chroma + bit depth; an exotic source layout is normalized, never passed through raw.
 
-      "auto" — match the source: a high-bit-depth / wide-chroma source is preserved
-               exactly (10-bit stays 10-bit, 4:2:2 stays 4:2:2); a plain 8-bit 4:2:0
-               source stays 8-bit. The default — footage is never downgraded.
-      "8"    — force 8-bit 4:2:0 (`yuv420p`). Notes the loss when the source was deeper.
-      "10"   — force a 10-bit encode. A source that's already ≥10-bit is preserved as-is;
-               an 8-bit source is upconverted to 10-bit (keeping its chroma — no real
-               quality gain, the UI warns first — but it honors a 10-bit delivery spec).
+      "auto" — match the source: a high-bit-depth / wide-chroma source keeps its depth and
+               chroma (10-bit stays 10-bit, 4:2:2 stays 4:2:2); a plain 8-bit 4:2:0 source
+               stays 8-bit. The default — footage is never downgraded.
+      "8"    — force 8-bit 4:2:0 (`yuv420p`). Notes the loss when the source was higher.
+      "10"   — force a 10-bit encode. A source that's already ≥10-bit keeps its depth/chroma;
+               an 8-bit source is upconverted to 10-bit (keeping its chroma — no real quality
+               gain, the UI warns first — but it honors a 10-bit delivery spec).
 
     Whether the result needs the software encoder is the caller's call via
     `is_high_bit_depth(pix_fmt)` (Apple VideoToolbox is unreliable for >8-bit / wide
@@ -100,21 +129,19 @@ def resolve_pix_fmt(color_depth: str, src_pix_fmt: str):
         return "yuv420p", notes
 
     if color_depth == "10":
-        if src_deep:
-            # Already ≥10-bit: preserve the source format exactly (keeps its chroma too)
-            # rather than coercing it down to plain 4:2:0 10-bit.
-            return src, notes
-        # An 8-bit source (incl. 8-bit 4:2:2/4:4:4, which is_high_bit_depth flags as
-        # wide-chroma but is NOT 10-bit) is upconverted — keeping its chroma where we can
-        # (4:4:4/4:2:2 → the matching 10-bit format, any alias; else 10-bit 4:2:0).
-        notes.append("Encoding 8-bit source as 10-bit — your setting forces it (no quality gain).")
-        return _ten_bit_keeping_chroma(src), notes
+        # Already ≥10-bit keeps its own depth+chroma; an 8-bit source is upconverted to (at
+        # least) 10-bit, keeping its chroma. Either way the result is an encodable format.
+        if not src_deep:
+            notes.append("Encoding 8-bit source as 10-bit — your setting forces it (no quality gain).")
+        return _encodable_pix_fmt(src, min_depth=10), notes
 
-    # "auto" (and any unexpected value): match the source. Preserve a high-bit-depth /
-    # wide-chroma source; an empty/unknown or plain 8-bit format stays the safe 8-bit 4:2:0.
+    # "auto" (and any unexpected value): match the source. A high-bit-depth / wide-chroma
+    # source keeps its depth + chroma (normalized to an encodable planar format); an
+    # empty/unknown or plain 8-bit 4:2:0 source stays the safe 8-bit 4:2:0.
     if src_high:
-        notes.append(f"Preserving the source's color depth ({src}).")
-        return src, notes
+        target = _encodable_pix_fmt(src)
+        notes.append(f"Preserving the source's color depth ({target}).")
+        return target, notes
     return "yuv420p", notes
 
 
