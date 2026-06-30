@@ -1,0 +1,26 @@
+apps/desktop-win/Views/MainWindow.axaml
+  s_a7c256b1cebfbb::t_3e124b6eb829e7 237-238
+apps/desktop-win/Views/MainWindow.axaml.cs
+  s_a7c256b1cebfbb::t_321d25717a0c31 84-99
+.github/workflows/windows.yml
+  s_a7c256b1cebfbb::t_17194aac1e4773 51
+  s_a7c256b1cebfbb::t_b6ff4b0530797e 57-60,63
+apps/desktop-win/ViewModels/MainWindowViewModel.cs
+  s_a7c256b1cebfbb::t_d8e5497cf67a2c 600-612
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "bd11609552f17cf1279f796db7ee1643679d691f",
+  "prompts": {},
+  "sessions": {
+    "s_a7c256b1cebfbb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "401b41ed-870a-49c3-bff6-f7b868451ef6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
