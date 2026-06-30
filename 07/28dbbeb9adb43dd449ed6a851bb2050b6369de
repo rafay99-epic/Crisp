@@ -1,0 +1,25 @@
+apps/desktop-win/Crisp.sln
+  s_a7c256b1cebfbb::t_659f4b19510084 1-21
+apps/desktop-win/global.json
+  s_a7c256b1cebfbb::t_492fa3d0876534 1-7
+apps/desktop-win/Crisp.slnx
+  s_a7c256b1cebfbb::t_2d05acfdb64c45 1-2
+apps/desktop-win/PARITY.md
+  s_a7c256b1cebfbb::t_cc783641ce0433 73-78
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "0728dbbeb9adb43dd449ed6a851bb2050b6369de",
+  "prompts": {},
+  "sessions": {
+    "s_a7c256b1cebfbb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "401b41ed-870a-49c3-bff6-f7b868451ef6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
