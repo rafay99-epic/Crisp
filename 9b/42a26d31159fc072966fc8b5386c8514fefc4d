@@ -1,0 +1,22 @@
+apps/desktop-win/Program.cs
+  s_a7c256b1cebfbb::t_27307dfc717a68 247-249,252-255,257
+apps/desktop-win/Services/WatchFolder.cs
+  s_a7c256b1cebfbb::t_e47b4c8c70087b 42-60,63
+  s_a7c256b1cebfbb::t_74d4525c0f3e20 4-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "9b42a26d31159fc072966fc8b5386c8514fefc4d",
+  "prompts": {},
+  "sessions": {
+    "s_a7c256b1cebfbb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "401b41ed-870a-49c3-bff6-f7b868451ef6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
