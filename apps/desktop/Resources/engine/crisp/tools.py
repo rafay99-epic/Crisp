@@ -109,7 +109,7 @@ def parse_stream_meta(returncode: int, stdout: str, require_fps: bool = True) ->
     meta = {"width": 1920, "height": 1080, "fps_num": 30, "fps_den": 1,
             "audio_rate": 48000, "audio_channels": 0,
             "pix_fmt": "", "color_primaries": "", "color_transfer": "", "color_space": "",
-            "color_range": ""}
+            "color_range": "", "video_codec": "", "audio_codec": ""}
 
     def _int(value, default):
         try:
@@ -131,6 +131,8 @@ def parse_stream_meta(returncode: int, stdout: str, require_fps: bool = True) ->
                 v = s.get(key)
                 if isinstance(v, str):
                     meta[key] = v
+            vcodec = s.get("codec_name")
+            meta["video_codec"] = vcodec if isinstance(vcodec, str) else ""
             rate = s.get("r_frame_rate", "")
             if isinstance(rate, str) and "/" in rate:
                 n, d = rate.split("/", 1)
@@ -144,6 +146,8 @@ def parse_stream_meta(returncode: int, stdout: str, require_fps: bool = True) ->
             # default to 2 (stereo), not 0. 0 is reserved for "no audio stream at all";
             # dropping audio just because channels didn't parse would be wrong.
             meta["audio_channels"] = _int(s.get("channels"), 2)
+            acodec = s.get("codec_name")
+            meta["audio_codec"] = acodec if isinstance(acodec, str) else ""
     # No video stream → can't build a video timeline. And for the timeline probe, a
     # missing/zero r_frame_rate would default to 30fps and misplace every cut (catastrophic),
     # so fps is required there; the source probe (require_fps=False) tolerates it.
@@ -164,7 +168,7 @@ def probe_stream_meta(path: Path, logger=None, require_fps: bool = True) -> dict
     res = subprocess.run(
         [ffprobe_bin(), "-v", "error",
          "-show_entries",
-         "stream=codec_type,width,height,r_frame_rate,sample_rate,channels,"
+         "stream=codec_type,codec_name,width,height,r_frame_rate,sample_rate,channels,"
          "pix_fmt,color_primaries,color_transfer,color_space,color_range",
          "-of", "json", str(path)],
         capture_output=True, text=True,
