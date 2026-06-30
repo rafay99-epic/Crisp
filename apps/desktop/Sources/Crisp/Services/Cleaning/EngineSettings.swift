@@ -33,6 +33,8 @@ final class EngineSettings {
     var outputDirectory: String { didSet { save() } }   // "" ⇒ beside the source
     var splitTracks: Bool { didSet { save() } }          // also write separate video/audio files
     var splitAudioFormat: String { didSet { save() } }   // "match" | "wav"
+    var pauseMode: String { didSet { save() } }           // "remove" | "tighten"
+    var tightPause: Double { didSet { save() } }          // seconds to keep in tighten mode
     var captionsFormat: String { didSet { save() } }     // "none" | "srt" | "vtt" | "both"
     var retakeSensitivity: String { didSet { save() } }  // "gentle" | "balanced" | "aggressive"
     // Backup (applied to every clean)
@@ -80,6 +82,7 @@ final class EngineSettings {
                      exportToEditor: exportToEditor,
                      outputDirectory: outputDirectory,
                      splitTracks: splitTracks, splitAudioFormat: splitAudioFormat,
+                     pauseMode: pauseMode, tightPause: tightPause,
                      captionsFormat: captionsFormat,
                      retakeSensitivity: retakeSensitivity,
                      backupOriginal: backupOriginal,
@@ -129,6 +132,10 @@ final class EngineSettings {
         outputDirectory = cfg.outputDirectory
         splitTracks = cfg.splitTracks
         splitAudioFormat = cfg.splitAudioFormat
+        // Clamp a hand-edited/unknown pause mode to the default so the Settings picker
+        // always has a valid selection (and the engine a legal --pause-mode).
+        pauseMode = PauseMode(rawValue: cfg.pauseMode)?.rawValue ?? EngineConfig.defaults.pauseMode
+        tightPause = cfg.tightPause
         // Clamp a hand-edited/corrupt value to a known one, so the Settings picker
         // always has a valid selection and the engine never gets a bogus --captions.
         captionsFormat = CaptionFormat(rawValue: cfg.captionsFormat)?.rawValue
@@ -181,6 +188,8 @@ final class EngineSettings {
         outputDirectory = d.outputDirectory
         splitTracks = d.splitTracks
         splitAudioFormat = d.splitAudioFormat
+        pauseMode = d.pauseMode
+        tightPause = d.tightPause
         captionsFormat = d.captionsFormat
         retakeSensitivity = d.retakeSensitivity
         backupOriginal = d.backupOriginal

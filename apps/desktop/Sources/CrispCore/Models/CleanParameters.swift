@@ -24,6 +24,8 @@ public struct CleanParameters: Equatable, Sendable {
     public let outputDirectory: String   // "" ⇒ beside the source
     public let splitTracks: Bool         // also write separate video/audio files
     public let splitAudioFormat: String  // "match" | "wav" — audio stem format
+    public let pauseMode: String         // "remove" | "tighten"
+    public let tightPause: Double        // seconds of pause silence to keep in tighten mode
     public let captionsFormat: String    // "none" | "srt" | "vtt" | "both"
     public let retakeSensitivity: String // "gentle" | "balanced" | "aggressive"
     public let backupOriginal: Bool
@@ -36,6 +38,7 @@ public struct CleanParameters: Equatable, Sendable {
                 frameRateMode: String = "auto", frameRateValue: Double = 30,
                 exportTimeline: String = "none",
                 outputDirectory: String, splitTracks: Bool, splitAudioFormat: String,
+                pauseMode: String = "remove", tightPause: Double = 0.3,
                 captionsFormat: String = "none", retakeSensitivity: String = "aggressive",
                 backupOriginal: Bool) {
         self.pause = pause
@@ -58,6 +61,8 @@ public struct CleanParameters: Equatable, Sendable {
         self.outputDirectory = outputDirectory
         self.splitTracks = splitTracks
         self.splitAudioFormat = splitAudioFormat
+        self.pauseMode = pauseMode
+        self.tightPause = tightPause
         self.captionsFormat = captionsFormat
         self.retakeSensitivity = retakeSensitivity
         self.backupOriginal = backupOriginal
@@ -92,6 +97,8 @@ extension Strength {
             outputDirectory: config.outputDirectory,
             splitTracks: config.splitTracks,
             splitAudioFormat: config.splitAudioFormat,
+            pauseMode: config.pauseMode,
+            tightPause: config.tightPause,
             captionsFormat: config.captionsFormat,
             // Clamp a hand-edited/corrupt value to the default preset so the engine's
             // --retake-sensitivity (which has fixed choices) never hard-fails a clean.

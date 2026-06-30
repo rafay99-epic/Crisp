@@ -45,6 +45,8 @@ DEFAULT_MAX_PAUSE = 0.6       # cut silences longer than this (seconds)
 DEFAULT_NOISE_DB = -30        # audio below this loudness (dB) counts as silence
 DEFAULT_KEEP_PAUSE = 0.15     # breathing room left around each cut (seconds)
 MIN_KEEP = 0.05               # drop kept fragments shorter than this (seconds)
+DEFAULT_PAUSE_MODE = "remove" # remove | tighten — how to treat detected pauses
+DEFAULT_TIGHT_PAUSE = 0.3     # seconds of pause to keep in tighten mode (after keep_pause)
 
 # Cut smoothing (see crisp.edit). A hard splice clicks because the audio waveform
 # jumps from one amplitude to another at the join; these three knobs soften it.

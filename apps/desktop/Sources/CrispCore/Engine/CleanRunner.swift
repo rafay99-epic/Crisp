@@ -129,6 +129,7 @@ public struct CleanRunner {
             args += ["--split-audio", parameters.splitAudioFormat]
         }
         if !parameters.outputDirectory.isEmpty { args += ["--out-dir", parameters.outputDirectory] }
+        args += ["--pause-mode", parameters.pauseMode, "--tight-pause", String(parameters.tightPause)]
         // A reviewed keep-list renders exactly those segments — no detection, so no
         // model, captions, waveform, or filler flags (all moot in keep-file mode).
         if let keepFile = options.keepFilePath {

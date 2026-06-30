@@ -11,8 +11,9 @@ from .config import (
     DEFAULT_AUDIO_BITRATE, DEFAULT_AUDIO_CODEC, DEFAULT_BACKUP, DEFAULT_COLOR_DEPTH, DEFAULT_CONTAINER,
     DEFAULT_CROSSFADE_MS, DEFAULT_EXPORT_TIMELINE, DEFAULT_FADE_MS, DEFAULT_FPS, DEFAULT_FPS_MODE,
     DEFAULT_HARDWARE, DEFAULT_KEEP_PAUSE, DEFAULT_MAX_PAUSE, DEFAULT_MODEL, DEFAULT_NOISE_DB,
-    DEFAULT_QUALITY, DEFAULT_REMOVE_RETAKES, DEFAULT_RETAKE_SENSITIVITY, DEFAULT_SNAP_MS,
-    DEFAULT_VIDEO_CODEC, MIN_KEEP, RETAKE_ANCHOR_PAUSE, RETAKE_SENSITIVITY,
+    DEFAULT_PAUSE_MODE, DEFAULT_QUALITY, DEFAULT_REMOVE_RETAKES, DEFAULT_RETAKE_SENSITIVITY,
+    DEFAULT_SNAP_MS, DEFAULT_TIGHT_PAUSE, DEFAULT_VIDEO_CODEC, MIN_KEEP,
+    RETAKE_ANCHOR_PAUSE, RETAKE_SENSITIVITY,
 )
 from .detect import detect_silences, extract_audio, filler_words, filter_silences, transcribe
 from .edit import (_output_owner, build_keep_segments, gate_fillers_by_silence, make_backup,
@@ -358,6 +359,7 @@ def analyze(src, noise=DEFAULT_NOISE_DB, buckets=240, on_log=None, logger=None):
 
 def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
                 noise=DEFAULT_NOISE_DB, keep_pause=DEFAULT_KEEP_PAUSE, min_keep=MIN_KEEP,
+                pause_mode=DEFAULT_PAUSE_MODE, tight_pause=DEFAULT_TIGHT_PAUSE,
                 video_codec=DEFAULT_VIDEO_CODEC, hardware=DEFAULT_HARDWARE, quality=DEFAULT_QUALITY,
                 audio_codec=DEFAULT_AUDIO_CODEC, audio_bitrate=DEFAULT_AUDIO_BITRATE,
                 container=DEFAULT_CONTAINER, color_depth=DEFAULT_COLOR_DEPTH, remove_fillers=True,
@@ -614,7 +616,8 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
                     retakes = []
             on_progress(0.59, "Planning cuts…")
             keep, stats = build_keep_segments(cut_words, silences, duration, keep_pause,
-                                              min_keep, retakes=retakes)
+                                              min_keep, retakes=retakes,
+                                              pause_mode=pause_mode, tight_pause=tight_pause)
             if not keep:
                 raise CleanError("Everything looked like silence — nothing to keep. "
                                  "Try a larger pause value.")

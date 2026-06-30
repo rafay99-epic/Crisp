@@ -114,6 +114,16 @@ struct SettingsView: View {
                      unit: "s", range: 0...0.5, step: 0.01), $settings.breathingRoom)
             row(Knob(title: "Minimum keep", help: "Drop kept fragments shorter than this.",
                      unit: "s", range: 0...0.5, step: 0.01), $settings.minKeep)
+            Picker("Pause mode", selection: $settings.pauseMode) {
+                ForEach(PauseMode.allCases) { Text($0.label).tag($0.rawValue) }
+            }
+            .pickerStyle(.segmented)
+            Text(PauseMode(rawValue: settings.pauseMode)?.detail ?? "")
+                .font(.caption).foregroundStyle(.secondary)
+            if settings.pauseMode == PauseMode.tighten.rawValue {
+                row(Knob(title: "Tight pause", help: "Seconds of silence to keep at each pause.",
+                         unit: "s", range: 0.05...0.5, step: 0.05), $settings.tightPause)
+            }
         } header: {
             Text("Custom cutting")
         } footer: {

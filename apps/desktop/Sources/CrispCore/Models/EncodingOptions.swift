@@ -177,3 +177,23 @@ public enum SplitAudioFormat: String, CaseIterable, Identifiable {
         }
     }
 }
+
+/// How detected pauses are handled. `remove` cuts them entirely (current
+/// behaviour); `tighten` keeps the configured `tightPause` seconds of silence
+/// at the pause start so the pacing stays natural.
+public enum PauseMode: String, CaseIterable, Identifiable {
+    case remove, tighten
+    public var id: String { rawValue }
+    public var label: String {
+        switch self {
+        case .remove:  return "Remove"
+        case .tighten: return "Tighten"
+        }
+    }
+    public var detail: String {
+        switch self {
+        case .remove:  return "Cut pauses completely — no silence between sentences."
+        case .tighten: return "Keep a short natural gap (customisable below) so speech doesn\u{2019}t sound rushed."
+        }
+    }
+}

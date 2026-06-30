@@ -11,7 +11,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from .config import DEFAULT_SNAP_MS, FILLER_MIN_SOLO, FILLER_PAUSE_PAD, MIN_KEEP
+from .config import DEFAULT_PAUSE_MODE, DEFAULT_SNAP_MS, DEFAULT_TIGHT_PAUSE, FILLER_MIN_SOLO, FILLER_PAUSE_PAD, MIN_KEEP
 from .enginelog import EngineLogger
 from .errors import CleanError
 from .text import is_filler
@@ -81,7 +81,7 @@ try:
     _libc.setxattr.restype = ctypes.c_int
     _libc.setxattr.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_void_p,
                                ctypes.c_size_t, ctypes.c_uint32, ctypes.c_int]
-except (OSError, AttributeError):  # pragma: no cover - platform without these symbols
+except (OSError, AttributeError, TypeError):  # pragma: no cover - platform without these symbols
     _libc = None
 
 
@@ -123,20 +123,31 @@ def tag_output_source(out_path: Path, src: Path) -> None:
     _libc.setxattr(os.fsencode(out_path), SOURCE_XATTR.encode(), value, len(value), 0, 0)
 
 
-def build_keep_segments(words, silences, duration, keep_pause, min_keep=MIN_KEEP, retakes=None):
+def build_keep_segments(words, silences, duration, keep_pause, min_keep=MIN_KEEP, retakes=None,
+                        pause_mode=DEFAULT_PAUSE_MODE, tight_pause=DEFAULT_TIGHT_PAUSE):
     """Return (keep, stats): list of (start, end) seconds to KEEP, plus counts.
 
     `retakes` is an optional list of (start, end) spans for flubbed takes the speaker
     immediately repeated (see crisp.retake) — removed wholesale alongside pauses and
-    fillers."""
+    fillers.
+    `pause_mode` — "remove" (default): cut the pause entirely (current behaviour);
+                   "tighten": keep up to `tight_pause` seconds of silence at the pause
+                   start so the pacing stays natural.
+    `tight_pause` — seconds of silence to preserve in tighten mode (after keep_pause)."""
     remove = []
     stats = {"fillers": 0, "pauses": 0, "retakes": 0}
 
     for s, e in silences:                       # long pauses (trim middle of silence)
         inner_s, inner_e = s + keep_pause, e - keep_pause
         if inner_e - inner_s > 0.01:
-            remove.append((inner_s, inner_e))
-            stats["pauses"] += 1
+            if pause_mode == "tighten":
+                tight_start = inner_s + tight_pause
+                if tight_start < inner_e:
+                    remove.append((tight_start, inner_e))
+                    stats["pauses"] += 1
+            else:
+                remove.append((inner_s, inner_e))
+                stats["pauses"] += 1
 
     for w in words:                             # filler words (exact span)
         if is_filler(w["text"]):
