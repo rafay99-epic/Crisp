@@ -1,0 +1,31 @@
+apps/desktop-win/ViewModels/ReviewModel.cs
+  s_a7c256b1cebfbb::t_7f2288ae9ca01e 1
+  s_a7c256b1cebfbb::t_39cb4470d8978e 51
+  s_a7c256b1cebfbb::t_837ba64278e304 78-81
+apps/desktop-win/Common/VideoTypes.cs
+  s_a7c256b1cebfbb::t_e16d83548459a1 18-19
+apps/desktop-win/ViewModels/MainWindowViewModel.cs
+  s_a7c256b1cebfbb::t_468fd130c84616 447-455
+  s_a7c256b1cebfbb::t_fe1e57525ab090 76-77
+.github/workflows/windows.yml
+  s_a7c256b1cebfbb::t_e7327bd0e19423 39-40,105-106
+apps/desktop-win/Services/EditorDetector.cs
+  s_a7c256b1cebfbb::t_8c3bb85fb2f0b9 37-45
+  s_a7c256b1cebfbb::t_989fcb4a3146c0 56-61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "c6e21c1a19e74f09ef917b20ee945b3a248ed303",
+  "prompts": {},
+  "sessions": {
+    "s_a7c256b1cebfbb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "401b41ed-870a-49c3-bff6-f7b868451ef6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
