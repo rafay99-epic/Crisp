@@ -124,6 +124,7 @@ public struct CleanRunner {
         // authoritative and behaviour never depends on clean_video.py's own default.
         args += ["--export-timeline", parameters.exportTimeline]
         if parameters.hardwareEncoding { args.append("--hardware") }
+        if parameters.studioSound { args.append("--studio-sound") }
         if parameters.splitTracks {
             args.append("--split")
             args += ["--split-audio", parameters.splitAudioFormat]

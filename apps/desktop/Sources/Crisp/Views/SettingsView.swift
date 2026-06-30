@@ -200,6 +200,9 @@ struct SettingsView: View {
             Picker("Audio bitrate", selection: $settings.audioBitrateKbps) {
                 ForEach([128, 160, 192, 256], id: \.self) { Text("\($0) kbps").tag($0) }
             }
+            Toggle("Studio Sound", isOn: $settings.studioSound)
+            Text("Removes background noise (afftdn) and normalises loudness (EBU R128) for a polished, broadcast-ready sound.")
+                .font(.caption).foregroundStyle(.secondary)
 
             // Color depth — "Automatic" matches the source so 10-bit/HDR footage is never
             // crushed to 8-bit. Independent of the container (VP9 supports 10-bit too), so

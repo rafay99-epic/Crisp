@@ -252,6 +252,48 @@ class BuildFilterGraphTests(unittest.TestCase):
             build_filter_graph([], fade=0.010, crossfade=0.0)
 
 
+class BuildFilterGraphStudioSoundTests(unittest.TestCase):
+    """Studio Sound (denoise + loudnorm) in the filter graph."""
+
+    def test_default_has_no_studio_sound(self):
+        lines = build_filter_graph([(0.0, 2.0)])
+        self.assertNotIn("afftdn", "\n".join(lines))
+        self.assertNotIn("loudnorm", "\n".join(lines))
+
+    def test_studio_sound_adds_denoise_and_loudnorm(self):
+        lines = build_filter_graph([(0.0, 2.0)], studio_sound=True)
+        graph = "\n".join(lines)
+        self.assertIn("afftdn", graph)
+        self.assertIn("loudnorm=I=-16:LRA=11:TP=-1.5", graph)
+
+    def test_single_segment_with_studio_sound(self):
+        lines = build_filter_graph([(1.0, 3.0)], studio_sound=True)
+        graph = "\n".join(lines)
+        self.assertIn("atrim=start=1.000000:end=3.000000", graph)
+        self.assertIn(",afftdn,loudnorm=I=-16:LRA=11:TP=-1.5", graph)
+        self.assertIn("[a0]", graph)
+
+    def test_plain_cut_has_no_studio_sound_filters(self):
+        lines = build_filter_graph([(0.0, 2.0), (3.0, 5.0)])
+        graph = "\n".join(lines)
+        self.assertNotIn("afftdn", graph)
+        self.assertNotIn("loudnorm", graph)
+
+    def test_studio_sound_with_audio_gain(self):
+        lines = build_filter_graph([(0.0, 2.0)], fade=0.010, studio_sound=True)
+        graph = "\n".join(lines)
+        # denoise+loudnorm first, then afade
+        self.assertIn(",afftdn,loudnorm=I=-16:LRA=11:TP=-1.5,afade=", graph)
+
+    def test_studio_sound_with_crossfade(self):                                     # noqa: PLR0915
+        lines = build_filter_graph([(0.0, 2.0), (3.0, 5.0)], crossfade=0.100, studio_sound=True)
+        graph = "\n".join(lines)
+        self.assertIn("afftdn", graph)
+        self.assertIn("loudnorm=I=-16:LRA=11:TP=-1.5", graph)
+        self.assertIn("xfade", graph)
+        self.assertIn("acrossfade", graph)
+
+
 class OutputDurationTests(unittest.TestCase):
     def test_no_crossfade_is_raw_sum(self):
         self.assertAlmostEqual(output_duration([(0.0, 2.0), (3.0, 5.0), (6.0, 9.0)]), 7.0)

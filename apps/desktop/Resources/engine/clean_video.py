@@ -49,7 +49,8 @@ from crisp.config import (
     DEFAULT_AUDIO_BITRATE, DEFAULT_AUDIO_CODEC, DEFAULT_COLOR_DEPTH, DEFAULT_CONTAINER,
     DEFAULT_CROSSFADE_MS, DEFAULT_EXPORT_TIMELINE, DEFAULT_FADE_MS, DEFAULT_FILLER_BACKEND, DEFAULT_FPS,
     DEFAULT_FPS_MODE, DEFAULT_KEEP_PAUSE, DEFAULT_MAX_PAUSE, DEFAULT_MODEL, DEFAULT_NOISE_DB,
-    DEFAULT_QUALITY, DEFAULT_RETAKE_SENSITIVITY, DEFAULT_SNAP_MS, DEFAULT_VIDEO_CODEC, MIN_KEEP,
+    DEFAULT_QUALITY, DEFAULT_RETAKE_SENSITIVITY, DEFAULT_SNAP_MS, DEFAULT_STUDIO_SOUND,
+    DEFAULT_VIDEO_CODEC, MIN_KEEP,
     RETAKE_SENSITIVITY_MIN_RUN,
 )
 from crisp.encode import SUPPORTED_CONTAINERS
@@ -68,6 +69,11 @@ def main():
                    help=f"breathing room left around each cut, in seconds (default {DEFAULT_KEEP_PAUSE})")
     p.add_argument("--min-keep", type=float, default=MIN_KEEP,
                    help=f"drop kept fragments shorter than this many seconds (default {MIN_KEEP})")
+    p.add_argument("--studio-sound", action="store_true", default=DEFAULT_STUDIO_SOUND,
+                   help=f"apply denoising + loudness normalization to audio "
+                        f"(default {DEFAULT_STUDIO_SOUND})")
+    p.add_argument("--no-studio-sound", action="store_false", dest="studio_sound",
+                   help="disable studio sound even when the default is on")
     p.add_argument("--fade-ms", type=float, default=DEFAULT_FADE_MS,
                    help=f"audio fade in/out at each cut so joins don't click, in ms "
                         f"(0 = off; default {DEFAULT_FADE_MS})")
@@ -229,6 +235,7 @@ def main():
     try:
         result = clean_video(args.video, out_path=args.out, model=args.model, pause=args.pause,
                              noise=args.noise, keep_pause=args.keep_pause, min_keep=args.min_keep,
+                             studio_sound=args.studio_sound,
                              video_codec=args.video_codec, hardware=args.hardware, quality=args.quality,
                              audio_codec=args.audio_codec, audio_bitrate=args.audio_bitrate,
                              container=args.container, color_depth=args.color_depth,

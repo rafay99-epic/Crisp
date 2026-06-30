@@ -12,7 +12,7 @@ from .config import (
     DEFAULT_CROSSFADE_MS, DEFAULT_EXPORT_TIMELINE, DEFAULT_FADE_MS, DEFAULT_FPS, DEFAULT_FPS_MODE,
     DEFAULT_HARDWARE, DEFAULT_KEEP_PAUSE, DEFAULT_MAX_PAUSE, DEFAULT_MODEL, DEFAULT_NOISE_DB,
     DEFAULT_QUALITY, DEFAULT_REMOVE_RETAKES, DEFAULT_RETAKE_SENSITIVITY, DEFAULT_SNAP_MS,
-    DEFAULT_VIDEO_CODEC, MIN_KEEP, RETAKE_ANCHOR_PAUSE, RETAKE_SENSITIVITY,
+    DEFAULT_STUDIO_SOUND, DEFAULT_VIDEO_CODEC, MIN_KEEP, RETAKE_ANCHOR_PAUSE, RETAKE_SENSITIVITY,
 )
 from .detect import detect_silences, extract_audio, filler_words, filter_silences, transcribe
 from .edit import (_output_owner, build_keep_segments, gate_fillers_by_silence, make_backup,
@@ -358,6 +358,7 @@ def analyze(src, noise=DEFAULT_NOISE_DB, buckets=240, on_log=None, logger=None):
 
 def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
                 noise=DEFAULT_NOISE_DB, keep_pause=DEFAULT_KEEP_PAUSE, min_keep=MIN_KEEP,
+                studio_sound=DEFAULT_STUDIO_SOUND,
                 video_codec=DEFAULT_VIDEO_CODEC, hardware=DEFAULT_HARDWARE, quality=DEFAULT_QUALITY,
                 audio_codec=DEFAULT_AUDIO_CODEC, audio_bitrate=DEFAULT_AUDIO_BITRATE,
                 container=DEFAULT_CONTAINER, color_depth=DEFAULT_COLOR_DEPTH, remove_fillers=True,
@@ -713,7 +714,8 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
         try:
             render(src, keep, out_path, on_log, stage(0.60, 1.0),
                    video_args(video_codec, hw, quality, pix, hdr_params=hdr_params) + color_flags,
-                   audio, mux, fade=fade_s, crossfade=crossfade_s, fps=target_fps, logger=logger)
+                   audio, mux, fade=fade_s, crossfade=crossfade_s,
+                   studio_sound=studio_sound, fps=target_fps, logger=logger)
             # hdr_params is written only by libx265 on a deep (≥10-bit) encode (see
             # video_args), so claim preservation only when this attempt was exactly that —
             # never on a hardware attempt or the 8-bit fallback.

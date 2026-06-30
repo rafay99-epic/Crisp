@@ -81,7 +81,7 @@ try:
     _libc.setxattr.restype = ctypes.c_int
     _libc.setxattr.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_void_p,
                                ctypes.c_size_t, ctypes.c_uint32, ctypes.c_int]
-except (OSError, AttributeError):  # pragma: no cover - platform without these symbols
+except (OSError, AttributeError, TypeError):  # pragma: no cover - platform without these symbols
     _libc = None
 
 
@@ -319,7 +319,7 @@ def output_duration(keep, crossfade=0.0):
     return total
 
 
-def build_filter_graph(keep, fade=0.0, crossfade=0.0):
+def build_filter_graph(keep, fade=0.0, crossfade=0.0, studio_sound=False):
     """The `-filter_complex_script` lines that trim `keep` (list of (start, end) secs)
     out of input 0 and join the pieces into `[outv][outa]`. Factored out of `render`
     so the cut-smoothing graph is pure and unit-testable (no ffmpeg needed).
@@ -329,6 +329,8 @@ def build_filter_graph(keep, fade=0.0, crossfade=0.0):
                    `acrossfade`, same duration → stays in A/V sync) instead of hard
                    cuts; overrides `fade`. Clamped to the shortest segment so a brief
                    kept sliver can't break the dissolve.
+    studio_sound — when True, add afftdn (denoise) + loudnorm (EBU R128 loudness
+                   normalisation) to every audio segment.
     """
     if not keep:
         raise ValueError("build_filter_graph: keep must not be empty")
@@ -340,6 +342,8 @@ def build_filter_graph(keep, fade=0.0, crossfade=0.0):
     for i, (s, e) in enumerate(keep):
         lines.append(f"[0:v]trim=start={s:.6f}:end={e:.6f},setpts=PTS-STARTPTS[v{i}];")
         a = f"[0:a]atrim=start={s:.6f}:end={e:.6f},asetpts=PTS-STARTPTS"
+        if studio_sound:
+            a += ",afftdn,loudnorm=I=-16:LRA=11:TP=-1.5"
         if crossfade <= 0 and fade > 0:
             f = min(fade, durs[i] / 2)
             a += (f",afade=t=in:st=0:d={f:.6f},afade=t=out:st={durs[i] - f:.6f}:d={f:.6f}")
@@ -367,14 +371,14 @@ def build_filter_graph(keep, fade=0.0, crossfade=0.0):
 
 
 def render(src, keep, out_path, on_log, on_progress, video_opts, audio_opts, mux_opts=(),
-           fade=0.0, crossfade=0.0, fps=None, logger=None):
+           fade=0.0, crossfade=0.0, studio_sound=False, fps=None, logger=None):
     logger = logger or EngineLogger(None)
     on_log(f"Rendering cleaned video ({len(keep)} segments kept)...")
     # Progress denominator = the actual output length (a crossfade shortens it by
     # (n-1)*c), so out_time_* reaches 100% instead of stalling under it.
     total = output_duration(keep, crossfade) or 1.0
 
-    lines = build_filter_graph(keep, fade=fade, crossfade=crossfade)
+    lines = build_filter_graph(keep, fade=fade, crossfade=crossfade, studio_sound=studio_sound)
 
     with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False) as tf:
         tf.write("\n".join(lines))
