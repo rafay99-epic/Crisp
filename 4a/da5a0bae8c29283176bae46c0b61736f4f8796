@@ -1,0 +1,19 @@
+apps/desktop-win/ViewModels/MainWindowViewModel.cs
+  s_a7c256b1cebfbb::t_a436c23f106536 435-444,446-451
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "4ada5a0bae8c29283176bae46c0b61736f4f8796",
+  "prompts": {},
+  "sessions": {
+    "s_a7c256b1cebfbb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "401b41ed-870a-49c3-bff6-f7b868451ef6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
