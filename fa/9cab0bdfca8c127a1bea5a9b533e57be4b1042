@@ -1,0 +1,19 @@
+apps/desktop-win/Services/Updater.cs
+  s_a7c256b1cebfbb::t_2c8b6efa1c327c 108-112
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "fa9cab0bdfca8c127a1bea5a9b533e57be4b1042",
+  "prompts": {},
+  "sessions": {
+    "s_a7c256b1cebfbb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "401b41ed-870a-49c3-bff6-f7b868451ef6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
