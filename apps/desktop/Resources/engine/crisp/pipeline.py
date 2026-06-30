@@ -467,7 +467,7 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
     do_backup = backup and export_timeline != "fcpxml"
     backup_path = make_backup(src, on_log, backup_dir, logger=logger) if do_backup else None
     if backup_path:
-        on_progress(0.03, "Backed up original")
+        on_progress(0.02, "Backed up original")
 
     duration = ffprobe_duration(src, logger=logger)
     if duration <= 0:
@@ -514,7 +514,7 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
             cuts += 1
         stats = {"fillers": 0, "pauses": cuts, "retakes": 0}
         on_log(f"Using {len(keep)} reviewed segment(s).")
-        on_progress(0.58, "Rendering reviewed cuts…")
+        on_progress(0.28, "Rendering reviewed cuts ")
     else:
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)
@@ -522,10 +522,10 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
 
             # Labels describe the CURRENT step (emitted before it) so the UI says what's
             # happening now, not what just finished.
-            on_progress(0.05, "Reading audio…")
+            on_progress(0.03, "Reading audio ")
             extract_audio(src, wav, on_log, logger=logger)
 
-            on_progress(0.10, "Detecting pauses…")
+            on_progress(0.06, "Detecting pauses ")
             # One silencedetect pass. Retake anchoring needs a shorter pause than the
             # cut threshold (a redo pause is brief), so when retakes are on we scan at
             # the lower of the two and derive the cut set by filtering on duration:
@@ -548,18 +548,18 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
             if need_transcript:
                 if use_classifier:
                     # The fast model reports only when done, so name the step up front.
-                    on_progress(0.16, "Finding filler words…")
+                    on_progress(0.10, "Finding filler words ")
                     words = filler_words(which_filler(), filler_model, wav,
-                                         on_log, stage(0.16, 0.58), logger=logger)
-                    # Keep only fillers at a pause or clearly long — don't cut
+                                         on_log, stage(0.10, 0.28), logger=logger)
+                    # Keep only fillers at a pause or clearly long ?" don't cut
                     # brief hesitations embedded mid-sentence (rough, removes flow).
                     before = len(words)
                     words = gate_fillers_by_silence(words, silences)
                     logger.debug(f"silence-gate: kept {len(words)}/{before} fillers")
                 else:
                     words = transcribe(whisper_bin, model, wav, tmp / "transcript",
-                                       on_log, stage(0.15, 0.58), logger=logger)
-                on_log(f"Found {len(words)} spoken words.")
+                                       on_log, stage(0.10, 0.28), logger=logger)
+                logger.debug(f"found {len(words)} filler words")
 
             # Only cut filler words when the user asked to; if we transcribed purely
             # for captions, every word stays in the cut plan (fillers are still
@@ -573,27 +573,22 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
                 # Its own visible step (after "Detecting pauses" / "Transcribing"), so
                 # the UI shows that repeated-take detection is happening. Held at the
                 # transcription ceiling (0.58) so the bar never moves backward.
-                on_log("Finding repeated takes...")
-                on_progress(0.58, "Finding repeated takes…")
-                from .retake import detect_retakes
-                from .semantic import make_judge
-                # Each sensitivity is a full policy: how many matched words count as a
-                # redo (`min_run`), whether the corrected take must follow a pause
-                # (`require_pause` — aggressive drops it to catch mid-sentence
-                # restarts), and the semantic-similarity bar (`sem_min`). The semantic
-                # judge (crisp-embed) is what lets aggressive safely skip the pause
-                # anchor; it's None when the helper is unavailable, in which case
-                # detect_retakes keeps the anchor on regardless.
-                policy = RETAKE_SENSITIVITY.get(retake_sensitivity,
-                                                RETAKE_SENSITIVITY[DEFAULT_RETAKE_SENSITIVITY])
-                # Retake removal must never break a clean: any unexpected failure here
-                # degrades to "no retakes" (the rest of the clean — pauses, render —
-                # proceeds) rather than aborting and losing the user's run.
+                on_progress(0.28, "Finding repeated takes ")
                 try:
-                    # Only presets with a pause-less path (balanced/aggressive) can use
-                    # the semantic gate; gentle is pause-required, so skip the helper
-                    # there entirely — no wasted probe, and the gate can never relax
-                    # gentle's pause rule (defense-in-depth on top of detect_retakes).
+                    from .retake import detect_retakes
+                    from .semantic import make_judge
+                    # Each sensitivity is a full policy: how many matched words count as a
+                    # redo (`min_run`), whether the corrected take must follow a pause
+                    # (`require_pause` — aggressive drops it to catch mid-sentence
+                    # restarts), and the semantic-similarity bar (`sem_min`). The semantic
+                    # judge (crisp-embed) is what lets aggressive safely skip the pause
+                    # anchor; it's None when the helper is unavailable, in which case
+                    # detect_retakes keeps the anchor on regardless.
+                    policy = RETAKE_SENSITIVITY.get(retake_sensitivity,
+                                                    RETAKE_SENSITIVITY[DEFAULT_RETAKE_SENSITIVITY])
+                    # Retake removal must never break a clean: any unexpected failure here
+                    # degrades to "no retakes" (the rest of the clean — pauses, render —
+                    # proceeds) rather than aborting and losing the user's run.
                     judge = (make_judge(logger)
                              if policy["min_run_no_pause"] is not None else None)
                     logger.debug(f"retake detection: sensitivity={retake_sensitivity} "
@@ -613,7 +608,7 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
                     # debuggable; retakes degrade to none, the clean still completes.
                     logger.exception("retake detection failed — skipping retakes for this clean")
                     retakes = []
-            on_progress(0.59, "Planning cuts…")
+            on_progress(0.29, "Planning cuts ")
             keep, stats = build_keep_segments(cut_words, silences, duration, keep_pause,
                                               min_keep, retakes=retakes)
             if not keep:
@@ -644,7 +639,7 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
     # render, no encode (that's the whole point: the editor finishes the cut). Branches
     # out here before the render, so backup/captions/split don't run either.
     if export_timeline == "fcpxml":
-        on_progress(0.62, "Saving your timeline…")
+        on_progress(0.32, "Saving your timeline ")
         # The editor copy keeps the SOURCE's container (and name), not the chosen output
         # container — so re-resolve codecs against the source. Otherwise a WebM output
         # setting (which forces VP9) would try to write VP9 into an .mp4/.mov copy.
@@ -722,7 +717,7 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
 
     for i, (hw, pix) in enumerate(attempts):
         try:
-            render(src, keep, out_path, on_log, stage(0.60, 1.0),
+            render(src, keep, out_path, on_log, stage(0.30, 1.0),
                    video_args(video_codec, hw, quality, pix, hdr_params=hdr_params) + color_flags,
                    audio, mux, fade=fade_s, crossfade=crossfade_s, fps=target_fps, logger=logger,
                    burn_subtitle_path=burn_subtitle_path, audio_gain=audio_gain)
