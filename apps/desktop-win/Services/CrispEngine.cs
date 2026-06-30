@@ -75,6 +75,7 @@ public sealed class CrispEngine
             // Kill the whole tree so child ffmpeg/whisper die too — this is the
             // cross-platform replacement for the Unix os.killpg path in clean_video.py.
             if (!proc.HasExited) proc.Kill(entireProcessTree: true);
+            try { await stderrTask; } catch { /* observe the drain task so its OCE isn't unhandled */ }
             throw;
         }
 

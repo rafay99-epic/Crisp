@@ -309,6 +309,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 if (r.TryGetProperty("silences", out var sil) && sil.ValueKind == JsonValueKind.Array)
                     foreach (var s in sil.EnumerateArray())
                     {
+                        if (s.ValueKind != JsonValueKind.Array || s.GetArrayLength() < 2) continue;
                         double len = s[1].GetDouble() - s[0].GetDouble();
                         if (len > pause) { removed += Math.Max(0, len - 2 * keep); pauses++; }
                     }
@@ -336,6 +337,9 @@ public partial class MainWindowViewModel : ViewModelBase
     /// Apply the reviewed cuts: write the keep-file onto the row and clean just it.
     public async Task ApplyReviewAndCleanAsync(QueueItem item, ReviewModel review)
     {
+        // A batch is already running (or the row isn't waiting) — CleanOneAsync would no-op,
+        // so don't write a keep-file we'd then orphan in TEMP.
+        if (IsRunning || item.Status != QueueStatus.Waiting) return;
         item.KeepFilePath = review.WriteKeepFile();
         await CleanOneAsync(item);
     }
@@ -389,7 +393,9 @@ public partial class MainWindowViewModel : ViewModelBase
                 foreach (var v in pk.EnumerateArray()) _previewPeaks.Add(v.GetDouble());
             _previewSilences = new List<(double, double)>();
             if (r.TryGetProperty("silences", out var sil) && sil.ValueKind == JsonValueKind.Array)
-                foreach (var s in sil.EnumerateArray()) _previewSilences.Add((s[0].GetDouble(), s[1].GetDouble()));
+                foreach (var s in sil.EnumerateArray())
+                    if (s.ValueKind == JsonValueKind.Array && s.GetArrayLength() >= 2)
+                        _previewSilences.Add((s[0].GetDouble(), s[1].GetDouble()));
             RecomputeCutPreview();
         }
         catch (JsonException) { CutPreview = null; }

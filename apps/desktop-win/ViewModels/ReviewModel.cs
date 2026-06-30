@@ -62,6 +62,7 @@ public partial class ReviewModel : ObservableObject
             if (r.TryGetProperty("silences", out var sil) && sil.ValueKind == JsonValueKind.Array)
                 foreach (var s in sil.EnumerateArray())
                 {
+                    if (s.ValueKind != JsonValueKind.Array || s.GetArrayLength() < 2) continue;
                     double a = s[0].GetDouble(), b = s[1].GetDouble();
                     if (b - a <= _pause) continue;               // shorter than the threshold → not cut
                     double rs = a + _keep, re = b - _keep;       // keep breathing room each side

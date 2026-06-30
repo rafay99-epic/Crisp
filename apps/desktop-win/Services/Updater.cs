@@ -64,9 +64,29 @@ public partial class Updater : ObservableObject
             ReleaseUrl = AssetUrl(root) ?? (root.TryGetProperty("html_url", out var h) ? h.GetString() ?? "" : "");
             Notes = (root.TryGetProperty("body", out var b) ? b.GetString() : null)?.Trim() ?? "";
 
-            if (IsNewer(version, CrispVersion.Current))
+            bool newer;
+            string shown;
+            if (Channels.Current.IsPrerelease())
             {
-                AvailableVersion = version;
+                // Nightly reuses a fixed rolling tag ("nightly"), so the version string can't
+                // order builds — parse the monotonic build number from the title (mirrors the
+                // macOS `build (\d+)` rule). If either build number is unknown, don't claim an
+                // update (no false positive on a mislabeled/dev build).
+                var title = root.TryGetProperty("name", out var nm) ? nm.GetString() ?? "" : "";
+                var theirs = ParseBuildNumber(title);
+                var ours = CrispVersion.BuildNumber;
+                newer = theirs > 0 && ours > 0 && theirs > ours;
+                shown = theirs > 0 ? $"build {theirs}" : version;
+            }
+            else
+            {
+                newer = IsNewer(version, CrispVersion.Current);
+                shown = version;
+            }
+
+            if (newer)
+            {
+                AvailableVersion = shown;
                 State = UpdaterState.Available;
             }
             else
@@ -91,6 +111,15 @@ public partial class Updater : ObservableObject
     }
 
     /// The Windows installer asset on the release, if one is published yet.
+    /// The build number embedded in a nightly release title ("… build 123 …"), or 0.
+    /// Mirrors the macOS updater's `build (\d+)` parse so the two channels agree on order.
+    private static int ParseBuildNumber(string title)
+    {
+        var m = System.Text.RegularExpressions.Regex.Match(title, @"build (\d+)",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        return m.Success && int.TryParse(m.Groups[1].Value, out var n) ? n : 0;
+    }
+
     /// The newest pre-release in a /releases list (nightly feed), skipping drafts and
     /// full releases. The list is already newest-first.
     private static JsonElement? FirstPrerelease(JsonElement releases)
