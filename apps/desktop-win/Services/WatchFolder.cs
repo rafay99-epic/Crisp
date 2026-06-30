@@ -32,11 +32,8 @@ public sealed class WatchFolder : IDisposable
             NotifyFilter = NotifyFilters.FileName | NotifyFilters.Size,
             EnableRaisingEvents = true,
         };
-        // Changed (alongside Created/Renamed) is what retries a file whose copy outlasted
-        // the stabilize budget: the dedup guards below make the event spam harmless.
         _watcher.Created += (_, e) => OnAppeared(e.FullPath);
         _watcher.Renamed += (_, e) => OnAppeared(e.FullPath);
-        _watcher.Changed += (_, e) => OnAppeared(e.FullPath);
     }
 
     // Crisp writes "<name>_cleaned.<ext>" (or "_cleaned_<n>") beside the source, which lands

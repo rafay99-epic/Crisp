@@ -163,9 +163,9 @@
                                     <Button Grid.Column="1" Content="Make default" Click="OnSetDefaultPreset"
                                             CommandParameter="{Binding}" Margin="0,0,6,0"
                                             Background="Transparent" BorderThickness="0"
-                                            Foreground="{DynamicResource CrispAccent}"/>
+                                            Foreground="{DynamicResource CrispAccent}" AutomationProperties.Name="Make this preset the default"/>
                                     <Button Grid.Column="2" Content="✕" Click="OnDeletePreset"
-                                            CommandParameter="{Binding}" ToolTip.Tip="Delete preset"/>
+                                            CommandParameter="{Binding}" ToolTip.Tip="Delete preset" AutomationProperties.Name="Delete preset"/>
                                 </Grid>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
@@ -173,9 +173,9 @@
                     <TextBlock Classes="lbl" FontSize="11"
                                Text="{Binding DefaultPresetName, StringFormat='Default for new files: {0}'}"/>
                     <Grid ColumnDefinitions="*,Auto">
-                        <TextBox Grid.Column="0" x:Name="NewPresetName" PlaceholderText="New preset name…"/>
+                        <TextBox Grid.Column="0" x:Name="NewPresetName" PlaceholderText="New preset name…" AutomationProperties.Name="New preset name"/>
                         <Button Grid.Column="1" Content="Save current" Click="OnAddPreset" Margin="8,0,0,0"
-                                Classes="accent"/>
+                                Classes="accent" AutomationProperties.Name="Save current settings as a new preset"/>
                     </Grid>
                 </StackPanel>
             </Border>
@@ -190,7 +190,7 @@
                     <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding WatchEnabled}">
                         <TextBox Grid.Column="0" AutomationProperties.Name="Watch folder path"
                                  PlaceholderText="Folder to watch…" Text="{Binding WatchFolderPath}"/>
-                        <Button Grid.Column="1" Content="Browse…" Click="OnPickWatchFolder" Margin="8,0,0,0"/>
+                        <Button Grid.Column="1" Content="Browse…" Click="OnPickWatchFolder" Margin="8,0,0,0" AutomationProperties.Name="Browse for watch folder"/>
                     </Grid>
                     <TextBlock Classes="lbl" FontSize="12" TextWrapping="Wrap"
                                Text="While Crisp is open, any new video dropped into this folder is queued and cleaned automatically."/>
@@ -203,8 +203,10 @@
             <Grid ColumnDefinitions="Auto,*,Auto">
                 <Button Grid.Column="0" Content="Reveal log files" Click="OnRevealLogs"
                         Background="Transparent" BorderThickness="0" Padding="0"
-                        Foreground="{DynamicResource CrispAccent}" VerticalAlignment="Center"/>
-                <Button Grid.Column="2" Content="Done" Click="OnDone" Classes="accent"/>
+                        Foreground="{DynamicResource CrispAccent}" VerticalAlignment="Center"
+                        AutomationProperties.Name="Reveal log files in file explorer"/>
+                <Button Grid.Column="2" Content="Done" Click="OnDone" Classes="accent"
+                        AutomationProperties.Name="Close settings window"/>
             </Grid>
         </StackPanel>
     </ScrollViewer>

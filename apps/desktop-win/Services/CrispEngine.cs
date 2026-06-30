@@ -125,7 +125,8 @@ public sealed class CrispEngine
 
     private static void SetIfExists(ProcessStartInfo psi, string key, string path)
     {
-        if (File.Exists(path)) psi.Environment[key] = path;
+        if (File.Exists(path) && !psi.Environment.ContainsKey(key))
+            psi.Environment[key] = path;
     }
 
     /// Read a stream to EOF keeping only the last `cap` chars — bounded memory for a

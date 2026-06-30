@@ -15,7 +15,6 @@ public static class VideoTypes
         ".mpg", ".mpeg", ".wmv", ".m2ts", ".3gp", ".mts",
     };
 
-    // Private so the allowlist can't be mutated through it — callers use IsVideo/Extensions.
     private static readonly HashSet<string> Set = new(Extensions, StringComparer.OrdinalIgnoreCase);
 
     public static bool IsVideo(string path) => Set.Contains(Path.GetExtension(path));

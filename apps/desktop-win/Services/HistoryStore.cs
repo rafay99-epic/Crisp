@@ -17,46 +17,56 @@ public partial class HistoryStore : ObservableObject
     private static string FilePath => Path.Combine(Channels.DataDirectory, "history.jsonl");
 
     private static readonly JsonSerializerOptions Opts = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+    private readonly object _lock = new();
 
     public HistoryStore() => Reload();
 
     public void Reload()
     {
-        Entries.Clear();
-        try
+        lock (_lock)
         {
-            if (!File.Exists(FilePath)) { OnPropertyChanged(nameof(IsEmpty)); return; }
-            foreach (var line in File.ReadAllLines(FilePath))
+            Entries.Clear();
+            try
             {
-                if (string.IsNullOrWhiteSpace(line)) continue;
-                try
+                if (!File.Exists(FilePath)) { OnPropertyChanged(nameof(IsEmpty)); return; }
+                foreach (var line in File.ReadAllLines(FilePath))
                 {
-                    var e = JsonSerializer.Deserialize<HistoryEntry>(line, Opts);
-                    if (e is not null) Entries.Insert(0, e); // newest first
+                    if (string.IsNullOrWhiteSpace(line)) continue;
+                    try
+                    {
+                        var e = JsonSerializer.Deserialize<HistoryEntry>(line, Opts);
+                        if (e is not null) Entries.Insert(0, e);
+                    }
+                    catch (JsonException) { }
                 }
-                catch (JsonException) { /* skip a bad line */ }
             }
+            catch (IOException) { }
+            OnPropertyChanged(nameof(IsEmpty));
         }
-        catch (IOException) { /* unreadable → empty list */ }
-        OnPropertyChanged(nameof(IsEmpty));
     }
 
     public void Record(HistoryEntry entry)
     {
-        try
+        lock (_lock)
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
-            File.AppendAllText(FilePath, JsonSerializer.Serialize(entry, Opts) + "\n");
-            Entries.Insert(0, entry);
-            OnPropertyChanged(nameof(IsEmpty));
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
+                File.AppendAllText(FilePath, JsonSerializer.Serialize(entry, Opts) + "\n");
+                Entries.Insert(0, entry);
+                OnPropertyChanged(nameof(IsEmpty));
+            }
+            catch (IOException) { }
         }
-        catch (IOException) { /* best effort — a failed history write never blocks a clean */ }
     }
 
     public void Clear()
     {
-        try { File.Delete(FilePath); } catch (IOException) { /* best effort */ }
-        Entries.Clear();
-        OnPropertyChanged(nameof(IsEmpty));
+        lock (_lock)
+        {
+            try { File.Delete(FilePath); } catch (IOException) { }
+            Entries.Clear();
+            OnPropertyChanged(nameof(IsEmpty));
+        }
     }
 }

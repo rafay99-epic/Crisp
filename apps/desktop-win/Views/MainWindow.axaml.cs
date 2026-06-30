@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Controls.Notifications;
 using Avalonia.Input;
@@ -105,7 +106,7 @@ public partial class MainWindow : Window
             if (Vm is not { } vm || (sender as Control)?.DataContext is not Models.QueueItem item) return;
             var review = vm.CreateReview(item);
             var win = new ReviewWindow { DataContext = review };
-            _ = review.LoadAsync(); // analyze in the background; the window shows "Analyzing…"
+            _ = Task.Run(async () => { try { await review.LoadAsync(); } catch { /* failure is surfaced on the row */ } });
             var applied = await win.ShowDialog<bool>(this);
             if (applied) await vm.ApplyReviewAndCleanAsync(item, review);
         }

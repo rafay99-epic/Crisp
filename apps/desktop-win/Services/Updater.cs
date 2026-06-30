@@ -160,7 +160,8 @@ public partial class Updater : ObservableObject
         req.Headers.UserAgent.ParseAdd("Crisp-Windows");
         if (token is not null) req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        using var resp = await Http.SendAsync(req);
+        using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(30));
+        using var resp = await Http.SendAsync(req, cts.Token);
         if (resp.StatusCode == System.Net.HttpStatusCode.OK)
             return await resp.Content.ReadAsStringAsync();
         if (resp.StatusCode == System.Net.HttpStatusCode.NotFound && token is null)

@@ -114,12 +114,20 @@ public sealed class EngineConfig
     }
 
     /// Atomic write (temp + move), preserving unmodeled keys.
-    public void Save()
+    public bool TrySave()
     {
-        var dir = Path.GetDirectoryName(FilePath)!;
-        Directory.CreateDirectory(dir);
-        var tmp = FilePath + ".tmp";
-        File.WriteAllText(tmp, JsonSerializer.Serialize(this, Opts));
-        File.Move(tmp, FilePath, overwrite: true);
+        try
+        {
+            var dir = Path.GetDirectoryName(FilePath)!;
+            Directory.CreateDirectory(dir);
+            var tmp = FilePath + ".tmp";
+            File.WriteAllText(tmp, JsonSerializer.Serialize(this, Opts));
+            File.Move(tmp, FilePath, overwrite: true);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
     }
 }

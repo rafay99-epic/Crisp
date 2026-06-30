@@ -52,7 +52,7 @@ public partial class ModelStore : ObservableObject
     public async Task UseAsync(string modelId)
     {
         var spec = ModelCatalog.Spec(modelId);
-        if (spec.Id == _spec.Id || State == ModelState.Downloading) return;
+        if (spec.Id == _spec.Id || IsBusy) return;
         _spec = spec;
         OnPropertyChanged(nameof(Spec));
         OnPropertyChanged(nameof(SizeText));

@@ -10,7 +10,7 @@ public static class CrispVersion
     {
         get
         {
-            var v = Environment.GetEnvironmentVariable("CRISP_VERSION");
+            var v = Environment.GetEnvironmentVariable("CRISP_VERSION")?.Trim();
             return string.IsNullOrWhiteSpace(v) ? "0.0" : v;
         }
     }

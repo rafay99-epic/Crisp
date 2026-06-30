@@ -79,20 +79,32 @@ public static class Channels
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
     /// `~/.crisp{suffix}` unless CRISP_DATA_DIR overrides (test/dev harnesses set it).
-    public static string DataDirectory =>
-        Environment.GetEnvironmentVariable("CRISP_DATA_DIR") is { Length: > 0 } d
-            ? d
-            : Path.Combine(Home, Current.DataDirSuffix());
+    public static string DataDirectory
+    {
+        get
+        {
+            var dir = Environment.GetEnvironmentVariable("CRISP_DATA_DIR");
+            return !string.IsNullOrWhiteSpace(dir) ? dir : Path.Combine(Home, Current.DataDirSuffix());
+        }
+    }
 
-    public static string ConfigDirectory =>
-        Environment.GetEnvironmentVariable("CRISP_CONFIG_DIR") is { Length: > 0 } d
-            ? d
-            : Path.Combine(DataDirectory, "config");
+    public static string ConfigDirectory
+    {
+        get
+        {
+            var dir = Environment.GetEnvironmentVariable("CRISP_CONFIG_DIR");
+            return !string.IsNullOrWhiteSpace(dir) ? dir : Path.Combine(DataDirectory, "config");
+        }
+    }
 
-    public static string ModelsDirectory =>
-        Environment.GetEnvironmentVariable("CRISP_MODELS_DIR") is { Length: > 0 } d
-            ? d
-            : Path.Combine(DataDirectory, "models");
+    public static string ModelsDirectory
+    {
+        get
+        {
+            var dir = Environment.GetEnvironmentVariable("CRISP_MODELS_DIR");
+            return !string.IsNullOrWhiteSpace(dir) ? dir : Path.Combine(DataDirectory, "models");
+        }
+    }
 
     public static string LogsDirectory => Path.Combine(DataDirectory, "logs");
 

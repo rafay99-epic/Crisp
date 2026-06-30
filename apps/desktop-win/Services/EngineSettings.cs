@@ -54,7 +54,9 @@ public partial class EngineSettings : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SelectedModel))]
     private string _selectedModelId = "base.en";
-    [ObservableProperty] private string _customModelPath = "";
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasCustomModel))]
+    private string _customModelPath = "";
     [ObservableProperty] private bool _exportToEditor; // FCPXML timeline instead of a render
     [ObservableProperty] private bool _splitTracks; // also write separate video + audio
     [ObservableProperty] private string _splitAudioFormat = "match";
@@ -97,6 +99,7 @@ public partial class EngineSettings : ObservableObject
         var p = PresetById(id);
         if (p is null) return;
         p.Name = name;
+        OnPropertyChanged(nameof(DefaultPresetName));
         Save();
     }
 
@@ -219,7 +222,7 @@ public partial class EngineSettings : ObservableObject
         _config.WatchFolderPath = WatchFolderPath;
         _config.Presets = Presets.ToList();
         _config.DefaultPresetId = DefaultPresetId;
-        _config.Save();
+        _config.TrySave();
     }
 
     private static string F(double d) => d.ToString("0.###", CultureInfo.InvariantCulture);
