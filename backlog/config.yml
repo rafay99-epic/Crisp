@@ -1,13 +1,14 @@
 project_name: "Crisp"
-default_status: "To Do"
+default_status: "In Progress"
 statuses: ["To Do", "In Progress", "Done"]
 labels: []
-date_format: yyyy-mm-dd
+date_format: dd/mm/yyyy
 max_column_width: 20
+default_editor: "cursor"
 auto_open_browser: true
 default_port: 6420
 remote_operations: true
-auto_commit: false
+auto_commit: true
 filesystem_only: false
 bypass_git_hooks: false
 check_active_branches: true
