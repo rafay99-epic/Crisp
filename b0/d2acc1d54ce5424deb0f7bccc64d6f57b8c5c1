@@ -1,0 +1,21 @@
+.github/workflows/labeler.yml
+  s_c8752ad91ffac9::t_288af30e97c4f8 6-9
+.github/labeler.yml
+  s_c8752ad91ffac9::t_8b8624606494ab 2-3,5,7-14,20-26,30,32-34,37-38
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "b0d2acc1d54ce5424deb0f7bccc64d6f57b8c5c1",
+  "prompts": {},
+  "sessions": {
+    "s_c8752ad91ffac9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1078508d-45d5-4844-b3d8-a3c75a8b8516",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
