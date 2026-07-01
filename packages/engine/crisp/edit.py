@@ -383,6 +383,17 @@ def build_filter_graph(keep, fade=0.0, crossfade=0.0):
     return lines
 
 
+# ffmpeg's filter-graph scheduling cost grows superlinearly with the number of live
+# filters, and the trim graph carries ~4 per kept segment — measured QUADRATIC
+# wall-clock in segment count (on a 60s clip: 50 segments ≈ 1s of graph overhead,
+# 600 ≈ 100s; concat trees and reduced fan-out don't help, only a smaller graph
+# does). Past the threshold, render in batches of _BATCH_SIZE segments — each a
+# small flat graph over an input-seeked window — and losslessly join the parts.
+# Below it, the single-pass graph is cheap and stays the well-trodden default.
+_BATCH_THRESHOLD = 64
+_BATCH_SIZE = 32
+
+
 def render(src, keep, out_path, on_log, on_progress, video_opts, audio_opts, mux_opts=(),
            fade=0.0, crossfade=0.0, fps=None, logger=None):
     logger = logger or EngineLogger(None)
@@ -391,16 +402,10 @@ def render(src, keep, out_path, on_log, on_progress, video_opts, audio_opts, mux
     # (n-1)*c), so out_time_* reaches 100% instead of stalling under it.
     total = output_duration(keep, crossfade) or 1.0
 
-    lines = build_filter_graph(keep, fade=fade, crossfade=crossfade)
-
-    # Explicit UTF-8 everywhere a tool's output (or a path) crosses a text boundary —
-    # on Windows the default is the locale code page (cp1252) with strict errors,
-    # which crashes on the multibyte filenames ffmpeg happily echoes into stderr.
-    with tempfile.NamedTemporaryFile("w", suffix=".txt", encoding="utf-8", delete=False) as tf:
-        tf.write("\n".join(lines))
-        graph_path = tf.name
-    err_file = tempfile.NamedTemporaryFile("w+", suffix=".log", encoding="utf-8",
-                                           errors="replace", delete=False)
+    # `-r` on the OUTPUT conforms the cut video to a constant frame rate
+    # (dup/drop frames to even spacing). Set only when normalizing a VFR source
+    # (or an explicit constant); a CFR source passes None and keeps its timing.
+    fps_opts = ["-r", str(fps)] if fps else []
 
     # Never write the final file in place: a re-clean of the same source deliberately
     # resolves to its PREVIOUS output (see unique_output_path), so ffmpeg truncating
@@ -411,53 +416,193 @@ def render(src, keep, out_path, on_log, on_progress, video_opts, audio_opts, mux
     # extension is kept so ffmpeg still infers the right muxer. A `.part` orphaned by
     # SIGKILL is overwritten (-y) or unlinked on the next render to the same output.
     part_path = out_path.with_name(out_path.stem + ".part" + out_path.suffix)
+
+    # Many cuts → the batched path (see _BATCH_THRESHOLD above). Crossfades chain
+    # pairwise across the whole timeline, so they can't batch — they keep the
+    # single-pass graph (opt-in, and a dissolve over hundreds of cuts is already
+    # the wrong tool).
+    if len(keep) > _BATCH_THRESHOLD and \
+            _clamped_crossfade([e - s for s, e in keep], crossfade) <= 0.001:
+        return _render_batched(src, keep, out_path, part_path, on_log, on_progress,
+                               video_opts, audio_opts, mux_opts, fade, fps_opts,
+                               total, logger)
+
+    lines = build_filter_graph(keep, fade=fade, crossfade=crossfade)
+    with tempfile.NamedTemporaryFile("w", suffix=".txt", encoding="utf-8", delete=False) as tf:
+        tf.write("\n".join(lines))
+        graph_path = tf.name
     try:
-        # `-r` on the OUTPUT conforms the cut video to a constant frame rate
-        # (dup/drop frames to even spacing). Set only when normalizing a VFR source
-        # (or an explicit constant); a CFR source passes None and keeps its timing.
-        fps_opts = ["-r", str(fps)] if fps else []
         cmd = [ffmpeg_bin(), "-y", "-i", str(src),
                "-filter_complex_script", graph_path,
                "-map", "[outv]", "-map", "[outa]",
                *video_opts, *fps_opts, *audio_opts, *mux_opts,
                "-progress", "pipe:1", "-nostats", str(part_path)]
-        logger.command("ffmpeg render", cmd)
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=err_file, text=True,
-                                encoding="utf-8", errors="replace")
-        last_frac = 0.0
-        try:
-            for line in proc.stdout:
-                line = line.strip()
-                if line.startswith("out_time_us=") or line.startswith("out_time_ms="):
-                    try:
-                        val = int(line.split("=")[1])
-                        secs = val / 1_000_000.0  # both keys are microseconds in practice
-                        frac = max(0.0, min(1.0, secs / total))
-                        last_frac = frac
-                        on_progress(frac, f"Rendering video… {int(frac * 100)}%")
-                    except (IndexError, ValueError):
-                        pass
-            proc.wait()
-        except BaseException:
-            # A progress callback blowing up (e.g. BrokenPipeError when the parent
-            # app died) must not orphan a running ffmpeg.
-            proc.kill()
-            proc.wait()
-            raise
-        err_file.seek(0)
-        err_text = err_file.read()
-        logger.tool_result("ffmpeg render", proc.returncode,
-                           err_text if (proc.returncode != 0 or not part_path.exists()) else "")
-        if proc.returncode != 0 or not part_path.exists():
+        last = {"frac": 0.0}
+
+        def on_secs(secs):
+            last["frac"] = max(0.0, min(1.0, secs / total))
+            _emit_render_progress(on_progress, last["frac"])
+
+        rc, err_text = _run_ffmpeg_progress(cmd, logger, "ffmpeg render", on_secs)
+        logger.tool_result("ffmpeg render", rc,
+                           err_text if (rc != 0 or not part_path.exists()) else "")
+        if rc != 0 or not part_path.exists():
             err = CleanError(f"Rendering failed.\n{err_text[-1500:]}")
             # How far the render got before dying — the pipeline's encoder-fallback
             # ladder uses this to tell "encoder couldn't start" (retry in software)
             # from "died mid-render" (disk/I/O — retrying just re-burns hours).
-            err.render_progress = last_frac
+            err.render_progress = last["frac"]
             raise err
         os.replace(part_path, out_path)
     finally:
         part_path.unlink(missing_ok=True)  # no-op on success (already replaced away)
         os.unlink(graph_path)
+
+
+def _run_ffmpeg_progress(cmd, logger, name, on_secs):
+    """Run an ffmpeg command that reports `-progress pipe:1`, streaming each parsed
+    out_time (seconds) to `on_secs`. Returns (returncode, stderr_text). Kills ffmpeg
+    instead of orphaning it if the callback raises (e.g. BrokenPipeError when the
+    parent app died). Pipes and the stderr file are explicit UTF-8 — on Windows the
+    default locale code page (cp1252, strict) crashes on the multibyte filenames
+    ffmpeg happily echoes into stderr."""
+    err_file = tempfile.NamedTemporaryFile("w+", suffix=".log", encoding="utf-8",
+                                           errors="replace", delete=False)
+    try:
+        logger.command(name, cmd)
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=err_file, text=True,
+                                encoding="utf-8", errors="replace")
+        try:
+            for line in proc.stdout:
+                line = line.strip()
+                if line.startswith("out_time_us=") or line.startswith("out_time_ms="):
+                    try:
+                        # both keys are microseconds in practice
+                        on_secs(int(line.split("=")[1]) / 1_000_000.0)
+                    except (IndexError, ValueError):
+                        pass
+            proc.wait()
+        except BaseException:
+            proc.kill()
+            proc.wait()
+            raise
+        err_file.seek(0)
+        return proc.returncode, err_file.read()
+    finally:
         err_file.close()
         os.unlink(err_file.name)
+
+
+# How far before a batch's first segment the input seek lands. Covers decoder
+# warm-up (audio codecs need a running state to reproduce the exact samples a
+# continuous decode yields; open-GOP video can reference across its seek keyframe)
+# so the frames/samples at the window edge are bit-identical to a full decode.
+_BATCH_SEEK_PAD = 1.0
+
+
+def _batch_windows(keep, size=None):
+    """Chunk `keep` into batches of `size` segments: a list of
+    (seek_start, read_stop, segments) — segments stay in ABSOLUTE source
+    coordinates (the batches render with `-copyts`, so trim compares the same
+    absolute timestamps the single-pass graph does; rebasing would quantize to the
+    container timebase and flip frames that sit exactly on a cut boundary).
+    Pure, unit-tested."""
+    size = size or _BATCH_SIZE
+    out = []
+    for i in range(0, len(keep), size):
+        batch = keep[i:i + size]
+        seek = max(0.0, batch[0][0] - _BATCH_SEEK_PAD)
+        stop = batch[-1][1] + 0.25   # small demux margin; trim is end-exclusive
+        out.append((seek, stop, list(batch)))
+    return out
+
+
+def _emit_render_progress(on_progress, frac):
+    frac = max(0.0, min(1.0, frac))
+    on_progress(frac, f"Rendering video… {int(frac * 100)}%")
+
+
+def _render_batched(src, keep, out_path, part_path, on_log, on_progress,
+                    video_opts, audio_opts, mux_opts, fade, fps_opts, total, logger):
+    """The many-cuts render path: encode _BATCH_SIZE segments at a time — the
+    input-side -ss/-to decodes only that window, and `-copyts` keeps original
+    timestamps so each batch's trims select exactly the frames the single-pass
+    graph would. The parts are then joined with a video stream-copy; audio rides
+    the intermediates as PCM inside NUT (ffmpeg's own container — exact timestamps,
+    holds every codec we emit) and is encoded once, at the join. Encoding AAC/Opus
+    per part instead would pad every join with an encoder-delay tail and drift A/V
+    across hundreds of segments.
+
+    Verified against the single-pass graph (see benchmarks/verify_render_equivalence.py):
+    video is bit-identical (frame md5); audio is sample-identical except that a
+    window's decoder may place up to one source-audio frame (~21 ms) of the silence
+    at a faded-to-zero cut boundary differently — a constant, NON-accumulating
+    timing offset, below the A/V perception threshold."""
+    windows = _batch_windows(keep)
+    on_log(f"Rendering in {len(windows)} passes ({len(keep)} segments)...")
+    # Carry the codec tag (e.g. hvc1, QuickTime-friendly HEVC) into the final remux —
+    # the stream-copy would otherwise fall back to the muxer's default tag.
+    tag = []
+    if "-tag:v" in video_opts:
+        t = list(video_opts).index("-tag:v")
+        tag = list(video_opts[t:t + 2])
+    try:
+        with tempfile.TemporaryDirectory(prefix="crisp-render-") as tmpdir:
+            tmp = Path(tmpdir)
+            parts, done = [], 0.0
+            for bi, (seek, stop, segments) in enumerate(windows):
+                graph = tmp / f"graph{bi:04d}.txt"
+                graph.write_text("\n".join(build_filter_graph(segments, fade=fade)),
+                                 encoding="utf-8")
+                part = tmp / f"part{bi:04d}.nut"
+                name = f"ffmpeg render {bi + 1}/{len(windows)}"
+                # A window at the head of the file reads plainly — `-ss 0 -copyts`
+                # changes how the demuxer applies the source's audio edit list
+                # (AAC/Opus priming samples), which skewed the first window's audio
+                # against a continuous decode. Seeked windows keep -copyts so trim
+                # compares the same absolute timestamps the single-pass graph does.
+                seek_opts = [] if seek <= 0 else ["-ss", f"{seek:.6f}"]
+                copyts = [] if seek <= 0 else ["-copyts"]
+                cmd = [ffmpeg_bin(), "-y", *seek_opts, "-to", f"{stop:.6f}",
+                       "-i", str(src), *copyts,
+                       "-filter_complex_script", str(graph),
+                       "-map", "[outv]", "-map", "[outa]",
+                       *video_opts, *fps_opts, "-c:a", "pcm_s24le",
+                       "-progress", "pipe:1", "-nostats", str(part)]
+                rc, err_text = _run_ffmpeg_progress(
+                    cmd, logger, name,
+                    lambda secs, base=done: _emit_render_progress(
+                        on_progress, (base + secs) / total))
+                logger.tool_result(name, rc, err_text if rc != 0 else "")
+                if rc != 0 or not part.exists():
+                    err = CleanError(f"Rendering failed.\n{err_text[-1500:]}")
+                    err.render_progress = max(0.0, min(1.0, done / total))
+                    raise err
+                parts.append(part)
+                done += sum(e - s for s, e in segments)
+
+            listing = tmp / "concat.txt"
+            listing.write_text(
+                "\n".join("file '{}'".format(str(p).replace("'", r"'\''")) for p in parts),
+                encoding="utf-8")
+            # `aresample=async=1` conforms the joined audio to clean timestamps —
+            # measured byte-identical output with or without it, but without it the
+            # joined stream carries non-monotonic audio DTS at the part seams,
+            # which players and editors complain about.
+            cmd = [ffmpeg_bin(), "-y", "-f", "concat", "-safe", "0", "-i", str(listing),
+                   "-c:v", "copy", *tag, "-af", "aresample=async=1:first_pts=0",
+                   *audio_opts, *mux_opts,
+                   "-progress", "pipe:1", "-nostats", str(part_path)]
+            rc, err_text = _run_ffmpeg_progress(
+                cmd, logger, "ffmpeg render join",
+                lambda secs: _emit_render_progress(on_progress, secs / total))
+            logger.tool_result("ffmpeg render join", rc, err_text if rc != 0 else "")
+            if rc != 0 or not part_path.exists():
+                err = CleanError(f"Rendering failed.\n{err_text[-1500:]}")
+                # Every batch encoded fine; a join failure (disk, mux) won't be
+                # cured by re-rendering on another encoder — never retry the ladder.
+                err.render_progress = 1.0
+                raise err
+            os.replace(part_path, out_path)
+    finally:
+        part_path.unlink(missing_ok=True)  # no-op on success (already replaced away)
