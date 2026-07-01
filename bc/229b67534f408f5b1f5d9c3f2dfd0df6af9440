@@ -1,0 +1,51 @@
+.github/workflows/ci.yml
+  s_c8752ad91ffac9::t_26b27c0f23344f 76-77
+  s_c8752ad91ffac9::t_18bf4242a2d197 24,29
+.coderabbit.yaml
+  s_c8752ad91ffac9::t_e4df25cc448dc0 27
+research/filler_classifier/config.py
+  s_c8752ad91ffac9::t_48e001b9a93c85 5
+retake-calibration.md
+  s_c8752ad91ffac9::t_b5589402b8a504 25
+packages/engine/README.md
+  s_c8752ad91ffac9::t_05ee3bf8722c64 1-36
+.github/workflows/windows.yml
+  s_c8752ad91ffac9::t_5b60c177081423 22,28
+  s_c8752ad91ffac9::t_9258da54568c51 141
+  s_c8752ad91ffac9::t_216149cc1a641e 82
+CLAUDE.md
+  s_c8752ad91ffac9::t_8ff19e994adadb 7
+  s_c8752ad91ffac9::t_7232faa65f6704 180
+  s_c8752ad91ffac9::t_a356207cf30c9f 128-130
+setup.sh
+  s_c8752ad91ffac9::t_a35ad26ec1d7bd 10
+research/README.md
+  s_c8752ad91ffac9::t_5157f554c4173f 4
+.gitignore
+  s_c8752ad91ffac9::t_52734431a6d3a5 12
+.github/workflows/promotion.yml
+  s_c8752ad91ffac9::t_4a54d4429aa1ca 117-118
+packages/engine/tests/__init__.py
+  s_c8752ad91ffac9::t_79db5e325b852b 5
+apps/desktop/build.sh
+  s_c8752ad91ffac9::t_046d1cbff9f0ea 68-69
+.github/workflows/nightly.yml
+  s_c8752ad91ffac9::t_0a226d8e806f20 19
+  s_c8752ad91ffac9::t_4f04ed867aba2c 48-49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "bc229b67534f408f5b1f5d9c3f2dfd0df6af9440",
+  "prompts": {},
+  "sessions": {
+    "s_c8752ad91ffac9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1078508d-45d5-4844-b3d8-a3c75a8b8516",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
