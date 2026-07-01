@@ -1,0 +1,33 @@
+packages/engine/crisp/tools.py
+  s_77278fca3d82ec::t_972105796810cc 55,89,198,291,303
+packages/engine/crisp/split.py
+  s_77278fca3d82ec::t_972105796810cc 70
+packages/engine/crisp/pipeline.py
+  s_77278fca3d82ec::t_f55fe6a77a763f 205-206
+packages/engine/crisp/semantic.py
+  s_77278fca3d82ec::t_972105796810cc 47
+packages/engine/crisp/detect.py
+  s_77278fca3d82ec::t_085249b67f642d 189
+  s_77278fca3d82ec::t_c4e57d7fe2bf2a 98,111,225
+  s_77278fca3d82ec::t_8806a2cd508877 168-169
+  s_77278fca3d82ec::t_a516c6f51cde3d 217
+packages/engine/crisp/edit.py
+  s_77278fca3d82ec::t_189be2ca9211a9 381-384,387-388
+  s_77278fca3d82ec::t_df28be91c42703 410-411
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "5fda12514a716b19ac733426ea0835e80ae360bb",
+  "prompts": {},
+  "sessions": {
+    "s_77278fca3d82ec": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cd4010da-99af-4c01-95fa-a67e6669de5e",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
