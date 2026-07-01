@@ -1,0 +1,19 @@
+"backlog/docs/doc-2 - Retake-feature-—-state-problems-plan.md"
+  s_c8752ad91ffac9::t_f59ddfed8f9122 2-4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "91470a7a1069e2ed98390d0ec323d8de15ae788e",
+  "prompts": {},
+  "sessions": {
+    "s_c8752ad91ffac9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1078508d-45d5-4844-b3d8-a3c75a8b8516",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
