@@ -1,0 +1,40 @@
+packages/engine/tests/test_hardening.py
+  s_77278fca3d82ec::t_b907cc30319356 1-64
+packages/engine/clean_video.py
+  s_77278fca3d82ec::t_50801af0ca497a 211,241,251,280
+  s_77278fca3d82ec::t_ac5b2a191eac17 186-192
+  s_77278fca3d82ec::t_8a916b22d35d05 207-210,212-214
+packages/engine/crisp/pipeline.py
+  s_77278fca3d82ec::t_1ae0a4e5b84158 731,734-737
+  s_77278fca3d82ec::t_666730ac476e8e 439-443
+  s_77278fca3d82ec::t_b91add3578feee 470-476
+  s_77278fca3d82ec::t_2a6612a7346319 738
+packages/engine/crisp/edit.py
+  s_77278fca3d82ec::t_d367efd738dd0a 75-83,85-93
+  s_77278fca3d82ec::t_f7ca06be25f656 11
+  s_77278fca3d82ec::t_075021813f0c2b 418,427
+  s_77278fca3d82ec::t_1b3187c6dbb294 443-448
+packages/engine/crisp/detect.py
+  s_77278fca3d82ec::t_3e909104f24d18 186-188,193-196
+  s_77278fca3d82ec::t_cb288ca4aecb51 113-116
+  s_77278fca3d82ec::t_e9d1e33a5d6137 230-232,234-239
+  s_77278fca3d82ec::t_2cfabe64dc9300 250-252,254-258,262
+packages/engine/crisp/waveform.py
+  s_77278fca3d82ec::t_6d69a2696950c6 61-73,75,80
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "d78b58fb9992515dc07ccada52443c50a9f00589",
+  "prompts": {},
+  "sessions": {
+    "s_77278fca3d82ec": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cd4010da-99af-4c01-95fa-a67e6669de5e",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
