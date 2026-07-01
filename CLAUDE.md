@@ -76,23 +76,24 @@ subprocess. License: **GPL-3.0**. Conventions mirror the Vitals project.
 
 ## Roadmap & issue tracking
 
-- **The roadmap lives in the GitHub Project, not in a file.** The board **"Crisp
-  Roadmap"** (`https://github.com/users/rafay99-epic/projects/4`) is the single source
-  of truth; `idea.md` is now just a short pointer to it — **do not** grow `idea.md`
-  back into a feature list.
-- **New idea → open a GitHub issue** (never edit `idea.md`). Give it exactly one
-  **priority** label — `priority:now` (committed foundations), `priority:next`
-  (committed feature wave), or `priority:backlog` (later) — and one **area** label:
-  `area:licensing`, `area:platform`, `area:audio`, `area:video`, `area:transcript`,
-  `area:engine`, `area:ux`, `area:ml`, `area:reach`. Then add it to the board.
-- **Keep the board current as work moves.** When you start an item, set its **Status →
-  In Progress** on the board; the implementing PR must reference the issue
-  (`Closes #NN` in the body) so the merge auto-moves the card to **Done**. The board
-  groups by the **Priority** field (Now / Next / Backlog).
-- **CLI notes.** Creating issues + labels needs only the `repo` scope; touching the
-  board needs the `project` scope (`gh auth refresh -s project`). Add an issue to the
-  board with `gh project item-add 4 --owner rafay99-epic --url <issue-url>`. Never use
-  `gh pr view`/`gh pr edit` (the broken UI) — see the Workflow rules above.
+- **The roadmap is managed with [Backlog.md](https://github.com/MrLesk/Backlog.md).**
+  Tasks are git-tracked Markdown files under **`backlog/`** (`backlog/tasks/*.md`,
+  config in `backlog/config.yml`) — not GitHub. View them with `backlog board`
+  (terminal Kanban) or `backlog browser` (web UI at `:6420`, drag-and-drop). Each
+  task has a **status** (`To Do` / `In Progress` / `Done`), a **priority**
+  (`high`/`medium`/`low`), and — once shipped — the **PR URL in its `references`**.
+  Add an idea: `backlog task create "Title" -d "…" --priority medium`.
+- **PRs link to tasks.** When a PR ships a task, set it `Done` and attach the PR
+  (`backlog task edit <id> -s Done --ref <pr-url>`). A **user-scope MCP server**
+  (`backlog mcp start`, in `~/.claude.json`) lets agents create/update tasks as
+  work moves, so every PR we work on stays tracked.
+- **GitHub Issues = real bugs only.** Open an issue **only** for a reproducible
+  defect / regression / crash. **Never** file features, ideas, or roadmap items as
+  issues — those are Backlog.md tasks. Keeping the tracker to actual bugs is
+  deliberate.
+- **`area:*` labels still auto-apply to PRs** by changed path
+  (`.github/labeler.yml`) — independent of issues, and it stays. Never use `gh pr
+  view`/`gh pr edit` (the broken UI) — see the Workflow rules above.
 
 ## Versioning, channels & releases
 

@@ -35,3 +35,6 @@ dist/
 
 # TypeScript incremental build info
 *.tsbuildinfo
+
+# Backlog.md transient file locks — never commit these.
+backlog/.locks/

@@ -1,3 +1,18 @@
+---
+id: TASK-28
+title: Analytics dashboard — "was it worth it?" savings view
+status: To Do
+assignee: []
+created_date: '2026-07-01 19:34'
+labels: []
+dependencies: []
+priority: low
+ordinal: 28000
+---
+
+## Description
+
+<!-- SECTION:DESCRIPTION:BEGIN -->
 # Analytics dashboard — future idea (Abdul, this session)
 
 A "was it worth it?" view: over time, as you use Crisp, show what it saved you.
@@ -34,3 +49,4 @@ over time. Turns invisible savings into something you can *see*.
 ## Sequence
 Future update — AFTER the retake feature (PR #73) is solid and merged. The UX bits
 (progress "Finding repeated takes" step, pause count in estimate) shipped first.
+<!-- SECTION:DESCRIPTION:END -->

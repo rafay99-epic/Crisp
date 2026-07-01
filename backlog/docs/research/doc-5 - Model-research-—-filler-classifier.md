@@ -1,3 +1,11 @@
+---
+id: doc-5
+title: Model research — filler classifier
+type: other
+created_date: '2026-07-01 19:33'
+---
+
+
 # Wren/Raven — Model Research & Improvement Roadmap
 
 Research by Scarlet Speedster for the Crisp filler-detection model pipeline.

@@ -1,3 +1,11 @@
+---
+id: doc-6
+title: Research notes
+type: other
+created_date: '2026-07-01 19:33'
+---
+
+
 # Wren — on-device filler-word model: notes & journal
 
 Working notes for the **Wren** filler-detection model and its integration into the

@@ -1,3 +1,11 @@
+---
+id: doc-7
+title: Core Python engine — notes
+type: other
+created_date: '2026-07-01 19:42'
+---
+
+
 # Engine notes & journal
 
 Companion to the model journal in `research/NOTES.md`. This file tracks the

@@ -74,6 +74,41 @@ All the training code, benchmarks, and a native eval dashboard live in
 is unchanged. Trained models are published to
 **[Hugging Face](https://huggingface.co/rafay99-epic/crisp-models)**.
 
+## Roadmap & docs
+
+The roadmap, tasks, and project notes are managed with
+**[Backlog.md](https://github.com/MrLesk/Backlog.md)** — plain Markdown files
+tracked in git under [`backlog/`](backlog/), so what's shipped, in progress, and
+planned all live in one place (no external service, no lock-in).
+
+Install it once, then browse the board:
+
+```sh
+bun i -g backlog.md          # or: npm i -g backlog.md   /   brew install backlog-md
+
+backlog board                # To Do / In Progress / Done, in the terminal
+backlog browser              # the same as a web Kanban at http://localhost:6420
+```
+
+Everyday commands:
+
+```sh
+backlog task list                                   # list tasks
+backlog task create "New idea" -d "…" --priority medium
+backlog task edit task-7 -s "In Progress"           # move a task across the board
+backlog doc list                                    # research notes & design docs
+backlog doc view doc-3                               # read one
+```
+
+- **Tasks** (`backlog/tasks/`) are the roadmap — each has a status, a priority,
+  and, once shipped, the PR link in its `references`.
+- **Docs** (`backlog/docs/`) hold the research findings and design notes (retake
+  detection, model research, …).
+- **AI agents** keep tasks in sync via the MCP server —
+  `claude mcp add backlog --scope user -- backlog mcp start`.
+
+GitHub Issues are for **real bugs only**; features and ideas are Backlog.md tasks.
+
 ## License
 
 [GPL-3.0](LICENSE) · © Syntax Lab Technology / Abdul Rafay ([rafay99.com](https://rafay99.com))
