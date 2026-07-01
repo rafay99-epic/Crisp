@@ -1,41 +1,18 @@
 # Crisp — roadmap
 
-The roadmap now lives in **GitHub Issues + a Project board**, not in this file.
-Track work there instead of hand-editing markdown.
+The roadmap is **not** tracked in GitHub anymore. The "Crisp Roadmap" Project
+board and its feature issues were removed — a new project-tracking tool is being
+chosen.
 
-## Where to look
+For now, ideas and planned features live in a local **`ROADMAP.md`** on the
+maintainer's machine (gitignored, not shipped). It's grouped Shipped /
+In progress / Planned, with the shipping PR noted on each done item.
 
-- **Board (what to do next):** https://github.com/users/rafay99-epic/projects/4
-  — grouped by **Priority**: `Now` → `Next` → `Backlog`.
-- **Issues:** https://github.com/rafay99-epic/Crisp/issues
+## GitHub Issues = bugs only
 
-## Conventions
+Open an issue **only** for a real defect (a reproducible bug, a regression, a
+crash). **Do not** file features, ideas, or roadmap items as issues — those go in
+`ROADMAP.md`. Keeping the tracker to actual bugs is deliberate.
 
-- **Priority labels:** `priority:now` (committed foundations), `priority:next`
-  (committed feature wave), `priority:backlog` (longer horizon).
-- **Area labels:** `area:licensing`, `area:platform`, `area:audio`, `area:video`,
-  `area:transcript`, `area:engine`, `area:ux`, `area:ml`, `area:reach`.
-- A PR that closes an item references it (`Closes #NN`) so the board auto-updates.
-
-## Committed order (snapshot)
-
-Foundations first, then the feature wave:
-
-1. Licensing & paid tier via Polar.sh — #85
-2. Windows support (shared core + native UI) — #87
-3. Captions / subtitles export — #88
-4. Auto-reframe to vertical / short-form — #89
-5. "Studio sound" audio pass — #90
-6. Speaker diarization — #91
-7. Cut / chapter markers during the cut — #92
-8. Audio volume / gain control — #93
-
-Quick views:
-
-```sh
-gh issue list --label priority:now      # the foundations
-gh issue list --label priority:next     # the feature wave
-```
-
-> Shipped & pruned so far: VFR handling (PR #77), Export to editor / FCPXML
-> (PR #79), Quit guard during render (PR #80). See git history for the record.
+> `area:*` labels still auto-apply to **PRs** by changed path (see
+> `.github/labeler.yml`) — that's independent of issues and stays.

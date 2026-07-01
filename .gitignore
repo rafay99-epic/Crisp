@@ -35,3 +35,6 @@ dist/
 
 # TypeScript incremental build info
 *.tsbuildinfo
+
+# Local roadmap / idea scratchpad — kept on the maintainer's machine, not shipped.
+ROADMAP.md
