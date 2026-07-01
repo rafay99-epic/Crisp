@@ -1,22 +1,41 @@
 # Path-based PR labels. Mirrors the path filters in the CI workflows so the
-# label on a PR matches which workflow(s) will run for it.
+# label on a PR matches which workflow(s) will run for it, and the monorepo
+# layout (apps/* frontends, packages/* shared core).
 #
-# Consumed by .github/workflows/labeler.yml (actions/labeler@v5).
+# Consumed by .github/workflows/labeler.yml (actions/labeler@v6).
 
+# The shared Python cleaning core, bundled by both desktop apps → ci.yml /
+# nightly.yml / windows.yml all run the engine tests.
+"area:engine":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "packages/engine/**"
+
+# The macOS app (Swift/SwiftUI) → ci.yml / nightly.yml.
 "area:desktop":
   - changed-files:
       - any-glob-to-any-file:
           - "apps/desktop/**"
 
+# The Windows app (Avalonia/.NET port) → windows.yml.
+"area:platform":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "apps/desktop-win/**"
+
+# The marketing site → website.yml.
 "area:website":
   - changed-files:
       - any-glob-to-any-file:
-          - "apps/website/**"
+          - "apps/web/**"
 
-"area:backend":
+# Monetization / licensing: the Polar license-lookup function and the app's
+# licensing code (also picks up area:desktop when the Swift side changes).
+"area:licensing":
   - changed-files:
       - any-glob-to-any-file:
-          - "convex/**"
+          - "apps/license-api/**"
+          - "apps/desktop/Sources/**/Licensing/**"
 
 "area:ci":
   - changed-files:
