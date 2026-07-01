@@ -9,7 +9,11 @@ namespace Crisp.Views;
 
 public partial class SettingsWindow : Window
 {
-    public SettingsWindow() => InitializeComponent();
+    public SettingsWindow()
+    {
+        InitializeComponent();
+        WindowChrome.ApplyMica(this);
+    }
 
     private void OnDone(object? sender, RoutedEventArgs e) => Close();
 

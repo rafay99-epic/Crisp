@@ -19,6 +19,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        WindowChrome.ApplyMica(this);
 
         // Window-wide drag-drop (matches the Mac app, which accepts a drop anywhere).
         DragDrop.SetAllowDrop(this, true);

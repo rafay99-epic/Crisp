@@ -1,0 +1,59 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- ══════════════════════════════════════════════════════════════════════
+         Crisp for Windows — design tokens.
+
+         Values mirror the WinUI 3 / Windows 11 Fluent palette so the app reads
+         as a native Windows app rather than a ported macOS one. Everything is
+         keyed by theme variant (Dark/Light) and consumed through the Crisp*
+         aliases, so a view never hardcodes a colour again. Cards are meant to
+         sit on a Mica window backdrop, so their fills are lightly translucent
+         to let the desktop tint bleed through (the "made by Microsoft" look).
+         ══════════════════════════════════════════════════════════════════════ -->
+
+    <ResourceDictionary.ThemeDictionaries>
+        <!-- ───────────────────────── Dark ───────────────────────── -->
+        <ResourceDictionary x:Key="Dark">
+            <!-- Opaque base — window fallback when Mica is unavailable, and the
+                 first-run onboarding cover. WinUI SolidBackgroundFillColorBase. -->
+            <SolidColorBrush x:Key="CrispWindowBg"     Color="#202020"/>
+            <!-- Card surface on Mica (WinUI CardBackgroundFillColorDefault, dark).
+                 Slightly translucent so the backdrop tints through. -->
+            <SolidColorBrush x:Key="CrispCard"         Color="#2D2D2D" Opacity="0.90"/>
+            <!-- Hairline card/divider stroke (WinUI CardStrokeColorDefault, dark). -->
+            <SolidColorBrush x:Key="CrispCardBorder"   Color="#FFFFFF" Opacity="0.09"/>
+            <!-- Inset / secondary layer inside a card (WinUI LayerFillColorDefault). -->
+            <SolidColorBrush x:Key="CrispInset"        Color="#FFFFFF" Opacity="0.05"/>
+            <!-- Row divider inside a settings group. -->
+            <SolidColorBrush x:Key="CrispDivider"      Color="#FFFFFF" Opacity="0.07"/>
+            <!-- Text ramp (WinUI TextFillColor Primary/Secondary/Tertiary, dark). -->
+            <SolidColorBrush x:Key="CrispText"         Color="#FFFFFF"/>
+            <SolidColorBrush x:Key="CrispSecondary"    Color="#FFFFFF" Opacity="0.77"/>
+            <SolidColorBrush x:Key="CrispTertiary"     Color="#FFFFFF" Opacity="0.55"/>
+        </ResourceDictionary>
+
+        <!-- ───────────────────────── Light ───────────────────────── -->
+        <ResourceDictionary x:Key="Light">
+            <SolidColorBrush x:Key="CrispWindowBg"     Color="#F3F3F3"/>
+            <SolidColorBrush x:Key="CrispCard"         Color="#FFFFFF" Opacity="0.80"/>
+            <SolidColorBrush x:Key="CrispCardBorder"   Color="#000000" Opacity="0.06"/>
+            <SolidColorBrush x:Key="CrispInset"        Color="#000000" Opacity="0.03"/>
+            <SolidColorBrush x:Key="CrispDivider"      Color="#000000" Opacity="0.06"/>
+            <SolidColorBrush x:Key="CrispText"         Color="#000000" Opacity="0.89"/>
+            <SolidColorBrush x:Key="CrispSecondary"    Color="#000000" Opacity="0.62"/>
+            <SolidColorBrush x:Key="CrispTertiary"     Color="#000000" Opacity="0.45"/>
+        </ResourceDictionary>
+    </ResourceDictionary.ThemeDictionaries>
+
+    <!-- Accent: a brush off the OS accent Color (SystemAccentColor is a Color). -->
+    <SolidColorBrush x:Key="CrispAccent" Color="{DynamicResource SystemAccentColor}"/>
+
+    <!-- Shape: Windows 11 uses 8px on cards/dialogs, 4px on small controls. -->
+    <CornerRadius x:Key="CrispCardRadius">8</CornerRadius>
+    <CornerRadius x:Key="CrispControlRadius">4</CornerRadius>
+
+    <!-- Fonts: the actual Windows 11 system font families. -->
+    <FontFamily x:Key="CrispFont">Segoe UI Variable Text, Segoe UI</FontFamily>
+    <FontFamily x:Key="CrispFontDisplay">Segoe UI Variable Display, Segoe UI</FontFamily>
+    <FontFamily x:Key="CrispIconFont">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
+</ResourceDictionary>

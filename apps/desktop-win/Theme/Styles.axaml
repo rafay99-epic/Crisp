@@ -1,0 +1,167 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="using:Crisp.Views.Controls">
+
+    <!-- Hide the non-native full-screen caption button Avalonia adds to the
+         extended (Mica) title bar; Windows apps only show min / max / close.
+         Targeted by template-part name (the CaptionButtons type is internal). -->
+    <Style Selector="Button#PART_FullScreenButton">
+        <Setter Property="IsVisible" Value="False"/>
+    </Style>
+    <!-- ══════════════════════════════════════════════════════════════════════
+         Crisp for Windows — shared styles (the single design system).
+
+         Typography follows the WinUI type ramp on Segoe UI Variable; surfaces
+         use the tokens from Theme/Tokens.axaml. Every view consumes these
+         classes instead of restyling controls locally.
+         ══════════════════════════════════════════════════════════════════════ -->
+
+    <!-- Base font for everything hosted in a window. -->
+    <Style Selector="Window">
+        <Setter Property="FontFamily" Value="{DynamicResource CrispFont}"/>
+        <Setter Property="Foreground" Value="{DynamicResource CrispText}"/>
+    </Style>
+
+    <!-- ───────────────────── Typography (WinUI type ramp) ───────────────────── -->
+    <Style Selector="TextBlock.caption">
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Foreground" Value="{DynamicResource CrispSecondary}"/>
+    </Style>
+    <Style Selector="TextBlock.body">
+        <Setter Property="FontSize" Value="14"/>
+    </Style>
+    <Style Selector="TextBlock.bodyStrong">
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+    <Style Selector="TextBlock.subtitle">
+        <Setter Property="FontFamily" Value="{DynamicResource CrispFontDisplay}"/>
+        <Setter Property="FontSize" Value="20"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+    <Style Selector="TextBlock.title">
+        <Setter Property="FontFamily" Value="{DynamicResource CrispFontDisplay}"/>
+        <Setter Property="FontSize" Value="28"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+    <!-- Secondary / tertiary text colours (kept from the old system as aliases). -->
+    <Style Selector="TextBlock.secondary">
+        <Setter Property="Foreground" Value="{DynamicResource CrispSecondary}"/>
+    </Style>
+    <Style Selector="TextBlock.tertiary">
+        <Setter Property="Foreground" Value="{DynamicResource CrispTertiary}"/>
+    </Style>
+
+    <!-- Segoe Fluent Icons glyph text. -->
+    <Style Selector="TextBlock.icon">
+        <Setter Property="FontFamily" Value="{DynamicResource CrispIconFont}"/>
+        <Setter Property="FontSize" Value="16"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="HorizontalAlignment" Value="Center"/>
+    </Style>
+
+    <!-- ───────────────────── Surfaces ───────────────────── -->
+    <!-- The standard rounded card (Windows 11 = 8px). -->
+    <Style Selector="Border.card">
+        <Setter Property="CornerRadius" Value="{DynamicResource CrispCardRadius}"/>
+        <Setter Property="Background" Value="{DynamicResource CrispCard}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource CrispCardBorder}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="16"/>
+    </Style>
+
+    <!-- A settings group card: rows stack inside with no padding of its own so
+         divider lines can run edge to edge. -->
+    <Style Selector="Border.settingsGroup">
+        <Setter Property="CornerRadius" Value="{DynamicResource CrispCardRadius}"/>
+        <Setter Property="Background" Value="{DynamicResource CrispCard}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource CrispCardBorder}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="ClipToBounds" Value="True"/>
+    </Style>
+
+    <!-- Channel pill (WIN / DEV / NIGHTLY). -->
+    <Style Selector="Border.badge">
+        <Setter Property="CornerRadius" Value="4"/>
+        <Setter Property="Padding" Value="6,1"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Background" Value="{DynamicResource CrispAccent}"/>
+    </Style>
+    <Style Selector="Border.badge > TextBlock">
+        <Setter Property="FontSize" Value="10"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="White"/>
+    </Style>
+
+    <!-- Transparent icon button used in headers (History / Settings). -->
+    <Style Selector="Button.iconButton">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="8"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource CrispControlRadius}"/>
+        <Setter Property="Width" Value="36"/>
+        <Setter Property="Height" Value="32"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+
+    <!-- A subtle "link" button (text-only accent action). -->
+    <Style Selector="Button.link">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Foreground" Value="{DynamicResource CrispAccent}"/>
+    </Style>
+
+    <!-- ───────────────────── SettingsRow control ───────────────────── -->
+    <Style Selector="controls|SettingsRow">
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Background="Transparent" BorderBrush="{DynamicResource CrispDivider}"
+                        BorderThickness="0,0,0,1" Padding="16,12">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <TextBlock Grid.Column="0" Classes="icon" Margin="0,0,14,0" FontSize="18"
+                                   Foreground="{DynamicResource CrispSecondary}"
+                                   Text="{TemplateBinding Glyph}"
+                                   IsVisible="{TemplateBinding Glyph, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2" Margin="0,0,12,0">
+                            <TextBlock Classes="body" Text="{TemplateBinding Header}" TextWrapping="Wrap"/>
+                            <TextBlock Classes="caption" Text="{TemplateBinding Description}" TextWrapping="Wrap"
+                                       IsVisible="{TemplateBinding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                        </StackPanel>
+                        <ContentPresenter Grid.Column="2" VerticalAlignment="Center"
+                                          HorizontalAlignment="Right"
+                                          Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"/>
+                    </Grid>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <!-- Last row in a group has no trailing divider. -->
+    <Style Selector="controls|SettingsRow:nth-last-child(1) /template/ Border">
+        <Setter Property="BorderThickness" Value="0"/>
+    </Style>
+
+    <!-- ───────────────────── Segmented strength picker ───────────────────── -->
+    <Style Selector="ListBox.segment">
+        <Setter Property="Background" Value="{DynamicResource CrispInset}"/>
+        <Setter Property="Padding" Value="3"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource CrispControlRadius}"/>
+    </Style>
+    <Style Selector="ListBox.segment > ListBoxItem">
+        <Setter Property="CornerRadius" Value="4"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Margin" Value="0"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+    </Style>
+    <Style Selector="ListBox.segment > ListBoxItem:selected /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource CrispAccent}"/>
+        <Setter Property="CornerRadius" Value="4"/>
+    </Style>
+    <Style Selector="ListBox.segment > ListBoxItem:selected">
+        <Setter Property="Foreground" Value="White"/>
+    </Style>
+</Styles>
