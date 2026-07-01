@@ -23,7 +23,7 @@
 
         <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,18">
             <TextBlock Grid.Column="0" Text="History" Classes="pageTitle"/>
-            <Button Grid.Column="1" Content="Clear history" Click="OnClear"
+            <Button Grid.Column="1" Content="Clear History" Click="OnClear"
                     IsEnabled="{Binding !IsEmpty}" VerticalAlignment="Center"/>
         </Grid>
 
