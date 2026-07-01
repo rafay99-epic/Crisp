@@ -7,7 +7,8 @@ created_date: '2026-07-02'
 updated_date: '2026-07-02'
 labels: []
 dependencies: []
-references: []
+references:
+  - 'https://github.com/rafay99-epic/Crisp/pull/155'
 priority: high
 ordinal: 29000
 ---
