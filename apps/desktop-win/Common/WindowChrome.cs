@@ -32,12 +32,13 @@ public static class WindowChrome
         w.Icon = ChannelIcon();
     }
 
-    // The per-channel app icon (blue / amber / purple waveform) shown in the taskbar
-    // and Alt-Tab. Baked into the exe via <ApplicationIcon> too, but a running window
-    // needs Window.Icon set explicitly — including under `dotnet run`. Loaded once.
+    // The per-channel app icon (blue / amber / purple waveform) shown in the taskbar,
+    // Alt-Tab, and the system tray. Baked into the exe via <ApplicationIcon> too, but a
+    // running window needs Window.Icon set explicitly — including under `dotnet run`.
+    // Loaded once.
     private static WindowIcon? _icon;
 
-    private static WindowIcon ChannelIcon()
+    public static WindowIcon ChannelIcon()
     {
         if (_icon is not null) return _icon;
         var name = Channels.Current switch

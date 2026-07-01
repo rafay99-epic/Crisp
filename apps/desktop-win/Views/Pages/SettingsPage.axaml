@@ -1,25 +1,20 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:svc="using:Crisp.Services"
-        xmlns:models="using:Crisp.Models"
-        xmlns:controls="using:Crisp.Views.Controls"
-        xmlns:crisp="using:Crisp"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="520" d:DesignHeight="680"
-        x:Class="Crisp.Views.SettingsWindow"
-        x:DataType="svc:EngineSettings"
-        Width="520" Height="700" MinWidth="460" MinHeight="480"
-        Background="Transparent"
-        WindowStartupLocation="CenterOwner"
-        Title="Crisp Settings">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:svc="using:Crisp.Services"
+             xmlns:models="using:Crisp.Models"
+             xmlns:controls="using:Crisp.Views.Controls"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="780" d:DesignHeight="620"
+             x:Class="Crisp.Views.Pages.SettingsPage"
+             x:DataType="svc:EngineSettings">
 
-    <Window.Styles>
-        <!-- Section header above each settings group. -->
+    <UserControl.Styles>
+        <!-- Section header above each settings group (WinUI "body strong"). -->
         <Style Selector="TextBlock.section">
-            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Margin" Value="2,10,0,4"/>
+            <Setter Property="Margin" Value="1,16,0,6"/>
         </Style>
         <Style Selector="ComboBox">
             <Setter Property="MinWidth" Value="150"/>
@@ -27,32 +22,13 @@
         <Style Selector="NumericUpDown">
             <Setter Property="Width" Value="150"/>
         </Style>
-    </Window.Styles>
+    </UserControl.Styles>
 
     <DockPanel LastChildFill="True">
-
-        <!-- Reserve the native (Mica) caption strip so content clears it. -->
-        <Panel DockPanel.Dock="Top" Height="{x:Static crisp:WindowChrome.TitleBarHeight}"/>
-
-        <!-- HEADER -->
-        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="10"
-                    Margin="24,6,24,6" VerticalAlignment="Center">
-            <controls:WaveformMark Height="22" VerticalAlignment="Center"/>
-            <TextBlock Text="Settings" Classes="subtitle" VerticalAlignment="Center"/>
-        </StackPanel>
-
-        <!-- FOOTER -->
-        <Border DockPanel.Dock="Bottom" Background="{DynamicResource CrispCard}"
-                BorderBrush="{DynamicResource CrispCardBorder}" BorderThickness="0,1,0,0" Padding="24,12">
-            <Grid ColumnDefinitions="Auto,*,Auto">
-                <Button Grid.Column="0" Content="Reveal log files" Click="OnRevealLogs"
-                        Classes="link" VerticalAlignment="Center"/>
-                <Button Grid.Column="2" Content="Done" Click="OnDone" Classes="accent"/>
-            </Grid>
-        </Border>
+        <TextBlock DockPanel.Dock="Top" Text="Settings" Classes="pageTitle" Margin="24,20,24,4"/>
 
         <ScrollViewer>
-            <StackPanel Margin="24,8,24,16" Spacing="4">
+            <StackPanel Margin="24,0,24,20" MaxWidth="820" HorizontalAlignment="Stretch">
 
                 <!-- Encoding -->
                 <TextBlock Classes="section" Text="Encoding"/>
@@ -105,7 +81,7 @@
 
                 <!-- Custom cutting -->
                 <TextBlock Classes="section" Text="Custom cutting"/>
-                <TextBlock Classes="caption" Margin="2,0,0,2" TextWrapping="Wrap"
+                <TextBlock Classes="caption" Margin="1,0,0,6" TextWrapping="Wrap"
                            Text="Used by the “Custom” strength. Noise floor and minimum keep apply to every clean."/>
                 <Border Classes="settingsGroup">
                     <StackPanel>
@@ -182,7 +158,7 @@
 
                 <!-- Presets -->
                 <TextBlock Classes="section" Text="Presets"/>
-                <TextBlock Classes="caption" Margin="2,0,0,2" TextWrapping="Wrap"
+                <TextBlock Classes="caption" Margin="1,0,0,6" TextWrapping="Wrap"
                            Text="Save the current recipe under a name, then pick it per file in the queue. New files start on the default."/>
                 <Border Classes="card">
                     <StackPanel Spacing="10">
@@ -235,7 +211,22 @@
                     </StackPanel>
                 </Border>
 
+                <!-- About -->
+                <TextBlock Classes="section" Text="About"/>
+                <Border Classes="settingsGroup">
+                    <StackPanel>
+                        <controls:SettingsRow x:Name="AboutRow" Header="Crisp"
+                                              Description="Removes pauses &amp; filler words from your recordings."
+                                              Glyph="&#xE946;"/>
+                        <controls:SettingsRow Header="Logs"
+                                              Description="Open the folder with Crisp's log files."
+                                              Glyph="&#xE7C3;">
+                            <Button Content="Open folder" Click="OnRevealLogs"/>
+                        </controls:SettingsRow>
+                    </StackPanel>
+                </Border>
+
             </StackPanel>
         </ScrollViewer>
     </DockPanel>
-</Window>
+</UserControl>

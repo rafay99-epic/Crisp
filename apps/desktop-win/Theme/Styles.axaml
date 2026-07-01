@@ -48,12 +48,25 @@
         <Setter Property="FontSize" Value="28"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
     </Style>
+    <!-- The big page heading at the top of every page (History, Settings…). -->
+    <Style Selector="TextBlock.pageTitle">
+        <Setter Property="FontFamily" Value="{DynamicResource CrispFontDisplay}"/>
+        <Setter Property="FontSize" Value="28"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
     <!-- Secondary / tertiary text colours (kept from the old system as aliases). -->
     <Style Selector="TextBlock.secondary">
         <Setter Property="Foreground" Value="{DynamicResource CrispSecondary}"/>
     </Style>
     <Style Selector="TextBlock.tertiary">
         <Setter Property="Foreground" Value="{DynamicResource CrispTertiary}"/>
+    </Style>
+    <!-- Status text. -->
+    <Style Selector="TextBlock.success">
+        <Setter Property="Foreground" Value="{DynamicResource CrispSuccess}"/>
+    </Style>
+    <Style Selector="TextBlock.danger">
+        <Setter Property="Foreground" Value="{DynamicResource CrispDanger}"/>
     </Style>
 
     <!-- Segoe Fluent Icons glyph text. -->
@@ -82,8 +95,25 @@
         <Setter Property="Padding" Value="0"/>
         <Setter Property="ClipToBounds" Value="True"/>
     </Style>
+    <!-- The page content layer to the right of the navigation pane — the WinUI
+         NavigationView content surface with the rounded top-left corner. -->
+    <Style Selector="Border.contentPane">
+        <Setter Property="CornerRadius" Value="{DynamicResource CrispPaneRadius}"/>
+        <Setter Property="Background" Value="{DynamicResource CrispLayer}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource CrispCardBorder}"/>
+        <Setter Property="BorderThickness" Value="1,1,0,0"/>
+        <Setter Property="ClipToBounds" Value="True"/>
+    </Style>
+    <!-- An InfoBar-style banner (update available, model download…). -->
+    <Style Selector="Border.infoBar">
+        <Setter Property="CornerRadius" Value="{DynamicResource CrispControlRadius}"/>
+        <Setter Property="Background" Value="{DynamicResource CrispBannerBg}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource CrispCardBorder}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="14,10"/>
+    </Style>
 
-    <!-- Channel pill (WIN / DEV / NIGHTLY). -->
+    <!-- Channel pill (DEV / NIGHTLY). -->
     <Style Selector="Border.badge">
         <Setter Property="CornerRadius" Value="4"/>
         <Setter Property="Padding" Value="6,1"/>
@@ -96,7 +126,7 @@
         <Setter Property="Foreground" Value="White"/>
     </Style>
 
-    <!-- Transparent icon button used in headers (History / Settings). -->
+    <!-- Transparent icon button (row actions, header commands). -->
     <Style Selector="Button.iconButton">
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="0"/>
@@ -116,12 +146,52 @@
         <Setter Property="Foreground" Value="{DynamicResource CrispAccent}"/>
     </Style>
 
+    <!-- ───────────────────── Navigation pane ───────────────────── -->
+    <!-- WinUI NavigationViewItem: 36px row, subtle fill on hover/selection, and
+         the accent selection pill on the left edge when checked. -->
+    <Style Selector="controls|NavItem">
+        <Setter Property="Height" Value="36"/>
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Name="PART_Root" Background="Transparent"
+                        CornerRadius="{DynamicResource CrispControlRadius}">
+                    <Panel>
+                        <Border Name="PART_Indicator" Width="3" Height="16" CornerRadius="1.5"
+                                Background="{DynamicResource CrispAccent}"
+                                HorizontalAlignment="Left" VerticalAlignment="Center"
+                                IsVisible="False"/>
+                        <StackPanel Orientation="Horizontal" Spacing="14" Margin="12,0"
+                                    VerticalAlignment="Center">
+                            <TextBlock Classes="icon" Text="{TemplateBinding Glyph}"/>
+                            <ContentPresenter Content="{TemplateBinding Content}"
+                                              VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Panel>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="controls|NavItem:pointerover /template/ Border#PART_Root">
+        <Setter Property="Background" Value="{DynamicResource CrispSubtleFill}"/>
+    </Style>
+    <Style Selector="controls|NavItem:pressed /template/ Border#PART_Root">
+        <Setter Property="Background" Value="{DynamicResource CrispSubtleFillStrong}"/>
+    </Style>
+    <Style Selector="controls|NavItem:checked /template/ Border#PART_Root">
+        <Setter Property="Background" Value="{DynamicResource CrispSubtleFill}"/>
+    </Style>
+    <Style Selector="controls|NavItem:checked /template/ Border#PART_Indicator">
+        <Setter Property="IsVisible" Value="True"/>
+    </Style>
+
     <!-- ───────────────────── SettingsRow control ───────────────────── -->
     <Style Selector="controls|SettingsRow">
         <Setter Property="Template">
             <ControlTemplate>
                 <Border Background="Transparent" BorderBrush="{DynamicResource CrispDivider}"
-                        BorderThickness="0,0,0,1" Padding="16,12">
+                        BorderThickness="0,0,0,1" Padding="16,12" MinHeight="56">
                     <Grid ColumnDefinitions="Auto,*,Auto">
                         <TextBlock Grid.Column="0" Classes="icon" Margin="0,0,14,0" FontSize="18"
                                    Foreground="{DynamicResource CrispSecondary}"

@@ -8,7 +8,7 @@
     <!-- System tray presence (port of the macOS menu-bar item) -->
     <TrayIcon.Icons>
         <TrayIcons>
-            <TrayIcon Icon="/Assets/avalonia-logo.ico" ToolTipText="Crisp" Clicked="OnTrayClicked">
+            <TrayIcon Icon="/Assets/AppIcon.ico" ToolTipText="Crisp" Clicked="OnTrayClicked">
                 <TrayIcon.Menu>
                     <NativeMenu>
                         <NativeMenuItem Header="Open Crisp" Click="OnTrayOpen"/>

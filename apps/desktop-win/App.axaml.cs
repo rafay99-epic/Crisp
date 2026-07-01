@@ -39,23 +39,30 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            // Dev: --settings opens the Settings window directly (for screenshots) — construct
-            // EngineSettings alone, not the full VM (which would start engine/model resolution).
+            // The XAML tray icon is the Stable asset; swap in the channel icon + name
+            // so a Nightly/Dev instance is tellable apart in the tray.
+            if (TrayIcon.GetIcons(this) is { Count: > 0 } trayIcons)
+            {
+                trayIcons[0].Icon = WindowChrome.ChannelIcon();
+                trayIcons[0].ToolTipText = Crisp.Channels.Current.DisplayName();
+            }
+
+            var vm = new MainWindowViewModel();
+            var window = new MainWindow { DataContext = vm, Title = Crisp.Channels.Current.DisplayName() };
+            desktop.MainWindow = window;
+
+            // Dev: --settings / --history open the shell on that page (for screenshots),
+            // skipping the first-run onboarding cover so the page is actually visible.
             if (desktop.Args?.Contains("--settings") == true)
             {
-                desktop.MainWindow = new SettingsWindow { DataContext = new Crisp.Services.EngineSettings() };
-                base.OnFrameworkInitializationCompleted();
-                return;
+                vm.Onboarding.Complete();
+                window.NavigateTo("settings");
             }
-            // Dev: --history opens the History window (reads CRISP_DATA_DIR for screenshots).
-            if (desktop.Args?.Contains("--history") == true)
+            else if (desktop.Args?.Contains("--history") == true)
             {
-                desktop.MainWindow = new HistoryWindow { DataContext = new Crisp.Services.HistoryStore() };
-                base.OnFrameworkInitializationCompleted();
-                return;
+                vm.Onboarding.Complete();
+                window.NavigateTo("history");
             }
-            var vm = new MainWindowViewModel();
-            desktop.MainWindow = new MainWindow { DataContext = vm, Title = Crisp.Channels.Current.DisplayName() };
 
             // "Open With" / file-association: video paths on the command line are queued
             // (both Windows and macOS pass argv).

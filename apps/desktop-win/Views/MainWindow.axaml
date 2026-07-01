@@ -1,15 +1,15 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Crisp.ViewModels"
-        xmlns:models="using:Crisp.Models"
         xmlns:controls="using:Crisp.Views.Controls"
+        xmlns:pages="using:Crisp.Views.Pages"
         xmlns:crisp="using:Crisp"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="680" d:DesignHeight="600"
+        mc:Ignorable="d" d:DesignWidth="980" d:DesignHeight="660"
         x:Class="Crisp.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
-        Width="680" Height="600" MinWidth="600" MinHeight="500"
+        Width="980" Height="660" MinWidth="760" MinHeight="540"
         Background="Transparent"
         Title="Crisp">
 
@@ -18,257 +18,56 @@
     </Design.DataContext>
 
     <Grid>
-    <DockPanel LastChildFill="True">
+        <Grid RowDefinitions="Auto,*">
 
-        <!-- Reserve the native (Mica) caption strip so content clears it. -->
-        <Panel DockPanel.Dock="Top" Height="{x:Static crisp:WindowChrome.TitleBarHeight}"/>
+            <!-- Reserve the native (Mica) caption strip — the system draws the window
+                 title and caption buttons there and owns its input. -->
+            <Panel Grid.Row="0" Height="{x:Static crisp:WindowChrome.TitleBarHeight}"/>
 
-        <!-- HEADER (app mark + commands; native title bar sits above, Mica-tinted) -->
-        <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*,Auto" Margin="24,4,24,12">
-            <controls:WaveformMark Grid.Column="0" Height="30" VerticalAlignment="Center" Margin="0,0,12,0"/>
-            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <TextBlock Text="Crisp" Classes="subtitle" VerticalAlignment="Center"/>
-                    <Border Classes="badge"><TextBlock Text="WIN"/></Border>
-                    <Border Classes="badge" IsVisible="{Binding HasChannelBadge}"><TextBlock Text="{Binding ChannelBadge}"/></Border>
-                </StackPanel>
-                <TextBlock Classes="secondary" FontSize="13"
-                           Text="Remove pauses &amp; filler words from your recordings."/>
-            </StackPanel>
-            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
-                <Button Click="OnHistory" Classes="iconButton" ToolTip.Tip="History" AutomationProperties.Name="History">
-                    <TextBlock Classes="icon" Text="&#xE81C;"/>
-                </Button>
-                <Button Click="OnSettings" Classes="iconButton" ToolTip.Tip="Settings" AutomationProperties.Name="Settings">
-                    <TextBlock Classes="icon" Text="&#xE713;"/>
-                </Button>
-            </StackPanel>
+            <!-- NavigationView: pane on Mica, page content on the rounded layer. -->
+            <Grid Grid.Row="1" ColumnDefinitions="Auto,*">
+
+                <!-- Navigation pane -->
+                <DockPanel Grid.Column="0" Width="{DynamicResource CrispNavWidth}"
+                           Margin="4,6,4,4" LastChildFill="False">
+                    <StackPanel DockPanel.Dock="Top" Spacing="2">
+                        <controls:NavItem x:Name="NavHome" GroupName="Nav" Glyph="&#xE80F;" Content="Home"
+                                          IsChecked="True" IsCheckedChanged="OnNavChanged"/>
+                        <controls:NavItem x:Name="NavHistory" GroupName="Nav" Glyph="&#xE81C;" Content="History"
+                                          IsCheckedChanged="OnNavChanged"/>
+                    </StackPanel>
+                    <controls:NavItem DockPanel.Dock="Bottom" x:Name="NavSettings" GroupName="Nav"
+                                      Glyph="&#xE713;" Content="Settings"
+                                      IsCheckedChanged="OnNavChanged"/>
+                </DockPanel>
+
+                <!-- Page host -->
+                <Border Grid.Column="1" Classes="contentPane">
+                    <Panel>
+                        <pages:HomePage x:Name="PageHome"/>
+                        <pages:HistoryPage x:Name="PageHistory" DataContext="{Binding History}" IsVisible="False"/>
+                        <pages:SettingsPage x:Name="PageSettings" DataContext="{Binding Settings}" IsVisible="False"/>
+                    </Panel>
+                </Border>
+            </Grid>
         </Grid>
 
-        <!-- Update banner (shown when a newer release is available) -->
-        <Border DockPanel.Dock="Top" IsVisible="{Binding Updater.IsAvailable}" Margin="24,4,24,8"
-                Background="{DynamicResource CrispAccent}" CornerRadius="{DynamicResource CrispControlRadius}" Padding="14,10">
-            <Grid ColumnDefinitions="*,Auto">
-                <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="White"
-                           Text="{Binding Updater.AvailableVersion, StringFormat='A new version of Crisp ({0}) is available.'}"/>
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                    <Button Content="What’s new" Click="OnWhatsNew" Background="Transparent" BorderThickness="0"
-                            Foreground="White" VerticalAlignment="Center"/>
-                    <Button Content="Download" Command="{Binding DownloadUpdateCommand}"/>
+        <!-- Onboarding overlay — owns the window on first launch until "Get Started". -->
+        <Border IsVisible="{Binding Onboarding.IsPresented}" Background="{DynamicResource CrispWindowBg}">
+            <StackPanel Spacing="18" MaxWidth="460" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="32">
+                <controls:WaveformMark Height="52" HorizontalAlignment="Center"/>
+                <TextBlock Text="Welcome to Crisp" Classes="title" HorizontalAlignment="Center"/>
+                <TextBlock Classes="secondary" FontSize="14" HorizontalAlignment="Center" TextAlignment="Center"
+                           TextWrapping="Wrap"
+                           Text="Crisp tightens your screen recordings and talking-head videos — it removes long pauses and filler words and writes a clean cut. Your original is never touched."/>
+                <StackPanel Spacing="8" Margin="0,4">
+                    <TextBlock Classes="secondary" Text="• Drop a video (or several) and hit Clean."/>
+                    <TextBlock Classes="secondary" Text="• Pick how aggressively to cut in the bottom bar."/>
+                    <TextBlock Classes="secondary" Text="• Turn on filler/retake removal to download the speech model."/>
                 </StackPanel>
-            </Grid>
-        </Border>
-
-        <!-- BOTTOM BAR (pinned) -->
-        <Border DockPanel.Dock="Bottom" Background="{DynamicResource CrispCard}"
-                BorderBrush="{DynamicResource CrispCardBorder}" BorderThickness="0,1,0,0"
-                IsVisible="{Binding HasItems}" Padding="24,14">
-            <StackPanel Spacing="10">
-                <!-- model install gate (when fillers requested but model missing) -->
-                <Border IsVisible="{Binding NeedsModel}" Background="{DynamicResource CrispInset}"
-                        CornerRadius="{DynamicResource CrispControlRadius}" Padding="12">
-                    <StackPanel Spacing="8">
-                        <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding !Models.IsBusy}">
-                            <TextBlock Classes="body" Text="Filler removal needs the speech model." VerticalAlignment="Center"/>
-                            <Button Content="{Binding Models.SizeText, StringFormat='Download ({0})'}"
-                                    Command="{Binding DownloadModelCommand}" Classes="accent"/>
-                            <TextBlock Text="{Binding Models.Message}" Foreground="#FFE06666" VerticalAlignment="Center"/>
-                        </StackPanel>
-                        <StackPanel Spacing="4" IsVisible="{Binding Models.IsBusy}">
-                            <ProgressBar Minimum="0" Maximum="1" Value="{Binding Models.Progress}" Height="6"/>
-                            <TextBlock Classes="caption"
-                                       Text="{Binding Models.Progress, StringFormat='Downloading speech model… {0:P0}'}"/>
-                        </StackPanel>
-                    </StackPanel>
-                </Border>
-
-                <Grid ColumnDefinitions="*,Auto">
-                    <!-- LEADING: recipe / progress / summary -->
-                    <Panel Grid.Column="0" VerticalAlignment="Center">
-                        <!-- recipe (idle, files pending) -->
-                        <StackPanel IsVisible="{Binding BottomShowsRecipe}" Spacing="6" VerticalAlignment="Center">
-                            <StackPanel Orientation="Horizontal" Spacing="18">
-                                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                    <TextBlock Classes="secondary" Text="Cut" VerticalAlignment="Center"/>
-                                    <ComboBox ItemsSource="{Binding StrengthOptions}" SelectedItem="{Binding SelectedStrength}"
-                                              MinWidth="130">
-                                        <ComboBox.ItemTemplate>
-                                            <DataTemplate x:DataType="models:StrengthPreset">
-                                                <TextBlock Text="{Binding Name}"/>
-                                            </DataTemplate>
-                                        </ComboBox.ItemTemplate>
-                                    </ComboBox>
-                                </StackPanel>
-                                <CheckBox Content="Remove fillers" IsChecked="{Binding RemoveFillers}" VerticalAlignment="Center"/>
-                                <CheckBox Content="Remove retakes" IsChecked="{Binding RemoveRetakes}" VerticalAlignment="Center"
-                                          ToolTip.Tip="Remove a phrase you flubbed and immediately said again, keeping the corrected take."/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Spacing="16" HorizontalAlignment="Left">
-                                <Panel>
-                                    <Button Content="Estimate savings" Command="{Binding EstimateCommand}" Classes="link"
-                                            IsVisible="{Binding EstimateText, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
-                                    <TextBlock Classes="caption" Text="{Binding EstimateText}"
-                                               TextTrimming="CharacterEllipsis"
-                                               IsVisible="{Binding EstimateText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-                                </Panel>
-                                <Button Content="Preview cuts" Command="{Binding PreviewCutsCommand}" Classes="link"
-                                        IsVisible="{Binding CutPreview, Converter={x:Static ObjectConverters.IsNull}}"/>
-                                <TextBlock Classes="caption" Text="Analyzing…"
-                                           IsVisible="{Binding IsPreviewingCuts}"/>
-                            </StackPanel>
-                            <!-- cut preview: waveform with removed ranges shaded red -->
-                            <StackPanel Spacing="3" IsVisible="{Binding CutPreview, Converter={x:Static ObjectConverters.IsNotNull}}">
-                                <controls:WaveformView Preview="{Binding CutPreview}" Height="46"/>
-                                <TextBlock Classes="caption"
-                                           Text="Red marks the pauses that will be removed — drag the strength to update."/>
-                            </StackPanel>
-                        </StackPanel>
-                        <!-- progress (running) -->
-                        <StackPanel Orientation="Horizontal" Spacing="12" IsVisible="{Binding IsRunning}">
-                            <ProgressBar Minimum="0" Maximum="1" Value="{Binding OverallProgress}"
-                                         Width="180" VerticalAlignment="Center"/>
-                            <TextBlock Classes="secondary" Text="{Binding Status}" VerticalAlignment="Center"
-                                       TextTrimming="CharacterEllipsis"/>
-                        </StackPanel>
-                        <!-- summary (done) -->
-                        <TextBlock IsVisible="{Binding BottomShowsSummary}" Text="{Binding SummaryText}"
-                                   Foreground="#FF67C167" VerticalAlignment="Center" FontWeight="SemiBold"/>
-                    </Panel>
-
-                    <!-- TRAILING action -->
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                        <Button Content="Cancel" Command="{Binding CancelCommand}" IsVisible="{Binding IsRunning}"/>
-                        <Button Content="{Binding CleanButtonLabel}" Command="{Binding CleanAllCommand}"
-                                Classes="accent" IsVisible="{Binding BottomShowsRecipe}"/>
-                        <Button Content="Clear" Command="{Binding ClearCommand}" IsVisible="{Binding BottomShowsSummary}"/>
-                        <Button Content="Show in folder" Command="{Binding RevealAllCommand}" Classes="accent"
-                                IsVisible="{Binding BottomShowsSummary}"/>
-                    </StackPanel>
-                </Grid>
+                <Button Content="Get Started" Command="{Binding FinishOnboardingCommand}" Classes="accent"
+                        HorizontalAlignment="Center" MinWidth="120"/>
             </StackPanel>
         </Border>
-
-        <!-- MAIN CONTENT -->
-        <Panel Margin="24,8,24,16">
-            <!-- EMPTY: drop hero -->
-            <Grid IsVisible="{Binding IsEmpty}" MaxWidth="440" VerticalAlignment="Center" HorizontalAlignment="Center">
-                <Border Classes="card" Padding="40,52">
-                    <StackPanel HorizontalAlignment="Center" Spacing="14">
-                        <controls:WaveformMark Height="40" Opacity="0.9"/>
-                        <TextBlock Classes="subtitle" HorizontalAlignment="Center"
-                                   Text="{Binding IsDropTargeted, Converter={x:Static vm:Converters.DropText}}"/>
-                        <TextBlock Classes="secondary" Text="Drag videos here, or" HorizontalAlignment="Center"/>
-                        <Button Content="Choose videos…" Click="OnBrowse" Classes="accent" HorizontalAlignment="Center"/>
-                    </StackPanel>
-                </Border>
-                <Rectangle RadiusX="8" RadiusY="8" StrokeThickness="1.5" StrokeDashArray="7,5"
-                           IsHitTestVisible="False" Stroke="{DynamicResource CrispTertiary}"/>
-            </Grid>
-
-            <!-- QUEUE -->
-            <DockPanel IsVisible="{Binding HasItems}" LastChildFill="True">
-                <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="2,0,2,8">
-                    <TextBlock Grid.Column="0" Text="Queue" Classes="bodyStrong"/>
-                    <TextBlock Grid.Column="1" Classes="secondary" Text="{Binding CountLabel}"/>
-                </Grid>
-                <Border Classes="card" Padding="6">
-                    <ListBox ItemsSource="{Binding Queue}" Background="Transparent" SelectionMode="Single">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate x:DataType="models:QueueItem">
-                                <Grid ColumnDefinitions="22,*,Auto" Margin="4,6">
-                                    <!-- status glyph -->
-                                    <Panel Grid.Column="0" Width="22" VerticalAlignment="Center">
-                                        <Ellipse Width="11" Height="11" Stroke="Gray" StrokeThickness="1.4"
-                                                 IsVisible="{Binding IsWaiting}"/>
-                                        <Ellipse Width="11" Height="11" Fill="{DynamicResource CrispAccent}"
-                                                 IsVisible="{Binding IsRunning}"/>
-                                        <TextBlock Text="✓" Foreground="#FF67C167" FontWeight="Bold"
-                                                   IsVisible="{Binding IsDone}"/>
-                                        <TextBlock Text="!" Foreground="#FFE06666" FontWeight="Bold"
-                                                   IsVisible="{Binding IsFailed}"/>
-                                    </Panel>
-
-                                    <!-- name + secondary line -->
-                                    <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center" Margin="6,0">
-                                        <TextBlock Text="{Binding FileName}" TextTrimming="CharacterEllipsis"/>
-                                        <ProgressBar IsVisible="{Binding IsRunning}" Minimum="0" Maximum="1"
-                                                     Value="{Binding Progress}" Height="4"/>
-                                        <TextBlock IsVisible="{Binding IsRunning}" Classes="caption"
-                                                   Text="{Binding Stage}" TextTrimming="CharacterEllipsis"/>
-                                        <Panel IsVisible="{Binding IsWaiting}" HorizontalAlignment="Left">
-                                            <TextBlock Classes="caption" Text="Waiting"
-                                                       IsVisible="{Binding !$parent[ListBox].((vm:MainWindowViewModel)DataContext).HasPresets}"/>
-                                            <ComboBox FontSize="11" MinHeight="0" Padding="6,2" HorizontalAlignment="Left"
-                                                      AutomationProperties.Name="Preset for this file"
-                                                      IsVisible="{Binding $parent[ListBox].((vm:MainWindowViewModel)DataContext).HasPresets}"
-                                                      ItemsSource="{Binding $parent[ListBox].((vm:MainWindowViewModel)DataContext).PresetChoices}"
-                                                      SelectedValueBinding="{Binding Id}"
-                                                      SelectedValue="{Binding PresetId}"
-                                                      DisplayMemberBinding="{Binding Name}"/>
-                                        </Panel>
-                                        <TextBlock IsVisible="{Binding IsDone}" Classes="caption"
-                                                   Text="{Binding CutsSummary}"/>
-                                        <TextBlock IsVisible="{Binding IsFailed}" Classes="caption" Foreground="#FFE06666"
-                                                   Text="{Binding ErrorText}" TextTrimming="CharacterEllipsis"/>
-                                    </StackPanel>
-
-                                    <!-- trailing -->
-                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                                        <TextBlock IsVisible="{Binding IsDone}" Classes="caption"
-                                                   VerticalAlignment="Center"
-                                                   Text="{Binding SavedText, StringFormat='removed {0}'}"/>
-                                        <Button IsVisible="{Binding CanOpenInEditor}"
-                                                Content="{Binding $parent[ListBox].((vm:MainWindowViewModel)DataContext).OpenInEditorLabel}"
-                                                Command="{Binding $parent[ListBox].((vm:MainWindowViewModel)DataContext).OpenInEditorCommand}"
-                                                CommandParameter="{Binding}" Classes="accent"/>
-                                        <Button IsVisible="{Binding IsPlayable}" Content="Play" ToolTip.Tip="Play the cleaned video"
-                                                Command="{Binding $parent[ListBox].((vm:MainWindowViewModel)DataContext).PlayCommand}"
-                                                CommandParameter="{Binding}"/>
-                                        <Button IsVisible="{Binding IsDone}" Content="Reveal"
-                                                Command="{Binding $parent[ListBox].((vm:MainWindowViewModel)DataContext).RevealCommand}"
-                                                CommandParameter="{Binding}"/>
-                                        <Button IsVisible="{Binding HasBackup}" Content="Backup" ToolTip.Tip="Show the backed-up original"
-                                                Command="{Binding $parent[ListBox].((vm:MainWindowViewModel)DataContext).RevealBackupCommand}"
-                                                CommandParameter="{Binding}"/>
-                                        <Button IsVisible="{Binding HasBackup}" Content="Restore" ToolTip.Tip="Copy the backed-up original to a folder you choose"
-                                                Click="OnRestore"/>
-                                        <Button IsVisible="{Binding IsFailed}" Content="Retry"
-                                                Command="{Binding $parent[ListBox].((vm:MainWindowViewModel)DataContext).RetryCommand}"
-                                                CommandParameter="{Binding}"/>
-                                        <Button IsVisible="{Binding IsWaiting}" Content="Review"
-                                                ToolTip.Tip="Review &amp; edit the cuts before cleaning" Click="OnReview"/>
-                                        <Button IsVisible="{Binding IsWaiting}" Classes="iconButton" Width="28" Height="28" Padding="4"
-                                                AutomationProperties.Name="Remove from queue" ToolTip.Tip="Remove from queue"
-                                                Command="{Binding $parent[ListBox].((vm:MainWindowViewModel)DataContext).RemoveCommand}"
-                                                CommandParameter="{Binding}">
-                                            <TextBlock Classes="icon" FontSize="12" Text="&#xE711;"/>
-                                        </Button>
-                                    </StackPanel>
-                                </Grid>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-                </Border>
-            </DockPanel>
-        </Panel>
-    </DockPanel>
-
-    <!-- Onboarding overlay — owns the window on first launch until "Get Started". -->
-    <Border IsVisible="{Binding Onboarding.IsPresented}" Background="{DynamicResource CrispWindowBg}">
-        <StackPanel Spacing="18" MaxWidth="440" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="32">
-            <controls:WaveformMark Height="52" HorizontalAlignment="Center"/>
-            <TextBlock Text="Welcome to Crisp" Classes="title" HorizontalAlignment="Center"/>
-            <TextBlock Classes="secondary" FontSize="14" HorizontalAlignment="Center" TextAlignment="Center"
-                       TextWrapping="Wrap"
-                       Text="Crisp tightens your screen recordings and talking-head videos — it removes long pauses and filler words and writes a clean cut. Your original is never touched."/>
-            <StackPanel Spacing="8" Margin="0,4">
-                <TextBlock Classes="secondary" Text="• Drop a video (or several) and hit Clean."/>
-                <TextBlock Classes="secondary" Text="• Pick how aggressively to cut in the bottom bar."/>
-                <TextBlock Classes="secondary" Text="• Turn on filler/retake removal to download the speech model."/>
-            </StackPanel>
-            <Button Content="Get Started" Command="{Binding FinishOnboardingCommand}" Classes="accent"
-                    HorizontalAlignment="Center"/>
-        </StackPanel>
-    </Border>
     </Grid>
 </Window>

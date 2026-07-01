@@ -29,6 +29,29 @@ public partial class MainWindow : Window
         AddHandler(DragDrop.DropEvent, OnDrop);
     }
 
+    /// <summary>Select a navigation pane entry ("home" / "history" / "settings").</summary>
+    public void NavigateTo(string page)
+    {
+        var item = page switch
+        {
+            "history" => NavHistory,
+            "settings" => NavSettings,
+            _ => NavHome,
+        };
+        item.IsChecked = true;
+    }
+
+    private void OnNavChanged(object? sender, RoutedEventArgs e)
+    {
+        // Pages exist before InitializeComponent finishes wiring names on first fire.
+        if (PageHome is null || PageHistory is null || PageSettings is null) return;
+        PageHome.IsVisible = NavHome.IsChecked == true;
+        PageHistory.IsVisible = NavHistory.IsChecked == true;
+        PageSettings.IsVisible = NavSettings.IsChecked == true;
+        // History is written by the engine as cleans finish; re-read it on entry.
+        if (PageHistory.IsVisible) Vm?.History.Reload();
+    }
+
     private void OnDragOver(object? sender, DragEventArgs e)
     {
         var ok = e.DataTransfer.Contains(DataFormat.File);
@@ -44,7 +67,11 @@ public partial class MainWindow : Window
             .Select(f => f.TryGetLocalPath())
             .Where(p => p is not null)
             .Select(p => p!);
-        if (paths is not null) vm.AddFiles(paths);
+        if (paths is not null)
+        {
+            vm.AddFiles(paths);
+            NavigateTo("home"); // dropped files land in the queue — show it
+        }
     }
 
     protected override void OnDataContextChanged(EventArgs e)
@@ -62,74 +89,4 @@ public partial class MainWindow : Window
         _notifications ??= new WindowNotificationManager(this) { Position = NotificationPosition.BottomRight, MaxItems = 3 };
         _notifications.Show(new Notification("Crisp", summary, NotificationType.Success));
     });
-
-    private void OnSettings(object? sender, RoutedEventArgs e)
-    {
-        if (Vm is not { } vm) return;
-        // Shares the live EngineSettings instance — edits persist immediately.
-        new SettingsWindow { DataContext = vm.Settings }.ShowDialog(this);
-    }
-
-    private void OnWhatsNew(object? sender, RoutedEventArgs e)
-    {
-        if (Vm is { } vm) new WhatsNewWindow { DataContext = vm.Updater }.ShowDialog(this);
-    }
-
-    private void OnHistory(object? sender, RoutedEventArgs e)
-    {
-        if (Vm is not { } vm) return;
-        vm.History.Reload();
-        new HistoryWindow { DataContext = vm.History }.ShowDialog(this);
-    }
-
-    private async void OnRestore(object? sender, RoutedEventArgs e)
-    {
-        // async void: guard the whole body so a picker failure can't crash the app.
-        try
-        {
-            if (Vm is not { } vm || (sender as Control)?.DataContext is not Models.QueueItem item) return;
-            var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
-            {
-                Title = "Restore the original to…",
-                AllowMultiple = false,
-            });
-            if (folders.FirstOrDefault()?.TryGetLocalPath() is { } dir) vm.RestoreOriginal(item, dir);
-        }
-        catch { /* picker cancelled / copy failed — nothing to do */ }
-    }
-
-    private async void OnReview(object? sender, RoutedEventArgs e)
-    {
-        // async void: an unhandled exception here would crash the app, so guard the whole body.
-        try
-        {
-            if (Vm is not { } vm || (sender as Control)?.DataContext is not Models.QueueItem item) return;
-            var review = vm.CreateReview(item);
-            var win = new ReviewWindow { DataContext = review };
-            _ = review.LoadAsync(); // analyze in the background; the window shows "Analyzing…"
-            var applied = await win.ShowDialog<bool>(this);
-            if (applied) await vm.ApplyReviewAndCleanAsync(item, review);
-        }
-        catch { /* review/clean failure is surfaced on the row; never crash the window */ }
-    }
-
-    private async void OnBrowse(object? sender, RoutedEventArgs e)
-    {
-        // async void: any exception here would crash the app, so swallow picker failures.
-        try
-        {
-            var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-            {
-                Title = "Choose videos",
-                AllowMultiple = true,
-                FileTypeFilter = new[]
-                {
-                    new FilePickerFileType("Video") { Patterns = Crisp.VideoTypes.Extensions.Select(x => "*" + x).ToList() },
-                },
-            });
-            var paths = files.Select(f => f.TryGetLocalPath()).Where(p => p is not null).Select(p => p!).ToList();
-            if (paths.Count > 0 && Vm is { } vm) vm.AddFiles(paths);
-        }
-        catch { /* picker cancelled / failed — nothing to add */ }
-    }
 }

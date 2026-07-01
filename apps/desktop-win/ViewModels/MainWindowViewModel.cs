@@ -35,10 +35,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public bool IsEmpty => !HasItems;
 
-    // Channel identity (stable/nightly/dev) — adds a NIGHTLY/DEV badge in the header
-    // (the window title already carries the full name).
-    public string? ChannelBadge => Channels.Current.Badge();
-    public bool HasChannelBadge => ChannelBadge is not null;
+    // Channel identity (stable/nightly/dev) is carried by the window title
+    // ("Crisp Nightly" / "Crisp Dev") and the Settings ▸ About row.
 
     // Global recipe (applies to every file in the batch) — lives in the bottom bar.
     public IReadOnlyList<StrengthPreset> StrengthOptions { get; } = Strengths.All;

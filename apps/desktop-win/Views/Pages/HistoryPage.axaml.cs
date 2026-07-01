@@ -5,14 +5,13 @@ using Avalonia.Interactivity;
 using Crisp.Models;
 using Crisp.Services;
 
-namespace Crisp.Views;
+namespace Crisp.Views.Pages;
 
-public partial class HistoryWindow : Window
+public partial class HistoryPage : UserControl
 {
-    public HistoryWindow()
+    public HistoryPage()
     {
         InitializeComponent();
-        WindowChrome.ApplyMica(this);
     }
 
     private void OnClear(object? sender, RoutedEventArgs e)

@@ -5,17 +5,15 @@ using Avalonia.Platform.Storage;
 using Crisp.Models;
 using Crisp.Services;
 
-namespace Crisp.Views;
+namespace Crisp.Views.Pages;
 
-public partial class SettingsWindow : Window
+public partial class SettingsPage : UserControl
 {
-    public SettingsWindow()
+    public SettingsPage()
     {
         InitializeComponent();
-        WindowChrome.ApplyMica(this);
+        AboutRow.Header = $"{Channels.Current.DisplayName()} {CrispVersion.Current}";
     }
-
-    private void OnDone(object? sender, RoutedEventArgs e) => Close();
 
     private void OnRevealLogs(object? sender, RoutedEventArgs e)
     {
@@ -37,7 +35,8 @@ public partial class SettingsWindow : Window
     {
         try
         {
-            var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            if (TopLevel.GetTopLevel(this) is not { } top) return;
+            var folders = await top.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
             {
                 Title = "Choose a folder to watch",
                 AllowMultiple = false,
