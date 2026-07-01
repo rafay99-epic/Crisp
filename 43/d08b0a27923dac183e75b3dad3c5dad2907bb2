@@ -1,0 +1,27 @@
+apps/desktop-win/Common/Channel.cs
+  s_4262627b1efbe7::t_0e11f8a92a4071 30-32
+apps/desktop-win/Common/BuildInfo.cs
+  s_4262627b1efbe7::t_49be85215a9e8d 1
+  s_4262627b1efbe7::t_f6aa4caee5c704 21-26
+apps/desktop-win/Common/CrispVersion.cs
+  s_4262627b1efbe7::t_6d3dd0c49a4533 22
+  s_4262627b1efbe7::t_07816215d51472 11-13
+.github/workflows/windows.yml
+  s_4262627b1efbe7::t_9721f3fdaefbc0 168-170
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "43d08b0a27923dac183e75b3dad3c5dad2907bb2",
+  "prompts": {},
+  "sessions": {
+    "s_4262627b1efbe7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6aa2cb2f-89ff-4603-81a4-b917ebd9bf04",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
