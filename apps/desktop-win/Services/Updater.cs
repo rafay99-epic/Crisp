@@ -47,7 +47,7 @@ public partial class Updater : ObservableObject
                 var listJson = await GetAsync($"https://api.github.com/repos/{Repository}/releases?per_page=20");
                 if (listJson is null) { State = UpdaterState.UpToDate; return; }
                 using var listDoc = JsonDocument.Parse(listJson);
-                var prerelease = FirstPrerelease(listDoc.RootElement);
+                var prerelease = FirstWindowsPrerelease(listDoc.RootElement);
                 if (prerelease is null) { State = UpdaterState.UpToDate; return; }
                 root = prerelease.Value.Clone(); // survive listDoc disposal
             }
@@ -123,16 +123,19 @@ public partial class Updater : ObservableObject
         return m.Success && int.TryParse(m.Groups[1].Value, out var n) ? n : 0;
     }
 
-    /// The newest pre-release in a /releases list (nightly feed), skipping drafts and
-    /// full releases. The list is already newest-first.
-    private static JsonElement? FirstPrerelease(JsonElement releases)
+    /// The newest pre-release in a /releases list that actually carries a Windows
+    /// installer (.exe/.msi). The list is already newest-first. Asset-filtering
+    /// matters because the macOS nightly build ships its own rolling pre-release
+    /// (Crisp-Nightly.dmg only, tag `nightly`) alongside ours (`nightly-win`); we
+    /// must skip it — exactly as the macOS updater skips a release lacking its DMG.
+    private static JsonElement? FirstWindowsPrerelease(JsonElement releases)
     {
         if (releases.ValueKind != JsonValueKind.Array) return null;
         foreach (var r in releases.EnumerateArray())
         {
             var draft = r.TryGetProperty("draft", out var d) && d.GetBoolean();
             var pre = r.TryGetProperty("prerelease", out var p) && p.GetBoolean();
-            if (!draft && pre) return r;
+            if (!draft && pre && AssetUrl(r) is not null) return r;
         }
         return null;
     }

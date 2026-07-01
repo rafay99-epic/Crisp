@@ -12,6 +12,15 @@
     <AvaloniaResource Include="Assets\**" />
   </ItemGroup>
 
+  <!-- Build-time identity: the CI packaging step passes -p:CrispChannel/CrispVersion/
+       CrispBuildNumber so an installed app knows its channel + version without an env
+       var (env still overrides at runtime). See BuildInfo.cs. -->
+  <ItemGroup>
+    <AssemblyMetadata Include="CrispChannel"     Value="$(CrispChannel)"     Condition="'$(CrispChannel)' != ''" />
+    <AssemblyMetadata Include="CrispVersion"     Value="$(CrispVersion)"     Condition="'$(CrispVersion)' != ''" />
+    <AssemblyMetadata Include="CrispBuildNumber" Value="$(CrispBuildNumber)" Condition="'$(CrispBuildNumber)' != ''" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="12.0.5" />
     <PackageReference Include="Avalonia.Desktop" Version="12.0.5" />

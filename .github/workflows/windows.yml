@@ -1,11 +1,16 @@
 name: Windows
 
-# CI for the Windows port (apps/desktop-win, Avalonia/.NET). Mirrors the macOS
-# pipeline's gate: build → headless self-tests + the shared engine's Python tests
-# (run here on real Windows, so the OS-aware encoder branch is exercised on the
-# platform it targets) → publish a self-contained win-x64 build as an artifact a
-# reviewer can run. The engine lives in apps/desktop/Resources/engine and is
-# shared, so a change there also triggers this.
+# CI + release feed for the Windows port (apps/desktop-win, Avalonia/.NET). The
+# counterpart of the macOS pipeline (ci.yml / nightly.yml): detect a change to the
+# Windows app or the shared engine → build → headless self-tests + the shared
+# engine's OS-aware Python tests (run here on real Windows) → package a single
+# self-contained installer. On a push to `nightly` it also publishes that one
+# installer to a rolling Windows pre-release, in parallel with the macOS DMG.
+# Pull requests and dev builds run everything up to (and including) packaging so a
+# reviewer can smoke-test the installer — but they never publish a release.
+#
+# The engine lives in apps/desktop/Resources/engine and is shared, so a change
+# there triggers this too.
 on:
   push:
     branches: [main, nightly]
@@ -18,7 +23,7 @@ on:
       - "apps/desktop-win/**"
       - "apps/desktop/Resources/engine/**"
       - ".github/workflows/windows.yml"
-  workflow_dispatch: {} # run the heavy `package` job on demand (vendors binaries)
+  workflow_dispatch: {}
 
 permissions:
   contents: read
@@ -29,7 +34,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build, test & publish (win-x64)
+    name: Build & test (win-x64)
     runs-on: windows-latest
     defaults:
       run:
@@ -73,28 +78,15 @@ jobs:
         working-directory: apps/desktop/Resources/engine
         run: python -m unittest tests.test_encode_platform -v
 
-      - name: Publish self-contained win-x64
-        run: |
-          dotnet publish Crisp.csproj -c Release -r win-x64 --self-contained `
-            -p:PublishSingleFile=false -o publish
-          # Bundle the shared engine beside the .exe (ResolveEngineScript finds it at
-          # engine/clean_video.py). The win64 ffmpeg/whisper/python binaries are added
-          # by vendor-win.ps1 / resolved from PATH at runtime.
-          Copy-Item -Recurse -Force ../desktop/Resources/engine publish/engine
-
-      - name: Upload Windows build
-        uses: actions/upload-artifact@v7
-        with:
-          name: Crisp-win-x64
-          path: apps/desktop-win/publish
-
   # Vendors the engine binaries (ffmpeg/whisper/python, pinned + hash-checked) and
-  # produces the self-contained bundle + Crisp-Setup.exe installer — the build a user
-  # actually runs. The vendored binaries are cached on the vendor-script hash, so the
-  # heavy ffmpeg download + whisper.cpp build only happen when the pins change; after
-  # that the bundle is produced on every push, downloadable from the run's artifacts.
+  # produces the ONE file a user runs: Crisp-Setup.exe (Crisp-Nightly-Setup.exe on
+  # the nightly channel) — a single self-contained installer, uploaded as the run's
+  # only artifact. On a nightly push the identity (channel + version + build number)
+  # is baked into the exe so the installed app knows it's Nightly. The vendored
+  # binaries are cached on the vendor-script hash, so the heavy ffmpeg download +
+  # whisper.cpp build only run when the pins change.
   package:
-    name: Bundle self-contained + installer (win-x64)
+    name: Package installer (win-x64)
     runs-on: windows-latest
     needs: build
     defaults:
@@ -103,6 +95,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          fetch-depth: 0 # full history — the version is the commit count
           persist-credentials: false
       - uses: actions/setup-dotnet@v4
         with:
@@ -110,6 +103,17 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.x"
+
+      # Nightly on a push to `nightly`, else a plain stable verification build.
+      - name: Compute identity
+        run: |
+          $channel = if ($env:GITHUB_EVENT_NAME -eq 'push' -and $env:GITHUB_REF -eq 'refs/heads/nightly') { 'nightly' } else { 'stable' }
+          $asset   = if ($channel -eq 'nightly') { 'Crisp-Nightly-Setup.exe' } else { 'Crisp-Setup.exe' }
+          $version = "0.$(git rev-list --count HEAD)"
+          "CHANNEL=$channel"             | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "VERSION=$version"             | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "BUILD=$env:GITHUB_RUN_NUMBER" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "ASSET=$asset"                 | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
 
       - name: Cache vendored binaries
         uses: actions/cache@v4
@@ -122,26 +126,72 @@ jobs:
 
       - name: Publish + bundle the engine and its binaries
         run: |
-          dotnet publish Crisp.csproj -c Release -r win-x64 --self-contained -o publish
+          # Bake channel/version/build into the assembly so the installed app knows
+          # its identity without an env var (env still overrides). See BuildInfo.cs.
+          dotnet publish Crisp.csproj -c Release -r win-x64 --self-contained `
+            -p:CrispChannel=$env:CHANNEL -p:CrispVersion=$env:VERSION -p:CrispBuildNumber=$env:BUILD `
+            -o publish
           Copy-Item -Recurse -Force ../desktop/Resources/engine publish/engine
           New-Item -ItemType Directory -Force -Path publish/engine/bin | Out-Null
           Copy-Item -Recurse -Force .vendor/bin/* publish/engine/bin/
-
-      - name: Upload self-contained bundle
-        uses: actions/upload-artifact@v7
-        with:
-          name: Crisp-win-x64-bundle
-          path: apps/desktop-win/publish
 
       - name: Build installer (Inno Setup)
         run: |
           $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress }
-          $ver = if ($env:CRISP_VERSION) { $env:CRISP_VERSION } else { "0.0" }
-          & $iscc "/DSourceDir=$PWD\publish" "/DAppVersion=$ver" Scripts\crisp.iss
+          & $iscc "/DSourceDir=$PWD\publish" "/DAppVersion=$env:VERSION" Scripts\crisp.iss
+          Move-Item Scripts\Crisp-Setup.exe "Scripts\$env:ASSET" -Force
 
-      - name: Upload installer
+      - name: Upload installer (the single release file)
         uses: actions/upload-artifact@v7
         with:
-          name: Crisp-Setup
-          path: apps/desktop-win/Scripts/Crisp-Setup.exe
+          name: Crisp-Windows-Installer
+          path: apps/desktop-win/Scripts/*Setup.exe
+
+  # The Windows nightly feed. Only a push to `nightly` on the canonical repo
+  # publishes — a fork or a PR runs build+package to verify, then stops here.
+  # Refreshes a single rolling `nightly-win` pre-release carrying the one
+  # installer, mirroring the macOS `nightly` release; the two feeds are separate
+  # rolling tags so neither clobbers the other's asset. The updater orders builds
+  # by the "build <n>" in the title (Updater.ParseBuildNumber), so it MUST be there.
+  publish:
+    name: Publish Windows Nightly pre-release
+    runs-on: ubuntu-latest
+    needs: package
+    if: github.event_name == 'push' && github.ref == 'refs/heads/nightly' && github.repository == 'rafay99-epic/Crisp'
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/download-artifact@v7
+        with:
+          name: Crisp-Windows-Installer
+          path: dist
+
+      - name: Refresh the rolling "nightly-win" pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD: ${{ github.run_number }}
+        run: |
+          VERSION="0.$(git rev-list --count HEAD)"
+          SHA="$(git rev-parse --short HEAD)"
+          NOTES_FILE="$(mktemp)"
+          {
+            echo "Windows nightly build from the \`nightly\` branch @ \`$SHA\` (build $BUILD, version $VERSION-nightly)."
+            echo
+            echo "**Install:** download \`Crisp-Nightly-Setup.exe\` below and run it. Installs as **Crisp Nightly** — a separate app, settings, and data dir — so it sits next to a Stable install without touching it. Nightly auto-updates from this feed."
+            echo
+            echo "⚠️ Unsigned pre-release for testing. SmartScreen may warn on first run (More info → Run anyway)."
+          } > "$NOTES_FILE"
+          # A single fixed `nightly-win` tag that always holds the newest Windows
+          # nightly installer — the updater has no /latest/ URL for pre-releases, so
+          # it needs this stable pointer. Title MUST contain "build <n>".
+          gh release delete nightly-win --yes --cleanup-tag 2>/dev/null || true
+          gh release create nightly-win dist/*Setup.exe \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --title "Crisp Nightly (Windows) · build $BUILD" \
+            --notes-file "$NOTES_FILE"
