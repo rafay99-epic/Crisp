@@ -1,0 +1,21 @@
+bunfig.toml
+  s_c8752ad91ffac9::t_a91189735390b8 1-9
+.github/dependabot.yml
+  s_c8752ad91ffac9::t_8b81169126c1b6 2-7,13-14,23-24,30-31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "e773c31d64e3814ed7a1615383bfd46924a1a5a2",
+  "prompts": {},
+  "sessions": {
+    "s_c8752ad91ffac9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1078508d-45d5-4844-b3d8-a3c75a8b8516",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
