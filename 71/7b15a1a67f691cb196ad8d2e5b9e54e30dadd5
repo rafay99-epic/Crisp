@@ -1,0 +1,97 @@
+apps/desktop/Tests/CrispTests/CrispTests.swift
+  s_77278fca3d82ec::t_d159f518bafe5a 493-518
+  s_77278fca3d82ec::t_5fc34ba6b3f33d 135-145,147-154
+  s_77278fca3d82ec::t_4623698262ec09 146
+apps/desktop-win/Models/EngineConfig.cs
+  s_77278fca3d82ec::t_ae345a2d230a4f 25-28
+apps/desktop-win/ViewModels/ReviewModel.cs
+  s_77278fca3d82ec::t_4380f45f698d6f 73
+  s_77278fca3d82ec::t_12aefd8c9351a2 22
+  s_77278fca3d82ec::t_c59991d310b707 39-41,47
+apps/desktop/Sources/CrispCore/Engine/CleanRunner.swift
+  s_77278fca3d82ec::t_16d6c01685b8ea 109-113
+apps/desktop/Sources/CrispCore/Models/Preset.swift
+  s_77278fca3d82ec::t_6d3115a91db8d5 110
+  s_77278fca3d82ec::t_dd7fd11eefdebc 133-134
+  s_77278fca3d82ec::t_881c59a3792ca3 19-21
+  s_77278fca3d82ec::t_ec689a395eb01b 36,48-49
+  s_77278fca3d82ec::t_b98cee1f28c66b 78
+  s_77278fca3d82ec::t_fe969da257026e 92-93
+apps/desktop-win/Models/Preset.cs
+  s_77278fca3d82ec::t_59d4280c42ddcf 23-26
+apps/desktop/Sources/Crisp/Views/PreviewSheet.swift
+  s_77278fca3d82ec::t_65aabe1b15d608 59-60
+  s_77278fca3d82ec::t_8373ffef7d5087 43-48
+apps/desktop-win/Services/EngineSettings.cs
+  s_77278fca3d82ec::t_1c1521a2847979 212-213
+  s_77278fca3d82ec::t_053c9658d51325 269-272
+  s_77278fca3d82ec::t_771756f4768909 153
+  s_77278fca3d82ec::t_2a295ff9568a64 22-30
+  s_77278fca3d82ec::t_480e8c7be99ad1 95
+  s_77278fca3d82ec::t_f6a5b9bec813b4 167-170
+packages/engine/crisp/config.py
+  s_77278fca3d82ec::t_67896b229ab815 48-49
+apps/desktop/Sources/CrispCore/Engine/EngineConfig.swift
+  s_77278fca3d82ec::t_09f5e0c80e5fd8 208-209
+  s_77278fca3d82ec::t_536c2413ef6a75 17-21
+  s_77278fca3d82ec::t_a1928ddb1baec4 127
+  s_77278fca3d82ec::t_29b4ffed7b62ac 104
+  s_77278fca3d82ec::t_1de48288db1338 141-142
+  s_77278fca3d82ec::t_a77b521fb165dd 164-165
+packages/engine/tests/test_edit.py
+  s_77278fca3d82ec::t_b89d35905dca4e 142-208
+apps/desktop-win/Views/SettingsWindow.axaml
+  s_77278fca3d82ec::t_ba49489647a9d8 128-135
+apps/desktop/Sources/Crisp/Services/Cleaning/EngineSettings.swift
+  s_77278fca3d82ec::t_67f6f4c00c95c1 78
+  s_77278fca3d82ec::t_e9cc97ea424cbc 178-179
+  s_77278fca3d82ec::t_42b4c6a0c80b70 114-118
+  s_77278fca3d82ec::t_dfaa73c36e2aa3 18-21
+apps/desktop/Sources/CrispCore/Models/CleanParameters.swift
+  s_77278fca3d82ec::t_a45e06976db946 51-52
+  s_77278fca3d82ec::t_6ba1bcdc56617a 37
+  s_77278fca3d82ec::t_604d47d52c791e 10-14
+  s_77278fca3d82ec::t_9273dddb374701 83-87
+apps/desktop/Sources/Crisp/Services/EstimateModel.swift
+  s_77278fca3d82ec::t_fc0bf23be2d323 43-45
+packages/engine/crisp/pipeline.py
+  s_77278fca3d82ec::t_19c6d27a2d80c0 14-16
+  s_77278fca3d82ec::t_81211fb7ea35dd 362
+  s_77278fca3d82ec::t_d0cd29bdd406d5 619-620
+packages/engine/crisp/edit.py
+  s_77278fca3d82ec::t_3cfdf317f03635 14-15
+  s_77278fca3d82ec::t_38d3cde39eb881 129-130,135-140,146-147
+apps/desktop/Sources/Crisp/Services/ReviewModel.swift
+  s_77278fca3d82ec::t_9fb469330fb4c2 63-64
+apps/desktop/Sources/CrispCore/Engine/CutPreview.swift
+  s_77278fca3d82ec::t_911a2c2a68ff45 27-29,31-32,41,43
+apps/desktop-win/ViewModels/MainWindowViewModel.cs
+  s_77278fca3d82ec::t_5c8f465bac6373 326
+  s_77278fca3d82ec::t_0c79fcc7f09b8b 308
+  s_77278fca3d82ec::t_06e1eeb72b9b88 346-347
+apps/desktop/Sources/CrispCore/Models/EncodingOptions.swift
+  s_77278fca3d82ec::t_3ca3ab4ca9649c 165-185
+packages/engine/clean_video.py
+  s_77278fca3d82ec::t_dacd6a241a8baa 77-83
+  s_77278fca3d82ec::t_a0489246156d50 252
+  s_77278fca3d82ec::t_ed492d1e042aa2 57-58
+apps/desktop/Sources/Crisp/Views/SettingsView.swift
+  s_77278fca3d82ec::t_be12221875f7f6 62
+  s_77278fca3d82ec::t_b6739785e0361a 125-144
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "717b15a1a67f691cb196ad8d2e5b9e54e30dadd5",
+  "prompts": {},
+  "sessions": {
+    "s_77278fca3d82ec": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cd4010da-99af-4c01-95fa-a67e6669de5e",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
