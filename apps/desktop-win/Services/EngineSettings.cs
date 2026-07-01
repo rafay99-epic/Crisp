@@ -54,6 +54,17 @@ public partial class EngineSettings : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SelectedModel))]
     private string _selectedModelId = "base.en";
+
+    /// Use Crisp's Wren filler model instead of whisper for filler detection. Wren has
+    /// no transcript, so enabling it clears captions and the UI disables retakes +
+    /// captions while it's on (macOS parity: SettingsView fillerEnabledBinding).
+    [ObservableProperty] private bool _fillerModelEnabled;
+    partial void OnFillerModelEnabledChanged(bool value)
+    {
+        if (_loading) return;
+        FileLog.Info("filler-model", value ? "Wren enabled for filler detection" : "Wren disabled — back to whisper");
+        if (value && CaptionsFormat != "none") CaptionsFormat = "none"; // no transcript to caption from
+    }
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasCustomModel), nameof(CustomModelName))]
     private string _customModelPath = "";
@@ -129,6 +140,13 @@ public partial class EngineSettings : ObservableObject
     public bool HasCustomModel => !string.IsNullOrWhiteSpace(CustomModelPath) && System.IO.File.Exists(CustomModelPath);
     public string CustomModelName => HasCustomModel ? System.IO.Path.GetFileName(CustomModelPath) : "";
 
+    /// Whether the Wren inference helper exists on this machine (Settings binds the
+    /// toggle's enablement + description to this).
+    public bool FillerHelperAvailable => FillerHelper.Available;
+    public string WrenDescription => FillerHelperAvailable
+        ? "Crisp's own filler model — much faster than Whisper. Repeated takes and captions turn off while it's on."
+        : "Crisp's own filler model — coming to Windows soon (already available on macOS).";
+
     /// True when the user arrived with a saved settings.json (from a previous install or
     /// the macOS app on a shared home) — the tour greets them back and edits it in place.
     /// Captured before anything is written this session.
@@ -179,6 +197,7 @@ public partial class EngineSettings : ObservableObject
         BackupOriginal = _config.BackupOriginal;
         MaxParallel = _config.ManualConcurrency;
         SelectedModelId = _config.SelectedModelId;
+        FillerModelEnabled = _config.FillerModelEnabled;
         CustomModelPath = _config.CustomModelPath;
         ExportToEditor = _config.ExportToEditor;
         SplitTracks = _config.SplitTracks;
@@ -193,7 +212,12 @@ public partial class EngineSettings : ObservableObject
     protected override void OnPropertyChanged(PropertyChangedEventArgs e)
     {
         base.OnPropertyChanged(e);
-        if (!_loading) Save();
+        if (_loading) return;
+        if (e.PropertyName == nameof(CustomModelPath))
+            FileLog.Info("model", string.IsNullOrWhiteSpace(CustomModelPath)
+                ? "custom model cleared — back to the catalog model"
+                : $"custom model set → {CustomModelPath}");
+        Save();
     }
 
     private void Save()
@@ -220,6 +244,7 @@ public partial class EngineSettings : ObservableObject
         _config.BackupOriginal = BackupOriginal;
         _config.ManualConcurrency = MaxParallel;
         _config.SelectedModelId = SelectedModelId;
+        _config.FillerModelEnabled = FillerModelEnabled;
         _config.CustomModelPath = CustomModelPath;
         _config.ExportToEditor = ExportToEditor;
         _config.SplitTracks = SplitTracks;

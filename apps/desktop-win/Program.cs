@@ -382,7 +382,8 @@ sealed class Program
 
         var settings = new Crisp.Services.EngineSettings();
         var models = new Crisp.Services.ModelStore();
-        var tour = new Crisp.Services.OnboardingController(models, settings);
+        var filler = new Crisp.Services.ModelStore(Crisp.Models.FillerModelCatalog.Wren, fetchSidecar: false, logLabel: "filler-model");
+        var tour = new Crisp.Services.OnboardingController(models, filler, settings, fillerAvailable: true);
 
         Check(tour.IsPresented, "first run presents the tour");
         Check(tour.Step == Crisp.Services.OnboardingStep.Welcome && !tour.ShowsBack, "starts on Welcome with Skip");
@@ -395,8 +396,25 @@ sealed class Program
         tour.ContinueCommand.Execute(null);
         Check(tour.Step == Crisp.Services.OnboardingStep.Model, "gated Continue doesn't advance");
 
-        // A custom .bin satisfies the gate (works on every channel — the data home is
-        // per-channel, so each keeps its own choice).
+        // Wren, Crisp's custom model: pinned to the same HF repo + hash as macOS.
+        var wren = Crisp.Models.FillerModelCatalog.Wren;
+        Check(wren.Url.Contains("rafay99-epic/crisp-models") && wren.Url.Contains("v0.0.10"), "Wren pinned to the macOS catalog URL");
+        Check(wren.ApproxSizeText == "514 KB", "sub-MB sizes render as KB");
+        Check(wren.SidecarFileName == "Wren.config.json" && wren.SidecarUrl.EndsWith("v0.0.10/Wren.config.json"), "sidecar config derives from the model URL");
+
+        // Selecting Wren flips the shared fillerModelEnabled key and re-points the gate
+        // at the Wren install (not yet ready → still gated).
+        tour.IsWrenSelected = true;
+        Check(settings.FillerModelEnabled && tour.IsWrenSelected && !tour.IsBaseSelected, "picking Wren enables the filler model");
+        Check(!tour.ModelSatisfied, "Wren selected but not installed → gate stays closed");
+        settings.CaptionsFormat = "srt";
+        settings.FillerModelEnabled = false; settings.FillerModelEnabled = true;
+        Check(settings.CaptionsFormat == "none", "enabling Wren clears captions (no transcript)");
+
+        // Back to whisper: a custom .bin satisfies the gate (works on every channel —
+        // the data home is per-channel, so each keeps its own choice).
+        tour.IsBaseSelected = true;
+        Check(!settings.FillerModelEnabled, "picking a whisper model turns Wren off");
         var custom = Path.Combine(tmp, "my-model.bin");
         File.WriteAllText(custom, "x");
         settings.CustomModelPath = custom;
@@ -408,7 +426,7 @@ sealed class Program
         tour.ContinueCommand.Execute(null);
         Check(!tour.IsPresented, "finishing dismisses the tour");
 
-        var again = new Crisp.Services.OnboardingController(models, settings);
+        var again = new Crisp.Services.OnboardingController(models, filler, settings, fillerAvailable: true);
         Check(!again.IsPresented, "the marker persists — no re-present on next launch");
         again.Present();
         Check(again.IsPresented && again.Step == Crisp.Services.OnboardingStep.Welcome, "re-openable from Settings");

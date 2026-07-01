@@ -45,6 +45,15 @@
             <SolidColorBrush x:Key="CrispDanger"       Color="#FF99A4"/>
             <!-- InfoBar-style banner fill (WinUI CardBackgroundFillColorSecondary). -->
             <SolidColorBrush x:Key="CrispBannerBg"     Color="#FFFFFF" Opacity="0.03"/>
+            <!-- Accent button (WinUI AccentFillColor + TextOnAccent): dark theme uses
+                 the LIGHT accent tint with near-black text — the Windows 11 Settings-app
+                 look — not base accent with white text. -->
+            <SolidColorBrush x:Key="CrispAccentFill"         Color="{DynamicResource SystemAccentColorLight2}"/>
+            <SolidColorBrush x:Key="CrispAccentFillHover"    Color="{DynamicResource SystemAccentColorLight2}" Opacity="0.9"/>
+            <SolidColorBrush x:Key="CrispAccentFillPressed"  Color="{DynamicResource SystemAccentColorLight2}" Opacity="0.8"/>
+            <SolidColorBrush x:Key="CrispAccentFillDisabled" Color="#FFFFFF" Opacity="0.16"/>
+            <SolidColorBrush x:Key="CrispTextOnAccent"         Color="#000000"/>
+            <SolidColorBrush x:Key="CrispTextOnAccentDisabled" Color="#FFFFFF" Opacity="0.53"/>
         </ResourceDictionary>
 
         <!-- ───────────────────────── Light ───────────────────────── -->
@@ -63,6 +72,13 @@
             <SolidColorBrush x:Key="CrispSuccess"      Color="#0F7B0F"/>
             <SolidColorBrush x:Key="CrispDanger"       Color="#C42B1C"/>
             <SolidColorBrush x:Key="CrispBannerBg"     Color="#FFFFFF" Opacity="0.55"/>
+            <!-- Accent button, light theme: base accent fill with white text. -->
+            <SolidColorBrush x:Key="CrispAccentFill"         Color="{DynamicResource SystemAccentColor}"/>
+            <SolidColorBrush x:Key="CrispAccentFillHover"    Color="{DynamicResource SystemAccentColor}" Opacity="0.9"/>
+            <SolidColorBrush x:Key="CrispAccentFillPressed"  Color="{DynamicResource SystemAccentColor}" Opacity="0.8"/>
+            <SolidColorBrush x:Key="CrispAccentFillDisabled" Color="#000000" Opacity="0.22"/>
+            <SolidColorBrush x:Key="CrispTextOnAccent"         Color="#FFFFFF"/>
+            <SolidColorBrush x:Key="CrispTextOnAccentDisabled" Color="#FFFFFF"/>
         </ResourceDictionary>
     </ResourceDictionary.ThemeDictionaries>
 

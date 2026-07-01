@@ -87,7 +87,9 @@
                             <NumericUpDown AutomationProperties.Name="Audio bitrate in kbps"
                                            Minimum="64" Maximum="512" Increment="32" Value="{Binding AudioBitrateKbps}"/>
                         </controls:SettingsRow>
-                        <controls:SettingsRow Header="Captions" Description="Write a subtitle track alongside the video." Glyph="&#xED1E;">
+                        <controls:SettingsRow Header="Captions"
+                                              Description="Write a subtitle track alongside the video. Needs a transcript, so Wren turns this off."
+                                              Glyph="&#xED1E;" IsEnabled="{Binding !FillerModelEnabled}">
                             <ComboBox AutomationProperties.Name="Captions format" ItemsSource="{Binding CaptionFormats}" SelectedItem="{Binding CaptionsFormat}"
                                       ItemTemplate="{StaticResource CasedOption}"/>
                         </controls:SettingsRow>
@@ -116,7 +118,9 @@
                             <Slider Width="220" AutomationProperties.Name="Drop kept clips under (seconds)"
                                     Minimum="0" Maximum="0.5" Value="{Binding MinKeep}"/>
                         </controls:SettingsRow>
-                        <controls:SettingsRow Header="Repeated-Take Sensitivity">
+                        <controls:SettingsRow Header="Repeated-Take Sensitivity"
+                                              Description="Retakes need a transcript, so Wren turns this off."
+                                              IsEnabled="{Binding !FillerModelEnabled}">
                             <ComboBox AutomationProperties.Name="Repeated-take sensitivity" ItemsSource="{Binding RetakeSensitivities}" SelectedItem="{Binding RetakeSensitivity}"
                                       ItemTemplate="{StaticResource CasedOption}"/>
                         </controls:SettingsRow>
@@ -127,7 +131,34 @@
                 <TextBlock Classes="section" Text="Speech Model"/>
                 <Border Classes="settingsGroup">
                     <StackPanel>
-                        <controls:SettingsRow Header="Model" Description="{Binding SelectedModel.Summary}" Glyph="&#xE720;">
+                        <controls:SettingsRow Header="Use Wren, Crisp's Custom Model"
+                                              Description="{Binding WrenDescription}" Glyph="&#xE945;">
+                            <ToggleSwitch AutomationProperties.Name="Use Wren, Crisp's custom filler model"
+                                          IsChecked="{Binding FillerModelEnabled}"
+                                          IsEnabled="{Binding FillerHelperAvailable}"/>
+                        </controls:SettingsRow>
+                        <controls:SettingsRow Header="Wren Model" IsVisible="{Binding FillerModelEnabled}"
+                                              Description="Downloaded once from Hugging Face and verified.">
+                            <Panel>
+                                <Button Classes="accent"
+                                        Content="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).FillerModel.SizeText, StringFormat='Download ({0})'}"
+                                        Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).DownloadFillerModelCommand}"
+                                        IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).FillerModel.IsAbsent}"/>
+                                <TextBlock Classes="caption" Text="Downloading…" VerticalAlignment="Center"
+                                           IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).FillerModel.IsBusy}"/>
+                                <StackPanel Orientation="Horizontal" Spacing="6"
+                                            IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).FillerModel.IsReady}">
+                                    <TextBlock Classes="icon success" Text="&#xE73E;" FontSize="13"/>
+                                    <TextBlock Classes="success" Text="Installed" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <Button Content="Try Again"
+                                        Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).DownloadFillerModelCommand}"
+                                        IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).FillerModel.IsFailed}"/>
+                            </Panel>
+                        </controls:SettingsRow>
+                        <controls:SettingsRow Header="Whisper Model"
+                                              Description="{Binding SelectedModel.Summary}" Glyph="&#xE720;"
+                                              IsEnabled="{Binding !FillerModelEnabled}">
                             <ComboBox MinWidth="200" AutomationProperties.Name="Speech model"
                                       ItemsSource="{Binding ModelOptions}" SelectedItem="{Binding SelectedModel}">
                                 <ComboBox.ItemTemplate>
@@ -137,8 +168,9 @@
                                 </ComboBox.ItemTemplate>
                             </ComboBox>
                         </controls:SettingsRow>
-                        <controls:SettingsRow Header="Custom Model"
-                                              Description="Any whisper.cpp .bin — overrides the model above (leave empty to use it).">
+                        <controls:SettingsRow Header="Custom Whisper Model"
+                                              Description="Any whisper.cpp .bin — overrides the model above (leave empty to use it)."
+                                              IsEnabled="{Binding !FillerModelEnabled}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <TextBox Width="180" AutomationProperties.Name="Custom speech model path"
                                          PlaceholderText="Path to a .bin" Text="{Binding CustomModelPath}"/>

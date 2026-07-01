@@ -56,6 +56,22 @@
         <Style Selector="StackPanel.step">
             <Setter Property="Spacing" Value="10"/>
         </Style>
+        <!-- Step entrance: each page slides in from the right and fades, the same
+             move-and-fade the macOS tour uses. Runs whenever a step becomes visible. -->
+        <Style Selector="StackPanel.step[IsVisible=True]">
+            <Style.Animations>
+                <Animation Duration="0:0:0.35" Easing="CubicEaseOut" FillMode="Forward">
+                    <KeyFrame Cue="0%">
+                        <Setter Property="Opacity" Value="0"/>
+                        <Setter Property="TranslateTransform.X" Value="36"/>
+                    </KeyFrame>
+                    <KeyFrame Cue="100%">
+                        <Setter Property="Opacity" Value="1"/>
+                        <Setter Property="TranslateTransform.X" Value="0"/>
+                    </KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
     </UserControl.Styles>
 
     <DockPanel LastChildFill="True">
@@ -64,10 +80,10 @@
         <Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource CrispDivider}"
                 BorderThickness="0,1,0,0" Padding="20,12,20,14">
             <Grid ColumnDefinitions="Auto,*,Auto">
-                <Panel Grid.Column="0" MinWidth="70">
-                    <Button Content="Skip" Classes="link" Command="{Binding Onboarding.SkipCommand}"
+                <Panel Grid.Column="0" MinWidth="90">
+                    <Button Content="Skip" Command="{Binding Onboarding.SkipCommand}"
                             IsVisible="{Binding !Onboarding.ShowsBack}"/>
-                    <Button Content="Back" Classes="link" Command="{Binding Onboarding.BackCommand}"
+                    <Button Content="Back" Command="{Binding Onboarding.BackCommand}"
                             IsVisible="{Binding Onboarding.ShowsBack}"/>
                 </Panel>
                 <ItemsControl Grid.Column="1" ItemsSource="{Binding Onboarding.Dots}"
@@ -155,7 +171,7 @@
                     <Border Classes="heroTile"><TextBlock Text="&#xE720;"/></Border>
                     <TextBlock Classes="stepTitle" Text="Choose a speech model"/>
                     <TextBlock Classes="stepSubtitle" Margin="0,0,0,8"
-                               Text="Crisp detects filler words and repeated takes with a speech model that runs entirely on your PC. Install one to finish setup — pauses are always removed either way."/>
+                               Text="Crisp detects filler words and repeated takes with a model that runs entirely on your PC — a Whisper speech model, or Wren, Crisp's own faster custom model. Install one to finish setup; pauses are always removed either way."/>
 
                     <RadioButton Classes="optionCard" GroupName="TourModel"
                                  IsChecked="{Binding Onboarding.IsBaseSelected}"
@@ -190,9 +206,65 @@
                         </StackPanel>
                     </RadioButton>
 
+                    <!-- Wren — Crisp's own custom model (needs the crisp-filler helper;
+                         shows as coming soon on Windows until one ships). -->
+                    <RadioButton Classes="optionCard" GroupName="TourModel"
+                                 IsChecked="{Binding Onboarding.IsWrenSelected}"
+                                 IsEnabled="{Binding Onboarding.WrenAvailable}">
+                        <StackPanel Spacing="2">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Classes="bodyStrong" Text="{Binding Onboarding.WrenSpec.DisplayName}"/>
+                                    <Border Classes="tagCapsule"><TextBlock Text="CRISP'S OWN · FAST"/></Border>
+                                </StackPanel>
+                                <TextBlock Grid.Column="1" Classes="caption"
+                                           Text="{Binding Onboarding.WrenSpec.ApproxSizeText}"/>
+                            </Grid>
+                            <TextBlock Classes="caption" TextWrapping="Wrap"
+                                       Text="{Binding Onboarding.WrenSpec.Summary}"/>
+                            <TextBlock Classes="caption" TextWrapping="Wrap"
+                                       IsVisible="{Binding !Onboarding.WrenAvailable}"
+                                       Text="Coming to Windows soon — already available on macOS."/>
+                        </StackPanel>
+                    </RadioButton>
+
+                    <!-- Wren install control (mirrors the whisper one below). -->
+                    <Border Classes="card" IsVisible="{Binding Onboarding.IsWrenSelected}">
+                        <StackPanel Spacing="8">
+                            <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding FillerModel.IsAbsent}">
+                                <StackPanel Spacing="2" VerticalAlignment="Center" Margin="0,0,12,0">
+                                    <TextBlock Classes="bodyStrong"
+                                               Text="{Binding FillerModel.DisplayName, StringFormat='Install {0}'}"/>
+                                    <TextBlock Classes="caption" TextWrapping="Wrap"
+                                               Text="Downloaded once from Hugging Face and verified — it's tiny."/>
+                                </StackPanel>
+                                <Button Grid.Column="1" Classes="accent" VerticalAlignment="Center"
+                                        Content="{Binding FillerModel.SizeText, StringFormat='Download ({0})'}"
+                                        Command="{Binding DownloadFillerModelCommand}"/>
+                            </Grid>
+                            <StackPanel Spacing="5" IsVisible="{Binding FillerModel.IsBusy}">
+                                <ProgressBar Minimum="0" Maximum="1" Height="6"
+                                             Value="{Binding FillerModel.Progress}"
+                                             IsIndeterminate="{Binding FillerModel.IsVerifying}"/>
+                                <TextBlock Classes="caption" Text="Downloading…"/>
+                            </StackPanel>
+                            <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding FillerModel.IsFailed}">
+                                <TextBlock Classes="caption danger" TextWrapping="Wrap" VerticalAlignment="Center"
+                                           Margin="0,0,12,0" Text="{Binding FillerModel.Message}"/>
+                                <Button Grid.Column="1" Content="Try Again" VerticalAlignment="Center"
+                                        Command="{Binding DownloadFillerModelCommand}"/>
+                            </Grid>
+                            <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding FillerModel.IsReady}">
+                                <TextBlock Classes="icon success" Text="&#xE73E;" FontSize="14"/>
+                                <TextBlock Classes="success" FontWeight="SemiBold" VerticalAlignment="Center"
+                                           Text="Wren is installed and ready."/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
                     <!-- Install control: absent → download; busy → progress; failed → retry;
                          ready → confirmation. Downloaded from Hugging Face, SHA-256 verified. -->
-                    <Border Classes="card">
+                    <Border Classes="card" IsVisible="{Binding !Onboarding.IsWrenSelected}">
                         <StackPanel Spacing="8">
                             <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding Models.IsAbsent}">
                                 <StackPanel Spacing="2" VerticalAlignment="Center" Margin="0,0,12,0">
@@ -233,23 +305,6 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Custom model — available on every channel. -->
-                    <Border Classes="card">
-                        <Grid ColumnDefinitions="*,Auto">
-                            <StackPanel Spacing="2" Margin="0,0,12,0">
-                                <TextBlock Classes="bodyStrong" Text="Or use your own model"/>
-                                <TextBlock Classes="caption" TextWrapping="Wrap"
-                                           Text="Point Crisp at any whisper.cpp .bin on disk — it overrides the choice above."/>
-                                <TextBlock Classes="caption success" IsVisible="{Binding Settings.HasCustomModel}"
-                                           Text="{Binding Settings.CustomModelName, StringFormat='Using {0}'}"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                <Button Content="Browse…" Click="OnPickCustomModel"/>
-                                <Button Content="Clear" Click="OnClearCustomModel"
-                                        IsVisible="{Binding Settings.HasCustomModel}"/>
-                            </StackPanel>
-                        </Grid>
-                    </Border>
                 </StackPanel>
 
                 <!-- 6 · Preferences -->

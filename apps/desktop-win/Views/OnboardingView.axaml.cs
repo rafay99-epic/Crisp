@@ -15,31 +15,6 @@ public partial class OnboardingView : UserControl
         InitializeComponent();
     }
 
-    private async void OnPickCustomModel(object? sender, RoutedEventArgs e)
-    {
-        try
-        {
-            if (TopLevel.GetTopLevel(this) is not { } top || Vm is not { } vm) return;
-            var files = await top.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-            {
-                Title = "Choose a whisper.cpp model",
-                AllowMultiple = false,
-                FileTypeFilter = new[]
-                {
-                    new FilePickerFileType("Whisper model") { Patterns = new[] { "*.bin" } },
-                },
-            });
-            if (files.FirstOrDefault()?.TryGetLocalPath() is { } path)
-                vm.Settings.CustomModelPath = path;
-        }
-        catch { /* picker cancelled / failed */ }
-    }
-
-    private void OnClearCustomModel(object? sender, RoutedEventArgs e)
-    {
-        if (Vm is { } vm) vm.Settings.CustomModelPath = "";
-    }
-
     private async void OnPickWatchFolder(object? sender, RoutedEventArgs e)
     {
         try

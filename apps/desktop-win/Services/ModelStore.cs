@@ -18,9 +18,24 @@ public enum ModelState { Checking, Ready, Absent, Downloading, Verifying, Failed
 /// resumable (HTTP Range), verified by hash, and published atomically.
 public partial class ModelStore : ObservableObject
 {
-    private ModelSpec _spec = ModelCatalog.Base;
+    private ModelSpec _spec;
+    private readonly bool _fetchSidecar;
+    private readonly string _log;
     private static readonly HttpClient Http = new() { Timeout = Timeout.InfiniteTimeSpan };
     private CancellationTokenSource? _cts;
+
+    /// The whisper store (tracks the catalog selection).
+    public ModelStore() : this(ModelCatalog.Base, fetchSidecar: false, logLabel: "model") { }
+
+    /// A store pinned to one spec (the Wren filler model). `fetchSidecar` also pulls
+    /// the model's config.json beside it after publish (framing/threshold metadata the
+    /// engine passes to the helper) — best effort, like macOS FillerModelConfig.
+    public ModelStore(ModelSpec spec, bool fetchSidecar, string logLabel)
+    {
+        _spec = spec;
+        _fetchSidecar = fetchSidecar;
+        _log = logLabel;
+    }
 
     /// The catalog model this store currently tracks (the user's selection). Each model
     /// has its own file, so switching just re-points and re-checks disk.
@@ -57,6 +72,7 @@ public partial class ModelStore : ObservableObject
     {
         var spec = ModelCatalog.Spec(modelId);
         if (spec.Id == _spec.Id || State == ModelState.Downloading) return;
+        FileLog.Info(_log, $"switching to {spec.Id}");
         _spec = spec;
         OnPropertyChanged(nameof(Spec));
         OnPropertyChanged(nameof(SizeText));
@@ -74,12 +90,17 @@ public partial class ModelStore : ObservableObject
         if (File.Exists(ModelPath))
         {
             if (await VerifyAsync(ModelPath, CancellationToken.None)) { State = ModelState.Ready; return; }
+            FileLog.Error(_log, $"{_spec.FileName} on disk failed its hash check — removing");
             TryDelete(ModelPath); // mismatched → remove, next launch resolves Absent instantly
         }
         State = ModelState.Absent;
     }
 
-    public void Cancel() => _cts?.Cancel(); // keeps the .part for resume
+    public void Cancel()
+    {
+        FileLog.Info(_log, $"download of {_spec.Id} cancelled (.part kept for resume)");
+        _cts?.Cancel(); // keeps the .part for resume
+    }
 
     /// Download (resumable) → verify → atomic publish.
     public async Task DownloadAsync()
@@ -91,6 +112,8 @@ public partial class ModelStore : ObservableObject
 
         try
         {
+            var resuming = File.Exists(PartPath) ? $" (resuming from {new FileInfo(PartPath).Length / 1_000_000} MB)" : "";
+            FileLog.Info(_log, $"downloading {_spec.Id} from {_spec.Url}{resuming}");
             State = ModelState.Downloading;
             Progress = 0;
 
@@ -117,7 +140,7 @@ public partial class ModelStore : ObservableObject
         }
         catch (OperationCanceledException) { State = ModelState.Absent; } // .part kept for resume
         catch (TimeoutException) { Fail("The download stalled. Please try again."); }
-        catch (HttpRequestException) { Fail("Download failed. Check your connection and try again."); }
+        catch (HttpRequestException ex) { FileLog.Error(_log, $"download of {_spec.Id} failed: {ex.Message}"); Fail("Download failed. Check your connection and try again."); }
         catch (Exception ex) { Fail(ex.Message); }
         finally { _cts = null; }
     }
@@ -125,7 +148,24 @@ public partial class ModelStore : ObservableObject
     private void Publish()
     {
         File.Move(PartPath, ModelPath, overwrite: true); // atomic publish
+        FileLog.Info(_log, $"{_spec.FileName} verified and installed → {ModelPath}");
+        if (_fetchSidecar) _ = FetchSidecarAsync();
         State = ModelState.Ready;
+    }
+
+    /// Pull the model's config.json beside it (thresholds/framing the engine hands to
+    /// the filler helper). Best effort — the helper has built-in defaults without it.
+    private async Task FetchSidecarAsync()
+    {
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var bytes = await Http.GetByteArrayAsync(_spec.SidecarUrl, cts.Token);
+            var dst = Path.Combine(ModelsDir, _spec.SidecarFileName);
+            await File.WriteAllBytesAsync(dst, bytes, cts.Token);
+            FileLog.Info(_log, $"config sidecar fetched → {dst}");
+        }
+        catch (Exception ex) { FileLog.Info(_log, $"config sidecar skipped: {ex.Message}"); }
     }
 
     private static void TryDelete(string path) { try { File.Delete(path); } catch { /* best effort */ } }
@@ -208,5 +248,10 @@ public partial class ModelStore : ObservableObject
         catch { return false; }
     }
 
-    private void Fail(string message) { Message = message; State = ModelState.Failed; }
+    private void Fail(string message)
+    {
+        FileLog.Error(_log, $"{_spec.Id}: {message}");
+        Message = message;
+        State = ModelState.Failed;
+    }
 }

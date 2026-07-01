@@ -39,6 +39,12 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            // Launch line into the shared daily log (the engine appends to the same
+            // file), plus the same >30-day pruning the macOS app does.
+            FileLog.Info("app", $"launch {Crisp.Channels.Current.DisplayName()} v{CrispVersion.Current}"
+                + (BuildInfo.Get("CrispBuildNumber") is { Length: > 0 } bn ? $" build {bn}" : ""));
+            FileLog.PruneOldLogs();
+
             // The XAML tray icon is the Stable asset; swap in the channel icon + name
             // so a Nightly/Dev instance is tellable apart in the tray.
             if (TrayIcon.GetIcons(this) is { Count: > 0 } trayIcons)

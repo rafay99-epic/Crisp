@@ -50,6 +50,11 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     public ModelStore Models { get; } = new();
+    /// Crisp's Wren filler model — a second store over the same download/verify stack.
+    public ModelStore FillerModel { get; } = new(FillerModelCatalog.Wren, fetchSidecar: true, logLabel: "filler-model");
+    /// Whether the crisp-filler inference helper exists on this machine (Windows
+    /// doesn't bundle one yet — the Wren option shows as coming soon until it does).
+    public bool FillerHelperAvailable { get; } = FillerHelper.Available;
     public EngineSettings Settings { get; } = new();
 
     /// Per-row preset picker choices: a "Global recipe" sentinel (Id "") + the saved
@@ -61,23 +66,34 @@ public partial class MainWindowViewModel : ViewModelBase
     // The first-run tour; needs the model store + settings for its model-step gate.
     public OnboardingController Onboarding { get; }
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(NeedsModel), nameof(CanClean))]
+    [NotifyPropertyChangedFor(nameof(NeedsModel), nameof(CanClean), nameof(ClassifierActive),
+        nameof(NeedsWhisperDownload), nameof(NeedsFillerDownload))]
     [NotifyCanExecuteChangedFor(nameof(CleanAllCommand))]
     private bool _removeFillers;
 
     // Repeated-take removal also needs the speech model (it transcribes to find a
     // flubbed-then-repeated take), so it shares the model gate with fillers.
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(NeedsModel), nameof(CanClean))]
+    [NotifyPropertyChangedFor(nameof(NeedsModel), nameof(CanClean),
+        nameof(NeedsWhisperDownload), nameof(NeedsFillerDownload))]
     [NotifyCanExecuteChangedFor(nameof(CleanAllCommand))]
     private bool _removeRetakes;
 
     // Accepted video types live in the shared VideoTypes (one source of truth for the
     // queue, watch folder, Explorer verb, and picker) — use VideoTypes.IsVideo / .Extensions.
 
-    // A user-supplied model satisfies the gate without any download.
-    public bool NeedsModel => (RemoveFillers || RemoveRetakes) && !Settings.HasCustomModel && !Models.IsReady;
+    // Model gating — the same expressions as macOS ContentView.modelBlocks:
+    //  • Wren active → whisper is only needed for captions; the Wren install gates.
+    //  • otherwise fillers/retakes/captions need whisper (a user-supplied .bin counts).
+    private bool WantCaptions => Settings.CaptionsFormat != "none";
+    public bool ClassifierActive => RemoveFillers && Settings.FillerModelEnabled && FillerHelperAvailable;
+    private bool NeedsWhisper => WantCaptions || ((RemoveFillers || RemoveRetakes) && !ClassifierActive);
+    private bool WhisperReady => Settings.HasCustomModel || Models.IsReady;
+    public bool NeedsModel => (NeedsWhisper && !WhisperReady) || (ClassifierActive && !FillerModel.IsReady);
     public bool CanClean => !NeedsModel;
+    // Which install banner the bottom bar shows (XAML can't combine conditions).
+    public bool NeedsWhisperDownload => NeedsWhisper && !WhisperReady;
+    public bool NeedsFillerDownload => ClassifierActive && !FillerModel.IsReady;
 
     /// The model path handed to the engine: a custom .bin if set, else the selected
     /// catalog model once downloaded.
@@ -101,28 +117,28 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public MainWindowViewModel()
     {
-        Onboarding = new OnboardingController(Models, Settings);
+        Onboarding = new OnboardingController(Models, FillerModel, Settings, FillerHelperAvailable);
         _engine = new CrispEngine { ScriptPath = ResolveEngineScript() };
         Models.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName is nameof(ModelStore.State) or nameof(ModelStore.IsReady))
-            {
-                OnPropertyChanged(nameof(NeedsModel));
-                OnPropertyChanged(nameof(CanClean));
-                CleanAllCommand.NotifyCanExecuteChanged();
-            }
+                RefreshModelGate();
+        };
+        FillerModel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(ModelStore.State) or nameof(ModelStore.IsReady))
+                RefreshModelGate();
         };
         // Track the user's selected model; switch + recheck when it (or the custom path) changes.
         Settings.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(EngineSettings.SelectedModelId))
                 _ = Models.UseAsync(Settings.SelectedModelId);
-            if (e.PropertyName is nameof(EngineSettings.SelectedModelId) or nameof(EngineSettings.CustomModelPath))
-            {
-                OnPropertyChanged(nameof(NeedsModel));
-                OnPropertyChanged(nameof(CanClean));
-                CleanAllCommand.NotifyCanExecuteChanged();
-            }
+            if (e.PropertyName is nameof(EngineSettings.SelectedModelId)
+                or nameof(EngineSettings.CustomModelPath)
+                or nameof(EngineSettings.FillerModelEnabled)
+                or nameof(EngineSettings.CaptionsFormat))
+                RefreshModelGate();
             if (e.PropertyName == nameof(EngineSettings.ExportToEditor))
                 OnPropertyChanged(nameof(CleanButtonLabel));
             if (e.PropertyName is nameof(EngineSettings.WatchEnabled) or nameof(EngineSettings.WatchFolderPath))
@@ -139,11 +155,22 @@ public partial class MainWindowViewModel : ViewModelBase
         Queue.CollectionChanged += (_, _) => RefreshCounts();
         if (Settings.SelectedModelId != Models.Spec.Id) _ = Models.UseAsync(Settings.SelectedModelId);
         else _ = Models.RefreshAsync();
+        _ = FillerModel.RefreshAsync(); // Wren state is disk-derived too
         _ = Updater.CheckAsync(); // check for a newer release on launch (banner if found)
     }
 
     [RelayCommand]
     private void DownloadUpdate() => Updater.OpenDownload();
+
+    private void RefreshModelGate()
+    {
+        OnPropertyChanged(nameof(ClassifierActive));
+        OnPropertyChanged(nameof(NeedsModel));
+        OnPropertyChanged(nameof(NeedsWhisperDownload));
+        OnPropertyChanged(nameof(NeedsFillerDownload));
+        OnPropertyChanged(nameof(CanClean));
+        CleanAllCommand.NotifyCanExecuteChanged();
+    }
 
     private void RefreshCounts()
     {
@@ -491,8 +518,20 @@ public partial class MainWindowViewModel : ViewModelBase
             return args;
         }
 
-        // Both fillers and retakes need whisper to transcribe; pauses-only needs no model.
-        if ((RemoveFillers || RemoveRetakes) && ActiveModelPath is { } modelPath)
+        // Wren classifier: fillers found without a transcript, so no whisper model is
+        // passed; retakes are suppressed (they need a transcript) and captions were
+        // cleared when the toggle went on — the same flags macOS CleanRunner emits.
+        if (ClassifierActive && FillerModel.IsReady)
+        {
+            args.Add("--filler-backend"); args.Add("coreml");
+            args.Add("--filler-model"); args.Add(FillerModel.ModelPath);
+            args.Add("--no-retakes");
+            return args;
+        }
+
+        // Whisper path: fillers, retakes, and captions all transcribe; pauses-only needs
+        // no model.
+        if ((RemoveFillers || RemoveRetakes || WantCaptions) && ActiveModelPath is { } modelPath)
         {
             args.Add("--model"); args.Add(modelPath);
             if (!RemoveFillers) { args.Add("--no-fillers"); }
@@ -597,6 +636,12 @@ public partial class MainWindowViewModel : ViewModelBase
 
     [RelayCommand]
     private void CancelModel() => Models.Cancel();
+
+    [RelayCommand]
+    private Task DownloadFillerModel() => FillerModel.DownloadAsync();
+
+    [RelayCommand]
+    private void CancelFillerModel() => FillerModel.Cancel();
 
     // The detected editor for the handoff (first installed), resolved once at launch.
     public VideoEditor? DetectedEditor { get; } = EditorDetector.First();

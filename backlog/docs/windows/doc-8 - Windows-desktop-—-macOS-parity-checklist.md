@@ -39,7 +39,14 @@ Legend: ✅ done · 🔜 remaining · 🟡 partial · ⛔ N/A on Windows (Apple-
 - ✅ Resumable download + SHA-256 verify + atomic publish + self-heal
 - ✅ Model picker + custom `.bin` path (Browse picker in Settings and the onboarding
   model step; works on all three channels)
-- ⛔ Core ML on-device filler classifier (Apple-only; whisper path covers it)
+- 🟡 Wren filler classifier ("custom model") — app side fully ported: catalog pinned to
+  the same HF URL/sha as macOS, download + sidecar config, onboarding option card,
+  Settings toggle with the macOS enable/disable semantics (captions cleared+disabled,
+  retakes disabled, whisper only for captions), `--filler-backend coreml
+  --filler-model` + `CRISP_FILLER` wiring, per-model install banners. Shows honestly
+  as "coming soon" until the remaining piece ships: a **Windows `crisp-filler.exe`
+  inference helper** (the macOS one is Swift/Core ML; Windows needs an ONNX build
+  from the published `Wren.pt` weights)
 
 ## App UI / workflow
 - ✅ Main clean screen (drop card, strength, progress, result)

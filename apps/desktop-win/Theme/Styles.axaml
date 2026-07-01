@@ -146,6 +146,30 @@
         <Setter Property="Foreground" Value="{DynamicResource CrispAccent}"/>
     </Style>
 
+    <!-- The accent (primary) button, restyled to the real Windows 11 look: dark theme
+         uses the LIGHT accent tint with near-black text (like the Settings app's
+         primary buttons), light theme the base accent with white text. Avalonia's
+         built-in `accent` class paints base accent + white text in both, which reads
+         wrong in dark mode. Hover/pressed/disabled follow the WinUI opacity ramp. -->
+    <Style Selector="Button.accent">
+        <Setter Property="Background" Value="{DynamicResource CrispAccentFill}"/>
+        <Setter Property="Foreground" Value="{DynamicResource CrispTextOnAccent}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource CrispControlRadius}"/>
+    </Style>
+    <Style Selector="Button.accent:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource CrispAccentFillHover}"/>
+        <Setter Property="Foreground" Value="{DynamicResource CrispTextOnAccent}"/>
+    </Style>
+    <Style Selector="Button.accent:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource CrispAccentFillPressed}"/>
+        <Setter Property="Foreground" Value="{DynamicResource CrispTextOnAccent}"/>
+    </Style>
+    <Style Selector="Button.accent:disabled /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource CrispAccentFillDisabled}"/>
+        <Setter Property="Foreground" Value="{DynamicResource CrispTextOnAccentDisabled}"/>
+    </Style>
+
     <!-- ───────────────────── Navigation pane ───────────────────── -->
     <!-- WinUI NavigationViewItem: 36px row, subtle fill on hover/selection, and
          the accent selection pill on the left edge when checked. -->
@@ -288,12 +312,18 @@
         <Setter Property="Foreground" Value="White"/>
     </Style>
 
-    <!-- Page-indicator dots in the tour footer. -->
+    <!-- Page-indicator dots in the tour footer; the accent hand-off animates. -->
     <Style Selector="Ellipse.pageDot">
         <Setter Property="Width" Value="7"/>
         <Setter Property="Height" Value="7"/>
         <Setter Property="Fill" Value="{DynamicResource CrispTertiary}"/>
         <Setter Property="Opacity" Value="0.5"/>
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="Fill" Duration="0:0:0.25"/>
+                <DoubleTransition Property="Opacity" Duration="0:0:0.25"/>
+            </Transitions>
+        </Setter>
     </Style>
     <Style Selector="Ellipse.pageDot.current">
         <Setter Property="Fill" Value="{DynamicResource CrispAccent}"/>
