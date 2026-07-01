@@ -22,7 +22,7 @@ Synthetic test clips (one clean do-over) don't expose this — only real speech 
 
 ## The calibration (the actual work)
 Make detection **pickier** so it only fires on real do-overs. Three knobs in
-`apps/desktop/Resources/engine/crisp/config.py` + `retake.py`:
+`packages/engine/crisp/config.py` + `retake.py`:
 
 1. **Longer minimum match** — raise `RETAKE_MIN_RUN` 2 → 3 (a 3-word run repeating
    back-to-back is far rarer in natural speech than a 2-word one).

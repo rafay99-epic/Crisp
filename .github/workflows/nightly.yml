@@ -16,6 +16,7 @@ on:
       # A Windows-only change still rebuilds the DMG so the one shared `nightly`
       # release carries both assets built from the same commit (see windows.yml).
       - "apps/desktop-win/**"
+      - "packages/engine/**"
       - ".github/workflows/nightly.yml"
   workflow_dispatch:
 
@@ -44,7 +45,8 @@ jobs:
       - name: Run tests
         run: swift test
       - name: Run engine unit tests
-        run: python3 -m unittest discover -s Resources/engine/tests -t Resources/engine
+        working-directory: packages/engine
+        run: python3 -m unittest discover -s tests -t .
       - name: Install SwiftLint
         run: brew install swiftlint
       - name: Lint

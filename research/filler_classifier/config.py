@@ -2,7 +2,7 @@
 
 Kept in one place so feature extraction, training, inference, and the Core ML
 export all agree on the audio framing. These mirror the engine's analysis audio:
-16 kHz mono (see apps/desktop/Resources/engine/crisp/detect.py:extract_audio).
+16 kHz mono (see packages/engine/crisp/detect.py:extract_audio).
 """
 
 SAMPLE_RATE = 16000          # Hz — matches the engine's extracted analysis WAV

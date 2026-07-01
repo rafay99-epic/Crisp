@@ -114,7 +114,8 @@ jobs:
           brew install swiftlint
           swiftlint --reporter github-actions-logging
       - name: Python engine tests
-        run: python3 -m unittest discover -s Resources/engine/tests -t Resources/engine
+        working-directory: packages/engine
+        run: python3 -m unittest discover -s tests -t .
 
   # The website rides along to main in the promoted tree, so verify it's healthy
   # too — format, type-check, and build. There's no website release; this is a

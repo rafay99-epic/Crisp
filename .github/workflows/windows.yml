@@ -19,11 +19,13 @@ on:
     paths:
       - "apps/desktop/**"
       - "apps/desktop-win/**"
+      - "packages/engine/**"
       - ".github/workflows/windows.yml"
   pull_request:
     paths:
       - "apps/desktop/**"
       - "apps/desktop-win/**"
+      - "packages/engine/**"
       - ".github/workflows/windows.yml"
   workflow_dispatch: {}
 
@@ -77,7 +79,7 @@ jobs:
       # tests) runs comprehensively on macOS CI (ci.yml); many of those assert macOS
       # encoder names / POSIX path strings, so they're macOS-only by design.
       - name: Engine OS-aware encoder tests (Python, on Windows)
-        working-directory: apps/desktop/Resources/engine
+        working-directory: packages/engine
         run: python -m unittest tests.test_encode_platform -v
 
   # Vendors the engine binaries (ffmpeg/whisper/python, pinned + hash-checked) and
@@ -136,7 +138,7 @@ jobs:
           dotnet publish Crisp.csproj -c Release -r win-x64 --self-contained `
             -p:CrispChannel=$env:CHANNEL -p:CrispVersion=$env:VERSION -p:CrispBuildNumber=$env:BUILD `
             -o publish
-          Copy-Item -Recurse -Force ../desktop/Resources/engine publish/engine
+          Copy-Item -Recurse -Force ../../packages/engine publish/engine
           New-Item -ItemType Directory -Force -Path publish/engine/bin | Out-Null
           Copy-Item -Recurse -Force .vendor/bin/* publish/engine/bin/
 

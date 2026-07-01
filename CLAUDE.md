@@ -4,7 +4,7 @@ Crisp is a native macOS app (`apps/desktop`, Swift/SwiftUI) that cleans up
 screen-recordings / talking-head videos by removing **long pauses/silence** and
 **filler words** (um, uh, hmm, aww…) from audio + video together, producing tight
 jump-cuts. The heavy lifting is a stdlib-only Python engine
-(`apps/desktop/Resources/engine/clean_video.py`) the Swift app drives as a
+(`packages/engine/clean_video.py`) the Swift app drives as a
 subprocess. License: **GPL-3.0**. Conventions mirror the Vitals project.
 
 ## Product philosophy (drives every decision)
@@ -125,8 +125,9 @@ subprocess. License: **GPL-3.0**. Conventions mirror the Vitals project.
 # from apps/desktop:
 swift build           # debug compile
 swift test            # the Swift suite CI gates on
-# engine core tests (stdlib-only, no ffmpeg/whisper); CI gates on these too:
-python3 -m unittest discover -s Resources/engine/tests -t Resources/engine
+# engine core tests (stdlib-only, no ffmpeg/whisper); CI gates on these too.
+# The engine now lives at the repo root — run from packages/engine:
+( cd ../../packages/engine && python3 -m unittest discover -s tests -t . )
 ./build.sh            # universal release build → build/Crisp.app  (CRISP_CHANNEL selects channel)
 ./dev.sh              # build + install "Crisp Dev" next to Stable
 ./make-dmg.sh         # package the channel's DMG
@@ -176,7 +177,7 @@ Both layers write to one **per-channel, per-day** file:
   and turns unexpected exceptions into a logged traceback + a clean NDJSON `error`.
   Line format matches Swift's for one merged timeline.
 
-## The engine (`Resources/engine/`)
+## The engine (`packages/engine/`)
 
 - `clean_video.py` is a thin CLI wrapper (argparse + NDJSON/human emit); the engine
   lives in the `crisp/` package beside it — `config` (tunables + filler vocab),

@@ -24,7 +24,7 @@ reviews:
         display only (logic belongs in Services, never in Views); one shared
         component is never copy-pasted into two. The Python engine must stay
         UI-agnostic. Never add AI/Claude attribution in code, comments, or docs.
-    - path: "apps/desktop/Resources/engine/**/*.py"
+    - path: "packages/engine/**/*.py"
       instructions: >-
         Pure Python standard library ONLY — no pip / third-party imports (the
         target Python is bleeding-edge and lacks ML wheels). The engine shells out

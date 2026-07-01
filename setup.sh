@@ -7,7 +7,7 @@
 set -e
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-MODEL_DIR="$ROOT/apps/desktop/Resources/engine/models"
+MODEL_DIR="$ROOT/packages/engine/models"
 MODEL="$MODEL_DIR/ggml-base.en.bin"
 MODEL_URL="https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin"
 

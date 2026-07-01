@@ -65,8 +65,8 @@ echo "Vendoring engine binaries…"
 ./Scripts/vendor.sh
 echo "Bundling cleaning engine…"
 mkdir -p "$APP/Contents/Resources/engine"
-cp Resources/engine/clean_video.py "$APP/Contents/Resources/engine/clean_video.py"
-cp -R Resources/engine/crisp "$APP/Contents/Resources/engine/crisp"
+cp ../../packages/engine/clean_video.py "$APP/Contents/Resources/engine/clean_video.py"
+cp -R ../../packages/engine/crisp "$APP/Contents/Resources/engine/crisp"
 find "$APP/Contents/Resources/engine/crisp" -name __pycache__ -type d -prune -exec rm -rf {} +
 cp -R .vendor/bin "$APP/Contents/Resources/engine/bin"
 # The on-device filler detector (swift-built, not vendored). Lives beside

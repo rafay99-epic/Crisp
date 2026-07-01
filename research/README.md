@@ -1,7 +1,7 @@
 # research/ — model experiments for Crisp
 
 Heavy, dependency-laden ML code that is **never shipped**. The desktop engine
-(`apps/desktop/Resources/engine/`) stays stdlib-only; only an *exported model
+(`packages/engine/`) stays stdlib-only; only an *exported model
 artifact* (a Core ML `.mlpackage`) ever crosses into the app. This directory is
 where those artifacts are trained.
 

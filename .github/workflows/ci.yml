@@ -21,10 +21,12 @@ on:
       # A Windows-only promotion still cuts the stable release (with the rebuilt DMG)
       # that windows.yml attaches Crisp-Setup.exe to — one release, both assets.
       - "apps/desktop-win/**"
+      - "packages/engine/**"
       - ".github/workflows/ci.yml"
   pull_request:
     paths:
       - "apps/desktop/**"
+      - "packages/engine/**"
       - ".github/workflows/ci.yml"
 
 # Read-only by default — only the release job below is granted contents: write.
@@ -71,7 +73,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Run engine unit tests
-        run: python3 -m unittest discover -s Resources/engine/tests -t Resources/engine
+        working-directory: packages/engine
+        run: python3 -m unittest discover -s tests -t .
 
   # PR only: build + package the DMG (this IS the release-config build check —
   # build.sh does a universal `swift build -c release`, so a separate build job
