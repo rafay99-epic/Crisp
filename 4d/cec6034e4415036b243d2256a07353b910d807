@@ -1,0 +1,21 @@
+apps/desktop-win/ViewModels/ReviewModel.cs
+  s_77278fca3d82ec::t_191764d769cae5 22,39,70
+apps/desktop-win/ViewModels/MainWindowViewModel.cs
+  s_77278fca3d82ec::t_191764d769cae5 325,345
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "4dcec6034e4415036b243d2256a07353b910d807",
+  "prompts": {},
+  "sessions": {
+    "s_77278fca3d82ec": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cd4010da-99af-4c01-95fa-a67e6669de5e",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
