@@ -7,6 +7,11 @@ public struct CleanParameters: Equatable, Sendable {
     public let noiseDB: Double
     public let keepPause: Double
     public let minKeep: Double
+    // Pause handling — taken from the config for every clean (like the encoder
+    // choices): "remove" cuts a pause entirely; "tighten" keeps `tightPause` extra
+    // seconds of silence at it so pacing stays natural.
+    public let pauseMode: String     // "remove" | "tighten"
+    public let tightPause: Double    // seconds kept at each pause in tighten mode
     // Cut smoothing — taken from the config for every clean (like the encoder choices)
     public let fadeMs: Double
     public let crossfadeMs: Double
@@ -29,6 +34,7 @@ public struct CleanParameters: Equatable, Sendable {
     public let backupOriginal: Bool
 
     public init(pause: Double, noiseDB: Double, keepPause: Double, minKeep: Double,
+                pauseMode: String = "remove", tightPause: Double = 0.3,
                 fadeMs: Double = 10, crossfadeMs: Double = 0, snapMs: Double = 12,
                 videoCodec: String, hardwareEncoding: Bool, videoQuality: String,
                 audioCodec: String, audioBitrateKbps: Int, outputContainer: String,
@@ -42,6 +48,8 @@ public struct CleanParameters: Equatable, Sendable {
         self.noiseDB = noiseDB
         self.keepPause = keepPause
         self.minKeep = minKeep
+        self.pauseMode = pauseMode
+        self.tightPause = tightPause
         self.fadeMs = fadeMs
         self.crossfadeMs = crossfadeMs
         self.snapMs = snapMs
@@ -72,6 +80,11 @@ extension Strength {
             noiseDB: isCustom ? config.silenceFloorDB : EngineConfig.defaults.silenceFloorDB,
             keepPause: isCustom ? config.breathingRoom : keepPause,
             minKeep: isCustom ? config.minKeep : EngineConfig.defaults.minKeep,
+            // Clamp a hand-edited/corrupt value to the default so the engine's
+            // --pause-mode (which has fixed choices) never hard-fails a clean.
+            pauseMode: PauseMode(rawValue: config.pauseMode)?.rawValue
+                ?? PauseMode.remove.rawValue,
+            tightPause: config.tightPause,
             fadeMs: config.fadeMs,
             crossfadeMs: config.crossfadeMs,
             snapMs: config.snapMs,

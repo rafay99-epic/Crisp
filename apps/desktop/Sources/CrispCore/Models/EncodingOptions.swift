@@ -162,6 +162,27 @@ public enum RetakeSensitivity: String, CaseIterable, Identifiable {
     }
 }
 
+/// How detected pauses are handled. `remove` cuts them entirely (the original
+/// behaviour); `tighten` keeps a short configurable gap of silence at each pause
+/// so the pacing stays natural. Each `rawValue` is exactly the engine's
+/// `--pause-mode` value.
+public enum PauseMode: String, CaseIterable, Identifiable {
+    case remove, tighten
+    public var id: String { rawValue }
+    public var label: String {
+        switch self {
+        case .remove:  return "Remove"
+        case .tighten: return "Tighten"
+        }
+    }
+    public var detail: String {
+        switch self {
+        case .remove:  return "Cuts pauses out completely \u{2014} the tightest possible jump-cuts."
+        case .tighten: return "Keeps a short natural gap at each pause (set below) so speech doesn\u{2019}t sound rushed."
+        }
+    }
+}
+
 /// Format for the separate audio track when "split tracks" is on. `match` copies
 /// the cleaned audio stream as-is (lossless, no re-encode — `.m4a` for AAC, Ogg
 /// `.opus` for Opus); `wav` re-encodes it to uncompressed PCM, the format most

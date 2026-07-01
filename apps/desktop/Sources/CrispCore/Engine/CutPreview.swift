@@ -24,8 +24,12 @@ public enum CutPreview {
     ///   - pause: only silences at least this long are cut.
     ///   - keepPause: breathing room left on each side of a cut.
     ///   - minKeep: kept fragments shorter than this are dropped (folded into the cut).
+    ///   - pauseMode: "remove" cuts each pause entirely; "tighten" keeps `tightPause`
+    ///     extra seconds of silence at the pause start (mirrors `build_keep_segments`).
+    ///   - tightPause: seconds kept at each pause in tighten mode.
     public static func compute(silences: [(Double, Double)], duration: Double,
-                               pause: Double, keepPause: Double, minKeep: Double) -> Result {
+                               pause: Double, keepPause: Double, minKeep: Double,
+                               pauseMode: String = "remove", tightPause: Double = 0.3) -> Result {
         guard duration > 0 else { return Result(keep: [], pauseCount: 0, removedSeconds: 0) }
 
         // Long pauses → trim the middle, leaving keepPause on each side. Count a
@@ -34,8 +38,9 @@ public enum CutPreview {
         var remove: [(Double, Double)] = []
         var pauseCount = 0
         for (s, e) in silences where (e - s) >= pause {
-            let innerS = s + keepPause
+            var innerS = s + keepPause
             let innerE = e - keepPause
+            if pauseMode == PauseMode.tighten.rawValue { innerS += tightPause }
             if innerE - innerS > 0.01 {
                 remove.append((max(0, innerS), min(duration, innerE)))
                 pauseCount += 1

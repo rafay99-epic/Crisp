@@ -59,7 +59,7 @@ struct SettingsView: View {
 
     var body: some View {
         TabView {
-            tab { cuttingSection; retakeSection; smoothingSection; speechModelSection; fillerModelSection }
+            tab { cuttingSection; pauseSection; retakeSection; smoothingSection; speechModelSection; fillerModelSection }
                 .tabItem { Label("Cutting", systemImage: "scissors") }
 
             tab { encodingSection; editorSection; captionsSection; outputLocationSection; originalsSection }
@@ -118,6 +118,26 @@ struct SettingsView: View {
             Text("Custom cutting")
         } footer: {
             Text("Applied when \u{201C}How much to cut\u{201D} is set to Custom.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder private var pauseSection: some View {
+        Section {
+            Picker("Pause handling", selection: $settings.pauseMode) {
+                ForEach(PauseMode.allCases) { Text($0.label).tag($0.rawValue) }
+            }
+            .pickerStyle(.segmented)
+            Text(PauseMode(rawValue: settings.pauseMode)?.detail ?? "")
+                .font(.caption).foregroundStyle(.secondary)
+            if settings.pauseMode == PauseMode.tighten.rawValue {
+                row(Knob(title: "Gap to keep", help: "Silence left at each pause, on top of the breathing room.",
+                         unit: "s", range: 0.05...0.5, step: 0.05), $settings.tightPause)
+            }
+        } header: {
+            Text("Pauses")
+        } footer: {
+            Text("Applied to every clean \u{2014} whether a detected pause is cut out entirely or shortened to a natural gap.")
                 .font(.caption).foregroundStyle(.secondary)
         }
     }

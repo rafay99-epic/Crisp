@@ -125,6 +125,14 @@
                             <Slider Width="220" AutomationProperties.Name="Drop kept clips under (seconds)"
                                     Minimum="0" Maximum="0.5" Value="{Binding MinKeep}"/>
                         </controls:SettingsRow>
+                        <controls:SettingsRow Header="Pause handling" Description="Remove cuts pauses out entirely; Tighten keeps a short natural gap so speech doesn't sound rushed.">
+                            <ComboBox AutomationProperties.Name="Pause handling" ItemsSource="{Binding PauseModes}" SelectedItem="{Binding PauseMode}"/>
+                        </controls:SettingsRow>
+                        <controls:SettingsRow Header="{Binding TightPause, StringFormat='Gap to keep {0:0.00}s'}"
+                                              IsVisible="{Binding IsTightenMode}">
+                            <Slider Width="220" AutomationProperties.Name="Gap kept at each pause (seconds)"
+                                    Minimum="0.05" Maximum="0.5" Value="{Binding TightPause}"/>
+                        </controls:SettingsRow>
                         <controls:SettingsRow Header="Repeated-take sensitivity">
                             <ComboBox AutomationProperties.Name="Repeated-take sensitivity" ItemsSource="{Binding RetakeSensitivities}" SelectedItem="{Binding RetakeSensitivity}"/>
                         </controls:SettingsRow>

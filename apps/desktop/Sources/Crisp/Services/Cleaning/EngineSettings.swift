@@ -15,6 +15,10 @@ final class EngineSettings {
     var silenceFloorDB: Double { didSet { save() } }
     var breathingRoom: Double { didSet { save() } }
     var minKeep: Double { didSet { save() } }
+    // Pause handling (applied to every clean) — "remove" cuts pauses entirely;
+    // "tighten" keeps a short natural gap so pacing stays natural
+    var pauseMode: String { didSet { save() } }         // "remove" | "tighten"
+    var tightPause: Double { didSet { save() } }        // seconds kept at each pause
     // Cut smoothing (applied to every clean) — soften the splice so cuts don't click
     var fadeMs: Double { didSet { save() } }
     var crossfadeMs: Double { didSet { save() } }
@@ -71,6 +75,7 @@ final class EngineSettings {
         EngineConfig(version: EngineConfig.defaults.version,
                      pauseThreshold: pauseThreshold, silenceFloorDB: silenceFloorDB,
                      breathingRoom: breathingRoom, minKeep: minKeep,
+                     pauseMode: pauseMode, tightPause: tightPause,
                      fadeMs: fadeMs, crossfadeMs: crossfadeMs, snapMs: snapMs,
                      videoCodec: videoCodec, hardwareEncoding: hardwareEncoding,
                      videoQuality: videoQuality, audioCodec: audioCodec,
@@ -106,6 +111,11 @@ final class EngineSettings {
         silenceFloorDB = cfg.silenceFloorDB
         breathingRoom = cfg.breathingRoom
         minKeep = cfg.minKeep
+        // Clamp a hand-edited/unknown pause mode to the default so the Settings picker
+        // always has a valid selection (and the engine a legal --pause-mode); clamp the
+        // gap to the slider bounds like the smoothing values below.
+        pauseMode = PauseMode(rawValue: cfg.pauseMode)?.rawValue ?? EngineConfig.defaults.pauseMode
+        tightPause = min(max(cfg.tightPause, 0.05), 0.5)
         // Clamp persisted smoothing values to the Settings slider bounds, so a stale
         // or hand-edited config can't drive the engine past the UI limits.
         fadeMs = min(max(cfg.fadeMs, 0), 50)
@@ -165,6 +175,8 @@ final class EngineSettings {
         silenceFloorDB = d.silenceFloorDB
         breathingRoom = d.breathingRoom
         minKeep = d.minKeep
+        pauseMode = d.pauseMode
+        tightPause = d.tightPause
         fadeMs = d.fadeMs
         crossfadeMs = d.crossfadeMs
         snapMs = d.snapMs

@@ -16,6 +16,9 @@ public struct Preset: Identifiable, Codable, Equatable, Sendable {
     public var silenceFloorDB: Double
     public var breathingRoom: Double
     public var minKeep: Double
+    // Pause handling (applied to every clean)
+    public var pauseMode: String         // "remove" | "tighten"
+    public var tightPause: Double        // seconds kept at each pause in tighten mode
     // Encoding
     public var videoCodec: String
     public var hardwareEncoding: Bool
@@ -30,6 +33,7 @@ public struct Preset: Identifiable, Codable, Equatable, Sendable {
 
     public init(id: UUID = UUID(), name: String, strength: String,
                 pauseThreshold: Double, silenceFloorDB: Double, breathingRoom: Double, minKeep: Double,
+                pauseMode: String = "remove", tightPause: Double = 0.3,
                 videoCodec: String, hardwareEncoding: Bool, videoQuality: String,
                 audioCodec: String, audioBitrateKbps: Int, outputContainer: String,
                 colorDepth: String = "auto",
@@ -41,6 +45,8 @@ public struct Preset: Identifiable, Codable, Equatable, Sendable {
         self.silenceFloorDB = silenceFloorDB
         self.breathingRoom = breathingRoom
         self.minKeep = minKeep
+        self.pauseMode = pauseMode
+        self.tightPause = tightPause
         self.videoCodec = videoCodec
         self.hardwareEncoding = hardwareEncoding
         self.videoQuality = videoQuality
@@ -69,6 +75,7 @@ public struct Preset: Identifiable, Codable, Equatable, Sendable {
     // a preset saved at e.g. colorDepth "10" actually renders at "10" instead of the default.
     enum CodingKeys: String, CodingKey {
         case id, name, strength, pauseThreshold, silenceFloorDB, breathingRoom, minKeep
+        case pauseMode, tightPause
         case videoCodec, hardwareEncoding, videoQuality, audioCodec, audioBitrateKbps
         case outputContainer, colorDepth, outputDirectory, backupOriginal
     }
@@ -82,6 +89,8 @@ public struct Preset: Identifiable, Codable, Equatable, Sendable {
         silenceFloorDB = try c.decode(Double.self, forKey: .silenceFloorDB)
         breathingRoom = try c.decode(Double.self, forKey: .breathingRoom)
         minKeep = try c.decode(Double.self, forKey: .minKeep)
+        pauseMode = try c.decodeIfPresent(String.self, forKey: .pauseMode) ?? "remove"
+        tightPause = try c.decodeIfPresent(Double.self, forKey: .tightPause) ?? 0.3
         videoCodec = try c.decode(String.self, forKey: .videoCodec)
         hardwareEncoding = try c.decode(Bool.self, forKey: .hardwareEncoding)
         videoQuality = try c.decode(String.self, forKey: .videoQuality)
@@ -98,6 +107,7 @@ public struct Preset: Identifiable, Codable, Equatable, Sendable {
         self.init(id: id, name: name, strength: strength.rawValue,
                   pauseThreshold: config.pauseThreshold, silenceFloorDB: config.silenceFloorDB,
                   breathingRoom: config.breathingRoom, minKeep: config.minKeep,
+                  pauseMode: config.pauseMode, tightPause: config.tightPause,
                   videoCodec: config.videoCodec, hardwareEncoding: config.hardwareEncoding,
                   videoQuality: config.videoQuality, audioCodec: config.audioCodec,
                   audioBitrateKbps: config.audioBitrateKbps, outputContainer: config.outputContainer,
@@ -120,6 +130,8 @@ public struct Preset: Identifiable, Codable, Equatable, Sendable {
         cfg.silenceFloorDB = silenceFloorDB
         cfg.breathingRoom = breathingRoom
         cfg.minKeep = minKeep
+        cfg.pauseMode = pauseMode
+        cfg.tightPause = tightPause
         cfg.videoCodec = videoCodec
         cfg.hardwareEncoding = hardwareEncoding
         cfg.videoQuality = videoQuality

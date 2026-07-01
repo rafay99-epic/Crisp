@@ -54,7 +54,8 @@ from crisp.config import (
     DEFAULT_AUDIO_BITRATE, DEFAULT_AUDIO_CODEC, DEFAULT_COLOR_DEPTH, DEFAULT_CONTAINER,
     DEFAULT_CROSSFADE_MS, DEFAULT_EXPORT_TIMELINE, DEFAULT_FADE_MS, DEFAULT_FILLER_BACKEND, DEFAULT_FPS,
     DEFAULT_FPS_MODE, DEFAULT_KEEP_PAUSE, DEFAULT_MAX_PAUSE, DEFAULT_MODEL, DEFAULT_NOISE_DB,
-    DEFAULT_QUALITY, DEFAULT_RETAKE_SENSITIVITY, DEFAULT_SNAP_MS, DEFAULT_VIDEO_CODEC, MIN_KEEP,
+    DEFAULT_PAUSE_MODE, DEFAULT_QUALITY, DEFAULT_RETAKE_SENSITIVITY, DEFAULT_SNAP_MS,
+    DEFAULT_TIGHT_PAUSE, DEFAULT_VIDEO_CODEC, MIN_KEEP,
     RETAKE_SENSITIVITY_MIN_RUN,
 )
 from crisp.encode import SUPPORTED_CONTAINERS
@@ -73,6 +74,13 @@ def main():
                    help=f"breathing room left around each cut, in seconds (default {DEFAULT_KEEP_PAUSE})")
     p.add_argument("--min-keep", type=float, default=MIN_KEEP,
                    help=f"drop kept fragments shorter than this many seconds (default {MIN_KEEP})")
+    p.add_argument("--pause-mode", choices=["remove", "tighten"], default=DEFAULT_PAUSE_MODE,
+                   help=f"'remove' cuts detected pauses entirely; 'tighten' keeps --tight-pause "
+                        f"seconds of silence at each pause so pacing stays natural "
+                        f"(default {DEFAULT_PAUSE_MODE})")
+    p.add_argument("--tight-pause", type=float, default=DEFAULT_TIGHT_PAUSE,
+                   help=f"seconds of silence to keep at each pause in tighten mode, on top of "
+                        f"--keep-pause (default {DEFAULT_TIGHT_PAUSE})")
     p.add_argument("--fade-ms", type=float, default=DEFAULT_FADE_MS,
                    help=f"audio fade in/out at each cut so joins don't click, in ms "
                         f"(0 = off; default {DEFAULT_FADE_MS})")
@@ -241,6 +249,7 @@ def main():
     try:
         result = clean_video(args.video, out_path=args.out, model=args.model, pause=args.pause,
                              noise=args.noise, keep_pause=args.keep_pause, min_keep=args.min_keep,
+                             pause_mode=args.pause_mode, tight_pause=args.tight_pause,
                              video_codec=args.video_codec, hardware=args.hardware, quality=args.quality,
                              audio_codec=args.audio_codec, audio_bitrate=args.audio_bitrate,
                              container=args.container, color_depth=args.color_depth,

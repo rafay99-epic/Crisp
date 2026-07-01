@@ -139,6 +139,73 @@ class BuildKeepSegmentsTests(unittest.TestCase):
         self.assertEqual(stats["retakes"], 1)
 
 
+class BuildKeepSegmentsPauseModeTests(unittest.TestCase):
+    """Pause mode: "remove" cuts a pause entirely (the default, unchanged
+    behaviour); "tighten" keeps tight_pause extra seconds of silence at the
+    pause start so the pacing stays natural."""
+
+    def test_remove_mode_is_the_default(self):
+        keep, stats = build_keep_segments(
+            words=[], silences=[(3.0, 5.0)], duration=10.0,
+            keep_pause=0.15, min_keep=0.05)
+        self.assertEqual(keep, [(0.0, 3.15), (4.85, 10.0)])
+        self.assertEqual(stats["pauses"], 1)
+
+    def test_remove_mode_explicit_ignores_tight_pause(self):
+        keep, _stats = build_keep_segments(
+            words=[], silences=[(3.0, 5.0)], duration=10.0,
+            keep_pause=0.15, min_keep=0.05,
+            pause_mode="remove", tight_pause=0.3)
+        self.assertEqual(keep, [(0.0, 3.15), (4.85, 10.0)])
+
+    def test_tighten_keeps_a_gap_at_the_pause_start(self):
+        keep, stats = build_keep_segments(
+            words=[], silences=[(3.0, 5.0)], duration=10.0,
+            keep_pause=0.15, min_keep=0.05,
+            pause_mode="tighten", tight_pause=0.3)
+        self.assertEqual(len(keep), 2)
+        self.assertAlmostEqual(keep[0][1], 3.45)  # 3.0 + keep_pause + tight_pause
+        self.assertAlmostEqual(keep[1][0], 4.85)
+        self.assertEqual(stats["pauses"], 1)
+
+    def test_tighten_leaves_a_short_pause_untouched(self):
+        # The whole pause is shorter than the gap tighten would keep → no cut,
+        # and it isn't counted as a removed pause.
+        keep, stats = build_keep_segments(
+            words=[], silences=[(2.0, 2.5)], duration=10.0,
+            keep_pause=0.15, min_keep=0.05,
+            pause_mode="tighten", tight_pause=0.3)
+        self.assertEqual(keep, [(0.0, 10.0)])
+        self.assertEqual(stats["pauses"], 0)
+
+    def test_tighten_combines_with_fillers(self):
+        keep, stats = build_keep_segments(
+            words=[word("um", 1.0, 1.3)], silences=[(3.0, 5.0)], duration=10.0,
+            keep_pause=0.15, min_keep=0.05,
+            pause_mode="tighten", tight_pause=0.3)
+        self.assertEqual(len(keep), 3)
+        self.assertEqual(keep[0], (0.0, 1.0))
+        self.assertAlmostEqual(keep[1][0], 1.3)
+        self.assertAlmostEqual(keep[1][1], 3.45)
+        self.assertAlmostEqual(keep[2][0], 4.85)
+        self.assertEqual(stats["fillers"], 1)
+        self.assertEqual(stats["pauses"], 1)
+
+    def test_tight_pause_zero_matches_remove(self):
+        keep, _stats = build_keep_segments(
+            words=[], silences=[(3.0, 5.0)], duration=10.0,
+            keep_pause=0.15, min_keep=0.05,
+            pause_mode="tighten", tight_pause=0.0)
+        self.assertEqual(keep, [(0.0, 3.15), (4.85, 10.0)])
+
+    def test_unknown_mode_behaves_as_remove(self):
+        keep, _stats = build_keep_segments(
+            words=[], silences=[(3.0, 5.0)], duration=10.0,
+            keep_pause=0.15, min_keep=0.05,
+            pause_mode="bogus")
+        self.assertEqual(keep, [(0.0, 3.15), (4.85, 10.0)])
+
+
 class LoadKeepSegmentsTests(unittest.TestCase):
     """The review-timeline keep-list loader: validate, clamp, sort, merge — and
     never silently render the whole video on a broken edit list."""

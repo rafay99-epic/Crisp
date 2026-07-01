@@ -132,6 +132,26 @@ final class CrispTests: XCTestCase {
         XCTAssertEqual(r.removedSeconds, 5.85, accuracy: 0.0001) // 10 - (10 - 5.85)
     }
 
+    func testCutPreviewTightenKeepsGapAtPauseStart() {
+        // Tighten keeps 0.3s extra silence at the pause start: removal shrinks from
+        // (3.15, 5.85) to (3.45, 5.85). Mirrors build_keep_segments' tighten branch.
+        let r = CutPreview.compute(silences: [(3, 6)], duration: 10,
+                                   pause: 0.6, keepPause: 0.15, minKeep: 0.05,
+                                   pauseMode: "tighten", tightPause: 0.3)
+        XCTAssertEqual(r.pauseCount, 1)
+        XCTAssertEqual(r.removedSeconds, 2.4, accuracy: 0.0001)   // 2.7 - 0.3
+        XCTAssertEqual(r.keep[0].upperBound, 3.45, accuracy: 0.0001)
+    }
+
+    func testCutPreviewTightenLeavesShortPauseUntouched() {
+        // The gap tighten would keep exceeds the pause itself → no cut, not counted.
+        let r = CutPreview.compute(silences: [(3, 3.7)], duration: 10,
+                                   pause: 0.6, keepPause: 0.15, minKeep: 0.05,
+                                   pauseMode: "tighten", tightPause: 0.5)
+        XCTAssertEqual(r.pauseCount, 0)
+        XCTAssertEqual(r.keep, [0...10])
+    }
+
     func testCutPreviewRemovedMask() {
         let r = CutPreview.compute(silences: [(3, 6)], duration: 10,
                                    pause: 0.6, keepPause: 0.15, minKeep: 0.05)
@@ -470,6 +490,32 @@ final class CrispTests: XCTestCase {
         XCTAssertFalse(args.contains("--no-fillers"))
         XCTAssertFalse(args.contains("--no-backup"))
         XCTAssertEqual(valueAfter("--pause", in: args), String(Strength.aggressive.pause))
+        // Pause handling is always passed explicitly, so the Swift config stays
+        // authoritative over the engine's own default.
+        XCTAssertEqual(valueAfter("--pause-mode", in: args), "remove")
+        XCTAssertEqual(valueAfter("--tight-pause", in: args), "0.3")
+    }
+
+    func testCleanRunnerThreadsPauseTightenMode() {
+        var cfg = EngineConfig.defaults
+        cfg.pauseMode = "tighten"
+        cfg.tightPause = 0.2
+        let params = Strength.balanced.parameters(using: cfg)
+        let args = CleanRunner.arguments(scriptPath: "/eng/clean_video.py",
+                                         input: URL(fileURLWithPath: "/v/in.mp4"),
+                                         parameters: params,
+                                         options: .init(removeFillers: false))
+        XCTAssertEqual(valueAfter("--pause-mode", in: args), "tighten")
+        XCTAssertEqual(valueAfter("--tight-pause", in: args), "0.2")
+    }
+
+    func testPauseModeClampsCorruptValueToRemove() {
+        // A hand-edited settings.json must never hard-fail a clean: --pause-mode has
+        // fixed choices, so an unknown value resolves to "remove".
+        var cfg = EngineConfig.defaults
+        cfg.pauseMode = "bogus"
+        let params = Strength.balanced.parameters(using: cfg)
+        XCTAssertEqual(params.pauseMode, "remove")
     }
 
     func testCleanRunnerThreadsNonDefaultColorDepth() {

@@ -60,7 +60,8 @@ final class ReviewModel {
                 self.duration = analysis.duration
                 let initialKeep = CutPreview.compute(
                     silences: analysis.silences, duration: analysis.duration,
-                    pause: params.pause, keepPause: params.keepPause, minKeep: params.minKeep).keep
+                    pause: params.pause, keepPause: params.keepPause, minKeep: params.minKeep,
+                    pauseMode: params.pauseMode, tightPause: params.tightPause).keep
                 self.cuts = CutPreview.cutRegions(keep: initialKeep, duration: analysis.duration)
                 self.isLoading = false
             } catch is CancellationError {

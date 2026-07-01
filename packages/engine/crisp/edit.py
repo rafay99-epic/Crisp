@@ -11,7 +11,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from .config import DEFAULT_SNAP_MS, FILLER_MIN_SOLO, FILLER_PAUSE_PAD, MIN_KEEP
+from .config import (DEFAULT_PAUSE_MODE, DEFAULT_SNAP_MS, DEFAULT_TIGHT_PAUSE,
+                     FILLER_MIN_SOLO, FILLER_PAUSE_PAD, MIN_KEEP)
 from .enginelog import EngineLogger
 from .errors import CleanError
 from .text import is_filler
@@ -125,17 +126,25 @@ def tag_output_source(out_path: Path, src: Path) -> None:
     _libc.setxattr(os.fsencode(out_path), SOURCE_XATTR.encode(), value, len(value), 0, 0)
 
 
-def build_keep_segments(words, silences, duration, keep_pause, min_keep=MIN_KEEP, retakes=None):
+def build_keep_segments(words, silences, duration, keep_pause, min_keep=MIN_KEEP, retakes=None,
+                        pause_mode=DEFAULT_PAUSE_MODE, tight_pause=DEFAULT_TIGHT_PAUSE):
     """Return (keep, stats): list of (start, end) seconds to KEEP, plus counts.
 
     `retakes` is an optional list of (start, end) spans for flubbed takes the speaker
     immediately repeated (see crisp.retake) — removed wholesale alongside pauses and
-    fillers."""
+    fillers.
+    `pause_mode` — "remove" (default) cuts each detected pause entirely; "tighten"
+    keeps `tight_pause` extra seconds of silence at the pause start (on top of
+    `keep_pause`) so the pacing stays natural instead of machine-gunned. Any other
+    value behaves as "remove". A pause already shorter than the kept gap is left
+    untouched (and not counted)."""
     remove = []
     stats = {"fillers": 0, "pauses": 0, "retakes": 0}
 
     for s, e in silences:                       # long pauses (trim middle of silence)
         inner_s, inner_e = s + keep_pause, e - keep_pause
+        if pause_mode == "tighten":
+            inner_s += tight_pause
         if inner_e - inner_s > 0.01:
             remove.append((inner_s, inner_e))
             stats["pauses"] += 1

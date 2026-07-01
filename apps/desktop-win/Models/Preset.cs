@@ -20,6 +20,10 @@ public sealed class Preset
     [JsonPropertyName("breathingRoom")] public double BreathingRoom { get; set; } = 0.15;
     [JsonPropertyName("minKeep")] public double MinKeep { get; set; } = 0.05;
 
+    // Pause handling (applied to every clean)
+    [JsonPropertyName("pauseMode")] public string PauseMode { get; set; } = "remove";
+    [JsonPropertyName("tightPause")] public double TightPause { get; set; } = 0.3;
+
     // Encoding
     [JsonPropertyName("videoCodec")] public string VideoCodec { get; set; } = "hevc";
     [JsonPropertyName("hardwareEncoding")] public bool HardwareEncoding { get; set; } = true;

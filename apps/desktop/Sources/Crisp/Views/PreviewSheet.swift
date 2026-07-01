@@ -40,6 +40,12 @@ struct PreviewSheet: View {
     /// the saved config. Only the local cut knobs are overlaid.
     private var effectiveParams: CleanParameters {
         var config = preset == nil ? settings.config : EngineConfig.defaults
+        // Pause handling isn't a knob in this sheet, but the preview must still match
+        // the render — carry the preset's mode (the global config already has it).
+        if let preset {
+            config.pauseMode = preset.pauseMode
+            config.tightPause = preset.tightPause
+        }
         config.pauseThreshold = pause
         config.breathingRoom = breathing
         config.minKeep = minKeep
@@ -50,7 +56,8 @@ struct PreviewSheet: View {
         guard let a = analysis.current else { return nil }
         let p = effectiveParams
         return CutPreview.compute(silences: a.silences, duration: a.duration,
-                                  pause: p.pause, keepPause: p.keepPause, minKeep: p.minKeep)
+                                  pause: p.pause, keepPause: p.keepPause, minKeep: p.minKeep,
+                                  pauseMode: p.pauseMode, tightPause: p.tightPause)
     }
 
     var body: some View {

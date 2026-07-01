@@ -19,6 +19,15 @@ public partial class EngineSettings : ObservableObject
     [ObservableProperty] private double _silenceFloorDB;
     [ObservableProperty] private double _breathingRoom;
     [ObservableProperty] private double _minKeep;
+    // Pause handling: "remove" cuts a pause entirely; "tighten" keeps TightPause
+    // extra seconds of silence at it. Parity with macOS PauseMode.
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsTightenMode))]
+    private string _pauseMode = "remove";
+    [ObservableProperty] private double _tightPause = 0.3;
+
+    /// "tighten" needs a gap value; the Settings UI shows the slider only then.
+    public bool IsTightenMode => PauseMode == "tighten";
     // Smoothing
     [ObservableProperty] private double _fadeMs;
     [ObservableProperty] private double _crossfadeMs;
@@ -83,6 +92,7 @@ public partial class EngineSettings : ObservableObject
             Strength = Strengths.RawValue(strength),
             PauseThreshold = PauseThreshold, SilenceFloorDB = SilenceFloorDB,
             BreathingRoom = BreathingRoom, MinKeep = MinKeep,
+            PauseMode = PauseMode, TightPause = TightPause,
             VideoCodec = VideoCodec, HardwareEncoding = HardwareEncoding, VideoQuality = VideoQuality,
             AudioCodec = AudioCodec, AudioBitrateKbps = AudioBitrateKbps,
             OutputContainer = OutputContainer, ColorDepth = ColorDepth, BackupOriginal = BackupOriginal,
@@ -140,6 +150,7 @@ public partial class EngineSettings : ObservableObject
     public string[] FrameRateModes { get; } = { "auto", "passthrough", "constant" };
     public string[] CaptionFormats { get; } = { "none", "srt", "vtt", "both" };
     public string[] RetakeSensitivities { get; } = { "gentle", "balanced", "aggressive" };
+    public string[] PauseModes { get; } = { "remove", "tighten" };
 
     private readonly EngineConfig _config;
     private readonly bool _canSave;
@@ -153,6 +164,10 @@ public partial class EngineSettings : ObservableObject
         SilenceFloorDB = _config.SilenceFloorDB;
         BreathingRoom = _config.BreathingRoom;
         MinKeep = _config.MinKeep;
+        // Clamp a hand-edited mode/gap to legal values so the picker always has a
+        // valid selection and the engine a legal --pause-mode (parity with macOS).
+        PauseMode = _config.PauseMode == "tighten" ? "tighten" : "remove";
+        TightPause = System.Math.Clamp(_config.TightPause, 0.05, 0.5);
         FadeMs = _config.FadeMs;
         CrossfadeMs = _config.CrossfadeMs;
         SnapMs = _config.SnapMs;
@@ -194,6 +209,8 @@ public partial class EngineSettings : ObservableObject
         _config.SilenceFloorDB = SilenceFloorDB;
         _config.BreathingRoom = BreathingRoom;
         _config.MinKeep = MinKeep;
+        _config.PauseMode = PauseMode;
+        _config.TightPause = TightPause;
         _config.FadeMs = FadeMs;
         _config.CrossfadeMs = CrossfadeMs;
         _config.SnapMs = SnapMs;
@@ -249,6 +266,10 @@ public partial class EngineSettings : ObservableObject
         }
         a.Add("--noise"); a.Add(F(preset?.SilenceFloorDB ?? SilenceFloorDB));
         a.Add("--min-keep"); a.Add(F(preset?.MinKeep ?? MinKeep));
+        // Always passed explicitly so the app config is authoritative, never the
+        // engine's own default (parity with macOS CleanRunner).
+        a.Add("--pause-mode"); a.Add((preset?.PauseMode ?? PauseMode) == "tighten" ? "tighten" : "remove");
+        a.Add("--tight-pause"); a.Add(F(preset?.TightPause ?? TightPause));
         a.Add("--fade-ms"); a.Add(F(FadeMs));
         a.Add("--crossfade-ms"); a.Add(F(CrossfadeMs));
         a.Add("--snap-ms"); a.Add(F(SnapMs));

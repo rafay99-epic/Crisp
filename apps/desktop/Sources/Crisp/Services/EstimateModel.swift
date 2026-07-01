@@ -40,7 +40,9 @@ final class EstimateModel {
                     let analysis = try await AnalysisRunner().analyze(input: item.url, noiseDB: item.params.noiseDB)
                     let cut = CutPreview.compute(silences: analysis.silences, duration: analysis.duration,
                                                  pause: item.params.pause, keepPause: item.params.keepPause,
-                                                 minKeep: item.params.minKeep)
+                                                 minKeep: item.params.minKeep,
+                                                 pauseMode: item.params.pauseMode,
+                                                 tightPause: item.params.tightPause)
                     removed += cut.removedSeconds
                     orig += analysis.duration
                     pauses += cut.pauseCount

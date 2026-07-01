@@ -14,6 +14,11 @@ public struct EngineConfig: Codable, Equatable, Sendable {
     public var silenceFloorDB: Double
     public var breathingRoom: Double
     public var minKeep: Double
+    // Pause handling (applied to every clean) — "remove" cuts each detected pause
+    // entirely; "tighten" keeps `tightPause` extra seconds of silence at the pause
+    // (on top of breathingRoom) so the pacing stays natural.
+    public var pauseMode: String   // "remove" | "tighten"
+    public var tightPause: Double  // seconds kept at each pause in tighten mode
     // Cut smoothing (applied to every clean) — soften the splice so jump-cuts don't
     // click. fade = per-segment audio fade in/out; crossfade > 0 dissolves segments
     // instead of hard-cutting; snap nudges cut points onto zero-crossings. All in ms.
@@ -96,6 +101,7 @@ public struct EngineConfig: Codable, Equatable, Sendable {
     public static let defaults = EngineConfig(
         version: 3,
         pauseThreshold: 0.35, silenceFloorDB: -30, breathingRoom: 0.10, minKeep: 0.05,
+        pauseMode: "remove", tightPause: 0.3,
         fadeMs: 10, crossfadeMs: 0, snapMs: 12,
         videoCodec: "hevc", hardwareEncoding: true, videoQuality: "high",
         audioCodec: "aac", audioBitrateKbps: 192, outputContainer: "auto",
@@ -118,6 +124,7 @@ public struct EngineConfig: Codable, Equatable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case version, pauseThreshold, silenceFloorDB, breathingRoom, minKeep
+        case pauseMode, tightPause
         case fadeMs, crossfadeMs, snapMs
         case videoCodec, hardwareEncoding, videoQuality, audioCodec, audioBitrateKbps
         case outputContainer, colorDepth, frameRateMode, frameRateValue, exportToEditor
@@ -131,7 +138,8 @@ public struct EngineConfig: Codable, Equatable, Sendable {
     }
 
     public init(version: Int, pauseThreshold: Double, silenceFloorDB: Double, breathingRoom: Double,
-                minKeep: Double, fadeMs: Double = 10, crossfadeMs: Double = 0, snapMs: Double = 12,
+                minKeep: Double, pauseMode: String = "remove", tightPause: Double = 0.3,
+                fadeMs: Double = 10, crossfadeMs: Double = 0, snapMs: Double = 12,
                 videoCodec: String, hardwareEncoding: Bool, videoQuality: String,
                 audioCodec: String, audioBitrateKbps: Int, outputContainer: String,
                 colorDepth: String = "auto",
@@ -153,6 +161,8 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         self.silenceFloorDB = silenceFloorDB
         self.breathingRoom = breathingRoom
         self.minKeep = minKeep
+        self.pauseMode = pauseMode
+        self.tightPause = tightPause
         self.fadeMs = fadeMs
         self.crossfadeMs = crossfadeMs
         self.snapMs = snapMs
@@ -195,6 +205,8 @@ public struct EngineConfig: Codable, Equatable, Sendable {
         silenceFloorDB     = try c.decodeIfPresent(Double.self, forKey: .silenceFloorDB) ?? d.silenceFloorDB
         breathingRoom      = try c.decodeIfPresent(Double.self, forKey: .breathingRoom) ?? d.breathingRoom
         minKeep            = try c.decodeIfPresent(Double.self, forKey: .minKeep) ?? d.minKeep
+        pauseMode          = try c.decodeIfPresent(String.self, forKey: .pauseMode) ?? d.pauseMode
+        tightPause         = try c.decodeIfPresent(Double.self, forKey: .tightPause) ?? d.tightPause
         fadeMs             = try c.decodeIfPresent(Double.self, forKey: .fadeMs) ?? d.fadeMs
         crossfadeMs        = try c.decodeIfPresent(Double.self, forKey: .crossfadeMs) ?? d.crossfadeMs
         snapMs             = try c.decodeIfPresent(Double.self, forKey: .snapMs) ?? d.snapMs

@@ -106,6 +106,11 @@ public struct CleanRunner {
             "--color-depth", parameters.colorDepth,
             "--ndjson"
         ]
+        // Pause handling — always passed explicitly (like --export-timeline below) so
+        // the Swift config is authoritative, never clean_video.py's own default. Moot
+        // in keep-file mode (no detection) but harmless.
+        args += ["--pause-mode", parameters.pauseMode,
+                 "--tight-pause", String(parameters.tightPause)]
         // Cut smoothing — applied to every clean (kept out of the literal above so the
         // Swift type-checker doesn't choke on an oversized array literal).
         args += ["--fade-ms", String(parameters.fadeMs),

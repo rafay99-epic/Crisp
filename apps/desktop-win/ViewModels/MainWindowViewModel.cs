@@ -305,6 +305,7 @@ public partial class MainWindowViewModel : ViewModelBase
         var custom = SelectedStrength.Value == Strength.Custom;
         double pause = custom ? Settings.PauseThreshold : SelectedStrength.Pause;
         double keep = custom ? Settings.BreathingRoom : SelectedStrength.KeepPause;
+        double tight = Settings.IsTightenMode ? Settings.TightPause : 0; // gap tighten keeps
         double totalDur = 0, removed = 0;
         int pauses = 0, failed = 0;
 
@@ -322,7 +323,7 @@ public partial class MainWindowViewModel : ViewModelBase
                     {
                         if (s.ValueKind != JsonValueKind.Array || s.GetArrayLength() < 2) continue;
                         double len = s[1].GetDouble() - s[0].GetDouble();
-                        if (len > pause) { removed += Math.Max(0, len - 2 * keep); pauses++; }
+                        if (len > pause) { removed += Math.Max(0, len - 2 * keep - tight); pauses++; }
                     }
             }
             catch (JsonException) { failed++; }
@@ -342,7 +343,8 @@ public partial class MainWindowViewModel : ViewModelBase
         var custom = SelectedStrength.Value == Strength.Custom;
         double pause = custom ? Settings.PauseThreshold : SelectedStrength.Pause;
         double keep = custom ? Settings.BreathingRoom : SelectedStrength.KeepPause;
-        return new ReviewModel(_engine, item, pause, keep);
+        double tight = Settings.IsTightenMode ? Settings.TightPause : 0;
+        return new ReviewModel(_engine, item, pause, keep, tight);
     }
 
     /// Apply the reviewed cuts: write the keep-file onto the row and clean just it.
