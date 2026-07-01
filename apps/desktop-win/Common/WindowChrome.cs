@@ -1,5 +1,7 @@
+using System;
 using Avalonia.Controls;
 using Avalonia.Media;
+using Avalonia.Platform;
 
 namespace Crisp;
 
@@ -27,5 +29,24 @@ public static class WindowChrome
         w.ExtendClientAreaToDecorationsHint = true;
         w.ExtendClientAreaTitleBarHeightHint = -1;
         w.WindowDecorations = WindowDecorations.Full;
+        w.Icon = ChannelIcon();
+    }
+
+    // The per-channel app icon (blue / amber / purple waveform) shown in the taskbar
+    // and Alt-Tab. Baked into the exe via <ApplicationIcon> too, but a running window
+    // needs Window.Icon set explicitly — including under `dotnet run`. Loaded once.
+    private static WindowIcon? _icon;
+
+    private static WindowIcon ChannelIcon()
+    {
+        if (_icon is not null) return _icon;
+        var name = Channels.Current switch
+        {
+            Channel.Nightly => "AppIcon-Nightly.ico",
+            Channel.Dev => "AppIcon-Dev.ico",
+            _ => "AppIcon.ico",
+        };
+        using var s = AssetLoader.Open(new Uri($"avares://Crisp/Assets/{name}"));
+        return _icon = new WindowIcon(s);
     }
 }

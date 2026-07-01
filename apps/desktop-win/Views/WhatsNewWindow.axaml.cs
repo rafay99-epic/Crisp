@@ -6,7 +6,11 @@ namespace Crisp.Views;
 
 public partial class WhatsNewWindow : Window
 {
-    public WhatsNewWindow() => InitializeComponent();
+    public WhatsNewWindow()
+    {
+        InitializeComponent();
+        WindowChrome.ApplyMica(this);
+    }
 
     private void OnDownload(object? sender, RoutedEventArgs e)
     {
