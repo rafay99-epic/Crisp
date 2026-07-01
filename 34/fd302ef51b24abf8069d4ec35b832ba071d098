@@ -1,0 +1,24 @@
+apps/web/package.json
+  s_c8752ad91ffac9::t_d15b80660eed3f 18-19
+  s_c8752ad91ffac9::t_b1223b5e931c06 24-25,29
+.github/workflows/windows.yml
+  s_c8752ad91ffac9::t_83f61e286d8a25 52,57,104,107,126,180
+bun.lock
+  s_c8752ad91ffac9::t_eb449925dc0802 22-23,27-28,32,248,250,344,346,352,370
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "34fd302ef51b24abf8069d4ec35b832ba071d098",
+  "prompts": {},
+  "sessions": {
+    "s_c8752ad91ffac9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1078508d-45d5-4844-b3d8-a3c75a8b8516",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
