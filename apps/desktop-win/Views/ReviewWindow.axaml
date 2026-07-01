@@ -3,23 +3,27 @@
         xmlns:vm="using:Crisp.ViewModels"
         xmlns:models="using:Crisp.Models"
         xmlns:controls="using:Crisp.Views.Controls"
+        xmlns:crisp="using:Crisp"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="560" d:DesignHeight="600"
         x:Class="Crisp.Views.ReviewWindow"
         x:DataType="vm:ReviewModel"
-        Width="560" Height="600"
-        Background="{DynamicResource CrispWindowBg}"
+        Width="560" Height="600" MinWidth="440" MinHeight="420"
+        Background="Transparent"
         WindowStartupLocation="CenterOwner"
         Title="Review cuts">
 
-    <DockPanel Margin="20">
-        <StackPanel DockPanel.Dock="Top" Spacing="3">
-            <TextBlock Text="{Binding FileName}" FontSize="18" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
-            <TextBlock Text="{Binding Status}" Classes="secondary" FontSize="12"/>
+    <DockPanel>
+        <!-- Reserve the native (Mica) caption strip so content clears it. -->
+        <Panel DockPanel.Dock="Top" Height="{x:Static crisp:WindowChrome.TitleBarHeight}"/>
+
+        <StackPanel DockPanel.Dock="Top" Spacing="3" Margin="24,2,24,0">
+            <TextBlock Text="{Binding FileName}" Classes="subtitle" TextTrimming="CharacterEllipsis"/>
+            <TextBlock Text="{Binding Status}" Classes="caption"/>
         </StackPanel>
 
-        <Border DockPanel.Dock="Top" Classes="card" Margin="0,12" Height="84" Padding="8">
+        <Border DockPanel.Dock="Top" Classes="card" Margin="24,12" Height="84" Padding="8">
             <Panel>
                 <controls:WaveformView Preview="{Binding Preview}"/>
                 <TextBlock Text="Analyzing…" Classes="secondary" HorizontalAlignment="Center"
@@ -27,14 +31,14 @@
             </Panel>
         </Border>
 
-        <Grid DockPanel.Dock="Bottom" ColumnDefinitions="*,Auto,Auto" Margin="0,12,0,0">
-            <TextBlock Grid.Column="0" Classes="secondary" FontSize="11" VerticalAlignment="Center" TextWrapping="Wrap"
+        <Grid DockPanel.Dock="Bottom" ColumnDefinitions="*,Auto,Auto" Margin="24,12,24,20">
+            <TextBlock Grid.Column="0" Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap"
                        Text="Uncheck a pause to keep it. Apply renders exactly the checked cuts — no re-detection."/>
             <Button Grid.Column="1" Content="Cancel" Click="OnCancel" Margin="10,0,8,0"/>
             <Button Grid.Column="2" Content="Apply &amp; Clean" Click="OnApply" Classes="accent" IsEnabled="{Binding CanApply}"/>
         </Grid>
 
-        <ScrollViewer>
+        <ScrollViewer Margin="24,0,24,0">
             <ItemsControl ItemsSource="{Binding Regions}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="models:CutRegion">

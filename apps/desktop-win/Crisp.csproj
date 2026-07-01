@@ -5,6 +5,10 @@
     <Nullable>enable</Nullable>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <!-- Exe icon (Explorer / taskbar pin). Stable by default; build.ps1 overrides
+         -p:ApplicationIcon per channel. The running window's icon is set separately
+         in WindowChrome so `dotnet run` shows it too. -->
+    <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>

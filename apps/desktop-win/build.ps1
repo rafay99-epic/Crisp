@@ -73,6 +73,11 @@ $assetName = switch ($Channel) {
     'nightly' { 'Crisp-Nightly-Setup.exe' }
     default   { 'Crisp-Setup.exe' }   # dev never ships an installer, but -Installer still works locally
 }
+$appIcon = switch ($Channel) {
+    'nightly' { 'Assets\AppIcon-Nightly.ico' }
+    'dev'     { 'Assets\AppIcon-Dev.ico' }
+    default   { 'Assets\AppIcon.ico' }
+}
 
 # --- Version = 0.<commit count>; build number = same count (nightly orders on it) --
 $commitCount = (git rev-list --count HEAD 2>$null); if (-not $commitCount) { $commitCount = '0' }
@@ -95,15 +100,16 @@ if ($Vendor) {
 # --- Publish the self-contained app, baking in the channel identity --------------
 Write-Host "Publishing self-contained win-x64…" -ForegroundColor Cyan
 dotnet publish Crisp.csproj -c $Configuration -r win-x64 --self-contained `
-    -p:CrispChannel=$Channel -p:CrispVersion=$Version -p:CrispBuildNumber=$buildNumber -o $publishDir
+    -p:CrispChannel=$Channel -p:CrispVersion=$Version -p:CrispBuildNumber=$buildNumber `
+    -p:ApplicationIcon=$appIcon -o $publishDir
 if ($LASTEXITCODE) { throw "dotnet publish failed ($LASTEXITCODE)" }
 
 # --- Bundle the cleaning engine (shared with macOS) beside the exe ----------------
-# The Python engine (clean_video.py + the crisp/ package) lives in the macOS app's
-# Resources; the app resolves it relative to the exe. Copy it, plus any vendored
-# binaries, exactly like the CI packaging step.
+# The Python engine (clean_video.py + the crisp/ package) lives in packages/engine
+# (shared by both apps); the app resolves it relative to the exe. Copy it, plus any
+# vendored binaries, exactly like the CI packaging step.
 Write-Host "Bundling cleaning engine…" -ForegroundColor Cyan
-$engineSrc = Resolve-Path (Join-Path $PSScriptRoot '..\desktop\Resources\engine')
+$engineSrc = Resolve-Path (Join-Path $PSScriptRoot '..\..\packages\engine')
 $engineDst = Join-Path $publishDir 'engine'
 if (Test-Path $engineDst) { Remove-Item -Recurse -Force $engineDst }
 New-Item -ItemType Directory -Force -Path $engineDst | Out-Null

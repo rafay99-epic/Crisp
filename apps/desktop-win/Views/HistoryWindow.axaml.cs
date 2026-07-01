@@ -9,7 +9,11 @@ namespace Crisp.Views;
 
 public partial class HistoryWindow : Window
 {
-    public HistoryWindow() => InitializeComponent();
+    public HistoryWindow()
+    {
+        InitializeComponent();
+        WindowChrome.ApplyMica(this);
+    }
 
     private void OnClear(object? sender, RoutedEventArgs e)
         => (DataContext as HistoryStore)?.Clear();
