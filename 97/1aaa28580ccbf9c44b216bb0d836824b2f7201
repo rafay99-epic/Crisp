@@ -1,0 +1,28 @@
+.github/workflows/windows.yml
+  s_4262627b1efbe7::t_551c35f3e4f0bb 4-8,10-15,20,25,86-89,100,109-112,117-121,156-159,161,164-167,180,184-206
+.github/workflows/ci.yml
+  s_4262627b1efbe7::t_36b3c19d143e54 21-23
+.github/workflows/nightly.yml
+  s_4262627b1efbe7::t_7424b702608ade 133
+  s_4262627b1efbe7::t_e62a3d6c75ff34 129-132,134-144
+  s_4262627b1efbe7::t_bd69f8e34c396b 16-18
+  s_4262627b1efbe7::t_e257c95da71701 104-105
+  s_4262627b1efbe7::t_c97526d2e8a30c 98-103
+  s_4262627b1efbe7::t_bfcc2eebad5d5e 75-79
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "971aaa28580ccbf9c44b216bb0d836824b2f7201",
+  "prompts": {},
+  "sessions": {
+    "s_4262627b1efbe7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6aa2cb2f-89ff-4603-81a4-b917ebd9bf04",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
