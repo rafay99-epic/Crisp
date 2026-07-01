@@ -1,0 +1,21 @@
+"backlog/docs/doc-4 - Retake-removal-—-calibration-plan.md"
+  s_c8752ad91ffac9::t_1700d884e11978 8-55
+"backlog/docs/doc-5 - Model-research-—-filler-classifier.md"
+  s_c8752ad91ffac9::t_37388748fbd76d 1-7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "e0a18723e8aaf9096c2de19d8857dd719083a412",
+  "prompts": {},
+  "sessions": {
+    "s_c8752ad91ffac9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1078508d-45d5-4844-b3d8-a3c75a8b8516",
+        "model": "unknown"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
