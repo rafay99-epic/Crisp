@@ -1,6 +1,14 @@
 # .NET build output
 bin/
 obj/
+publish/
+
+# Vendored engine binaries (downloaded/built by Scripts/vendor-win.ps1)
+.vendor/
+
+# Local build/test scratch (build.ps1 install targets are outside the repo)
+.uitest/
+.uidemo/
 
 # Rider / VS
 .idea/
