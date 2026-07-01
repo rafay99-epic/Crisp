@@ -1,0 +1,21 @@
+"backlog/docs/doc-2 - Retake-feature-—-state-problems-plan.md"
+  s_c8752ad91ffac9::t_1d24e6ba05ab90 8-138
+"backlog/docs/doc-3 - Retake-detection-—-research-findings.md"
+  s_c8752ad91ffac9::t_0679ee878257eb 1-7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "8d6d2855c81e70f6e0379f00119d59d5e7434bf0",
+  "prompts": {},
+  "sessions": {
+    "s_c8752ad91ffac9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1078508d-45d5-4844-b3d8-a3c75a8b8516",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
