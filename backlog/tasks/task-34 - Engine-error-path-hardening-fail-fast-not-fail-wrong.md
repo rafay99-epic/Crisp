@@ -1,11 +1,14 @@
 ---
 id: TASK-34
 title: 'Engine error-path hardening (fail fast, not fail wrong)'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-07-01 21:07'
+updated_date: '2026-07-01 21:31'
 labels: []
 dependencies: []
+references:
+  - 'https://github.com/rafay99-epic/Crisp/pull/154'
 priority: medium
 ordinal: 34000
 ---

@@ -1,11 +1,14 @@
 ---
 id: TASK-31
 title: Atomic render output — never write the cleaned file in place
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-07-01 21:07'
+updated_date: '2026-07-01 21:31'
 labels: []
 dependencies: []
+references:
+  - 'https://github.com/rafay99-epic/Crisp/pull/154'
 priority: high
 ordinal: 31000
 ---

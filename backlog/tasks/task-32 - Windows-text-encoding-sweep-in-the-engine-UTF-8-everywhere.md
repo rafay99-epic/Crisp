@@ -1,11 +1,14 @@
 ---
 id: TASK-32
 title: Windows text-encoding sweep in the engine (UTF-8 everywhere)
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-07-01 21:07'
+updated_date: '2026-07-01 21:31'
 labels: []
 dependencies: []
+references:
+  - 'https://github.com/rafay99-epic/Crisp/pull/154'
 priority: high
 ordinal: 32000
 ---
