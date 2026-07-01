@@ -1,12 +1,14 @@
 ---
 id: TASK-33
 title: Fix O(n²) render filter graph for many cuts
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-07-01 21:07'
-updated_date: '2026-07-01 21:31'
+updated_date: '2026-07-01 22:47'
 labels: []
 dependencies: []
+references:
+  - 'https://github.com/rafay99-epic/Crisp/pull/156'
 priority: medium
 ordinal: 33000
 ---

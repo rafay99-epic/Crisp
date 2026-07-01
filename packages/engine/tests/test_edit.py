@@ -11,9 +11,9 @@ import wave
 from pathlib import Path
 
 from crisp.edit import (
-    _nearest_zero_crossing, _output_owner, build_filter_graph, build_keep_segments,
-    load_keep_segments, output_duration, snap_keep_to_zero_crossings, tag_output_source,
-    unique_output_path,
+    _batch_windows, _nearest_zero_crossing, _output_owner, build_filter_graph,
+    build_keep_segments, load_keep_segments, output_duration,
+    snap_keep_to_zero_crossings, tag_output_source, unique_output_path,
 )
 from crisp.errors import CleanError
 
@@ -271,6 +271,29 @@ class LoadKeepSegmentsTests(unittest.TestCase):
     def test_unreadable_file_raises(self):
         with self.assertRaises(CleanError):
             load_keep_segments("/no/such/file.json", duration=10.0)
+
+
+class BatchWindowsTests(unittest.TestCase):
+    """Chunking for the many-cuts batched render: windows keep ABSOLUTE segment
+    coordinates, seek a pad before the first segment, and read a margin past the
+    last one."""
+
+    def test_chunks_of_size_with_absolute_segments(self):
+        keep = [(float(i), float(i) + 0.5) for i in range(10, 15)]
+        windows = _batch_windows(keep, size=2)
+        self.assertEqual(len(windows), 3)                # 2 + 2 + 1
+        self.assertEqual([len(w[2]) for w in windows], [2, 2, 1])
+        self.assertEqual(windows[1][2], keep[2:4])       # untouched coords
+
+    def test_seek_pads_before_first_segment_and_clamps_at_zero(self):
+        windows = _batch_windows([(0.4, 2.0), (30.0, 31.0)], size=1)
+        self.assertEqual(windows[0][0], 0.0)             # 0.4 - 1.0 clamps to 0
+        self.assertAlmostEqual(windows[1][0], 29.0)      # 30.0 - 1.0
+
+    def test_stop_reads_past_the_last_segment(self):
+        (seek, stop, segs), = _batch_windows([(5.0, 8.0)], size=32)
+        self.assertGreater(stop, 8.0)
+        self.assertEqual(segs, [(5.0, 8.0)])
 
 
 class BuildFilterGraphTests(unittest.TestCase):
