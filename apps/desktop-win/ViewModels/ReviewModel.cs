@@ -19,7 +19,7 @@ namespace Crisp.ViewModels;
 public partial class ReviewModel : ObservableObject
 {
     private readonly CrispEngine _engine;
-    private readonly double _pause, _keep, _tight;
+    private readonly double _pause, _keep;
     public QueueItem Item { get; }
     public string FileName => Item.FileName;
 
@@ -36,15 +36,12 @@ public partial class ReviewModel : ObservableObject
     private double _duration;
     private List<double>? _peaks;
 
-    // `tight` is the extra silence tighten mode keeps at each pause (0 = remove mode),
-    // so the proposed cuts match what the engine's --pause-mode would actually render.
-    public ReviewModel(CrispEngine engine, QueueItem item, double pause, double keep, double tight = 0)
+    public ReviewModel(CrispEngine engine, QueueItem item, double pause, double keep)
     {
         _engine = engine;
         Item = item;
         _pause = pause;
         _keep = keep;
-        _tight = tight;
     }
 
     /// Run the engine's fast analyze pass and build the toggleable cut list.
@@ -70,7 +67,7 @@ public partial class ReviewModel : ObservableObject
                     if (s.ValueKind != JsonValueKind.Array || s.GetArrayLength() < 2) continue;
                     double a = s[0].GetDouble(), b = s[1].GetDouble();
                     if (b - a <= _pause) continue;               // shorter than the threshold → not cut
-                    double rs = a + _keep + _tight, re = b - _keep; // breathing room + tighten gap
+                    double rs = a + _keep, re = b - _keep;       // keep breathing room each side
                     if (re <= rs) continue;
                     var region = new CutRegion { Start = rs, End = re };
                     region.PropertyChanged += OnRegionChanged;

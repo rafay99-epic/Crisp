@@ -22,10 +22,6 @@ public sealed class EngineConfig
     public double SilenceFloorDB { get; set; } = -30;
     public double BreathingRoom { get; set; } = 0.15;
     public double MinKeep { get; set; } = 0.05;
-    // Pause handling (every clean): "remove" cuts a pause entirely; "tighten" keeps
-    // TightPause extra seconds of silence at it so the pacing stays natural.
-    public string PauseMode { get; set; } = "remove";
-    public double TightPause { get; set; } = 0.3;
 
     // Cut smoothing (every clean)
     public double FadeMs { get; set; } = 10;
