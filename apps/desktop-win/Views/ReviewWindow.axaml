@@ -3,6 +3,7 @@
         xmlns:vm="using:Crisp.ViewModels"
         xmlns:models="using:Crisp.Models"
         xmlns:controls="using:Crisp.Views.Controls"
+        xmlns:crisp="using:Crisp"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="560" d:DesignHeight="600"
@@ -15,7 +16,7 @@
 
     <DockPanel>
         <!-- Reserve the native (Mica) caption strip so content clears it. -->
-        <Panel DockPanel.Dock="Top" Height="34"/>
+        <Panel DockPanel.Dock="Top" Height="{x:Static crisp:WindowChrome.TitleBarHeight}"/>
 
         <StackPanel DockPanel.Dock="Top" Spacing="3" Margin="24,2,24,0">
             <TextBlock Text="{Binding FileName}" Classes="subtitle" TextTrimming="CharacterEllipsis"/>

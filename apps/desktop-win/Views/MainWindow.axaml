@@ -3,6 +3,7 @@
         xmlns:vm="using:Crisp.ViewModels"
         xmlns:models="using:Crisp.Models"
         xmlns:controls="using:Crisp.Views.Controls"
+        xmlns:crisp="using:Crisp"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="680" d:DesignHeight="600"
@@ -20,7 +21,7 @@
     <DockPanel LastChildFill="True">
 
         <!-- Reserve the native (Mica) caption strip so content clears it. -->
-        <Panel DockPanel.Dock="Top" Height="34"/>
+        <Panel DockPanel.Dock="Top" Height="{x:Static crisp:WindowChrome.TitleBarHeight}"/>
 
         <!-- HEADER (app mark + commands; native title bar sits above, Mica-tinted) -->
         <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*,Auto" Margin="24,4,24,12">

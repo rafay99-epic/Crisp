@@ -76,7 +76,11 @@ $pngs = foreach ($s in $sizes) {
     , $ms.ToArray()
 }
 
-$full = [System.IO.Path]::GetFullPath((Join-Path (Get-Location) $OutPath))
+# Resolve a relative OutPath against the project dir (apps/desktop-win), not the
+# caller's current directory, so it lands in the right place from any cwd.
+$resolved = if ([System.IO.Path]::IsPathRooted($OutPath)) { $OutPath }
+            else { Join-Path (Split-Path $PSScriptRoot -Parent) $OutPath }
+$full = [System.IO.Path]::GetFullPath($resolved)
 [System.IO.Directory]::CreateDirectory([System.IO.Path]::GetDirectoryName($full)) | Out-Null
 $fs = [System.IO.File]::Create($full)
 $bw = New-Object System.IO.BinaryWriter $fs
