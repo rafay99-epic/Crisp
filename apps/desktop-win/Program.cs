@@ -369,6 +369,5 @@ sealed class Program
 #if DEBUG
             .WithDeveloperTools()
 #endif
-            .WithInterFont()
             .LogToTrace();
 }

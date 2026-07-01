@@ -2,210 +2,239 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:svc="using:Crisp.Services"
         xmlns:models="using:Crisp.Models"
+        xmlns:controls="using:Crisp.Views.Controls"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="460" d:DesignHeight="640"
+        mc:Ignorable="d" d:DesignWidth="520" d:DesignHeight="680"
         x:Class="Crisp.Views.SettingsWindow"
         x:DataType="svc:EngineSettings"
-        Width="460" Height="660"
-        Background="{DynamicResource CrispWindowBg}"
+        Width="520" Height="700" MinWidth="460" MinHeight="480"
+        Background="Transparent"
         WindowStartupLocation="CenterOwner"
         Title="Crisp Settings">
 
     <Window.Styles>
-        <Style Selector="TextBlock.head">
+        <!-- Section header above each settings group. -->
+        <Style Selector="TextBlock.section">
+            <Setter Property="FontSize" Value="15"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Margin" Value="0,0,0,2"/>
-        </Style>
-        <Style Selector="TextBlock.lbl">
-            <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="Foreground" Value="{DynamicResource CrispSecondary}"/>
+            <Setter Property="Margin" Value="2,10,0,4"/>
         </Style>
         <Style Selector="ComboBox">
-            <Setter Property="HorizontalAlignment" Value="Right"/>
-            <Setter Property="MinWidth" Value="140"/>
+            <Setter Property="MinWidth" Value="150"/>
+        </Style>
+        <Style Selector="NumericUpDown">
+            <Setter Property="Width" Value="150"/>
         </Style>
     </Window.Styles>
 
-    <ScrollViewer>
-        <StackPanel Margin="22" Spacing="14">
+    <DockPanel LastChildFill="True">
 
-            <TextBlock Text="Settings" FontSize="22" FontWeight="Bold"/>
+        <!-- Reserve the native (Mica) caption strip so content clears it. -->
+        <Panel DockPanel.Dock="Top" Height="34"/>
 
-            <!-- Encoding -->
-            <Border Classes="card">
-                <StackPanel Spacing="10">
-                    <TextBlock Classes="head" Text="Encoding"/>
-                    <Grid ColumnDefinitions="*,Auto" IsEnabled="{Binding !ForcesOwnCodecs}"><TextBlock Grid.Column="0" Classes="lbl" Text="Video codec"/>
-                        <ComboBox Grid.Column="1" AutomationProperties.Name="Video codec" ItemsSource="{Binding VideoCodecs}" SelectedItem="{Binding VideoCodec}"/></Grid>
-                    <Grid ColumnDefinitions="*,Auto" IsEnabled="{Binding !ForcesOwnCodecs}"><TextBlock Grid.Column="0" Classes="lbl" Text="Hardware acceleration"/>
-                        <ToggleSwitch Grid.Column="1" AutomationProperties.Name="Hardware acceleration" HorizontalAlignment="Right" IsChecked="{Binding HardwareEncoding}"/></Grid>
-                    <Grid ColumnDefinitions="*,Auto" IsEnabled="{Binding !ForcesOwnCodecs}"><TextBlock Grid.Column="0" Classes="lbl" Text="Quality"/>
-                        <ComboBox Grid.Column="1" AutomationProperties.Name="Quality" ItemsSource="{Binding Qualities}" SelectedItem="{Binding VideoQuality}"/></Grid>
-                    <Grid ColumnDefinitions="*,Auto"><TextBlock Grid.Column="0" Classes="lbl" Text="Container"/>
-                        <ComboBox Grid.Column="1" AutomationProperties.Name="Container" ItemsSource="{Binding Containers}" SelectedItem="{Binding OutputContainer}"/></Grid>
-                    <TextBlock Classes="lbl" FontSize="11" TextWrapping="Wrap" IsVisible="{Binding ForcesOwnCodecs}"
-                               Text="WebM is encoded as VP9 + Opus (software), so the video/audio codec and hardware options above don't apply."/>
-                    <Grid ColumnDefinitions="*,Auto"><TextBlock Grid.Column="0" Classes="lbl" Text="Color depth"/>
-                        <ComboBox Grid.Column="1" AutomationProperties.Name="Color depth" ItemsSource="{Binding ColorDepths}" SelectedItem="{Binding ColorDepth}"/></Grid>
-                    <Grid ColumnDefinitions="*,Auto"><TextBlock Grid.Column="0" Classes="lbl" Text="Frame rate"/>
-                        <ComboBox Grid.Column="1" AutomationProperties.Name="Frame rate mode" ItemsSource="{Binding FrameRateModes}" SelectedItem="{Binding FrameRateMode}"/></Grid>
-                    <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsConstantFps}"><TextBlock Grid.Column="0" Classes="lbl" Text="Target fps"/>
-                        <NumericUpDown Grid.Column="1" AutomationProperties.Name="Target frames per second" HorizontalAlignment="Right" Width="140"
-                                       Minimum="1" Maximum="120" Increment="1" Value="{Binding FrameRateValue}"/></Grid>
-                </StackPanel>
-            </Border>
+        <!-- HEADER -->
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="10"
+                    Margin="24,6,24,6" VerticalAlignment="Center">
+            <controls:WaveformMark Height="22" VerticalAlignment="Center"/>
+            <TextBlock Text="Settings" Classes="subtitle" VerticalAlignment="Center"/>
+        </StackPanel>
 
-            <!-- Audio -->
-            <Border Classes="card">
-                <StackPanel Spacing="10">
-                    <TextBlock Classes="head" Text="Audio"/>
-                    <Grid ColumnDefinitions="*,Auto" IsEnabled="{Binding !ForcesOwnCodecs}"><TextBlock Grid.Column="0" Classes="lbl" Text="Audio codec"/>
-                        <ComboBox Grid.Column="1" AutomationProperties.Name="Audio codec" ItemsSource="{Binding AudioCodecs}" SelectedItem="{Binding AudioCodec}"/></Grid>
-                    <Grid ColumnDefinitions="*,Auto"><TextBlock Grid.Column="0" Classes="lbl" Text="Bitrate (kbps)"/>
-                        <NumericUpDown Grid.Column="1" AutomationProperties.Name="Audio bitrate in kbps" HorizontalAlignment="Right" Width="140" Minimum="64" Maximum="512"
-                                       Increment="32" Value="{Binding AudioBitrateKbps}"/></Grid>
-                    <Grid ColumnDefinitions="*,Auto"><TextBlock Grid.Column="0" Classes="lbl" Text="Captions"/>
-                        <ComboBox Grid.Column="1" AutomationProperties.Name="Captions format" ItemsSource="{Binding CaptionFormats}" SelectedItem="{Binding CaptionsFormat}"/></Grid>
-                </StackPanel>
-            </Border>
-
-            <!-- Custom cutting knobs -->
-            <Border Classes="card">
-                <StackPanel Spacing="10">
-                    <TextBlock Classes="head" Text="Custom cutting"/>
-                    <TextBlock Classes="lbl" FontSize="12" TextWrapping="Wrap"
-                               Text="Used by the “Custom” strength. Noise floor and minimum keep apply to every clean."/>
-                    <StackPanel Spacing="3">
-                        <TextBlock Classes="lbl" Text="{Binding PauseThreshold, StringFormat='Cut pauses longer than {0:0.00}s'}"/>
-                        <Slider AutomationProperties.Name="Cut pauses longer than (seconds)" Minimum="0.1" Maximum="2.0" Value="{Binding PauseThreshold}"/>
-                    </StackPanel>
-                    <StackPanel Spacing="3">
-                        <TextBlock Classes="lbl" Text="{Binding BreathingRoom, StringFormat='Breathing room {0:0.00}s'}"/>
-                        <Slider AutomationProperties.Name="Breathing room (seconds)" Minimum="0" Maximum="0.5" Value="{Binding BreathingRoom}"/>
-                    </StackPanel>
-                    <StackPanel Spacing="3">
-                        <TextBlock Classes="lbl" Text="{Binding SilenceFloorDB, StringFormat='Silence below {0:0}dB'}"/>
-                        <Slider AutomationProperties.Name="Silence floor (dB)" Minimum="-60" Maximum="-10" Value="{Binding SilenceFloorDB}"/>
-                    </StackPanel>
-                    <StackPanel Spacing="3">
-                        <TextBlock Classes="lbl" Text="{Binding MinKeep, StringFormat='Drop kept clips under {0:0.00}s'}"/>
-                        <Slider AutomationProperties.Name="Drop kept clips under (seconds)" Minimum="0" Maximum="0.5" Value="{Binding MinKeep}"/>
-                    </StackPanel>
-                    <Grid ColumnDefinitions="*,Auto"><TextBlock Grid.Column="0" Classes="lbl" Text="Repeated-take sensitivity"/>
-                        <ComboBox Grid.Column="1" AutomationProperties.Name="Repeated-take sensitivity" ItemsSource="{Binding RetakeSensitivities}" SelectedItem="{Binding RetakeSensitivity}"/></Grid>
-                </StackPanel>
-            </Border>
-
-            <!-- Speech model (filler / retake detection) -->
-            <Border Classes="card">
-                <StackPanel Spacing="10">
-                    <TextBlock Classes="head" Text="Speech model"/>
-                    <Grid ColumnDefinitions="*,Auto"><TextBlock Grid.Column="0" Classes="lbl" Text="Model"/>
-                        <ComboBox Grid.Column="1" AutomationProperties.Name="Speech model" MinWidth="200"
-                                  ItemsSource="{Binding ModelOptions}" SelectedItem="{Binding SelectedModel}">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate x:DataType="models:ModelSpec">
-                                    <TextBlock Text="{Binding DisplayWithSize}"/>
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox></Grid>
-                    <TextBlock Classes="lbl" FontSize="12" TextWrapping="Wrap" Text="{Binding SelectedModel.Summary}"/>
-                    <StackPanel Spacing="4">
-                        <TextBlock Classes="lbl" FontSize="12" Text="Or use a custom whisper.cpp model (.bin):"/>
-                        <TextBox AutomationProperties.Name="Custom speech model path" PlaceholderText="Path to a .bin (leave empty to use the model above)"
-                                 Text="{Binding CustomModelPath}"/>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
-
-            <!-- Output / safety -->
-            <Border Classes="card">
-                <StackPanel Spacing="10">
-                    <TextBlock Classes="head" Text="Output"/>
-                    <Grid ColumnDefinitions="*,Auto"><TextBlock Grid.Column="0" Classes="lbl" Text="Prepare an editor timeline (FCPXML), don't render"/>
-                        <ToggleSwitch Grid.Column="1" AutomationProperties.Name="Prepare an editor timeline instead of rendering"
-                                      HorizontalAlignment="Right" IsChecked="{Binding ExportToEditor}"/></Grid>
-                    <TextBlock Classes="lbl" FontSize="12" TextWrapping="Wrap"
-                               Text="Writes a project folder with an .fcpxml timeline + a copy of your footage (no re-encode) — import it into DaVinci Resolve or another editor."/>
-                    <Grid ColumnDefinitions="*,Auto" IsEnabled="{Binding !ExportToEditor}"><TextBlock Grid.Column="0" Classes="lbl" Text="Also write separate video + audio files"/>
-                        <ToggleSwitch Grid.Column="1" AutomationProperties.Name="Also write separate video and audio files"
-                                      HorizontalAlignment="Right" IsChecked="{Binding SplitTracks}"/></Grid>
-                    <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding SplitTracks}" IsEnabled="{Binding !ExportToEditor}"><TextBlock Grid.Column="0" Classes="lbl" Text="Split audio format"/>
-                        <ComboBox Grid.Column="1" AutomationProperties.Name="Split audio format"
-                                  ItemsSource="{Binding SplitAudioFormats}" SelectedItem="{Binding SplitAudioFormat}"/></Grid>
-                    <Grid ColumnDefinitions="*,Auto"><TextBlock Grid.Column="0" Classes="lbl" Text="Clean up to N files at once"/>
-                        <NumericUpDown Grid.Column="1" AutomationProperties.Name="Clean up to N files at once"
-                                       HorizontalAlignment="Right" Width="140" Minimum="1" Maximum="4"
-                                       Increment="1" Value="{Binding MaxParallel}"/></Grid>
-                    <Grid ColumnDefinitions="*,Auto"><TextBlock Grid.Column="0" Classes="lbl" Text="Keep a backup copy of each original"/>
-                        <ToggleSwitch Grid.Column="1" AutomationProperties.Name="Keep a backup copy of each original"
-                                      HorizontalAlignment="Right" IsChecked="{Binding BackupOriginal}"/></Grid>
-                    <TextBlock Classes="lbl" FontSize="12" TextWrapping="Wrap"
-                               Text="Crisp always writes a separate cleaned file and never touches the source. With this on, it also keeps an extra pristine copy in ~/.crisp/Originals before cleaning."/>
-                </StackPanel>
-            </Border>
-
-            <!-- Presets -->
-            <Border Classes="card">
-                <StackPanel Spacing="10">
-                    <TextBlock Classes="head" Text="Presets"/>
-                    <TextBlock Classes="lbl" FontSize="12" TextWrapping="Wrap"
-                               Text="Save the current recipe (cutting + encoding + container + backup) under a name, then pick it per file in the queue. New files start on the default."/>
-                    <ItemsControl ItemsSource="{Binding Presets}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="models:Preset">
-                                <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,3">
-                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
-                                        <TextBlock Text="{Binding Strength}" Classes="lbl" FontSize="11" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                    <Button Grid.Column="1" Content="Make default" Click="OnSetDefaultPreset"
-                                            CommandParameter="{Binding}" Margin="0,0,6,0"
-                                            Background="Transparent" BorderThickness="0"
-                                            Foreground="{DynamicResource CrispAccent}"/>
-                                    <Button Grid.Column="2" Content="✕" Click="OnDeletePreset"
-                                            CommandParameter="{Binding}" ToolTip.Tip="Delete preset"/>
-                                </Grid>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                    <TextBlock Classes="lbl" FontSize="11"
-                               Text="{Binding DefaultPresetName, StringFormat='Default for new files: {0}'}"/>
-                    <Grid ColumnDefinitions="*,Auto">
-                        <TextBox Grid.Column="0" x:Name="NewPresetName" PlaceholderText="New preset name…"/>
-                        <Button Grid.Column="1" Content="Save current" Click="OnAddPreset" Margin="8,0,0,0"
-                                Classes="accent"/>
-                    </Grid>
-                </StackPanel>
-            </Border>
-
-            <!-- Watch folder -->
-            <Border Classes="card">
-                <StackPanel Spacing="10">
-                    <TextBlock Classes="head" Text="Watch folder"/>
-                    <Grid ColumnDefinitions="*,Auto"><TextBlock Grid.Column="0" Classes="lbl" Text="Auto-clean new videos in a folder"/>
-                        <ToggleSwitch Grid.Column="1" AutomationProperties.Name="Watch a folder and auto-clean new videos"
-                                      HorizontalAlignment="Right" IsChecked="{Binding WatchEnabled}"/></Grid>
-                    <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding WatchEnabled}">
-                        <TextBox Grid.Column="0" AutomationProperties.Name="Watch folder path"
-                                 PlaceholderText="Folder to watch…" Text="{Binding WatchFolderPath}"/>
-                        <Button Grid.Column="1" Content="Browse…" Click="OnPickWatchFolder" Margin="8,0,0,0"/>
-                    </Grid>
-                    <TextBlock Classes="lbl" FontSize="12" TextWrapping="Wrap"
-                               Text="While Crisp is open, any new video dropped into this folder is queued and cleaned automatically."/>
-                    <Grid ColumnDefinitions="*,Auto"><TextBlock Grid.Column="0" Classes="lbl" Text="Add &quot;Clean with Crisp&quot; to the Explorer right-click menu"/>
-                        <ToggleSwitch Grid.Column="1" AutomationProperties.Name="Add Clean with Crisp to the Explorer right-click menu"
-                                      HorizontalAlignment="Right" IsChecked="{Binding ExplorerIntegration}"/></Grid>
-                </StackPanel>
-            </Border>
-
+        <!-- FOOTER -->
+        <Border DockPanel.Dock="Bottom" Background="{DynamicResource CrispCard}"
+                BorderBrush="{DynamicResource CrispCardBorder}" BorderThickness="0,1,0,0" Padding="24,12">
             <Grid ColumnDefinitions="Auto,*,Auto">
                 <Button Grid.Column="0" Content="Reveal log files" Click="OnRevealLogs"
-                        Background="Transparent" BorderThickness="0" Padding="0"
-                        Foreground="{DynamicResource CrispAccent}" VerticalAlignment="Center"/>
+                        Classes="link" VerticalAlignment="Center"/>
                 <Button Grid.Column="2" Content="Done" Click="OnDone" Classes="accent"/>
             </Grid>
-        </StackPanel>
-    </ScrollViewer>
+        </Border>
+
+        <ScrollViewer>
+            <StackPanel Margin="24,8,24,16" Spacing="4">
+
+                <!-- Encoding -->
+                <TextBlock Classes="section" Text="Encoding"/>
+                <Border Classes="settingsGroup">
+                    <StackPanel>
+                        <controls:SettingsRow Header="Video codec" Glyph="&#xE714;" IsEnabled="{Binding !ForcesOwnCodecs}">
+                            <ComboBox AutomationProperties.Name="Video codec" ItemsSource="{Binding VideoCodecs}" SelectedItem="{Binding VideoCodec}"/>
+                        </controls:SettingsRow>
+                        <controls:SettingsRow Header="Hardware acceleration"
+                                              Description="Use the GPU media engine (NVENC / QSV / AMF) when available."
+                                              Glyph="&#xEC4A;" IsEnabled="{Binding !ForcesOwnCodecs}">
+                            <ToggleSwitch AutomationProperties.Name="Hardware acceleration" IsChecked="{Binding HardwareEncoding}"/>
+                        </controls:SettingsRow>
+                        <controls:SettingsRow Header="Quality" Glyph="&#xE9F5;" IsEnabled="{Binding !ForcesOwnCodecs}">
+                            <ComboBox AutomationProperties.Name="Quality" ItemsSource="{Binding Qualities}" SelectedItem="{Binding VideoQuality}"/>
+                        </controls:SettingsRow>
+                        <controls:SettingsRow Header="Container"
+                                              Description="Output file format. WebM re-encodes to VP9 + Opus (software)." Glyph="&#xE7C3;">
+                            <ComboBox AutomationProperties.Name="Container" ItemsSource="{Binding Containers}" SelectedItem="{Binding OutputContainer}"/>
+                        </controls:SettingsRow>
+                        <controls:SettingsRow Header="Color depth" Glyph="&#xE790;">
+                            <ComboBox AutomationProperties.Name="Color depth" ItemsSource="{Binding ColorDepths}" SelectedItem="{Binding ColorDepth}"/>
+                        </controls:SettingsRow>
+                        <controls:SettingsRow Header="Frame rate" Glyph="&#xE916;">
+                            <ComboBox AutomationProperties.Name="Frame rate mode" ItemsSource="{Binding FrameRateModes}" SelectedItem="{Binding FrameRateMode}"/>
+                        </controls:SettingsRow>
+                        <controls:SettingsRow Header="Target fps" IsVisible="{Binding IsConstantFps}">
+                            <NumericUpDown AutomationProperties.Name="Target frames per second"
+                                           Minimum="1" Maximum="120" Increment="1" Value="{Binding FrameRateValue}"/>
+                        </controls:SettingsRow>
+                    </StackPanel>
+                </Border>
+
+                <!-- Audio -->
+                <TextBlock Classes="section" Text="Audio"/>
+                <Border Classes="settingsGroup">
+                    <StackPanel>
+                        <controls:SettingsRow Header="Audio codec" Glyph="&#xE8D6;" IsEnabled="{Binding !ForcesOwnCodecs}">
+                            <ComboBox AutomationProperties.Name="Audio codec" ItemsSource="{Binding AudioCodecs}" SelectedItem="{Binding AudioCodec}"/>
+                        </controls:SettingsRow>
+                        <controls:SettingsRow Header="Bitrate" Description="Audio bitrate in kbps." Glyph="&#xE9E9;">
+                            <NumericUpDown AutomationProperties.Name="Audio bitrate in kbps"
+                                           Minimum="64" Maximum="512" Increment="32" Value="{Binding AudioBitrateKbps}"/>
+                        </controls:SettingsRow>
+                        <controls:SettingsRow Header="Captions" Description="Write a subtitle track alongside the video." Glyph="&#xED1E;">
+                            <ComboBox AutomationProperties.Name="Captions format" ItemsSource="{Binding CaptionFormats}" SelectedItem="{Binding CaptionsFormat}"/>
+                        </controls:SettingsRow>
+                    </StackPanel>
+                </Border>
+
+                <!-- Custom cutting -->
+                <TextBlock Classes="section" Text="Custom cutting"/>
+                <TextBlock Classes="caption" Margin="2,0,0,2" TextWrapping="Wrap"
+                           Text="Used by the “Custom” strength. Noise floor and minimum keep apply to every clean."/>
+                <Border Classes="settingsGroup">
+                    <StackPanel>
+                        <controls:SettingsRow Header="{Binding PauseThreshold, StringFormat='Cut pauses longer than {0:0.00}s'}">
+                            <Slider Width="220" AutomationProperties.Name="Cut pauses longer than (seconds)"
+                                    Minimum="0.1" Maximum="2.0" Value="{Binding PauseThreshold}"/>
+                        </controls:SettingsRow>
+                        <controls:SettingsRow Header="{Binding BreathingRoom, StringFormat='Breathing room {0:0.00}s'}">
+                            <Slider Width="220" AutomationProperties.Name="Breathing room (seconds)"
+                                    Minimum="0" Maximum="0.5" Value="{Binding BreathingRoom}"/>
+                        </controls:SettingsRow>
+                        <controls:SettingsRow Header="{Binding SilenceFloorDB, StringFormat='Silence below {0:0}dB'}">
+                            <Slider Width="220" AutomationProperties.Name="Silence floor (dB)"
+                                    Minimum="-60" Maximum="-10" Value="{Binding SilenceFloorDB}"/>
+                        </controls:SettingsRow>
+                        <controls:SettingsRow Header="{Binding MinKeep, StringFormat='Drop kept clips under {0:0.00}s'}">
+                            <Slider Width="220" AutomationProperties.Name="Drop kept clips under (seconds)"
+                                    Minimum="0" Maximum="0.5" Value="{Binding MinKeep}"/>
+                        </controls:SettingsRow>
+                        <controls:SettingsRow Header="Repeated-take sensitivity">
+                            <ComboBox AutomationProperties.Name="Repeated-take sensitivity" ItemsSource="{Binding RetakeSensitivities}" SelectedItem="{Binding RetakeSensitivity}"/>
+                        </controls:SettingsRow>
+                    </StackPanel>
+                </Border>
+
+                <!-- Speech model -->
+                <TextBlock Classes="section" Text="Speech model"/>
+                <Border Classes="settingsGroup">
+                    <StackPanel>
+                        <controls:SettingsRow Header="Model" Description="{Binding SelectedModel.Summary}" Glyph="&#xE720;">
+                            <ComboBox MinWidth="200" AutomationProperties.Name="Speech model"
+                                      ItemsSource="{Binding ModelOptions}" SelectedItem="{Binding SelectedModel}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="models:ModelSpec">
+                                        <TextBlock Text="{Binding DisplayWithSize}"/>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </controls:SettingsRow>
+                        <controls:SettingsRow Header="Custom model"
+                                              Description="Path to a whisper.cpp .bin (leave empty to use the model above).">
+                            <TextBox Width="220" AutomationProperties.Name="Custom speech model path"
+                                     PlaceholderText="Path to a .bin" Text="{Binding CustomModelPath}"/>
+                        </controls:SettingsRow>
+                    </StackPanel>
+                </Border>
+
+                <!-- Output -->
+                <TextBlock Classes="section" Text="Output"/>
+                <Border Classes="settingsGroup">
+                    <StackPanel>
+                        <controls:SettingsRow Header="Prepare an editor timeline"
+                                              Description="Writes an .fcpxml project + a copy of your footage (no re-encode) for DaVinci Resolve etc."
+                                              Glyph="&#xE8B7;">
+                            <ToggleSwitch AutomationProperties.Name="Prepare an editor timeline instead of rendering" IsChecked="{Binding ExportToEditor}"/>
+                        </controls:SettingsRow>
+                        <controls:SettingsRow Header="Write separate video + audio files" Glyph="&#xE958;" IsEnabled="{Binding !ExportToEditor}">
+                            <ToggleSwitch AutomationProperties.Name="Also write separate video and audio files" IsChecked="{Binding SplitTracks}"/>
+                        </controls:SettingsRow>
+                        <controls:SettingsRow Header="Split audio format" IsVisible="{Binding SplitTracks}" IsEnabled="{Binding !ExportToEditor}">
+                            <ComboBox AutomationProperties.Name="Split audio format" ItemsSource="{Binding SplitAudioFormats}" SelectedItem="{Binding SplitAudioFormat}"/>
+                        </controls:SettingsRow>
+                        <controls:SettingsRow Header="Clean up to N files at once" Glyph="&#xE8AB;">
+                            <NumericUpDown AutomationProperties.Name="Clean up to N files at once"
+                                           Minimum="1" Maximum="4" Increment="1" Value="{Binding MaxParallel}"/>
+                        </controls:SettingsRow>
+                        <controls:SettingsRow Header="Keep a backup of each original"
+                                              Description="Crisp always writes a separate cleaned file and never touches the source. This keeps an extra pristine copy in ~/.crisp/Originals."
+                                              Glyph="&#xE8C8;">
+                            <ToggleSwitch AutomationProperties.Name="Keep a backup copy of each original" IsChecked="{Binding BackupOriginal}"/>
+                        </controls:SettingsRow>
+                    </StackPanel>
+                </Border>
+
+                <!-- Presets -->
+                <TextBlock Classes="section" Text="Presets"/>
+                <TextBlock Classes="caption" Margin="2,0,0,2" TextWrapping="Wrap"
+                           Text="Save the current recipe under a name, then pick it per file in the queue. New files start on the default."/>
+                <Border Classes="card">
+                    <StackPanel Spacing="10">
+                        <ItemsControl ItemsSource="{Binding Presets}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="models:Preset">
+                                    <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,3">
+                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding Strength}" Classes="caption" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <Button Grid.Column="1" Content="Make default" Click="OnSetDefaultPreset"
+                                                CommandParameter="{Binding}" Margin="0,0,6,0" Classes="link"/>
+                                        <Button Grid.Column="2" Classes="iconButton" Width="28" Height="28" Padding="4"
+                                                Click="OnDeletePreset" CommandParameter="{Binding}"
+                                                AutomationProperties.Name="Delete preset" ToolTip.Tip="Delete preset">
+                                            <TextBlock Classes="icon" FontSize="12" Text="&#xE711;"/>
+                                        </Button>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Classes="caption" Text="{Binding DefaultPresetName, StringFormat='Default for new files: {0}'}"/>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBox Grid.Column="0" x:Name="NewPresetName" PlaceholderText="New preset name…"/>
+                            <Button Grid.Column="1" Content="Save current" Click="OnAddPreset" Margin="8,0,0,0" Classes="accent"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Watch folder -->
+                <TextBlock Classes="section" Text="Watch folder"/>
+                <Border Classes="settingsGroup">
+                    <StackPanel>
+                        <controls:SettingsRow Header="Auto-clean new videos in a folder"
+                                              Description="While Crisp is open, any new video dropped into the folder is queued and cleaned automatically."
+                                              Glyph="&#xE8B7;">
+                            <ToggleSwitch AutomationProperties.Name="Watch a folder and auto-clean new videos" IsChecked="{Binding WatchEnabled}"/>
+                        </controls:SettingsRow>
+                        <controls:SettingsRow Header="Folder" IsVisible="{Binding WatchEnabled}">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBox Width="200" AutomationProperties.Name="Watch folder path"
+                                         PlaceholderText="Folder to watch…" Text="{Binding WatchFolderPath}"/>
+                                <Button Content="Browse…" Click="OnPickWatchFolder"/>
+                            </StackPanel>
+                        </controls:SettingsRow>
+                        <controls:SettingsRow Header="Add “Clean with Crisp” to the Explorer right-click menu" Glyph="&#xE71D;">
+                            <ToggleSwitch AutomationProperties.Name="Add Clean with Crisp to the Explorer right-click menu" IsChecked="{Binding ExplorerIntegration}"/>
+                        </controls:SettingsRow>
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
 </Window>
