@@ -1,11 +1,14 @@
 ---
 id: TASK-5
 title: Windows-native UI — stop mirroring macOS chrome (Fluent/WinUI feel)
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-07-01 19:21'
+updated_date: '2026-07-02'
 labels: []
 dependencies: []
+references:
+  - 'https://github.com/rafay99-epic/Crisp/pull/153'
 priority: medium
 ordinal: 5000
 ---
