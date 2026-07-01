@@ -13,7 +13,7 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
-    "framer-motion": "^11.11.9",
+    "framer-motion": "^12.42.2",
     "lenis": "^1.1.18",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
