@@ -1,0 +1,25 @@
+apps/desktop/Sources/CrispCore/Licensing/PolarConfig.swift
+  s_c8752ad91ffac9::t_e6c12c30aac9e9 32
+package.json
+  s_c8752ad91ffac9::t_ca6f0e2db53236 5
+apps/license-api/README.md
+  s_c8752ad91ffac9::t_368b54bc08ad58 12
+bun.lock
+  s_c8752ad91ffac9::t_dc1949d8120b50 11-14,342-343
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "baeb77b90561ce69aadf0a26f0ffff2f6a6fcc72",
+  "prompts": {},
+  "sessions": {
+    "s_c8752ad91ffac9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1078508d-45d5-4844-b3d8-a3c75a8b8516",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
