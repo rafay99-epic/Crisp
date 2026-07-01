@@ -518,6 +518,17 @@ final class CrispTests: XCTestCase {
         XCTAssertEqual(params.pauseMode, "remove")
     }
 
+    func testTightPauseClampsHandEditedValues() {
+        // The shared mapping clamps to the slider bounds so the headless paths
+        // (watcher, App Intents) can't cut into speech on a negative value or
+        // silently stop cutting pauses on a huge one.
+        var cfg = EngineConfig.defaults
+        cfg.tightPause = -2
+        XCTAssertEqual(Strength.balanced.parameters(using: cfg).tightPause, 0)
+        cfg.tightPause = 100
+        XCTAssertEqual(Strength.balanced.parameters(using: cfg).tightPause, 0.5)
+    }
+
     func testCleanRunnerThreadsNonDefaultColorDepth() {
         // A hardcoded "auto" in arguments(…) would pass the default-path test above, so
         // prove a non-default value is actually threaded from parameters.colorDepth.

@@ -198,6 +198,15 @@ class BuildKeepSegmentsPauseModeTests(unittest.TestCase):
             pause_mode="tighten", tight_pause=0.0)
         self.assertEqual(keep, [(0.0, 3.15), (4.85, 10.0)])
 
+    def test_negative_tight_pause_never_cuts_into_speech(self):
+        # A negative gap (hand-edited config / bad caller) must clamp to 0 —
+        # i.e. behave as remove — not start the cut before the silence does.
+        keep, _stats = build_keep_segments(
+            words=[], silences=[(3.0, 5.0)], duration=10.0,
+            keep_pause=0.15, min_keep=0.05,
+            pause_mode="tighten", tight_pause=-2.0)
+        self.assertEqual(keep, [(0.0, 3.15), (4.85, 10.0)])
+
     def test_unknown_mode_behaves_as_remove(self):
         keep, _stats = build_keep_segments(
             words=[], silences=[(3.0, 5.0)], duration=10.0,

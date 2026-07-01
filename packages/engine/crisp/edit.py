@@ -144,7 +144,7 @@ def build_keep_segments(words, silences, duration, keep_pause, min_keep=MIN_KEEP
     for s, e in silences:                       # long pauses (trim middle of silence)
         inner_s, inner_e = s + keep_pause, e - keep_pause
         if pause_mode == "tighten":
-            inner_s += tight_pause
+            inner_s += max(0.0, tight_pause)  # a negative gap must never cut into speech
         if inner_e - inner_s > 0.01:
             remove.append((inner_s, inner_e))
             stats["pauses"] += 1

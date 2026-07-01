@@ -68,7 +68,8 @@ struct ContentView: View {
             .sorted()
             .joined(separator: ",")
         return "\(model.strength.rawValue)|\(settings.pauseThreshold)|\(settings.breathingRoom)"
-            + "|\(settings.minKeep)|\(settings.silenceFloorDB)|\(waiting)"
+            + "|\(settings.minKeep)|\(settings.silenceFloorDB)"
+            + "|\(settings.pauseMode)|\(settings.tightPause)|\(waiting)"
     }
 
     /// Pre-flight estimate of how much the waiting files would shrink (pauses only).

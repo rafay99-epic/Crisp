@@ -84,7 +84,11 @@ extension Strength {
             // --pause-mode (which has fixed choices) never hard-fails a clean.
             pauseMode: PauseMode(rawValue: config.pauseMode)?.rawValue
                 ?? PauseMode.remove.rawValue,
-            tightPause: config.tightPause,
+            // Clamp to the Settings slider bounds here — the one mapping every render
+            // path shares (incl. the headless watcher/App Intent, which never pass
+            // through EngineSettings' init clamp). A negative value would start each
+            // pause cut inside speech; huge values would disable pause cutting.
+            tightPause: min(max(config.tightPause, 0), 0.5),
             fadeMs: config.fadeMs,
             crossfadeMs: config.crossfadeMs,
             snapMs: config.snapMs,
