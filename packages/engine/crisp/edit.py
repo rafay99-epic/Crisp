@@ -383,6 +383,15 @@ def render(src, keep, out_path, on_log, on_progress, video_opts, audio_opts, mux
         graph_path = tf.name
     err_file = tempfile.NamedTemporaryFile("w+", suffix=".log", delete=False)
 
+    # Never write the final file in place: a re-clean of the same source deliberately
+    # resolves to its PREVIOUS output (see unique_output_path), so ffmpeg truncating
+    # `out_path` at t=0 would destroy the user's existing good file the moment a
+    # render fails, runs out of disk, or is cancelled (app cancel is a SIGKILL of the
+    # process group — no cleanup runs). Render to a sibling `.part` and publish with
+    # os.replace() (atomic on POSIX and NTFS) only on success; the trailing container
+    # extension is kept so ffmpeg still infers the right muxer. A `.part` orphaned by
+    # SIGKILL is overwritten (-y) or unlinked on the next render to the same output.
+    part_path = out_path.with_name(out_path.stem + ".part" + out_path.suffix)
     try:
         # `-r` on the OUTPUT conforms the cut video to a constant frame rate
         # (dup/drop frames to even spacing). Set only when normalizing a VFR source
@@ -392,27 +401,36 @@ def render(src, keep, out_path, on_log, on_progress, video_opts, audio_opts, mux
                "-filter_complex_script", graph_path,
                "-map", "[outv]", "-map", "[outa]",
                *video_opts, *fps_opts, *audio_opts, *mux_opts,
-               "-progress", "pipe:1", "-nostats", str(out_path)]
+               "-progress", "pipe:1", "-nostats", str(part_path)]
         logger.command("ffmpeg render", cmd)
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=err_file, text=True)
-        for line in proc.stdout:
-            line = line.strip()
-            if line.startswith("out_time_us=") or line.startswith("out_time_ms="):
-                try:
-                    val = int(line.split("=")[1])
-                    secs = val / 1_000_000.0  # both keys are microseconds in practice
-                    frac = max(0.0, min(1.0, secs / total))
-                    on_progress(frac, f"Rendering video… {int(frac * 100)}%")
-                except (IndexError, ValueError):
-                    pass
-        proc.wait()
+        try:
+            for line in proc.stdout:
+                line = line.strip()
+                if line.startswith("out_time_us=") or line.startswith("out_time_ms="):
+                    try:
+                        val = int(line.split("=")[1])
+                        secs = val / 1_000_000.0  # both keys are microseconds in practice
+                        frac = max(0.0, min(1.0, secs / total))
+                        on_progress(frac, f"Rendering video… {int(frac * 100)}%")
+                    except (IndexError, ValueError):
+                        pass
+            proc.wait()
+        except BaseException:
+            # A progress callback blowing up (e.g. BrokenPipeError when the parent
+            # app died) must not orphan a running ffmpeg.
+            proc.kill()
+            proc.wait()
+            raise
         err_file.seek(0)
         err_text = err_file.read()
         logger.tool_result("ffmpeg render", proc.returncode,
-                           err_text if (proc.returncode != 0 or not out_path.exists()) else "")
-        if proc.returncode != 0 or not out_path.exists():
+                           err_text if (proc.returncode != 0 or not part_path.exists()) else "")
+        if proc.returncode != 0 or not part_path.exists():
             raise CleanError(f"Rendering failed.\n{err_text[-1500:]}")
+        os.replace(part_path, out_path)
     finally:
+        part_path.unlink(missing_ok=True)  # no-op on success (already replaced away)
         os.unlink(graph_path)
         err_file.close()
         os.unlink(err_file.name)
