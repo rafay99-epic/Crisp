@@ -1,0 +1,19 @@
+"backlog/docs/doc-5 - Model-research-—-filler-classifier.md"
+  s_c8752ad91ffac9::t_68dddd5f3f7666 8-309
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "2d7520d03ffd6176da2e3f02ed923e9ff89eb682",
+  "prompts": {},
+  "sessions": {
+    "s_c8752ad91ffac9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1078508d-45d5-4844-b3d8-a3c75a8b8516",
+        "model": "unknown"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
