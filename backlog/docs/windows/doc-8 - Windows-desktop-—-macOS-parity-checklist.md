@@ -1,3 +1,11 @@
+---
+id: doc-8
+title: Windows desktop — macOS parity checklist
+type: other
+created_date: '2026-07-01 19:42'
+---
+
+
 # Crisp for Windows — macOS parity checklist
 
 Tracks every macOS feature against the Windows (Avalonia/.NET) port. The build loop
