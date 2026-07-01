@@ -1,0 +1,25 @@
+backlog/config.yml
+  s_c8752ad91ffac9::t_1e215abd1d2554 2,11
+"backlog/docs/windows/doc-8 - Windows-desktop-—-macOS-parity-checklist.md"
+  s_c8752ad91ffac9::t_9c1f255baedd1c 1-8
+"backlog/docs/macos/doc-9 - macOS-desktop-—-overview.md"
+  s_c8752ad91ffac9::t_dec4695efb7cd8 1-22
+"backlog/docs/engine/doc-7 - Core-Python-engine-—-notes.md"
+  s_c8752ad91ffac9::t_9c1f255baedd1c 1-8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "2fe2758aaaed24170f19b658ee6eb5b539b1fecd",
+  "prompts": {},
+  "sessions": {
+    "s_c8752ad91ffac9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1078508d-45d5-4844-b3d8-a3c75a8b8516",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
