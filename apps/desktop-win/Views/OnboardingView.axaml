@@ -56,18 +56,20 @@
         <Style Selector="StackPanel.step">
             <Setter Property="Spacing" Value="10"/>
         </Style>
-        <!-- Step entrance: each page slides in from the right and fades, the same
-             move-and-fade the macOS tour uses. Runs whenever a step becomes visible. -->
+        <!-- Step entrance: the WinUI EntranceThemeTransition feel — a quick fade with
+             a short upward drift and a hard decelerate. Vertical (not a sideways
+             slide) is the native Windows page motion, and the short travel keeps it
+             from reading floaty. Runs whenever a step becomes visible. -->
         <Style Selector="StackPanel.step[IsVisible=True]">
             <Style.Animations>
-                <Animation Duration="0:0:0.35" Easing="CubicEaseOut" FillMode="Forward">
+                <Animation Duration="0:0:0.28" Easing="QuarticEaseOut" FillMode="Both">
                     <KeyFrame Cue="0%">
                         <Setter Property="Opacity" Value="0"/>
-                        <Setter Property="TranslateTransform.X" Value="36"/>
+                        <Setter Property="TranslateTransform.Y" Value="22"/>
                     </KeyFrame>
                     <KeyFrame Cue="100%">
                         <Setter Property="Opacity" Value="1"/>
-                        <Setter Property="TranslateTransform.X" Value="0"/>
+                        <Setter Property="TranslateTransform.Y" Value="0"/>
                     </KeyFrame>
                 </Animation>
             </Style.Animations>

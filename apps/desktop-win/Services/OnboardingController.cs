@@ -199,7 +199,15 @@ public partial class OnboardingController : ObservableObject
             File.WriteAllText(MarkerPath, DateTime.UtcNow.ToString("o"));
         }
         catch (IOException) { /* best effort — worst case it shows once more */ }
-        if (IsPresented) FileLog.Info("onboarding", $"completed (model: {(_settings.HasCustomModel ? "custom" : _settings.SelectedModelId)})");
+        if (IsPresented)
+        {
+            // Persist the whole chosen setup even if the user accepted every default —
+            // auto-save only fires on changes, so force one write now.
+            _settings.SaveNow();
+            var model = _settings.FillerModelEnabled ? "wren"
+                : _settings.HasCustomModel ? "custom" : _settings.SelectedModelId;
+            FileLog.Info("onboarding", $"completed (model: {model}) — settings persisted");
+        }
         IsPresented = false;
     }
 }

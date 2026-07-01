@@ -209,6 +209,12 @@ public partial class EngineSettings : ObservableObject
         _loading = false;
     }
 
+    /// Write the current state to settings.json unconditionally. Normally every
+    /// property change auto-saves, but a user who accepts the defaults never changes
+    /// one — finishing onboarding calls this so the chosen setup (model selection
+    /// included) always exists on disk.
+    public void SaveNow() => Save();
+
     protected override void OnPropertyChanged(PropertyChangedEventArgs e)
     {
         base.OnPropertyChanged(e);

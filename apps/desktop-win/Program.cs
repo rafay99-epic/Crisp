@@ -420,11 +420,16 @@ sealed class Program
         settings.CustomModelPath = custom;
         Check(tour.ModelSatisfied && tour.CanContinue, "a custom model satisfies the gate");
 
-        // Walk to the end; the last Continue completes and writes the marker.
+        // Walk to the end; the last Continue completes, writes the marker, and
+        // persists the whole chosen setup to settings.json (even all-defaults).
         while (!tour.IsLast) tour.ContinueCommand.Execute(null);
         Check(tour.ContinueLabel == "Get Started", "last step relabels Continue");
         tour.ContinueCommand.Execute(null);
         Check(!tour.IsPresented, "finishing dismisses the tour");
+        Check(File.Exists(Crisp.Models.EngineConfig.FilePath), "finishing writes settings.json");
+        var saved = Crisp.Models.EngineConfig.Load();
+        Check(saved.SelectedModelId == settings.SelectedModelId && saved.CustomModelPath == custom,
+            "settings.json captures the chosen model setup");
 
         var again = new Crisp.Services.OnboardingController(models, filler, settings, fillerAvailable: true);
         Check(!again.IsPresented, "the marker persists — no re-present on next launch");
