@@ -1,0 +1,19 @@
+"backlog/tasks/task-33 - Fix-On²-render-filter-graph-for-many-cuts.md"
+  s_77278fca3d82ec::t_b4f75a4db7f5b7 4,7,10-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "bf79d59a8732f3a472382f3ac99f7c6ade9c9a15",
+  "prompts": {},
+  "sessions": {
+    "s_77278fca3d82ec": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cd4010da-99af-4c01-95fa-a67e6669de5e",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
