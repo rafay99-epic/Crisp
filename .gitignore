@@ -36,5 +36,8 @@ dist/
 # TypeScript incremental build info
 *.tsbuildinfo
 
-# Local roadmap / idea scratchpad — kept on the maintainer's machine, not shipped.
+# Superseded local roadmap scratchpad (the roadmap now lives in backlog/).
 ROADMAP.md
+
+# Backlog.md transient file locks — never commit these.
+backlog/.locks/

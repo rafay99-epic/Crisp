@@ -76,14 +76,20 @@ subprocess. License: **GPL-3.0**. Conventions mirror the Vitals project.
 
 ## Roadmap & issue tracking
 
-- **The roadmap is not in GitHub.** The "Crisp Roadmap" Project board and its
-  feature issues were removed (a new tracking tool is being chosen). For now the
-  roadmap lives in a local **`ROADMAP.md`** at the repo root on the maintainer's
-  machine — gitignored, not shipped, grouped Shipped / In progress / Planned with
-  the shipping PR noted on each done item. `idea.md` is a short pointer to this.
+- **The roadmap is managed with [Backlog.md](https://github.com/MrLesk/Backlog.md).**
+  Tasks are git-tracked Markdown files under **`backlog/`** (`backlog/tasks/*.md`,
+  config in `backlog/config.yml`) — not GitHub. View them with `backlog board`
+  (terminal Kanban) or `backlog browser` (web UI at `:6420`, drag-and-drop). Each
+  task has a **status** (`To Do` / `In Progress` / `Done`), a **priority**
+  (`high`/`medium`/`low`), and — once shipped — the **PR URL in its `references`**.
+  Add an idea: `backlog task create "Title" -d "…" --priority medium`.
+- **PRs link to tasks.** When a PR ships a task, set it `Done` and attach the PR
+  (`backlog task edit <id> -s Done --ref <pr-url>`). A **user-scope MCP server**
+  (`backlog mcp start`, in `~/.claude.json`) lets agents create/update tasks as
+  work moves, so every PR we work on stays tracked.
 - **GitHub Issues = real bugs only.** Open an issue **only** for a reproducible
   defect / regression / crash. **Never** file features, ideas, or roadmap items as
-  issues — those go in `ROADMAP.md`. Keeping the tracker to actual bugs is
+  issues — those are Backlog.md tasks. Keeping the tracker to actual bugs is
   deliberate.
 - **`area:*` labels still auto-apply to PRs** by changed path
   (`.github/labeler.yml`) — independent of issues, and it stays. Never use `gh pr
