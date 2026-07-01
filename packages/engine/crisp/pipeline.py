@@ -202,7 +202,8 @@ def _export_editor_project(src, keep, out_dir, project_dir, target_fps,
                        *fps_args, *color_flags,
                        *audio_args(audio_codec, audio_bitrate), str(media_tmp)]
                 logger.command(f"ffmpeg editor-copy ({'hw' if hw else 'sw'}, {pix})", cmd)
-                r = subprocess.run(cmd, capture_output=True, text=True)
+                r = subprocess.run(cmd, capture_output=True, text=True,
+                                   encoding="utf-8", errors="replace")
                 logger.tool_result("ffmpeg editor-copy", r.returncode, r.stderr)
                 return r
 

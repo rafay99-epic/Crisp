@@ -378,10 +378,14 @@ def render(src, keep, out_path, on_log, on_progress, video_opts, audio_opts, mux
 
     lines = build_filter_graph(keep, fade=fade, crossfade=crossfade)
 
-    with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False) as tf:
+    # Explicit UTF-8 everywhere a tool's output (or a path) crosses a text boundary —
+    # on Windows the default is the locale code page (cp1252) with strict errors,
+    # which crashes on the multibyte filenames ffmpeg happily echoes into stderr.
+    with tempfile.NamedTemporaryFile("w", suffix=".txt", encoding="utf-8", delete=False) as tf:
         tf.write("\n".join(lines))
         graph_path = tf.name
-    err_file = tempfile.NamedTemporaryFile("w+", suffix=".log", delete=False)
+    err_file = tempfile.NamedTemporaryFile("w+", suffix=".log", encoding="utf-8",
+                                           errors="replace", delete=False)
 
     # Never write the final file in place: a re-clean of the same source deliberately
     # resolves to its PREVIOUS output (see unique_output_path), so ffmpeg truncating
@@ -403,7 +407,8 @@ def render(src, keep, out_path, on_log, on_progress, video_opts, audio_opts, mux
                *video_opts, *fps_opts, *audio_opts, *mux_opts,
                "-progress", "pipe:1", "-nostats", str(part_path)]
         logger.command("ffmpeg render", cmd)
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=err_file, text=True)
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=err_file, text=True,
+                                encoding="utf-8", errors="replace")
         try:
             for line in proc.stdout:
                 line = line.strip()

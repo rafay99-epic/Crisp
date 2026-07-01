@@ -52,7 +52,7 @@ def available_hw_encoders() -> set:
     if _HW_ENCODER_CACHE is None:
         try:
             res = subprocess.run([ffmpeg_bin(), "-hide_banner", "-encoders"],
-                                 capture_output=True, text=True, timeout=15)
+                                 capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=15)
             _HW_ENCODER_CACHE = set(re.findall(
                 r"\b([a-z0-9]+_(?:videotoolbox|nvenc|qsv|amf))\b", res.stdout))
         except Exception:
@@ -86,7 +86,7 @@ def probe_video_fps(path: Path, logger=None):
         [ffprobe_bin(), "-v", "error", "-select_streams", "v:0",
          "-show_entries", "stream=r_frame_rate,avg_frame_rate",
          "-of", "default=noprint_wrappers=1", str(path)],
-        capture_output=True, text=True,
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
     )
     # Fail open: on a nonzero exit return ("", "") so a partial/garbled stdout can't
     # feed bad metadata into resolve_target_fps (which would then normalize on the
@@ -195,7 +195,7 @@ def probe_stream_meta(path: Path, logger=None, require_fps: bool = True) -> dict
          "stream=codec_type,width,height,r_frame_rate,sample_rate,channels,"
          "pix_fmt,color_primaries,color_transfer,color_space,color_range",
          "-of", "json", str(path)],
-        capture_output=True, text=True,
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
     )
     meta = parse_stream_meta(res.returncode, res.stdout, require_fps=require_fps)
     if meta is None and logger is not None:
@@ -288,7 +288,7 @@ def probe_hdr10_metadata(path: Path, logger=None) -> dict | None:
     res = subprocess.run(
         [ffprobe_bin(), "-v", "error", "-select_streams", "v:0",
          "-read_intervals", "%+#1", "-show_frames", "-of", "json", str(path)],
-        capture_output=True, text=True,
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
     )
     meta = parse_hdr10_metadata(res.returncode, res.stdout)
     if meta is None and logger is not None:
@@ -300,7 +300,7 @@ def ffprobe_duration(path: Path, logger=None) -> float:
     out = subprocess.run(
         [ffprobe_bin(), "-v", "error", "-show_entries", "format=duration",
          "-of", "default=noprint_wrappers=1:nokey=1", str(path)],
-        capture_output=True, text=True,
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
     )
     try:
         return float(out.stdout.strip())

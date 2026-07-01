@@ -67,7 +67,7 @@ def split_av(cleaned_path, audio_codec, on_log, audio_format="match", logger=Non
 def _extract(cmd, out_path, label, logger):
     logger.command(f"ffmpeg {label}", cmd)
     try:
-        res = subprocess.run(cmd, capture_output=True, text=True)
+        res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
     except OSError as e:
         logger.error(f"ffmpeg {label} couldn't run: {e}")
         return False

@@ -95,7 +95,7 @@ def extract_audio(src: Path, wav_path: Path, on_log, logger=None) -> None:
     cmd = [ffmpeg_bin(), "-y", "-i", str(src),
            "-vn", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", str(wav_path)]
     logger.command("ffmpeg extract-audio", cmd)
-    res = subprocess.run(cmd, capture_output=True, text=True)
+    res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
     logger.tool_result("ffmpeg extract-audio", res.returncode, res.stderr)
     if res.returncode != 0 or not wav_path.exists():
         raise CleanError(f"Could not extract audio.\n{res.stderr[-800:]}")
@@ -108,7 +108,7 @@ def detect_silences(wav_path: Path, noise_db: float, min_pause: float, on_log, l
            "-af", f"silencedetect=noise={noise_db}dB:d={min_pause}",
            "-f", "null", "-"]
     logger.command("ffmpeg silencedetect", cmd)
-    res = subprocess.run(cmd, capture_output=True, text=True)
+    res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
     # Record the exit code for every run (stderr only attaches on failure). On a
     # nonzero exit nothing parses out, which the engine would otherwise silently
     # treat as "no pauses found".
@@ -165,7 +165,8 @@ def transcribe(whisper_bin, model, wav_path, out_prefix, on_log, on_progress, lo
     json_path = Path(str(out_prefix) + ".json")
     cmd = whisper_command(whisper_bin, model, wav_path, out_prefix)
     logger.command("whisper", cmd)
-    proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+    proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True,
+                            encoding="utf-8", errors="replace")
     # whisper.cpp interleaves progress with real diagnostics on stderr. Consume the
     # progress lines for the UI, but keep the rest (bounded) so a failure has its
     # actual cause in the log instead of vanishing into DEVNULL.
@@ -185,7 +186,7 @@ def transcribe(whisper_bin, model, wav_path, out_prefix, on_log, on_progress, lo
         detail = "\n".join(stderr_tail)[-1200:]
         raise CleanError("Transcription failed — the speech model may be missing."
                          + (f"\n{detail}" if detail else ""))
-    with open(json_path) as f:
+    with open(json_path, encoding="utf-8") as f:  # whisper writes UTF-8, never the locale
         data = json.load(f)
     return parse_transcription(data)
 
@@ -213,7 +214,7 @@ def filler_words(filler_bin, model, wav_path, on_log, on_progress, logger=None):
     info = "built-in chunk model (no config)"
     if cfg.exists():
         try:
-            c = json.loads(cfg.read_text())
+            c = json.loads(cfg.read_text(encoding="utf-8"))
             info = (f"{c.get('name', '?')} v{c.get('version', '?')} "
                     f"[{c.get('model_type', 'chunk')}, gen {c.get('generation', 1)}]")
         except (ValueError, OSError):
@@ -221,7 +222,7 @@ def filler_words(filler_bin, model, wav_path, on_log, on_progress, logger=None):
     logger.info(f"filler model: {info} @ {model}")
     logger.command("filler", cmd)
     try:
-        res = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+        res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600)
     except subprocess.TimeoutExpired:
         raise CleanError("Filler detection timed out.")
     logger.tool_result("filler", res.returncode, res.stderr)

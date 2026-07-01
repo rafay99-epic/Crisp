@@ -44,7 +44,7 @@ def _run(binp, pairs, timeout=30):
 
     Raises on a non-zero exit or unparseable output so callers can fall back."""
     payload = json.dumps({"pairs": pairs})
-    res = subprocess.run([binp], input=payload, capture_output=True, text=True,
+    res = subprocess.run([binp], input=payload, capture_output=True, text=True, encoding="utf-8", errors="replace",
                          timeout=timeout)
     if res.returncode != 0:
         raise RuntimeError((res.stderr or "").strip()[-300:] or f"exit {res.returncode}")
