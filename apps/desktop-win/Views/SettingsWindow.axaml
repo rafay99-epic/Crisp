@@ -196,7 +196,8 @@
                                         <Button Grid.Column="1" Content="Make default" Click="OnSetDefaultPreset"
                                                 CommandParameter="{Binding}" Margin="0,0,6,0" Classes="link"/>
                                         <Button Grid.Column="2" Classes="iconButton" Width="28" Height="28" Padding="4"
-                                                Click="OnDeletePreset" CommandParameter="{Binding}" ToolTip.Tip="Delete preset">
+                                                Click="OnDeletePreset" CommandParameter="{Binding}"
+                                                AutomationProperties.Name="Delete preset" ToolTip.Tip="Delete preset">
                                             <TextBlock Classes="icon" FontSize="12" Text="&#xE711;"/>
                                         </Button>
                                     </Grid>

@@ -1,11 +1,15 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="using:Crisp.Views.Controls">
+        xmlns:controls="using:Crisp.Views.Controls"
+        xmlns:chrome="clr-namespace:Avalonia.Controls.Chrome;assembly=Avalonia.Controls">
 
-    <!-- Hide the non-native full-screen caption button Avalonia adds to the
+    <!-- Hide the non-native full-screen caption buttons Avalonia adds to the
          extended (Mica) title bar; Windows apps only show min / max / close.
-         Targeted by template-part name (the CaptionButtons type is internal). -->
-    <Style Selector="Button#PART_FullScreenButton">
+         Scoped to the Avalonia 12 WindowDrawnDecorations template parts. -->
+    <Style Selector="chrome|WindowDrawnDecorations /template/ Button#PART_FullScreenButton">
+        <Setter Property="IsVisible" Value="False"/>
+    </Style>
+    <Style Selector="chrome|WindowDrawnDecorations /template/ Button#PART_PopoverFullScreenButton">
         <Setter Property="IsVisible" Value="False"/>
     </Style>
     <!-- ══════════════════════════════════════════════════════════════════════
@@ -61,22 +65,20 @@
     </Style>
 
     <!-- ───────────────────── Surfaces ───────────────────── -->
-    <!-- The standard rounded card (Windows 11 = 8px). -->
-    <Style Selector="Border.card">
+    <!-- Shared card surface (Windows 11 = 8px) for both the standard card and the
+         settings group; they differ only in padding/clipping below. -->
+    <Style Selector="Border.card, Border.settingsGroup">
         <Setter Property="CornerRadius" Value="{DynamicResource CrispCardRadius}"/>
         <Setter Property="Background" Value="{DynamicResource CrispCard}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource CrispCardBorder}"/>
         <Setter Property="BorderThickness" Value="1"/>
+    </Style>
+    <Style Selector="Border.card">
         <Setter Property="Padding" Value="16"/>
     </Style>
-
     <!-- A settings group card: rows stack inside with no padding of its own so
          divider lines can run edge to edge. -->
     <Style Selector="Border.settingsGroup">
-        <Setter Property="CornerRadius" Value="{DynamicResource CrispCardRadius}"/>
-        <Setter Property="Background" Value="{DynamicResource CrispCard}"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource CrispCardBorder}"/>
-        <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Padding" Value="0"/>
         <Setter Property="ClipToBounds" Value="True"/>
     </Style>

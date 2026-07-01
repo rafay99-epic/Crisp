@@ -46,7 +46,7 @@
 
         <!-- Update banner (shown when a newer release is available) -->
         <Border DockPanel.Dock="Top" IsVisible="{Binding Updater.IsAvailable}" Margin="24,4,24,8"
-                Background="{DynamicResource CrispAccent}" CornerRadius="6" Padding="14,10">
+                Background="{DynamicResource CrispAccent}" CornerRadius="{DynamicResource CrispControlRadius}" Padding="14,10">
             <Grid ColumnDefinitions="*,Auto">
                 <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="White"
                            Text="{Binding Updater.AvailableVersion, StringFormat='A new version of Crisp ({0}) is available.'}"/>
@@ -65,7 +65,7 @@
             <StackPanel Spacing="10">
                 <!-- model install gate (when fillers requested but model missing) -->
                 <Border IsVisible="{Binding NeedsModel}" Background="{DynamicResource CrispInset}"
-                        CornerRadius="6" Padding="12">
+                        CornerRadius="{DynamicResource CrispControlRadius}" Padding="12">
                     <StackPanel Spacing="8">
                         <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding !Models.IsBusy}">
                             <TextBlock Classes="body" Text="Filler removal needs the speech model." VerticalAlignment="Center"/>
@@ -207,7 +207,7 @@
                                         </Panel>
                                         <TextBlock IsVisible="{Binding IsDone}" Classes="caption"
                                                    Text="{Binding CutsSummary}"/>
-                                        <TextBlock IsVisible="{Binding IsFailed}" Foreground="#FFE06666" FontSize="11"
+                                        <TextBlock IsVisible="{Binding IsFailed}" Classes="caption" Foreground="#FFE06666"
                                                    Text="{Binding ErrorText}" TextTrimming="CharacterEllipsis"/>
                                     </StackPanel>
 
