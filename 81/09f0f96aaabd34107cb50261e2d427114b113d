@@ -1,0 +1,21 @@
+"backlog/docs/doc-3 - Retake-detection-—-research-findings.md"
+  s_c8752ad91ffac9::t_266a7268af0d7b 8-174
+"backlog/docs/doc-4 - Retake-removal-—-calibration-plan.md"
+  s_c8752ad91ffac9::t_a6cd652dc77055 1-7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "8109f0f96aaabd34107cb50261e2d427114b113d",
+  "prompts": {},
+  "sessions": {
+    "s_c8752ad91ffac9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1078508d-45d5-4844-b3d8-a3c75a8b8516",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
