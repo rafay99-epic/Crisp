@@ -183,7 +183,13 @@ def main():
     if args.ndjson:
         _enable_group_cancel()
         def emit(obj):
-            print(json.dumps(obj), flush=True)
+            try:
+                print(json.dumps(obj), flush=True)
+            except BrokenPipeError:
+                # The parent app died without killing us; nothing is reading. Exit
+                # now — the error handlers would only call emit again and re-raise
+                # into interpreter-shutdown noise.
+                os._exit(1)
         user_log = lambda m: emit({"event": "log", "message": m})
         on_progress = lambda f, l="": emit({"event": "progress", "fraction": f, "label": l})
     else:
@@ -197,6 +203,14 @@ def main():
                 ascii_line = line.replace("→", "->").replace("✅", "[OK]")
                 print(ascii_line.encode("ascii", "replace").decode("ascii"), flush=True)
         on_progress = None
+
+    def user_err(e):
+        # Same legacy-console fallback as user_log: an error carrying a non-cp1252
+        # filename or tool output must print, not crash the error path itself.
+        try:
+            user_err(e)
+        except UnicodeEncodeError:
+            print(f"ERROR: {e}".encode("ascii", "replace").decode("ascii"), flush=True)
 
     # Tee every human status line into the run log, and record the invocation so a
     # log starts with exactly how the engine was called.
@@ -224,7 +238,7 @@ def main():
             if args.ndjson:
                 emit({"event": "error", "message": str(e)})
             else:
-                print(f"ERROR: {e}", flush=True)
+                user_err(e)
             sys.exit(1)
         except Exception as e:
             # Turn an unexpected failure into a structured error + logged traceback,
@@ -234,7 +248,7 @@ def main():
             if args.ndjson:
                 emit({"event": "error", "message": f"Unexpected error: {e}"})
             else:
-                print(f"ERROR: {e}", flush=True)
+                user_err(e)
             sys.exit(1)
         return
 
@@ -263,7 +277,7 @@ def main():
         if args.ndjson:
             emit({"event": "error", "message": str(e)})
         else:
-            print(f"ERROR: {e}", flush=True)
+            user_err(e)
         sys.exit(1)
     except Exception as e:
         # An unexpected (non-CleanError) failure used to escape as a raw traceback —

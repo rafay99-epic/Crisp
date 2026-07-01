@@ -58,13 +58,24 @@ def waveform_summary(wav_path, duration, keep_segments, buckets=120):
         with wave.open(str(Path(wav_path)), "rb") as w:
             if w.getsampwidth() != 2:
                 return {"peaks": [], "removed": []}
-            samples = array("h")
-            samples.frombytes(w.readframes(w.getnframes()))
+            # Read one bucket at a time instead of the whole file: an hours-long
+            # WAV is hundreds of MB, and holding it (twice — bytes + array) just to
+            # take 120 peaks made the waveform silently vanish via MemoryError.
+            # Peak math per bucket is unchanged (same slice bounds, same stride).
+            n = w.getnframes()
+            peaks = []
+            for i in range(buckets if n > 0 else 0):
+                lo = (i * n) // buckets
+                hi = max(lo + 1, ((i + 1) * n) // buckets)
+                w.setpos(lo)
+                samples = array("h")
+                samples.frombytes(w.readframes(hi - lo))
+                peaks.extend(_peaks_from_samples(samples, 1))
         return {
-            "peaks": _peaks_from_samples(samples, buckets),
+            "peaks": peaks,
             "removed": _removed_flags(buckets, duration, keep_segments),
         }
     except Exception:
         # The waveform is a nicety; whatever goes wrong (unreadable WAV, an odd
-        # format, even MemoryError on an hours-long file) must never fail the clean.
+        # format) must never fail the clean.
         return {"peaks": [], "removed": []}

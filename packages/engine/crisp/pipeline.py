@@ -436,6 +436,11 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
     if export_timeline == "fcpxml" and captions != "none":
         on_log("Captions aren't written for an editor handoff — add them in your editor.")
         captions = "none"
+    # Same up-front honesty for a reviewed keep-list: it renders without any
+    # transcription, so a caption request would otherwise just silently vanish.
+    if keep_file and captions != "none":
+        on_log("Captions aren't written when rendering a reviewed cut list.")
+        captions = "none"
     want_captions = captions != "none"
     # Retake detection needs a real transcript, which the Core ML classifier can't
     # produce. Rather than silently switch a classifier run onto whisper, the engine
@@ -462,17 +467,19 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
         on_log(note)
     on_progress(0.0, "Starting…")
 
+    # Validate the source BEFORE the backup copy — a corrupt/unreadable file must
+    # fail here, not after a multi-gigabyte copy it then throws away.
+    duration = ffprobe_duration(src, logger=logger)
+    if duration <= 0:
+        raise CleanError("Could not read the video's duration — is it a valid video file?")
+    logger.info(f"duration={duration:.2f}s")
+
     # Editor-handoff copies the original into the project folder, so a separate backup
     # would duplicate a (possibly large) file twice — skip it in that mode.
     do_backup = backup and export_timeline != "fcpxml"
     backup_path = make_backup(src, on_log, backup_dir, logger=logger) if do_backup else None
     if backup_path:
         on_progress(0.03, "Backed up original")
-
-    duration = ffprobe_duration(src, logger=logger)
-    if duration <= 0:
-        raise CleanError("Could not read the video's duration — is it a valid video file?")
-    logger.info(f"duration={duration:.2f}s")
 
     # Frame-rate normalization. Screen recorders emit variable-frame-rate video,
     # which the trim→concat render can drift A/V on; force the render to a constant
@@ -721,8 +728,13 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
             if hdr_params and not hw and is_deep_pix_fmt(pix):
                 on_log("Preserving the source's HDR10 metadata.")
             break
-        except CleanError:
+        except CleanError as e:
             if i == last:
+                raise
+            # An encoder that can't start fails within the first instants. A failure
+            # deep into the render (disk full, I/O error) won't be cured by another
+            # encoder — re-raise instead of re-rendering an hour-long file twice more.
+            if getattr(e, "render_progress", 0.0) > 0.02:
                 raise
             if attempts[i + 1][1] != pix:        # the next attempt gives up the source's depth
                 logger.notice(f"Couldn't encode pixel format {pix} — falling back to 8-bit 4:2:0")

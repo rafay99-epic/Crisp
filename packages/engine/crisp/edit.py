@@ -8,6 +8,7 @@ import math
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -71,20 +72,25 @@ def make_backup(src: Path, on_log, backup_dir: Path | None = None, logger=None) 
 # (re-cleans get a _1 copy instead of overwriting — the safe way to fail).
 SOURCE_XATTR = "user.crisp.source"
 
-try:
-    import ctypes
+# The prototypes below are the 6-argument BSD/macOS signatures. Only load them on
+# macOS: Windows has no CDLL(None) at all, and Linux's get/setxattr take 4/5 args —
+# calling them through a mismatched prototype only works by ABI accident. Everywhere
+# but macOS we degrade to the dedup fallback (re-cleans get a _1 copy — the safe
+# way to fail).
+_libc = None
+if sys.platform == "darwin":
+    try:
+        import ctypes
 
-    _libc = ctypes.CDLL(None, use_errno=True)
-    _libc.getxattr.restype = ctypes.c_ssize_t
-    _libc.getxattr.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_void_p,
-                               ctypes.c_size_t, ctypes.c_uint32, ctypes.c_int]
-    _libc.setxattr.restype = ctypes.c_int
-    _libc.setxattr.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_void_p,
-                               ctypes.c_size_t, ctypes.c_uint32, ctypes.c_int]
-except (OSError, AttributeError, TypeError):  # pragma: no cover - platform without these symbols
-    # Windows raises TypeError from CDLL(None) ("argument 1 must be str, not None");
-    # xattr is BSD-only anyway, so degrade to the dedup fallback there.
-    _libc = None
+        _libc = ctypes.CDLL(None, use_errno=True)
+        _libc.getxattr.restype = ctypes.c_ssize_t
+        _libc.getxattr.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_void_p,
+                                   ctypes.c_size_t, ctypes.c_uint32, ctypes.c_int]
+        _libc.setxattr.restype = ctypes.c_int
+        _libc.setxattr.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_void_p,
+                                   ctypes.c_size_t, ctypes.c_uint32, ctypes.c_int]
+    except (OSError, AttributeError):  # pragma: no cover - libc without these symbols
+        _libc = None
 
 
 def _output_owner(path: Path):
@@ -409,6 +415,7 @@ def render(src, keep, out_path, on_log, on_progress, video_opts, audio_opts, mux
         logger.command("ffmpeg render", cmd)
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=err_file, text=True,
                                 encoding="utf-8", errors="replace")
+        last_frac = 0.0
         try:
             for line in proc.stdout:
                 line = line.strip()
@@ -417,6 +424,7 @@ def render(src, keep, out_path, on_log, on_progress, video_opts, audio_opts, mux
                         val = int(line.split("=")[1])
                         secs = val / 1_000_000.0  # both keys are microseconds in practice
                         frac = max(0.0, min(1.0, secs / total))
+                        last_frac = frac
                         on_progress(frac, f"Rendering video… {int(frac * 100)}%")
                     except (IndexError, ValueError):
                         pass
@@ -432,7 +440,12 @@ def render(src, keep, out_path, on_log, on_progress, video_opts, audio_opts, mux
         logger.tool_result("ffmpeg render", proc.returncode,
                            err_text if (proc.returncode != 0 or not part_path.exists()) else "")
         if proc.returncode != 0 or not part_path.exists():
-            raise CleanError(f"Rendering failed.\n{err_text[-1500:]}")
+            err = CleanError(f"Rendering failed.\n{err_text[-1500:]}")
+            # How far the render got before dying — the pipeline's encoder-fallback
+            # ladder uses this to tell "encoder couldn't start" (retry in software)
+            # from "died mid-render" (disk/I/O — retrying just re-burns hours).
+            err.render_progress = last_frac
+            raise err
         os.replace(part_path, out_path)
     finally:
         part_path.unlink(missing_ok=True)  # no-op on success (already replaced away)

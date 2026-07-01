@@ -109,10 +109,11 @@ def detect_silences(wav_path: Path, noise_db: float, min_pause: float, on_log, l
            "-f", "null", "-"]
     logger.command("ffmpeg silencedetect", cmd)
     res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
-    # Record the exit code for every run (stderr only attaches on failure). On a
-    # nonzero exit nothing parses out, which the engine would otherwise silently
-    # treat as "no pauses found".
     logger.tool_result("ffmpeg silencedetect", res.returncode, res.stderr)
+    # Fail loudly: on a nonzero exit nothing parses out, and returning [] would
+    # let the clean "succeed" as a full re-encode that cut nothing.
+    if res.returncode != 0:
+        raise CleanError(f"Pause detection failed.\n{(res.stderr or '')[-800:]}")
     silences, start = [], None
     for line in res.stderr.splitlines():
         line = line.strip()
@@ -182,12 +183,17 @@ def transcribe(whisper_bin, model, wav_path, out_prefix, on_log, on_progress, lo
             stderr_tail.append(line.rstrip())
     proc.wait()
     logger.tool_result("whisper", proc.returncode, "\n".join(stderr_tail))
-    if not json_path.exists():
+    # Gate on the exit code too, not just the file: whisper can die (OOM) after
+    # opening its output, leaving truncated JSON behind.
+    if proc.returncode != 0 or not json_path.exists():
         detail = "\n".join(stderr_tail)[-1200:]
         raise CleanError("Transcription failed — the speech model may be missing."
                          + (f"\n{detail}" if detail else ""))
     with open(json_path, encoding="utf-8") as f:  # whisper writes UTF-8, never the locale
-        data = json.load(f)
+        try:
+            data = json.load(f)
+        except ValueError as e:
+            raise CleanError(f"Transcription output is unreadable (truncated?).\n{e}")
     return parse_transcription(data)
 
 
@@ -221,8 +227,16 @@ def filler_words(filler_bin, model, wav_path, on_log, on_progress, logger=None):
             pass
     logger.info(f"filler model: {info} @ {model}")
     logger.command("filler", cmd)
+    # Scale the timeout with the audio length (analysis WAV is 16 kHz mono s16 ⇒
+    # 32 kB/s): a fixed cap would kill legitimate multi-hour recordings on slow
+    # hardware, while a hung helper still gets reaped.
     try:
-        res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600)
+        wav_seconds = Path(wav_path).stat().st_size / 32000
+    except OSError:
+        wav_seconds = 0
+    try:
+        res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8",
+                             errors="replace", timeout=600 + int(wav_seconds))
     except subprocess.TimeoutExpired:
         raise CleanError("Filler detection timed out.")
     logger.tool_result("filler", res.returncode, res.stderr)
@@ -233,9 +247,16 @@ def filler_words(filler_bin, model, wav_path, on_log, on_progress, logger=None):
             logger.debug(f"filler {line.removeprefix('crisp-filler: ')}")
     if res.returncode != 0:
         raise CleanError("Filler detection failed.\n" + (res.stderr or "")[-800:])
+    # Validate the whole shape inside one try — a top-level array, a non-list
+    # "fillers", or a malformed span must all become a CleanError, not a raw
+    # AttributeError/unpack traceback.
     try:
-        spans = json.loads(res.stdout).get("fillers", [])
+        data = json.loads(res.stdout)
+        spans = data.get("fillers", []) if isinstance(data, dict) else None
+        if not isinstance(spans, list):
+            raise ValueError("missing 'fillers' list")
+        words = [{"text": "um", "start": float(a), "end": float(b)} for a, b in spans]
     except (ValueError, TypeError) as exc:
         raise CleanError(f"Filler detector returned invalid output: {exc}")
     on_progress(1.0, "Filler detection complete")
-    return [{"text": "um", "start": float(a), "end": float(b)} for a, b in spans]
+    return words
