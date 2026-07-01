@@ -1,27 +1,29 @@
 name: Windows
 
 # CI + release feed for the Windows port (apps/desktop-win, Avalonia/.NET). The
-# counterpart of the macOS pipeline (ci.yml / nightly.yml): detect a change to the
-# Windows app or the shared engine → build → headless self-tests + the shared
-# engine's OS-aware Python tests (run here on real Windows) → package a single
-# self-contained installer. On a push to `nightly` it also publishes that one
-# installer to a rolling Windows pre-release, in parallel with the macOS DMG.
-# Pull requests and dev builds run everything up to (and including) packaging so a
-# reviewer can smoke-test the installer — but they never publish a release.
+# counterpart of the macOS pipeline (ci.yml / nightly.yml): build → headless
+# self-tests + the shared engine's OS-aware Python tests (run here on real Windows)
+# → package a single self-contained installer → attach that one installer to the
+# release the macOS workflow publishes (stable v0.<count> on main, or the rolling
+# `nightly` pre-release). So one release carries BOTH the DMG and the .exe.
 #
-# The engine lives in apps/desktop/Resources/engine and is shared, so a change
-# there triggers this too.
+# Triggers on ANY desktop change (macOS or Windows) so the shared release always
+# holds both assets built from the *same* commit — the release's "build N" / version
+# is shared, so a stale asset would misreport updates. The macOS workflow owns the
+# release (title, notes, DMG); this one only adds Crisp-Setup.exe. Pull requests and
+# dev builds run everything up to (and including) packaging so a reviewer can
+# smoke-test the installer — but they never publish.
 on:
   push:
     branches: [main, nightly]
     paths:
+      - "apps/desktop/**"
       - "apps/desktop-win/**"
-      - "apps/desktop/Resources/engine/**"
       - ".github/workflows/windows.yml"
   pull_request:
     paths:
+      - "apps/desktop/**"
       - "apps/desktop-win/**"
-      - "apps/desktop/Resources/engine/**"
       - ".github/workflows/windows.yml"
   workflow_dispatch: {}
 
@@ -81,10 +83,10 @@ jobs:
   # Vendors the engine binaries (ffmpeg/whisper/python, pinned + hash-checked) and
   # produces the ONE file a user runs: Crisp-Setup.exe (Crisp-Nightly-Setup.exe on
   # the nightly channel) — a single self-contained installer, uploaded as the run's
-  # only artifact. On a nightly push the identity (channel + version + build number)
-  # is baked into the exe so the installed app knows it's Nightly. The vendored
-  # binaries are cached on the vendor-script hash, so the heavy ffmpeg download +
-  # whisper.cpp build only run when the pins change.
+  # only artifact. Channel/version/build are baked into the exe so the installed app
+  # knows its identity (env vars don't reach an installed app). The vendored binaries
+  # are cached on the vendor-script hash, so the heavy ffmpeg download + whisper.cpp
+  # build only run when the pins change.
   package:
     name: Package installer (win-x64)
     runs-on: windows-latest
@@ -95,7 +97,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          fetch-depth: 0 # full history — the version is the commit count
+          fetch-depth: 0 # full history — the version + nightly build number are commit counts
           persist-credentials: false
       - uses: actions/setup-dotnet@v4
         with:
@@ -104,16 +106,19 @@ jobs:
         with:
           python-version: "3.x"
 
-      # Nightly on a push to `nightly`, else a plain stable verification build.
+      # nightly on a push to `nightly`, else the stable channel (main push / PR /
+      # dispatch — only main actually publishes). VERSION + the nightly build number
+      # are both the commit count, computed identically to the macOS build so the one
+      # shared release's version / "build N" agree across platforms.
       - name: Compute identity
         run: |
           $channel = if ($env:GITHUB_EVENT_NAME -eq 'push' -and $env:GITHUB_REF -eq 'refs/heads/nightly') { 'nightly' } else { 'stable' }
           $asset   = if ($channel -eq 'nightly') { 'Crisp-Nightly-Setup.exe' } else { 'Crisp-Setup.exe' }
-          $version = "0.$(git rev-list --count HEAD)"
-          "CHANNEL=$channel"             | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
-          "VERSION=$version"             | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
-          "BUILD=$env:GITHUB_RUN_NUMBER" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
-          "ASSET=$asset"                 | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          $count   = "$(git rev-list --count HEAD)"
+          "CHANNEL=$channel"     | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "VERSION=0.$count"     | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "BUILD=$count"         | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "ASSET=$asset"         | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
 
       - name: Cache vendored binaries
         uses: actions/cache@v4
@@ -148,17 +153,18 @@ jobs:
           name: Crisp-Windows-Installer
           path: apps/desktop-win/Scripts/*Setup.exe
 
-  # The Windows nightly feed. Only a push to `nightly` on the canonical repo
-  # publishes — a fork or a PR runs build+package to verify, then stops here.
-  # Refreshes a single rolling `nightly-win` pre-release carrying the one
-  # installer, mirroring the macOS `nightly` release; the two feeds are separate
-  # rolling tags so neither clobbers the other's asset. The updater orders builds
-  # by the "build <n>" in the title (Updater.ParseBuildNumber), so it MUST be there.
+  # Attaches the one Windows installer to the release the macOS workflow publishes —
+  # so a single release (stable v0.<count> on main, or the rolling `nightly`
+  # pre-release) carries both the DMG and the .exe. Only a push to a release branch
+  # on the canonical repo publishes; PRs / dev / forks stop after packaging.
   publish:
-    name: Publish Windows Nightly pre-release
+    name: Attach installer to the release
     runs-on: ubuntu-latest
     needs: package
-    if: github.event_name == 'push' && github.ref == 'refs/heads/nightly' && github.repository == 'rafay99-epic/Crisp'
+    if: >-
+      github.event_name == 'push'
+      && (github.ref == 'refs/heads/nightly' || github.ref == 'refs/heads/main')
+      && github.repository == 'rafay99-epic/Crisp'
     permissions:
       contents: write
     steps:
@@ -171,27 +177,30 @@ jobs:
           name: Crisp-Windows-Installer
           path: dist
 
-      - name: Refresh the rolling "nightly-win" pre-release
+      - name: Attach the installer to the macOS-owned release
         env:
           GH_TOKEN: ${{ github.token }}
-          BUILD: ${{ github.run_number }}
         run: |
-          VERSION="0.$(git rev-list --count HEAD)"
-          SHA="$(git rev-parse --short HEAD)"
-          NOTES_FILE="$(mktemp)"
-          {
-            echo "Windows nightly build from the \`nightly\` branch @ \`$SHA\` (build $BUILD, version $VERSION-nightly)."
-            echo
-            echo "**Install:** download \`Crisp-Nightly-Setup.exe\` below and run it. Installs as **Crisp Nightly** — a separate app, settings, and data dir — so it sits next to a Stable install without touching it. Nightly auto-updates from this feed."
-            echo
-            echo "⚠️ Unsigned pre-release for testing. SmartScreen may warn on first run (More info → Run anyway)."
-          } > "$NOTES_FILE"
-          # A single fixed `nightly-win` tag that always holds the newest Windows
-          # nightly installer — the updater has no /latest/ URL for pre-releases, so
-          # it needs this stable pointer. Title MUST contain "build <n>".
-          gh release delete nightly-win --yes --cleanup-tag 2>/dev/null || true
-          gh release create nightly-win dist/*Setup.exe \
-            --prerelease \
-            --target "$GITHUB_SHA" \
-            --title "Crisp Nightly (Windows) · build $BUILD" \
-            --notes-file "$NOTES_FILE"
+          set -euo pipefail
+          if [ "$GITHUB_REF" = "refs/heads/nightly" ]; then
+            TAG=nightly            # rolling pre-release, always exists after the first build
+          else
+            TAG="v0.$(git rev-list --count HEAD)"   # fresh stable tag, created by ci.yml this run
+          fi
+          EXE="$(ls dist/*Setup.exe)"
+          # The macOS workflow (nightly.yml / ci.yml) creates and owns the release
+          # (title, notes, DMG); we only add the one Windows installer — a different
+          # asset name, so --clobber never touches the DMG. Wait for that release: on
+          # a fresh stable tag the macOS build is creating it in parallel. If it never
+          # appears (a red macOS build → no release), warn rather than fail — the
+          # installer is still downloadable from this run's artifact.
+          for i in $(seq 1 60); do
+            if gh release view "$TAG" >/dev/null 2>&1; then
+              gh release upload "$TAG" "$EXE" --clobber
+              echo "Attached $(basename "$EXE") to release $TAG."
+              exit 0
+            fi
+            echo "Release $TAG not published yet — waiting for the macOS build ($i/60)…"
+            sleep 30
+          done
+          echo "::warning::Release $TAG never appeared (the macOS build may have failed); the installer is available as this run's artifact."

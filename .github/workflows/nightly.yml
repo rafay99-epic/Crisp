@@ -13,6 +13,9 @@ on:
     branches: [nightly]
     paths:
       - "apps/desktop/**"
+      # A Windows-only change still rebuilds the DMG so the one shared `nightly`
+      # release carries both assets built from the same commit (see windows.yml).
+      - "apps/desktop-win/**"
       - ".github/workflows/nightly.yml"
   workflow_dispatch:
 
@@ -69,8 +72,11 @@ jobs:
         run: |
           echo "VERSION=0.$(git rev-list --count HEAD)" >> "$GITHUB_ENV"
           echo "SHA=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
-          # Monotonic CI run number — the updater orders Nightly builds by this.
-          echo "BUILD=${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
+          # Commit count on nightly — a monotonic build number the macOS DMG and the
+          # Windows exe compute identically from this same commit, so the single shared
+          # release's "build N" title orders both platforms coherently (windows.yml
+          # bakes the same value). Both updaters parse `build (\d+)` from the title.
+          echo "BUILD=$(git rev-list --count HEAD)" >> "$GITHUB_ENV"
 
       - name: Build Nightly app and installer
         run: |
@@ -89,11 +95,14 @@ jobs:
           # The title MUST contain "build <n>" — the updater (Updater.buildNumber)
           # and the website's convex lib parse it to order builds.
           #
-          # Notes: list the PRs merged since the previous nightly build. The rolling
-          # release stores the build's commit in target_commitish, so read it BEFORE
-          # deleting the release, then diff that SHA to HEAD with the shared changelog
-          # generator. First build (no prior release) → just the install boilerplate.
-          PREV=$(gh release view nightly --json targetCommitish -q .targetCommitish 2>/dev/null || true)
+          # Notes: list the PRs merged since the previous nightly build. PREV = the
+          # commit the rolling `nightly` tag currently points at (the last published
+          # build); diff PREV..HEAD with the shared changelog generator. Read it from
+          # the tag itself — we no longer delete+recreate the release (that would drop
+          # the Windows exe windows.yml uploads here), so target_commitish can't be the
+          # source. First build (no prior tag) → just the install boilerplate.
+          git fetch origin 'refs/tags/nightly:refs/tags/nightly' --force 2>/dev/null || true
+          PREV=$(git rev-parse -q --verify 'refs/tags/nightly^{commit}' 2>/dev/null || true)
           NOTES_FILE="$(mktemp)"
           {
             if [ -n "$PREV" ] && git rev-parse --verify --quiet "${PREV}^{commit}" >/dev/null; then
@@ -117,12 +126,22 @@ jobs:
             echo
             echo "⚠️ Unsigned pre-release build for testing. Right-click → Open the first time to get past Gatekeeper."
           } > "$NOTES_FILE"
-          gh release delete nightly --yes --cleanup-tag 2>/dev/null || true
-          gh release create nightly build/Crisp-Nightly.dmg \
-            --prerelease \
-            --target "$GITHUB_SHA" \
-            --title "Crisp Nightly · build $BUILD" \
-            --notes-file "$NOTES_FILE"
+          # Upsert, never delete: refresh the title/notes and the DMG in place so the
+          # Windows exe on this release survives. windows.yml uploads Crisp-Nightly-Setup.exe
+          # to the same release; the two assets never collide (different names).
+          if gh release view nightly >/dev/null 2>&1; then
+            gh release edit nightly --prerelease \
+              --title "Crisp Nightly · build $BUILD" --notes-file "$NOTES_FILE"
+            gh release upload nightly build/Crisp-Nightly.dmg --clobber
+          else
+            gh release create nightly build/Crisp-Nightly.dmg --prerelease \
+              --target "$GITHUB_SHA" --title "Crisp Nightly · build $BUILD" --notes-file "$NOTES_FILE"
+          fi
+          # Advance the rolling tag to this commit so the next build's changelog (PREV
+          # above) starts here — the release is never deleted, so the tag won't move on
+          # its own.
+          gh api --method PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/nightly" \
+            -f sha="$GITHUB_SHA" -F force=true >/dev/null 2>&1 || true
 
       # Sync the version-pinned `crisp-nightly` cask to the DMG just shipped. The
       # nightly tag is rolling, so the cask version is the monotonic build number

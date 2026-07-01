@@ -18,6 +18,9 @@ on:
     branches: [main]
     paths:
       - "apps/desktop/**"
+      # A Windows-only promotion still cuts the stable release (with the rebuilt DMG)
+      # that windows.yml attaches Crisp-Setup.exe to — one release, both assets.
+      - "apps/desktop-win/**"
       - ".github/workflows/ci.yml"
   pull_request:
     paths:
