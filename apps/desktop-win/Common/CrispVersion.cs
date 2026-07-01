@@ -1,5 +1,3 @@
-using System;
-
 namespace Crisp;
 
 /// The running app's version. CI stamps CRISP_VERSION (0.<commit count on main>, like
@@ -10,9 +8,9 @@ public static class CrispVersion
     {
         get
         {
-            // Env wins; else the version baked into the assembly at package time
-            // (an installed app has no env var). Default "0.0".
-            var v = Environment.GetEnvironmentVariable("CRISP_VERSION") ?? BuildInfo.Get("CrispVersion");
+            // Env overrides the value baked in at package time (an installed app has
+            // no env var). Default "0.0".
+            var v = BuildInfo.Resolve("CRISP_VERSION", "CrispVersion");
             return string.IsNullOrWhiteSpace(v) ? "0.0" : v;
         }
     }
@@ -21,6 +19,5 @@ public static class CrispVersion
     /// macOS CrispBuildNumber). Nightly reuses a rolling tag, so its updater orders by
     /// this, not the version string. 0 when unset (e.g. a dev build) → never auto-updates.
     public static int BuildNumber =>
-        int.TryParse(Environment.GetEnvironmentVariable("CRISP_BUILD_NUMBER") ?? BuildInfo.Get("CrispBuildNumber"),
-            out var n) ? n : 0;
+        int.TryParse(BuildInfo.Resolve("CRISP_BUILD_NUMBER", "CrispBuildNumber"), out var n) ? n : 0;
 }

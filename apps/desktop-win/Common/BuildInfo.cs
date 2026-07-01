@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Reflection;
 
@@ -17,4 +18,10 @@ public static class BuildInfo
             .ToLookup(a => a.Key, a => a.Value);
 
     public static string? Get(string key) => Meta[key].FirstOrDefault();
+
+    /// Environment variable <paramref name="envVar"/> if set, else the assembly-baked
+    /// metadata under <paramref name="metaKey"/>. The single home of the "env overrides
+    /// the baked value" rule that Channel and CrispVersion both resolve identity through.
+    public static string? Resolve(string envVar, string metaKey) =>
+        Environment.GetEnvironmentVariable(envVar) ?? Get(metaKey);
 }

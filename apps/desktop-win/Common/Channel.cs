@@ -27,10 +27,9 @@ public static class Channels
 
     private static Channel Resolve()
     {
-        // Env wins (dev/test harnesses); else the value baked into the assembly at
-        // package time — an installed app has no env var. Default stable.
-        var raw = (Environment.GetEnvironmentVariable("CRISP_CHANNEL")
-                   ?? BuildInfo.Get("CrispChannel"))?.Trim().ToLowerInvariant();
+        // Env (dev/test harnesses) overrides the value baked in at package time — an
+        // installed app has no env var. Default stable.
+        var raw = BuildInfo.Resolve("CRISP_CHANNEL", "CrispChannel")?.Trim().ToLowerInvariant();
         return raw switch
         {
             "nightly" => Channel.Nightly,
