@@ -29,7 +29,7 @@ public enum PolarConfig {
     /// finish a purchase automatically after the `crisp://activate` deep link. The Polar
     /// API token lives in that function (server-side), never in this client. `nil` ⇒
     /// auto-activation is disabled and the user falls back to pasting the key.
-    /// See `services/polar-license-lookup/` for the deployed function.
+    /// See `apps/license-api/` for the deployed function.
     public static var licenseLookupURL: URL? { url("CrispPolarLookupURL") }
 
     /// Shown in paywall copy. Non-sensitive product config — fine to keep in source.
