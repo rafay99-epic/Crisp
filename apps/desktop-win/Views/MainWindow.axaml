@@ -3,6 +3,7 @@
         xmlns:vm="using:Crisp.ViewModels"
         xmlns:controls="using:Crisp.Views.Controls"
         xmlns:pages="using:Crisp.Views.Pages"
+        xmlns:views="using:Crisp.Views"
         xmlns:crisp="using:Crisp"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -52,22 +53,13 @@
             </Grid>
         </Grid>
 
-        <!-- Onboarding overlay — owns the window on first launch until "Get Started". -->
+        <!-- Onboarding tour — owns the window on first launch until finished (the
+             model step gates completion, mirroring macOS). -->
         <Border IsVisible="{Binding Onboarding.IsPresented}" Background="{DynamicResource CrispWindowBg}">
-            <StackPanel Spacing="18" MaxWidth="460" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="32">
-                <controls:WaveformMark Height="52" HorizontalAlignment="Center"/>
-                <TextBlock Text="Welcome to Crisp" Classes="title" HorizontalAlignment="Center"/>
-                <TextBlock Classes="secondary" FontSize="14" HorizontalAlignment="Center" TextAlignment="Center"
-                           TextWrapping="Wrap"
-                           Text="Crisp tightens your screen recordings and talking-head videos — it removes long pauses and filler words and writes a clean cut. Your original is never touched."/>
-                <StackPanel Spacing="8" Margin="0,4">
-                    <TextBlock Classes="secondary" Text="• Drop a video (or several) and hit Clean."/>
-                    <TextBlock Classes="secondary" Text="• Pick how aggressively to cut in the bottom bar."/>
-                    <TextBlock Classes="secondary" Text="• Turn on filler/retake removal to download the speech model."/>
-                </StackPanel>
-                <Button Content="Get Started" Command="{Binding FinishOnboardingCommand}" Classes="accent"
-                        HorizontalAlignment="Center" MinWidth="120"/>
-            </StackPanel>
+            <Grid RowDefinitions="Auto,*">
+                <Panel Grid.Row="0" Height="{x:Static crisp:WindowChrome.TitleBarHeight}"/>
+                <views:OnboardingView Grid.Row="1"/>
+            </Grid>
         </Border>
     </Grid>
 </Window>

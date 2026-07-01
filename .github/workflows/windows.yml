@@ -79,6 +79,7 @@ jobs:
           dotnet run --project Crisp.csproj -c Release --no-build -- --channel-test
           dotnet run --project Crisp.csproj -c Release --no-build -- --editor-test
           dotnet run --project Crisp.csproj -c Release --no-build -- --review-test
+          dotnet run --project Crisp.csproj -c Release --no-build -- --onboarding-test
           New-Item -ItemType File -Path sample.mp4 -Force | Out-Null
           Set-Content -Path sample.mp4 -Value ("x" * 4096)
           dotnet run --project Crisp.csproj -c Release --no-build -- --watch-test sample.mp4

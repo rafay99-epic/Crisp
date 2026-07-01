@@ -31,6 +31,33 @@ public partial class SettingsPage : UserControl
         catch { /* best effort */ }
     }
 
+    private async void OnPickCustomModel(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (TopLevel.GetTopLevel(this) is not { } top) return;
+            var files = await top.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "Choose a whisper.cpp model",
+                AllowMultiple = false,
+                FileTypeFilter = new[]
+                {
+                    new FilePickerFileType("Whisper model") { Patterns = new[] { "*.bin" } },
+                },
+            });
+            if (files.FirstOrDefault()?.TryGetLocalPath() is { } path && DataContext is EngineSettings s)
+                s.CustomModelPath = path;
+        }
+        catch { /* picker cancelled / failed */ }
+    }
+
+    /// Replay the first-run tour (the Help ▸ "Welcome to Crisp" equivalent).
+    private void OnShowTour(object? sender, RoutedEventArgs e)
+    {
+        if (TopLevel.GetTopLevel(this) is Window { DataContext: ViewModels.MainWindowViewModel vm })
+            vm.Onboarding.Present();
+    }
+
     private async void OnPickWatchFolder(object? sender, RoutedEventArgs e)
     {
         try

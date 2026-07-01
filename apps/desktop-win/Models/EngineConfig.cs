@@ -46,6 +46,9 @@ public sealed class EngineConfig
 
     // Which speech model the engine loads for filler/retake detection.
     [JsonPropertyName("selectedModelID")] public string SelectedModelId { get; set; } = "base.en";
+    // Use Crisp's own Wren filler classifier instead of whisper for filler detection
+    // (same key as macOS EngineConfig.swift, so a shared settings.json round-trips).
+    public bool FillerModelEnabled { get; set; }
     // A user-supplied whisper .bin to use instead of a catalog model ("" = use catalog).
     public string CustomModelPath { get; set; } = "";
     // Prepare an editor timeline (FCPXML + media copy) instead of rendering a cut.

@@ -37,8 +37,16 @@ Legend: ✅ done · 🔜 remaining · 🟡 partial · ⛔ N/A on Windows (Apple-
 ## Models
 - ✅ Catalog: Base (147 MB) + Large v3 Turbo (574 MB)
 - ✅ Resumable download + SHA-256 verify + atomic publish + self-heal
-- ✅ Model picker + custom `.bin` path
-- ⛔ Core ML on-device filler classifier (Apple-only; whisper path covers it)
+- ✅ Model picker + custom `.bin` path (Browse picker in Settings and the onboarding
+  model step; works on all three channels)
+- 🟡 Wren filler classifier ("custom model") — app side fully ported: catalog pinned to
+  the same HF URL/sha as macOS, download + sidecar config, onboarding option card,
+  Settings toggle with the macOS enable/disable semantics (captions cleared+disabled,
+  retakes disabled, whisper only for captions), `--filler-backend coreml
+  --filler-model` + `CRISP_FILLER` wiring, per-model install banners. Shows honestly
+  as "coming soon" until the remaining piece ships: a **Windows `crisp-filler.exe`
+  inference helper** (the macOS one is Swift/Core ML; Windows needs an ONNX build
+  from the published `Wren.pt` weights)
 
 ## App UI / workflow
 - ✅ Main clean screen (drop card, strength, progress, result)
@@ -47,7 +55,10 @@ Legend: ✅ done · 🔜 remaining · 🟡 partial · ⛔ N/A on Windows (Apple-
 - ✅ Parallel batch cleaning (bounded concurrency)
 - ✅ Settings window (all knobs)
 - ✅ History (past cleans, persisted, reveal)
-- ✅ First-run onboarding
+- ✅ First-run onboarding — the full paged tour (welcome → what it removes → what it
+  preserves → how it works → **speech-model choice + download, a mandatory gate like
+  macOS** → preferences → automate → done); Skip routes to the model step, completion
+  persists per channel, re-openable from Settings ▸ About
 - ✅ Update banner (GitHub-release check via `gh auth token`)
 - ✅ Drag-drop / file picker / "Open With" (multi-file, video allow-list)
 

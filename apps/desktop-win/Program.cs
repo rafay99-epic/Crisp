@@ -73,6 +73,11 @@ sealed class Program
         if (args.Length >= 1 && args[0] == "--review-test")
             return RunReviewTest();
 
+        // Headless onboarding-flow check (first-run gate, skip routing, persistence).
+        //   dotnet run -- --onboarding-test
+        if (args.Length >= 1 && args[0] == "--onboarding-test")
+            return RunOnboardingTest();
+
         // Headless editor-detection probe (lists installed editors).
         //   dotnet run -- --editor-test
         if (args.Length >= 1 && args[0] == "--editor-test")
@@ -359,6 +364,99 @@ sealed class Program
         Check(content.Contains("\"keep\""), "keep-file has the keep key");
 
         Console.WriteLine($"review-test: {(ok ? "PASS" : "FAIL")}");
+        return ok ? 0 : 1;
+    }
+
+    private static int RunOnboardingTest()
+    {
+        // Isolated data home so the user's real marker/settings/models are untouched.
+        var tmp = Path.Combine(Path.GetTempPath(), "crisp-onboarding-test");
+        try { if (Directory.Exists(tmp)) Directory.Delete(tmp, true); } catch { }
+        Directory.CreateDirectory(tmp);
+        Environment.SetEnvironmentVariable("CRISP_DATA_DIR", tmp);
+        Environment.SetEnvironmentVariable("CRISP_CONFIG_DIR", Path.Combine(tmp, "config"));
+        Environment.SetEnvironmentVariable("CRISP_MODELS_DIR", Path.Combine(tmp, "models"));
+
+        var ok = true;
+        void Check(bool c, string what) { Console.WriteLine($"  [{(c ? "ok" : "FAIL")}] {what}"); ok &= c; }
+
+        var settings = new Crisp.Services.EngineSettings();
+        var models = new Crisp.Services.ModelStore();
+        var filler = new Crisp.Services.ModelStore(Crisp.Models.FillerModelCatalog.Wren, fetchSidecar: false, logLabel: "filler-model");
+        var tour = new Crisp.Services.OnboardingController(models, filler, settings, fillerAvailable: true);
+
+        Check(tour.IsPresented, "first run presents the tour");
+        Check(tour.Step == Crisp.Services.OnboardingStep.Welcome && !tour.ShowsBack, "starts on Welcome with Skip");
+        Check(!settings.HasExistingConfig, "fresh data home reads as a new user");
+
+        // Skip must route to the unsatisfied model step, never exit past the gate.
+        tour.SkipCommand.Execute(null);
+        Check(tour.Step == Crisp.Services.OnboardingStep.Model, "skip routes to the model step");
+        Check(!tour.CanContinue && tour.IsPresented, "model step gates Continue while nothing is installed");
+        tour.ContinueCommand.Execute(null);
+        Check(tour.Step == Crisp.Services.OnboardingStep.Model, "gated Continue doesn't advance");
+
+        // Wren, Crisp's custom model: pinned to the same HF repo + hash as macOS.
+        var wren = Crisp.Models.FillerModelCatalog.Wren;
+        Check(wren.Url.Contains("rafay99-epic/crisp-models") && wren.Url.Contains("v0.0.10"), "Wren pinned to the macOS catalog URL");
+        Check(wren.ApproxSizeText == "514 KB", "sub-MB sizes render as KB");
+        Check(wren.SidecarFileName == "Wren.config.json" && wren.SidecarUrl.EndsWith("v0.0.10/Wren.config.json"), "sidecar config derives from the model URL");
+
+        // Selecting Wren flips the shared fillerModelEnabled key and re-points the gate
+        // at the Wren install (not yet ready → still gated).
+        tour.IsWrenSelected = true;
+        Check(settings.FillerModelEnabled && tour.IsWrenSelected && !tour.IsBaseSelected, "picking Wren enables the filler model");
+        Check(!tour.ModelSatisfied, "Wren selected but not installed → gate stays closed");
+        settings.CaptionsFormat = "srt";
+        settings.FillerModelEnabled = false; settings.FillerModelEnabled = true;
+        Check(settings.CaptionsFormat == "none", "enabling Wren clears captions (no transcript)");
+
+        // Back to whisper: a custom .bin satisfies the gate (works on every channel —
+        // the data home is per-channel, so each keeps its own choice).
+        tour.IsBaseSelected = true;
+        Check(!settings.FillerModelEnabled, "picking a whisper model turns Wren off");
+        var custom = Path.Combine(tmp, "my-model.bin");
+        File.WriteAllText(custom, "x");
+        settings.CustomModelPath = custom;
+        Check(tour.ModelSatisfied && tour.CanContinue, "a custom model satisfies the gate");
+
+        // Walk to the end; the last Continue completes, writes the marker, and
+        // persists the whole chosen setup to settings.json (even all-defaults).
+        settings.VideoQuality = "maximum"; // a preferences-step knob, set mid-tour
+        while (!tour.IsLast) tour.ContinueCommand.Execute(null);
+        Check(tour.ContinueLabel == "Get Started", "last step relabels Continue");
+        tour.ContinueCommand.Execute(null);
+        Check(!tour.IsPresented, "finishing dismisses the tour");
+        Check(File.Exists(Crisp.Models.EngineConfig.FilePath), "finishing writes settings.json");
+        var saved = Crisp.Models.EngineConfig.Load();
+        Check(saved.SelectedModelId == settings.SelectedModelId && saved.CustomModelPath == custom,
+            "settings.json captures the chosen model setup");
+
+        // Onboarding and the Settings page share one config file: what the tour set is
+        // exactly what a fresh EngineSettings (= the Settings page after a relaunch) reads.
+        var settingsPage = new Crisp.Services.EngineSettings();
+        Check(settingsPage.VideoQuality == "maximum"
+              && settingsPage.SelectedModelId == settings.SelectedModelId
+              && settingsPage.CustomModelPath == custom
+              && settingsPage.HasExistingConfig,
+            "Settings page reads back exactly what onboarding wrote (shared config)");
+
+        var again = new Crisp.Services.OnboardingController(models, filler, settings, fillerAvailable: true);
+        Check(!again.IsPresented, "the marker persists — no re-present on next launch");
+        again.Present();
+        Check(again.IsPresented && again.Step == Crisp.Services.OnboardingStep.Welcome, "re-openable from Settings");
+
+        // Model selection helpers drive the shared settings key.
+        again.IsTurboSelected = true;
+        Check(settings.SelectedModelId == "large-v3-turbo", "picking Turbo persists the catalog id");
+        again.IsBaseSelected = true;
+        Check(settings.SelectedModelId == "base.en", "picking Base persists the catalog id");
+
+        Environment.SetEnvironmentVariable("CRISP_DATA_DIR", null);
+        Environment.SetEnvironmentVariable("CRISP_CONFIG_DIR", null);
+        Environment.SetEnvironmentVariable("CRISP_MODELS_DIR", null);
+        try { Directory.Delete(tmp, true); } catch { }
+        Console.WriteLine($"onboarding-test: {(ok ? "PASS" : "FAIL")}");
         return ok ? 0 : 1;
     }
 

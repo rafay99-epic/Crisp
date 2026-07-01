@@ -146,6 +146,30 @@
         <Setter Property="Foreground" Value="{DynamicResource CrispAccent}"/>
     </Style>
 
+    <!-- The accent (primary) button, restyled to the real Windows 11 look: dark theme
+         uses the LIGHT accent tint with near-black text (like the Settings app's
+         primary buttons), light theme the base accent with white text. Avalonia's
+         built-in `accent` class paints base accent + white text in both, which reads
+         wrong in dark mode. Hover/pressed/disabled follow the WinUI opacity ramp. -->
+    <Style Selector="Button.accent">
+        <Setter Property="Background" Value="{DynamicResource CrispAccentFill}"/>
+        <Setter Property="Foreground" Value="{DynamicResource CrispTextOnAccent}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource CrispControlRadius}"/>
+    </Style>
+    <Style Selector="Button.accent:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource CrispAccentFillHover}"/>
+        <Setter Property="Foreground" Value="{DynamicResource CrispTextOnAccent}"/>
+    </Style>
+    <Style Selector="Button.accent:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource CrispAccentFillPressed}"/>
+        <Setter Property="Foreground" Value="{DynamicResource CrispTextOnAccent}"/>
+    </Style>
+    <Style Selector="Button.accent:disabled /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource CrispAccentFillDisabled}"/>
+        <Setter Property="Foreground" Value="{DynamicResource CrispTextOnAccentDisabled}"/>
+    </Style>
+
     <!-- ───────────────────── Navigation pane ───────────────────── -->
     <!-- WinUI NavigationViewItem: 36px row, subtle fill on hover/selection, and
          the accent selection pill on the left edge when checked. -->
@@ -214,6 +238,96 @@
     <!-- Last row in a group has no trailing divider. -->
     <Style Selector="controls|SettingsRow:nth-last-child(1) /template/ Border">
         <Setter Property="BorderThickness" Value="0"/>
+    </Style>
+
+    <!-- ───────────────────── Onboarding tour ───────────────────── -->
+    <!-- FeatureRow: a card explaining one capability — accent icon, title, wrap text. -->
+    <Style Selector="controls|FeatureRow">
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border CornerRadius="{DynamicResource CrispCardRadius}"
+                        Background="{DynamicResource CrispCard}"
+                        BorderBrush="{DynamicResource CrispCardBorder}"
+                        BorderThickness="1" Padding="14">
+                    <Grid ColumnDefinitions="Auto,*">
+                        <TextBlock Grid.Column="0" Classes="icon" FontSize="18" Width="30"
+                                   VerticalAlignment="Top" Margin="0,1,10,0"
+                                   Foreground="{DynamicResource CrispAccent}"
+                                   Text="{TemplateBinding Glyph}"/>
+                        <StackPanel Grid.Column="1" Spacing="2">
+                            <TextBlock Classes="bodyStrong" Text="{TemplateBinding Header}" TextWrapping="Wrap"/>
+                            <TextBlock Classes="caption" Text="{TemplateBinding Description}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+
+    <!-- Radio option card (the tour's speech-model choice): a full card acting as a
+         radio button, with an accent border + dot when selected. -->
+    <Style Selector="RadioButton.optionCard">
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Name="PART_Card" CornerRadius="{DynamicResource CrispCardRadius}"
+                        Background="{DynamicResource CrispCard}"
+                        BorderBrush="{DynamicResource CrispCardBorder}"
+                        BorderThickness="1" Padding="14">
+                    <Grid ColumnDefinitions="Auto,*">
+                        <Panel Grid.Column="0" Width="18" Height="18" VerticalAlignment="Center" Margin="0,0,12,0">
+                            <Ellipse Width="18" Height="18" StrokeThickness="1.5"
+                                     Stroke="{DynamicResource CrispTertiary}"/>
+                            <Ellipse Name="PART_Dot" Width="8" Height="8"
+                                     Fill="{DynamicResource CrispAccent}" IsVisible="False"/>
+                        </Panel>
+                        <ContentPresenter Grid.Column="1" Content="{TemplateBinding Content}"
+                                          VerticalAlignment="Center"/>
+                    </Grid>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="RadioButton.optionCard:pointerover /template/ Border#PART_Card">
+        <Setter Property="Background" Value="{DynamicResource CrispSubtleFill}"/>
+    </Style>
+    <Style Selector="RadioButton.optionCard:checked /template/ Border#PART_Card">
+        <Setter Property="BorderBrush" Value="{DynamicResource CrispAccent}"/>
+    </Style>
+    <Style Selector="RadioButton.optionCard:checked /template/ Ellipse#PART_Dot">
+        <Setter Property="IsVisible" Value="True"/>
+    </Style>
+
+    <!-- Small accent capsule beside a title ("Recommended"). -->
+    <Style Selector="Border.tagCapsule">
+        <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="Padding" Value="7,1"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Background" Value="{DynamicResource CrispAccent}"/>
+    </Style>
+    <Style Selector="Border.tagCapsule > TextBlock">
+        <Setter Property="FontSize" Value="10"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="White"/>
+    </Style>
+
+    <!-- Page-indicator dots in the tour footer; the accent hand-off animates. -->
+    <Style Selector="Ellipse.pageDot">
+        <Setter Property="Width" Value="7"/>
+        <Setter Property="Height" Value="7"/>
+        <Setter Property="Fill" Value="{DynamicResource CrispTertiary}"/>
+        <Setter Property="Opacity" Value="0.5"/>
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="Fill" Duration="0:0:0.25"/>
+                <DoubleTransition Property="Opacity" Duration="0:0:0.25"/>
+            </Transitions>
+        </Setter>
+    </Style>
+    <Style Selector="Ellipse.pageDot.current">
+        <Setter Property="Fill" Value="{DynamicResource CrispAccent}"/>
+        <Setter Property="Opacity" Value="1"/>
     </Style>
 
     <!-- ───────────────────── Segmented strength picker ───────────────────── -->
