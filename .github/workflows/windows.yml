@@ -21,12 +21,22 @@ on:
       - "apps/desktop-win/**"
       - "packages/engine/**"
       - ".github/workflows/windows.yml"
+      # Docs-only changes never need a Windows build — a Markdown change under any
+      # watched folder (e.g. moving NOTES.md/PARITY.md) must NOT trigger this.
+      # `!` negates (last-match-wins): a .md-only diff is skipped, while any real
+      # code change still fires.
+      - "!**/*.md"
   pull_request:
     paths:
       - "apps/desktop/**"
       - "apps/desktop-win/**"
       - "packages/engine/**"
       - ".github/workflows/windows.yml"
+      # Docs-only changes never need a Windows build — a Markdown change under any
+      # watched folder (e.g. moving NOTES.md/PARITY.md) must NOT trigger this.
+      # `!` negates (last-match-wins): a .md-only diff is skipped, while any real
+      # code change still fires.
+      - "!**/*.md"
   workflow_dispatch: {}
 
 permissions:

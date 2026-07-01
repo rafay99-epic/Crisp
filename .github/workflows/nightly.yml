@@ -18,6 +18,8 @@ on:
       - "apps/desktop-win/**"
       - "packages/engine/**"
       - ".github/workflows/nightly.yml"
+      # Docs-only changes never need a build — skip .md-only diffs (last-match-wins).
+      - "!**/*.md"
   workflow_dispatch:
 
 # Read-only by default — only the publish job below is granted contents: write.

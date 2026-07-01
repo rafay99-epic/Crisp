@@ -17,6 +17,8 @@ on:
       - "turbo.json"
       - "bun.lock"
       - ".github/workflows/website.yml"
+      # Docs-only changes never need a site build — skip .md-only diffs (last-match-wins).
+      - "!**/*.md"
   pull_request:
     paths:
       - "apps/web/**"
@@ -24,6 +26,8 @@ on:
       - "turbo.json"
       - "bun.lock"
       - ".github/workflows/website.yml"
+      # Docs-only changes never need a site build — skip .md-only diffs (last-match-wins).
+      - "!**/*.md"
 
 permissions:
   contents: read

@@ -23,11 +23,15 @@ on:
       - "apps/desktop-win/**"
       - "packages/engine/**"
       - ".github/workflows/ci.yml"
+      # Docs-only changes never need a build — skip .md-only diffs (last-match-wins).
+      - "!**/*.md"
   pull_request:
     paths:
       - "apps/desktop/**"
       - "packages/engine/**"
       - ".github/workflows/ci.yml"
+      # Docs-only changes never need a build — skip .md-only diffs (last-match-wins).
+      - "!**/*.md"
 
 # Read-only by default — only the release job below is granted contents: write.
 # Least privilege for the GITHUB_TOKEN; jobs that need more opt in explicitly.
