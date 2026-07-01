@@ -1,0 +1,79 @@
+CLAUDE.md
+  s_c8752ad91ffac9::t_83d9405e421e56 79-89,92
+"backlog/tasks/task-9 - Cut-chapter-markers-written-during-the-cut.md"
+  s_c8752ad91ffac9::t_185f1261ba3c2f 1-19
+"backlog/tasks/task-15 - Cache-analysis-between-re-cleans.md"
+  s_c8752ad91ffac9::t_185f1261ba3c2f 1-17
+.gitignore
+  s_c8752ad91ffac9::t_4c96795ddc09e4 39,41-43
+"backlog/tasks/task-27 - Speaking-analytics-filler-report.md"
+  s_c8752ad91ffac9::t_185f1261ba3c2f 1-17
+"backlog/tasks/task-10 - Audio-volume-gain-control.md"
+  s_c8752ad91ffac9::t_185f1261ba3c2f 1-19
+"backlog/tasks/task-21 - Chapter-detection-export.md"
+  s_c8752ad91ffac9::t_185f1261ba3c2f 1-17
+"backlog/tasks/task-11 - Before-after-preview-of-the-result-A-B-vs-original.md"
+  s_c8752ad91ffac9::t_185f1261ba3c2f 1-17
+"backlog/tasks/task-20 - Audio-first-podcast-mode.md"
+  s_c8752ad91ffac9::t_185f1261ba3c2f 1-17
+"backlog/tasks/task-23 - Pause-tighten-vs.-remove.md"
+  s_c8752ad91ffac9::t_185f1261ba3c2f 1-17
+"backlog/tasks/task-26 - Auto-zoom-punch-in-to-mask-jump-cuts.md"
+  s_c8752ad91ffac9::t_185f1261ba3c2f 1-17
+"backlog/tasks/task-14 - Smart-cut-stream-copy-hybrid.md"
+  s_c8752ad91ffac9::t_185f1261ba3c2f 1-17
+"backlog/tasks/task-24 - Transcript-based-editing-Descript-style.md"
+  s_c8752ad91ffac9::t_185f1261ba3c2f 1-17
+"backlog/tasks/task-7 - Studio-sound-audio-pass-denoise-loudness-normalize.md"
+  s_c8752ad91ffac9::t_185f1261ba3c2f 1-19
+"backlog/tasks/task-25 - Highlight-clip-extraction.md"
+  s_c8752ad91ffac9::t_185f1261ba3c2f 1-17
+idea.md
+  s_c8752ad91ffac9::t_ec4edfad1a77b3 3-5,7-20,24-26
+"backlog/tasks/task-6 - Auto-reframe-to-vertical-short-form-9-16.md"
+  s_c8752ad91ffac9::t_185f1261ba3c2f 1-19
+"backlog/tasks/task-13 - Re-weight-the-progress-bar.md"
+  s_c8752ad91ffac9::t_185f1261ba3c2f 1-17
+"backlog/tasks/task-19 - Multi-language-support.md"
+  s_c8752ad91ffac9::t_185f1261ba3c2f 1-17
+"backlog/tasks/task-18 - Review-timeline-feedback-loop-active-learning-data.md"
+  s_c8752ad91ffac9::t_185f1261ba3c2f 1-17
+"backlog/tasks/task-12 - Keyboard-driven-cut-review-J-K-L-play-across-cut.md"
+  s_c8752ad91ffac9::t_185f1261ba3c2f 1-17
+"backlog/tasks/task-22 - Why-was-this-cut-inspector.md"
+  s_c8752ad91ffac9::t_185f1261ba3c2f 1-17
+"backlog/tasks/task-17 - Graceful-odd-input-handling.md"
+  s_c8752ad91ffac9::t_185f1261ba3c2f 1-17
+"backlog/tasks/task-8 - Speaker-diarization.md"
+  s_c8752ad91ffac9::t_185f1261ba3c2f 1-19
+"backlog/tasks/task-5 - Windows-native-UI-—-stop-mirroring-macOS-chrome-Fluent-WinUI-feel.md"
+  s_c8752ad91ffac9::t_185f1261ba3c2f 1-37
+backlog/config.yml
+  s_c8752ad91ffac9::t_92de63f47588e7 1-15
+"backlog/tasks/task-16 - Preflight-checks-disk-stream-codec.md"
+  s_c8752ad91ffac9::t_185f1261ba3c2f 1-17
+"backlog/tasks/task-1 - Licensing-paid-tier-via-Polar.sh.md"
+  s_c8752ad91ffac9::t_a4071b30af2ee1 1-21
+"backlog/tasks/task-2 - Windows-support-shared-Python-core-native-Windows-UI.md"
+  s_c8752ad91ffac9::t_d273087751552b 1-21
+"backlog/tasks/task-3 - Restructure-into-a-connected-monorepo-packages-core-services-apps-research.md"
+  s_c8752ad91ffac9::t_17314eb93c05cc 1-65
+"backlog/tasks/task-4 - Captions-subtitles-export-.srt-.vtt-burned-in.md"
+  s_c8752ad91ffac9::t_be3bf99626966b 1-19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "6d9f116c0827e040df6cb60e7e121f59579b367f",
+  "prompts": {},
+  "sessions": {
+    "s_c8752ad91ffac9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1078508d-45d5-4844-b3d8-a3c75a8b8516",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
