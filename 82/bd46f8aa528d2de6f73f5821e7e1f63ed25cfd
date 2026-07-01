@@ -1,0 +1,21 @@
+"backlog/docs/doc-6 - Research-notes.md"
+  s_c8752ad91ffac9::t_8cc29b20d74ec6 8-235
+README.md
+  s_c8752ad91ffac9::t_f85bfcc05fcc90 77-111
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "82bd46f8aa528d2de6f73f5821e7e1f63ed25cfd",
+  "prompts": {},
+  "sessions": {
+    "s_c8752ad91ffac9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1078508d-45d5-4844-b3d8-a3c75a8b8516",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
