@@ -10,17 +10,23 @@ from crisp.detect import detect_silences, filler_words
 from crisp.errors import CleanError
 
 
+# CI runners have no ffmpeg (this suite is stdlib-only by design), so the binary
+# resolver must be mocked alongside subprocess.run — otherwise ffmpeg_bin() raises
+# its own "ffmpeg not found" CleanError first and the assertions pass (or fail)
+# for the wrong reason.
+@mock.patch("crisp.detect.ffmpeg_bin", return_value="ffmpeg")
 class DetectSilencesFailFast(unittest.TestCase):
     @mock.patch("crisp.detect.subprocess.run")
-    def test_nonzero_exit_raises_instead_of_no_pauses(self, run):
+    def test_nonzero_exit_raises_instead_of_no_pauses(self, run, _bin):
         # A failed silencedetect used to return [] — the clean then "succeeded"
         # as a full re-encode that cut nothing.
         run.return_value = mock.Mock(returncode=1, stdout="", stderr="boom")
-        with self.assertRaises(CleanError):
+        with self.assertRaises(CleanError) as cm:
             detect_silences(Path("x.wav"), -30, 0.05, on_log=lambda m: None)
+        self.assertIn("Pause detection failed", str(cm.exception))
 
     @mock.patch("crisp.detect.subprocess.run")
-    def test_zero_exit_parses_normally(self, run):
+    def test_zero_exit_parses_normally(self, run, _bin):
         run.return_value = mock.Mock(returncode=0, stdout="", stderr=(
             "[silencedetect] silence_start: 1.5\n"
             "[silencedetect] silence_end: 3.0 | silence_duration: 1.5\n"))
