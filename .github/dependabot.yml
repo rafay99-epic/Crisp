@@ -1,9 +1,17 @@
 version: 2
+
+# Supply-chain cooldown: Dependabot will NOT open a PR for a version until it has
+# been published for at least 7 days. A compromised/malicious release that lands
+# and is quickly "updated" gets time to be caught and yanked before we ever adopt
+# it — we stay on the older version and only move up once the new one has aged.
+# Mirrors the maintainer's local bun policy (bunfig.toml: minimumReleaseAge).
 updates:
   - package-ecosystem: "swift"
     directory: "/apps/desktop"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
     # nightly is the integration branch; main is the protected Stable branch that
     # only the promotion flow writes to. Without this, Dependabot opens PRs against
     # the default branch (main) — which the next promotion would then wipe.
@@ -12,9 +20,13 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
     target-branch: "nightly"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
     target-branch: "nightly"

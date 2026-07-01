@@ -1,0 +1,9 @@
+[install]
+# Supply-chain cooldown: refuse to resolve any npm package version published less
+# than 7 days ago. A compromised/malicious release has time to be caught and yanked
+# before it can enter our lockfile — we stay on the older, proven version and only
+# upgrade once the new one has aged (or if the installed one is itself compromised).
+# 604800 = 7 days in seconds. Mirrors the maintainer's global ~/.bunfig.toml and the
+# Dependabot `cooldown` in .github/dependabot.yml, so the policy holds for every
+# contributor and in CI, not just one machine.
+minimumReleaseAge = 604800
