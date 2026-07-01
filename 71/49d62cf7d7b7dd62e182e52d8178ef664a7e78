@@ -1,0 +1,21 @@
+"backlog/tasks/task-29 - Pause-tighten-vs.-remove-mode.md"
+  s_77278fca3d82ec::t_38d708d1cdbe6b 7,19
+"backlog/tasks/task-30 - Wire-pause-tighten-mode-into-the-Windows-app.md"
+  s_77278fca3d82ec::t_a28c14eed8f589 1-20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "7149d62cf7d7b7dd62e182e52d8178ef664a7e78",
+  "prompts": {},
+  "sessions": {
+    "s_77278fca3d82ec": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cd4010da-99af-4c01-95fa-a67e6669de5e",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
