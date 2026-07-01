@@ -1,0 +1,25 @@
+"backlog/tasks/task-33 - Fix-On²-render-filter-graph-for-many-cuts.md"
+  s_77278fca3d82ec::t_449af86e0f1504 1-17
+"backlog/tasks/task-31 - Atomic-render-output-—-never-write-the-cleaned-file-in-place.md"
+  s_77278fca3d82ec::t_876ee07c7ae6f3 1-17
+"backlog/tasks/task-34 - Engine-error-path-hardening-fail-fast-not-fail-wrong.md"
+  s_77278fca3d82ec::t_b9e18f7687cd01 1-17
+"backlog/tasks/task-32 - Windows-text-encoding-sweep-in-the-engine-UTF-8-everywhere.md"
+  s_77278fca3d82ec::t_0f4ff15b4528e6 1-17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "8d2df3c6afbce7d51193b2549285988227d5f43e",
+  "prompts": {},
+  "sessions": {
+    "s_77278fca3d82ec": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cd4010da-99af-4c01-95fa-a67e6669de5e",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
