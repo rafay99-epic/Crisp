@@ -138,9 +138,12 @@
                             </ComboBox>
                         </controls:SettingsRow>
                         <controls:SettingsRow Header="Custom Model"
-                                              Description="Path to a whisper.cpp .bin (leave empty to use the model above).">
-                            <TextBox Width="220" AutomationProperties.Name="Custom speech model path"
-                                     PlaceholderText="Path to a .bin" Text="{Binding CustomModelPath}"/>
+                                              Description="Any whisper.cpp .bin — overrides the model above (leave empty to use it).">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBox Width="180" AutomationProperties.Name="Custom speech model path"
+                                         PlaceholderText="Path to a .bin" Text="{Binding CustomModelPath}"/>
+                                <Button Content="Browse…" Click="OnPickCustomModel"/>
+                            </StackPanel>
                         </controls:SettingsRow>
                     </StackPanel>
                 </Border>
@@ -242,6 +245,11 @@
                                               Description="Open the folder with Crisp's log files."
                                               Glyph="&#xE7C3;">
                             <Button Content="Open Folder" Click="OnRevealLogs"/>
+                        </controls:SettingsRow>
+                        <controls:SettingsRow Header="Welcome Tour"
+                                              Description="Replay the first-run introduction."
+                                              Glyph="&#xE946;">
+                            <Button Content="Show" Click="OnShowTour"/>
                         </controls:SettingsRow>
                     </StackPanel>
                 </Border>

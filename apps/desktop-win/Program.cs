@@ -73,6 +73,11 @@ sealed class Program
         if (args.Length >= 1 && args[0] == "--review-test")
             return RunReviewTest();
 
+        // Headless onboarding-flow check (first-run gate, skip routing, persistence).
+        //   dotnet run -- --onboarding-test
+        if (args.Length >= 1 && args[0] == "--onboarding-test")
+            return RunOnboardingTest();
+
         // Headless editor-detection probe (lists installed editors).
         //   dotnet run -- --editor-test
         if (args.Length >= 1 && args[0] == "--editor-test")
@@ -359,6 +364,66 @@ sealed class Program
         Check(content.Contains("\"keep\""), "keep-file has the keep key");
 
         Console.WriteLine($"review-test: {(ok ? "PASS" : "FAIL")}");
+        return ok ? 0 : 1;
+    }
+
+    private static int RunOnboardingTest()
+    {
+        // Isolated data home so the user's real marker/settings/models are untouched.
+        var tmp = Path.Combine(Path.GetTempPath(), "crisp-onboarding-test");
+        try { if (Directory.Exists(tmp)) Directory.Delete(tmp, true); } catch { }
+        Directory.CreateDirectory(tmp);
+        Environment.SetEnvironmentVariable("CRISP_DATA_DIR", tmp);
+        Environment.SetEnvironmentVariable("CRISP_CONFIG_DIR", Path.Combine(tmp, "config"));
+        Environment.SetEnvironmentVariable("CRISP_MODELS_DIR", Path.Combine(tmp, "models"));
+
+        var ok = true;
+        void Check(bool c, string what) { Console.WriteLine($"  [{(c ? "ok" : "FAIL")}] {what}"); ok &= c; }
+
+        var settings = new Crisp.Services.EngineSettings();
+        var models = new Crisp.Services.ModelStore();
+        var tour = new Crisp.Services.OnboardingController(models, settings);
+
+        Check(tour.IsPresented, "first run presents the tour");
+        Check(tour.Step == Crisp.Services.OnboardingStep.Welcome && !tour.ShowsBack, "starts on Welcome with Skip");
+        Check(!settings.HasExistingConfig, "fresh data home reads as a new user");
+
+        // Skip must route to the unsatisfied model step, never exit past the gate.
+        tour.SkipCommand.Execute(null);
+        Check(tour.Step == Crisp.Services.OnboardingStep.Model, "skip routes to the model step");
+        Check(!tour.CanContinue && tour.IsPresented, "model step gates Continue while nothing is installed");
+        tour.ContinueCommand.Execute(null);
+        Check(tour.Step == Crisp.Services.OnboardingStep.Model, "gated Continue doesn't advance");
+
+        // A custom .bin satisfies the gate (works on every channel — the data home is
+        // per-channel, so each keeps its own choice).
+        var custom = Path.Combine(tmp, "my-model.bin");
+        File.WriteAllText(custom, "x");
+        settings.CustomModelPath = custom;
+        Check(tour.ModelSatisfied && tour.CanContinue, "a custom model satisfies the gate");
+
+        // Walk to the end; the last Continue completes and writes the marker.
+        while (!tour.IsLast) tour.ContinueCommand.Execute(null);
+        Check(tour.ContinueLabel == "Get Started", "last step relabels Continue");
+        tour.ContinueCommand.Execute(null);
+        Check(!tour.IsPresented, "finishing dismisses the tour");
+
+        var again = new Crisp.Services.OnboardingController(models, settings);
+        Check(!again.IsPresented, "the marker persists — no re-present on next launch");
+        again.Present();
+        Check(again.IsPresented && again.Step == Crisp.Services.OnboardingStep.Welcome, "re-openable from Settings");
+
+        // Model selection helpers drive the shared settings key.
+        again.IsTurboSelected = true;
+        Check(settings.SelectedModelId == "large-v3-turbo", "picking Turbo persists the catalog id");
+        again.IsBaseSelected = true;
+        Check(settings.SelectedModelId == "base.en", "picking Base persists the catalog id");
+
+        Environment.SetEnvironmentVariable("CRISP_DATA_DIR", null);
+        Environment.SetEnvironmentVariable("CRISP_CONFIG_DIR", null);
+        Environment.SetEnvironmentVariable("CRISP_MODELS_DIR", null);
+        try { Directory.Delete(tmp, true); } catch { }
+        Console.WriteLine($"onboarding-test: {(ok ? "PASS" : "FAIL")}");
         return ok ? 0 : 1;
     }
 

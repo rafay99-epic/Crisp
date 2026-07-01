@@ -54,7 +54,9 @@ public partial class EngineSettings : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SelectedModel))]
     private string _selectedModelId = "base.en";
-    [ObservableProperty] private string _customModelPath = "";
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasCustomModel), nameof(CustomModelName))]
+    private string _customModelPath = "";
     [ObservableProperty] private bool _exportToEditor; // FCPXML timeline instead of a render
     [ObservableProperty] private bool _splitTracks; // also write separate video + audio
     [ObservableProperty] private string _splitAudioFormat = "match";
@@ -125,6 +127,12 @@ public partial class EngineSettings : ObservableObject
         set { if (value is not null) SelectedModelId = value.Id; }
     }
     public bool HasCustomModel => !string.IsNullOrWhiteSpace(CustomModelPath) && System.IO.File.Exists(CustomModelPath);
+    public string CustomModelName => HasCustomModel ? System.IO.Path.GetFileName(CustomModelPath) : "";
+
+    /// True when the user arrived with a saved settings.json (from a previous install or
+    /// the macOS app on a shared home) — the tour greets them back and edits it in place.
+    /// Captured before anything is written this session.
+    public bool HasExistingConfig { get; }
 
     /// Bounded parallelism for a batch clean (1–4), so heavy ffmpeg/whisper runs don't
     /// thrash a machine. Mirrors the Mac's manualConcurrency (the full ResourceGovernor
@@ -147,6 +155,7 @@ public partial class EngineSettings : ObservableObject
 
     public EngineSettings()
     {
+        HasExistingConfig = System.IO.File.Exists(EngineConfig.FilePath);
         _config = EngineConfig.Load();
         _canSave = !_config.LoadFailed; // a present-but-unreadable file must not be clobbered
         PauseThreshold = _config.PauseThreshold;

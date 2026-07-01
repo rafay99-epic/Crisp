@@ -58,7 +58,8 @@ public partial class MainWindowViewModel : ViewModelBase
     public bool HasPresets => Settings.Presets.Count > 0;
     public Updater Updater { get; } = new();
     public HistoryStore History { get; } = new();
-    public OnboardingController Onboarding { get; } = new();
+    // The first-run tour; needs the model store + settings for its model-step gate.
+    public OnboardingController Onboarding { get; }
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(NeedsModel), nameof(CanClean))]
     [NotifyCanExecuteChangedFor(nameof(CleanAllCommand))]
@@ -100,6 +101,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public MainWindowViewModel()
     {
+        Onboarding = new OnboardingController(Models, Settings);
         _engine = new CrispEngine { ScriptPath = ResolveEngineScript() };
         Models.PropertyChanged += (_, e) =>
         {
@@ -142,9 +144,6 @@ public partial class MainWindowViewModel : ViewModelBase
 
     [RelayCommand]
     private void DownloadUpdate() => Updater.OpenDownload();
-
-    [RelayCommand]
-    private void FinishOnboarding() => Onboarding.Complete();
 
     private void RefreshCounts()
     {

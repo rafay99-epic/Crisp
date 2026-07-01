@@ -27,7 +27,7 @@ public partial class ModelStore : ObservableObject
     public ModelSpec Spec => _spec;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsReady), nameof(IsBusy))]
+    [NotifyPropertyChangedFor(nameof(IsReady), nameof(IsBusy), nameof(IsAbsent), nameof(IsFailed), nameof(IsVerifying))]
     private ModelState _state = ModelState.Checking;
 
     [ObservableProperty] private double _progress; // 0..1
@@ -35,6 +35,10 @@ public partial class ModelStore : ObservableObject
 
     public bool IsReady => State == ModelState.Ready;
     public bool IsBusy => State is ModelState.Checking or ModelState.Downloading or ModelState.Verifying;
+    // Per-state flags for the onboarding install control (XAML can't compare enums).
+    public bool IsAbsent => State == ModelState.Absent;
+    public bool IsFailed => State == ModelState.Failed;
+    public bool IsVerifying => State == ModelState.Verifying;
 
     // CRISP_MODELS_DIR override (tests/CI), else the per-channel data home — nightly/dev
     // keep their own model so the channels stay isolated.

@@ -68,6 +68,9 @@
 
     <!-- Accent: a brush off the OS accent Color (SystemAccentColor is a Color). -->
     <SolidColorBrush x:Key="CrispAccent" Color="{DynamicResource SystemAccentColor}"/>
+    <!-- Soft accent fills (onboarding hero tiles and other tinted surfaces). -->
+    <SolidColorBrush x:Key="CrispAccentSoft" Color="{DynamicResource SystemAccentColor}" Opacity="0.15"/>
+    <SolidColorBrush x:Key="CrispAccentOutline" Color="{DynamicResource SystemAccentColor}" Opacity="0.30"/>
 
     <!-- Shape: Windows 11 uses 8px on cards/dialogs, 4px on small controls. -->
     <CornerRadius x:Key="CrispCardRadius">8</CornerRadius>

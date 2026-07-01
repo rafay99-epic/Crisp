@@ -1,0 +1,347 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Crisp.ViewModels"
+             xmlns:svc="using:Crisp.Services"
+             xmlns:controls="using:Crisp.Views.Controls"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="980" d:DesignHeight="660"
+             x:Class="Crisp.Views.OnboardingView"
+             x:DataType="vm:MainWindowViewModel">
+
+    <!-- First-run tour: the Windows counterpart of the macOS OnboardingView — the same
+         paged flow and gates, expressed in the Win11 design language (Fluent icons,
+         cards, accent action, page dots). Owns the window until finished; the speech-
+         model step is mandatory. -->
+
+    <UserControl.Resources>
+        <DataTemplate x:Key="CasedOption" x:DataType="x:String">
+            <TextBlock Text="{Binding, Converter={x:Static vm:Converters.OptionDisplay}}"/>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <UserControl.Styles>
+        <!-- The step's hero mark: an accent Fluent glyph on a soft tinted tile. -->
+        <Style Selector="Border.heroTile">
+            <Setter Property="Width" Value="64"/>
+            <Setter Property="Height" Value="64"/>
+            <Setter Property="CornerRadius" Value="16"/>
+            <Setter Property="Background" Value="{DynamicResource CrispAccentSoft}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource CrispAccentOutline}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Border.heroTile > TextBlock">
+            <Setter Property="FontFamily" Value="{DynamicResource CrispIconFont}"/>
+            <Setter Property="FontSize" Value="28"/>
+            <Setter Property="Foreground" Value="{DynamicResource CrispAccent}"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="TextBlock.stepTitle">
+            <Setter Property="FontFamily" Value="{DynamicResource CrispFontDisplay}"/>
+            <Setter Property="FontSize" Value="26"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <Style Selector="TextBlock.stepSubtitle">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="{DynamicResource CrispSecondary}"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <Style Selector="StackPanel.step">
+            <Setter Property="Spacing" Value="10"/>
+        </Style>
+    </UserControl.Styles>
+
+    <DockPanel LastChildFill="True">
+
+        <!-- Footer: Skip/Back · page dots · Continue (gated on the model step). -->
+        <Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource CrispDivider}"
+                BorderThickness="0,1,0,0" Padding="20,12,20,14">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <Panel Grid.Column="0" MinWidth="70">
+                    <Button Content="Skip" Classes="link" Command="{Binding Onboarding.SkipCommand}"
+                            IsVisible="{Binding !Onboarding.ShowsBack}"/>
+                    <Button Content="Back" Classes="link" Command="{Binding Onboarding.BackCommand}"
+                            IsVisible="{Binding Onboarding.ShowsBack}"/>
+                </Panel>
+                <ItemsControl Grid.Column="1" ItemsSource="{Binding Onboarding.Dots}"
+                              HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="7"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="svc:OnboardingDot">
+                            <Ellipse Classes="pageDot" Classes.current="{Binding IsCurrent}"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <Button Grid.Column="2" Classes="accent" MinWidth="120"
+                        Content="{Binding Onboarding.ContinueLabel}"
+                        Command="{Binding Onboarding.ContinueCommand}"/>
+            </Grid>
+        </Border>
+
+        <!-- One step visible at a time; each scrolls when the window is short. -->
+        <ScrollViewer>
+            <StackPanel MaxWidth="540" Margin="32,32,32,24" HorizontalAlignment="Center">
+
+                <!-- 1 · Welcome -->
+                <StackPanel Classes="step" IsVisible="{Binding Onboarding.IsWelcome}">
+                    <controls:WaveformMark Height="52" HorizontalAlignment="Center" Margin="0,4,0,8"/>
+                    <TextBlock Classes="stepTitle" Text="{Binding Onboarding.WelcomeTitle}"/>
+                    <TextBlock Classes="stepSubtitle" Margin="0,0,0,8" Text="{Binding Onboarding.WelcomeSubtitle}"/>
+                    <controls:FeatureRow Glyph="&#xE930;" Header="Your footage is safe"
+                                         Description="Crisp never edits or deletes your original. It only ever writes a new cleaned copy beside it."/>
+                    <controls:FeatureRow Glyph="&#xE9F5;" Header="No quality loss"
+                                         Description="Cuts re-encode at the same resolution and frame rate — never downscaled."/>
+                </StackPanel>
+
+                <!-- 2 · What Crisp removes -->
+                <StackPanel Classes="step" IsVisible="{Binding Onboarding.IsCapabilities}">
+                    <Border Classes="heroTile"><TextBlock Text="&#xE8C6;"/></Border>
+                    <TextBlock Classes="stepTitle" Text="What Crisp removes"/>
+                    <TextBlock Classes="stepSubtitle" Margin="0,0,0,8"
+                               Text="Three kinds of dead weight — found automatically, entirely on your PC."/>
+                    <controls:FeatureRow Glyph="&#xE769;" Header="Long pauses"
+                                         Description="Dead air and the gaps between sentences, detected from the real audio."/>
+                    <controls:FeatureRow Glyph="&#xE720;" Header="Filler words"
+                                         Description="“Um”, “uh”, “hmm” and the like — caught by the on-device Whisper speech model."/>
+                    <controls:FeatureRow Glyph="&#xE7A7;" Header="Repeated takes"
+                                         Description="Flub a line and immediately say it again? Crisp keeps the corrected take and cuts the flubbed one — the tedious edit you’d normally do by hand. Needs the Whisper speech model."/>
+                </StackPanel>
+
+                <!-- 3 · What Crisp preserves -->
+                <StackPanel Classes="step" IsVisible="{Binding Onboarding.IsFidelity}">
+                    <Border Classes="heroTile"><TextBlock Text="&#xE9F5;"/></Border>
+                    <TextBlock Classes="stepTitle" Text="What Crisp preserves"/>
+                    <TextBlock Classes="stepSubtitle" Margin="0,0,0,8"
+                               Text="Cutting is only half the job. Crisp protects what makes your footage look right — automatically, and never downgrades it."/>
+                    <controls:FeatureRow Glyph="&#xE895;" Header="Stays perfectly in sync"
+                                         Description="Screen recordings often vary their frame rate, which can drift audio out of sync after cutting. Crisp detects that and re-times them to a steady rate — ordinary footage is left exactly as it is."/>
+                    <controls:FeatureRow Glyph="&#xE790;" Header="Keeps your color and HDR"
+                                         Description="10-bit and HDR recordings stay 10-bit and HDR — Crisp matches your source’s color depth instead of silently flattening it."/>
+                    <controls:FeatureRow Glyph="&#xE714;" Header="Your format, your call"
+                                         Description="Export MP4 with H.264 or HEVC, or a web-friendly WebM, with hardware encoding on your GPU (NVENC / QSV / AMF) — Crisp keeps incompatible combinations from happening."/>
+                    <TextBlock Classes="stepSubtitle" Margin="0,4,0,0"
+                               Text="It all happens automatically on smart defaults — fine-tune any of it later in Settings."/>
+                </StackPanel>
+
+                <!-- 4 · How it works -->
+                <StackPanel Classes="step" IsVisible="{Binding Onboarding.IsHowItWorks}">
+                    <Border Classes="heroTile"><TextBlock Text="&#xE768;"/></Border>
+                    <TextBlock Classes="stepTitle" Text="Clean your videos in seconds"/>
+                    <TextBlock Classes="stepSubtitle" Margin="0,0,0,8"
+                               Text="Add as many as you like — Crisp cleans them as a queue."/>
+                    <controls:FeatureRow Glyph="&#xE714;" Header="Add your videos"
+                                         Description="Drag recordings onto the window, or click “Browse Files”. They line up in a queue — several clean at once when your PC can."/>
+                    <controls:FeatureRow Glyph="&#xE9E9;" Header="Pick how much to cut"
+                                         Description="Set the strength for the queue — Gentle through Very Aggressive, or Custom — and give any single file its own preset."/>
+                    <controls:FeatureRow Glyph="&#xE890;" Header="Preview the cuts first"
+                                         Description="Preview shows exactly what Crisp will remove on a waveform, and Review lets you approve every single cut before it renders."/>
+                    <controls:FeatureRow Glyph="&#xE9D5;" Header="Clean the queue"
+                                         Description="Crisp cuts the silences and fillers from each one and saves a cleaned copy of every original."/>
+                </StackPanel>
+
+                <!-- 5 · Speech model (mandatory gate) -->
+                <StackPanel Classes="step" IsVisible="{Binding Onboarding.IsModel}">
+                    <Border Classes="heroTile"><TextBlock Text="&#xE720;"/></Border>
+                    <TextBlock Classes="stepTitle" Text="Choose a speech model"/>
+                    <TextBlock Classes="stepSubtitle" Margin="0,0,0,8"
+                               Text="Crisp detects filler words and repeated takes with a speech model that runs entirely on your PC. Install one to finish setup — pauses are always removed either way."/>
+
+                    <RadioButton Classes="optionCard" GroupName="TourModel"
+                                 IsChecked="{Binding Onboarding.IsBaseSelected}"
+                                 IsEnabled="{Binding !Models.IsBusy}">
+                        <StackPanel Spacing="2">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Classes="bodyStrong" Text="{Binding Onboarding.BaseSpec.DisplayName}"/>
+                                    <Border Classes="tagCapsule" IsVisible="{Binding Onboarding.BaseSpec.Recommended}">
+                                        <TextBlock Text="RECOMMENDED"/>
+                                    </Border>
+                                </StackPanel>
+                                <TextBlock Grid.Column="1" Classes="caption"
+                                           Text="{Binding Onboarding.BaseSpec.ApproxSizeText}"/>
+                            </Grid>
+                            <TextBlock Classes="caption" TextWrapping="Wrap"
+                                       Text="{Binding Onboarding.BaseSpec.Summary}"/>
+                        </StackPanel>
+                    </RadioButton>
+
+                    <RadioButton Classes="optionCard" GroupName="TourModel"
+                                 IsChecked="{Binding Onboarding.IsTurboSelected}"
+                                 IsEnabled="{Binding !Models.IsBusy}">
+                        <StackPanel Spacing="2">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Classes="bodyStrong" Text="{Binding Onboarding.TurboSpec.DisplayName}"/>
+                                <TextBlock Grid.Column="1" Classes="caption"
+                                           Text="{Binding Onboarding.TurboSpec.ApproxSizeText}"/>
+                            </Grid>
+                            <TextBlock Classes="caption" TextWrapping="Wrap"
+                                       Text="{Binding Onboarding.TurboSpec.Summary}"/>
+                        </StackPanel>
+                    </RadioButton>
+
+                    <!-- Install control: absent → download; busy → progress; failed → retry;
+                         ready → confirmation. Downloaded from Hugging Face, SHA-256 verified. -->
+                    <Border Classes="card">
+                        <StackPanel Spacing="8">
+                            <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding Models.IsAbsent}">
+                                <StackPanel Spacing="2" VerticalAlignment="Center" Margin="0,0,12,0">
+                                    <TextBlock Classes="bodyStrong"
+                                               Text="{Binding Models.DisplayName, StringFormat='Install {0}'}"/>
+                                    <TextBlock Classes="caption" TextWrapping="Wrap"
+                                               Text="Downloaded once from Hugging Face and verified — kept in your data folder, so updates never re-ship it."/>
+                                </StackPanel>
+                                <Button Grid.Column="1" Classes="accent" VerticalAlignment="Center"
+                                        Content="{Binding Models.SizeText, StringFormat='Download ({0})'}"
+                                        Command="{Binding DownloadModelCommand}"/>
+                            </Grid>
+                            <StackPanel Spacing="5" IsVisible="{Binding Models.IsBusy}">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <ProgressBar Minimum="0" Maximum="1" Height="6" VerticalAlignment="Center"
+                                                 Value="{Binding Models.Progress}"
+                                                 IsIndeterminate="{Binding Models.IsVerifying}"/>
+                                    <Button Grid.Column="1" Content="Cancel" Margin="12,0,0,0"
+                                            Command="{Binding CancelModelCommand}"
+                                            IsVisible="{Binding !Models.IsVerifying}"/>
+                                </Grid>
+                                <TextBlock Classes="caption" IsVisible="{Binding !Models.IsVerifying}"
+                                           Text="{Binding Models.Progress, StringFormat='Downloading… {0:P0} — you can keep going once it finishes.'}"/>
+                                <TextBlock Classes="caption" IsVisible="{Binding Models.IsVerifying}"
+                                           Text="Verifying the download…"/>
+                            </StackPanel>
+                            <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding Models.IsFailed}">
+                                <TextBlock Classes="caption danger" TextWrapping="Wrap" VerticalAlignment="Center"
+                                           Margin="0,0,12,0" Text="{Binding Models.Message}"/>
+                                <Button Grid.Column="1" Content="Try Again" VerticalAlignment="Center"
+                                        Command="{Binding DownloadModelCommand}"/>
+                            </Grid>
+                            <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding Models.IsReady}">
+                                <TextBlock Classes="icon success" Text="&#xE73E;" FontSize="14"/>
+                                <TextBlock Classes="success" FontWeight="SemiBold" VerticalAlignment="Center"
+                                           Text="{Binding Models.DisplayName, StringFormat='{}{0} is installed and ready.'}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Custom model — available on every channel. -->
+                    <Border Classes="card">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Spacing="2" Margin="0,0,12,0">
+                                <TextBlock Classes="bodyStrong" Text="Or use your own model"/>
+                                <TextBlock Classes="caption" TextWrapping="Wrap"
+                                           Text="Point Crisp at any whisper.cpp .bin on disk — it overrides the choice above."/>
+                                <TextBlock Classes="caption success" IsVisible="{Binding Settings.HasCustomModel}"
+                                           Text="{Binding Settings.CustomModelName, StringFormat='Using {0}'}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                <Button Content="Browse…" Click="OnPickCustomModel"/>
+                                <Button Content="Clear" Click="OnClearCustomModel"
+                                        IsVisible="{Binding Settings.HasCustomModel}"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+
+                <!-- 6 · Preferences -->
+                <StackPanel Classes="step" IsVisible="{Binding Onboarding.IsPreferences}">
+                    <Border Classes="heroTile"><TextBlock Text="&#xE713;"/></Border>
+                    <TextBlock Classes="stepTitle" Text="Make it yours"/>
+                    <TextBlock Classes="stepSubtitle" Margin="0,0,0,8"
+                               Text="Set your defaults now — you can change any of this later in Settings."/>
+                    <Border Classes="settingsGroup">
+                        <StackPanel>
+                            <controls:SettingsRow Header="Output quality"
+                                                  Description="Higher quality means larger files."
+                                                  IsEnabled="{Binding !Settings.ForcesOwnCodecs}">
+                                <ComboBox AutomationProperties.Name="Output quality" MinWidth="140"
+                                          ItemsSource="{Binding Settings.Qualities}"
+                                          SelectedItem="{Binding Settings.VideoQuality}"
+                                          ItemTemplate="{StaticResource CasedOption}"/>
+                            </controls:SettingsRow>
+                            <controls:SettingsRow Header="Output format"
+                                                  Description="Auto keeps each video’s own container.">
+                                <ComboBox AutomationProperties.Name="Output format" MinWidth="140"
+                                          ItemsSource="{Binding Settings.Containers}"
+                                          SelectedItem="{Binding Settings.OutputContainer}"
+                                          ItemTemplate="{StaticResource CasedOption}"/>
+                            </controls:SettingsRow>
+                            <controls:SettingsRow Header="Hardware acceleration"
+                                                  Description="Faster encoding on your GPU (NVENC / QSV / AMF)."
+                                                  IsEnabled="{Binding !Settings.ForcesOwnCodecs}">
+                                <ToggleSwitch AutomationProperties.Name="Hardware acceleration"
+                                              IsChecked="{Binding Settings.HardwareEncoding}"/>
+                            </controls:SettingsRow>
+                            <controls:SettingsRow Header="Keep a backup of the original"
+                                                  Description="A pristine copy is set aside before each clean — recommended.">
+                                <ToggleSwitch AutomationProperties.Name="Keep a backup of the original"
+                                              IsChecked="{Binding Settings.BackupOriginal}"/>
+                            </controls:SettingsRow>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- 7 · Automate -->
+                <StackPanel Classes="step" IsVisible="{Binding Onboarding.IsAutomate}">
+                    <Border Classes="heroTile"><TextBlock Text="&#xE945;"/></Border>
+                    <TextBlock Classes="stepTitle" Text="Make it automatic"/>
+                    <TextBlock Classes="stepSubtitle" Margin="0,0,0,8"
+                               Text="Crisp fits into the way you already work."/>
+                    <Border Classes="settingsGroup">
+                        <StackPanel>
+                            <controls:SettingsRow Header="Explorer right-click"
+                                                  Description="Adds “Clean with Crisp” to any video’s right-click menu."
+                                                  Glyph="&#xE71D;">
+                                <ToggleSwitch AutomationProperties.Name="Add Clean with Crisp to the Explorer right-click menu"
+                                              IsChecked="{Binding Settings.ExplorerIntegration}"/>
+                            </controls:SettingsRow>
+                            <controls:SettingsRow Header="Watch a folder"
+                                                  Description="While Crisp is open, any new video dropped into the folder is cleaned automatically."
+                                                  Glyph="&#xE8B7;">
+                                <ToggleSwitch AutomationProperties.Name="Watch a folder and auto-clean new videos"
+                                              IsChecked="{Binding Settings.WatchEnabled}"/>
+                            </controls:SettingsRow>
+                            <controls:SettingsRow Header="Folder" IsVisible="{Binding Settings.WatchEnabled}">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBox Width="180" AutomationProperties.Name="Watch folder path"
+                                             PlaceholderText="Folder to watch…"
+                                             Text="{Binding Settings.WatchFolderPath}"/>
+                                    <Button Content="Browse…" Click="OnPickWatchFolder"/>
+                                </StackPanel>
+                            </controls:SettingsRow>
+                            <controls:SettingsRow Header="{Binding DetectedEditor.Name, StringFormat='Send my cuts to {0}'}"
+                                                  Description="Hands the cuts over as a ready-to-edit timeline — no render, every cut stays adjustable."
+                                                  Glyph="&#xE8B2;"
+                                                  IsVisible="{Binding DetectedEditor, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                <ToggleSwitch AutomationProperties.Name="Send cuts to the detected video editor"
+                                              IsChecked="{Binding Settings.ExportToEditor}"/>
+                            </controls:SettingsRow>
+                        </StackPanel>
+                    </Border>
+                    <controls:FeatureRow Glyph="&#xE718;" Header="Always within reach"
+                                         Description="Crisp sits in your system tray — click its icon to bring the window back any time."/>
+                </StackPanel>
+
+                <!-- 8 · Done -->
+                <StackPanel Classes="step" IsVisible="{Binding Onboarding.IsDone}">
+                    <controls:WaveformMark Height="52" HorizontalAlignment="Center" Margin="0,4,0,8"/>
+                    <TextBlock Classes="stepTitle" Text="You’re all set"/>
+                    <TextBlock Classes="stepSubtitle" Margin="0,0,0,8"
+                               Text="Everything’s ready. Fine-tune cutting strength, the encoder and more in Settings — and reopen this tour any time from Settings ▸ About."/>
+                    <controls:FeatureRow Glyph="&#xE81C;" Header="Find every clean in History"
+                                         Description="The History page lists everything Crisp has cleaned — from the queue, the watch folder, or Explorer — to reveal or re-clean."/>
+                </StackPanel>
+
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</UserControl>

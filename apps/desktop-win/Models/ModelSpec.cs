@@ -12,7 +12,8 @@ public sealed record ModelSpec(
     string Sha256,
     long ApproxBytes,
     string DisplayName,
-    string Summary)
+    string Summary,
+    bool Recommended = false)
 {
     public string ApproxSizeText => ApproxBytes >= 1_000_000_000
         ? $"{ApproxBytes / 1_000_000_000.0:0.#} GB"
@@ -31,7 +32,8 @@ public static class ModelCatalog
         Sha256: "a03779c86df3323075f5e796cb2ce5029f00ec8869eee3fdfb897afe36c6d002",
         ApproxBytes: 147_964_211,
         DisplayName: "Base (English)",
-        Summary: "Fast and light. Great for clear speech and quick cleans.");
+        Summary: "Fast and light. Great for clear speech and quick cleans.",
+        Recommended: true);
 
     /// High-accuracy option — catches more fillers, places them more precisely;
     /// larger to download and slower to run.
