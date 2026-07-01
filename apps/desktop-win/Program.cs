@@ -422,6 +422,7 @@ sealed class Program
 
         // Walk to the end; the last Continue completes, writes the marker, and
         // persists the whole chosen setup to settings.json (even all-defaults).
+        settings.VideoQuality = "maximum"; // a preferences-step knob, set mid-tour
         while (!tour.IsLast) tour.ContinueCommand.Execute(null);
         Check(tour.ContinueLabel == "Get Started", "last step relabels Continue");
         tour.ContinueCommand.Execute(null);
@@ -430,6 +431,15 @@ sealed class Program
         var saved = Crisp.Models.EngineConfig.Load();
         Check(saved.SelectedModelId == settings.SelectedModelId && saved.CustomModelPath == custom,
             "settings.json captures the chosen model setup");
+
+        // Onboarding and the Settings page share one config file: what the tour set is
+        // exactly what a fresh EngineSettings (= the Settings page after a relaunch) reads.
+        var settingsPage = new Crisp.Services.EngineSettings();
+        Check(settingsPage.VideoQuality == "maximum"
+              && settingsPage.SelectedModelId == settings.SelectedModelId
+              && settingsPage.CustomModelPath == custom
+              && settingsPage.HasExistingConfig,
+            "Settings page reads back exactly what onboarding wrote (shared config)");
 
         var again = new Crisp.Services.OnboardingController(models, filler, settings, fillerAvailable: true);
         Check(!again.IsPresented, "the marker persists — no re-present on next launch");
