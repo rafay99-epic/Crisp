@@ -2,7 +2,7 @@
   "name": "crisp",
   "private": true,
   "version": "0.0.0",
-  "description": "Crisp monorepo — the macOS app (apps/desktop) and the marketing website (apps/web).",
+  "description": "Crisp monorepo — the desktop apps (apps/desktop, apps/desktop-win), the marketing website (apps/web), and the Polar license-lookup function (apps/license-api).",
   "packageManager": "bun@1.3.11",
   "workspaces": ["apps/*"],
   "scripts": {

@@ -9,7 +9,7 @@ The Polar API token lives **only here** (a Vercel env var) — never in the ship
 
 ## Deploy (Vercel)
 
-1. From this folder: `vercel deploy --prod` (or import `services/polar-license-lookup`
+1. From this folder: `vercel deploy --prod` (or import `apps/license-api`
    as a Vercel project — root directory = this folder).
 2. Set two environment variables in **Vercel → Project → Settings → Environment Variables**:
    - `POLAR_TOKEN` — a Polar **Organization Access Token** (Polar → Settings →
