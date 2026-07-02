@@ -1,0 +1,28 @@
+packages/engine/benchmarks/bench_filter_graph.py
+  s_77278fca3d82ec::t_11a7d88b2b33f0 33,50
+packages/engine/crisp/edit.py
+  s_77278fca3d82ec::t_3a4b97d3cabfb3 588,592
+  s_77278fca3d82ec::t_b1ac08970fac18 611
+  s_77278fca3d82ec::t_fd3d82ff6be5f8 551-562
+packages/engine/benchmarks/verify_render_equivalence.py
+  s_77278fca3d82ec::t_e911cd165d9e19 110-113,115
+  s_77278fca3d82ec::t_11a7d88b2b33f0 37,48,56,58,64,162
+packages/engine/tests/test_edit.py
+  s_77278fca3d82ec::t_d9c808b71a9c67 294
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "f8c5b4e663ba7320a10b3c64a9749a7ca0b843c8",
+  "prompts": {},
+  "sessions": {
+    "s_77278fca3d82ec": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cd4010da-99af-4c01-95fa-a67e6669de5e",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
