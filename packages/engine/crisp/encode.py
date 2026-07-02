@@ -2,10 +2,19 @@
 
 Cuts are always re-encoded (frame-accurate trims need it), so this is where the
 quality/codec choices land. Software encoders (libx264/libx265/libvpx-vp9) use
-CRF; the Apple hardware encoders (VideoToolbox) use a constant-quality `-q:v`. A
-named quality level maps to the right number per codec so the UI never exposes
-raw scales. Not every codec fits every container (VP9 is WebM-only; the mp4
-family can't hold it), so `resolve_codecs` coerces the choice to the container.
+CRF. Hardware encoding is one engine, two platform paths, both explicit here:
+
+  macOS   — Apple VideoToolbox, always present on Apple Silicon, so it's emitted
+            directly with no probe (constant-quality `-q:v`).
+  Windows — the GPU vendor's encoder (NVIDIA NVENC / Intel QSV / AMD AMF), picked
+            by detecting the machine's GPUs and verifying the candidate with a
+            test encode (`pick_hardware_encoder` + `tools.hw_encoder_works`),
+            since ffmpeg lists all three regardless of the actual hardware. Each
+            takes a CRF-like constant-quality flag (`hardware_quality_args`).
+
+A named quality level maps to the right number per codec/encoder so the UI never
+exposes raw scales. Not every codec fits every container (VP9 is WebM-only; the
+mp4 family can't hold it), so `resolve_codecs` coerces the choice to the container.
 """
 
 import sys

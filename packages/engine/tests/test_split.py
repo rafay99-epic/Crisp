@@ -1,6 +1,7 @@
 """Tests for the split-track path/extension logic (no ffmpeg needed)."""
 
 import unittest
+from pathlib import Path
 
 from crisp.split import split_paths
 
@@ -21,9 +22,10 @@ class SplitPathsTests(unittest.TestCase):
         self.assertEqual(audio.name, "c_cleaned_audio.m4a")
 
     def test_stems_sit_beside_the_cleaned_file(self):
+        # Compare Path to Path (not strings) so the separator stays the platform's own.
         video, audio = split_paths("/Users/me/out/clip_cleaned.mov", "aac")
-        self.assertEqual(str(video.parent), "/Users/me/out")
-        self.assertEqual(str(audio.parent), "/Users/me/out")
+        self.assertEqual(video.parent, Path("/Users/me/out"))
+        self.assertEqual(audio.parent, Path("/Users/me/out"))
         self.assertEqual(video.name, "clip_cleaned_video.mov")
 
     def test_wav_format_overrides_codec_extension(self):

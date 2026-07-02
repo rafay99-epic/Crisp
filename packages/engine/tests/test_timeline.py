@@ -1,6 +1,7 @@
 """FCPXML editor-handoff generation — frame-exact times + valid structure."""
 
 import unittest
+from pathlib import Path
 from xml.dom import minidom
 
 from crisp.errors import CleanError
@@ -157,15 +158,16 @@ class TimelineSecondsTests(unittest.TestCase):
 
 class ProjectPathsTests(unittest.TestCase):
     def test_beside_source(self):
+        # Compare Path to Path (not strings) so the separator stays the platform's own.
         proj, media, fcpxml = project_paths("/v/talk.mov")
-        self.assertEqual(str(proj), "/v/talk (Crisp)")
-        self.assertEqual(str(media), "/v/talk (Crisp)/talk.mov")
-        self.assertEqual(str(fcpxml), "/v/talk (Crisp)/talk.fcpxml")
+        self.assertEqual(proj, Path("/v/talk (Crisp)"))
+        self.assertEqual(media, Path("/v/talk (Crisp)/talk.mov"))
+        self.assertEqual(fcpxml, Path("/v/talk (Crisp)/talk.fcpxml"))
 
     def test_in_out_dir(self):
         proj, media, fcpxml = project_paths("/v/talk.mkv", out_dir="/out")
-        self.assertEqual(str(proj), "/out/talk (Crisp)")
-        self.assertEqual(str(media), "/out/talk (Crisp)/talk.mkv")
+        self.assertEqual(proj, Path("/out/talk (Crisp)"))
+        self.assertEqual(media, Path("/out/talk (Crisp)/talk.mkv"))
 
 
 class ColorSpaceTests(unittest.TestCase):

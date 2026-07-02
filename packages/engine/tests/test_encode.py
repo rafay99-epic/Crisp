@@ -2,6 +2,7 @@
 
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from crisp.encode import (
     HARDWARE_QV, SOFTWARE_CRF, TEN_BIT_PIX_FMT, audio_args, container_args, default_output_path,
@@ -43,15 +44,19 @@ class VideoArgsTests(unittest.TestCase):
         self.assertIn("hvc1", args)
 
     def test_hardware_uses_videotoolbox_and_qv(self):
-        args = video_args("hevc", hardware=True, quality="high")
+        # Pin the platform: on Windows the hardware path probes the real GPU instead
+        # (covered in test_encode_platform), which would make this machine-dependent.
+        with mock.patch("crisp.encode.sys.platform", "darwin"):
+            args = video_args("hevc", hardware=True, quality="high")
         self.assertIn("hevc_videotoolbox", args)
         self.assertIn("-q:v", args)
         self.assertIn(str(HARDWARE_QV["high"]), args)
         self.assertNotIn("-crf", args)  # hardware is constant-quality, not CRF
 
     def test_always_forces_yuv420p(self):
-        for hw in (True, False):
-            self.assertIn("yuv420p", video_args("h264", hardware=hw, quality="high"))
+        with mock.patch("crisp.encode.sys.platform", "darwin"):  # keep hardware=True machine-independent
+            for hw in (True, False):
+                self.assertIn("yuv420p", video_args("h264", hardware=hw, quality="high"))
 
     def test_vp9_uses_libvpx_in_constant_quality_software(self):
         # VP9 is software-only (no VideoToolbox encoder) and needs -b:v 0 to make
@@ -176,7 +181,10 @@ class HighBitDepthTests(unittest.TestCase):
         self.assertIn("-x265-params", sw_hevc)
         self.assertEqual(sw_hevc[sw_hevc.index("-x265-params") + 1], params)
         # Hardware HEVC (VideoToolbox), H.264, and VP9 must NOT receive -x265-params.
-        self.assertNotIn("-x265-params", video_args("hevc", True, "high", "yuv420p10le", hdr_params=params))
+        # (Platform pinned: the Windows hardware path probes the real GPU and would
+        # fall back to libx265 — which then rightly carries the params.)
+        with mock.patch("crisp.encode.sys.platform", "darwin"):
+            self.assertNotIn("-x265-params", video_args("hevc", True, "high", "yuv420p10le", hdr_params=params))
         self.assertNotIn("-x265-params", video_args("h264", False, "high", "yuv420p10le", hdr_params=params))
         self.assertNotIn("-x265-params", video_args("vp9", False, "high", "yuv420p10le", hdr_params=params))
         # No metadata → no flag, even on libx265.
