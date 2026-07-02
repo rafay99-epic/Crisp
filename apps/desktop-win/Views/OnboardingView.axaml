@@ -97,7 +97,7 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="svc:OnboardingDot">
-                            <Ellipse Classes="pageDot" Classes.current="{Binding IsCurrent}"/>
+                            <Ellipse Classes="pageDot" Classes.current="{Binding IsCurrent}" IsVisible="{Binding IsShown}"/>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
@@ -150,6 +150,18 @@
                                          Description="Export MP4 with H.264 or HEVC, or a web-friendly WebM, with hardware encoding on your GPU (NVENC / QSV / AMF) — Crisp keeps incompatible combinations from happening."/>
                     <TextBlock Classes="stepSubtitle" Margin="0,4,0,0"
                                Text="It all happens automatically on smart defaults — fine-tune any of it later in Settings."/>
+                </StackPanel>
+
+                <!-- 3½ · Your hardware (skipped when no GPU was detected) -->
+                <StackPanel Classes="step" IsVisible="{Binding Onboarding.IsHardware}">
+                    <Border Classes="heroTile"><TextBlock Text="&#xEC4A;"/></Border>
+                    <TextBlock Classes="stepTitle" Text="Your hardware"/>
+                    <TextBlock Classes="stepSubtitle" Margin="0,0,0,8"
+                               Text="Crisp checked what this PC can accelerate — not by guessing from a list, but by running a real test encode on your GPU."/>
+                    <controls:FeatureRow Glyph="&#xE950;" Header="{Binding Onboarding.GpuNames}"
+                                         Description="{Binding Onboarding.GpuVerdict}"/>
+                    <controls:FeatureRow Glyph="&#xE930;" Header="Always safe"
+                                         Description="If a driver ever misbehaves mid-render, Crisp falls back to CPU encoding automatically — a clean never fails over hardware."/>
                 </StackPanel>
 
                 <!-- 4 · How it works -->

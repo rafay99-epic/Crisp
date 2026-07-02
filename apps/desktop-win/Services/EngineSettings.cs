@@ -30,6 +30,8 @@ public partial class EngineSettings : ObservableObject
     /// --probe-hardware answer shortly after launch (GPU names + what they accelerate).
     [ObservableProperty] private string _hardwareStatus =
         "Use the GPU media engine (NVENC / QSV / AMF) when available.";
+    /// The raw probe answer, for the onboarding hardware step (null until the probe lands).
+    [ObservableProperty] private Models.HardwareInfo? _lastHardwareInfo;
     [ObservableProperty] private string _videoQuality = "high";
     [ObservableProperty] private string _audioCodec = "aac";
     [ObservableProperty] private int _audioBitrateKbps = 192;
@@ -135,6 +137,7 @@ public partial class EngineSettings : ObservableObject
     /// so a deliberate later choice of HEVC sticks.
     public void ApplyHardwareProbe(HardwareInfo info)
     {
+        LastHardwareInfo = info;
         HardwareStatus = HardwareStatusText(info);
 
         // When settings.json couldn't be read this session, the codec flip couldn't
@@ -156,17 +159,24 @@ public partial class EngineSettings : ObservableObject
         }
     }
 
+    /// The accelerate-verdict sentence, GPU names excluded — shared by the Settings
+    /// blurb and the onboarding hardware step (one system, not two).
+    internal static string HardwareVerdictText(HardwareInfo info)
+    {
+        var (h264, hevc) = (info.H264Encoder, info.HevcEncoder);
+        if (h264 is null && hevc is null)
+            return "no working hardware encoder; encoding uses the CPU.";
+        if (h264 is not null && hevc is not null)
+            return $"hardware H.264 + HEVC via {HardwareInfo.VendorLabel(hevc)}.";
+        return h264 is not null
+            ? $"hardware H.264 via {HardwareInfo.VendorLabel(h264)}; HEVC encodes on the CPU."
+            : $"hardware HEVC via {HardwareInfo.VendorLabel(hevc!)}; H.264 encodes on the CPU.";
+    }
+
     private static string HardwareStatusText(HardwareInfo info)
     {
         var gpu = info.Gpus.Count > 0 ? string.Join(", ", info.Gpus) : "No GPU detected";
-        var (h264, hevc) = (info.H264Encoder, info.HevcEncoder);
-        if (h264 is null && hevc is null)
-            return $"{gpu} — no working hardware encoder; encoding uses the CPU.";
-        if (h264 is not null && hevc is not null)
-            return $"{gpu} — hardware H.264 + HEVC via {HardwareInfo.VendorLabel(hevc)}.";
-        return h264 is not null
-            ? $"{gpu} — hardware H.264 via {HardwareInfo.VendorLabel(h264)}; HEVC encodes on the CPU."
-            : $"{gpu} — hardware HEVC via {HardwareInfo.VendorLabel(hevc!)}; H.264 encodes on the CPU.";
+        return $"{gpu} — {HardwareVerdictText(info)}";
     }
 
     /// Explorer right-click "Clean with Crisp" — lives in the registry, not settings.json.
@@ -264,7 +274,7 @@ public partial class EngineSettings : ObservableObject
     {
         base.OnPropertyChanged(e);
         if (_loading) return;
-        if (e.PropertyName == nameof(HardwareStatus)) return; // display-only, never persisted
+        if (e.PropertyName is nameof(HardwareStatus) or nameof(LastHardwareInfo)) return; // display-only, never persisted
         if (e.PropertyName == nameof(CustomModelPath))
             FileLog.Info("model", string.IsNullOrWhiteSpace(CustomModelPath)
                 ? "custom model cleared — back to the catalog model"

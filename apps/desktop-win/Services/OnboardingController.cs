@@ -10,12 +10,13 @@ namespace Crisp.Services;
 
 /// The pages of the first-run tour, in order. Windows counterpart of the macOS
 /// OnboardingView.Step (minus the Apple-only licensing step, which ships dark there).
-public enum OnboardingStep { Welcome, Capabilities, Fidelity, HowItWorks, Model, Preferences, Automate, Done }
+public enum OnboardingStep { Welcome, Capabilities, Fidelity, Hardware, HowItWorks, Model, Preferences, Automate, Done }
 
 /// One page-indicator dot in the tour footer.
 public sealed partial class OnboardingDot : ObservableObject
 {
     [ObservableProperty] private bool _isCurrent;
+    [ObservableProperty] private bool _isShown = true;
 }
 
 /// First-run tour (port of the macOS OnboardingController + OnboardingView flow logic).
@@ -40,7 +41,7 @@ public partial class OnboardingController : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Step), nameof(IsLast), nameof(ShowsBack), nameof(ContinueLabel),
         nameof(CanContinue), nameof(IsWelcome), nameof(IsCapabilities), nameof(IsFidelity),
-        nameof(IsHowItWorks), nameof(IsModel), nameof(IsPreferences), nameof(IsAutomate), nameof(IsDone))]
+        nameof(IsHardware), nameof(IsHowItWorks), nameof(IsModel), nameof(IsPreferences), nameof(IsAutomate), nameof(IsDone))]
     [NotifyCanExecuteChangedFor(nameof(ContinueCommand))]
     private int _stepIndex;
 
@@ -55,6 +56,7 @@ public partial class OnboardingController : ObservableObject
         _fillerAvailable = fillerAvailable;
         IsPresented = !File.Exists(MarkerPath);
         Dots[0].IsCurrent = true;
+        Dots[Array.IndexOf(Steps, OnboardingStep.Hardware)].IsShown = ShowsHardwareStep; // false pre-probe
         if (IsPresented) FileLog.Info("onboarding", "first run — presenting the tour");
 
         // The model gate reacts live: finishing a download (whisper or Wren) enables
@@ -74,6 +76,13 @@ public partial class OnboardingController : ObservableObject
             if (e.PropertyName is nameof(EngineSettings.SelectedModelId)
                 or nameof(EngineSettings.FillerModelEnabled))
                 RefreshSelection();
+            if (e.PropertyName == nameof(EngineSettings.LastHardwareInfo))
+            {
+                OnPropertyChanged(nameof(ShowsHardwareStep));
+                OnPropertyChanged(nameof(GpuNames));
+                OnPropertyChanged(nameof(GpuVerdict));
+                Dots[Array.IndexOf(Steps, OnboardingStep.Hardware)].IsShown = ShowsHardwareStep;
+            }
         };
     }
 
@@ -118,11 +127,27 @@ public partial class OnboardingController : ObservableObject
     public bool IsWelcome => Step == OnboardingStep.Welcome;
     public bool IsCapabilities => Step == OnboardingStep.Capabilities;
     public bool IsFidelity => Step == OnboardingStep.Fidelity;
+    public bool IsHardware => Step == OnboardingStep.Hardware;
     public bool IsHowItWorks => Step == OnboardingStep.HowItWorks;
     public bool IsModel => Step == OnboardingStep.Model;
     public bool IsPreferences => Step == OnboardingStep.Preferences;
     public bool IsAutomate => Step == OnboardingStep.Automate;
     public bool IsDone => Step == OnboardingStep.Done;
+
+    /// Shown only when the launch-time probe reported at least one real GPU by the
+    /// time the user navigates here; otherwise the step (and its dot) is skipped.
+    public bool ShowsHardwareStep => _settings.LastHardwareInfo is { Gpus.Count: > 0 };
+    public string GpuNames => string.Join(", ", _settings.LastHardwareInfo?.Gpus ?? []);
+    public string GpuVerdict
+    {
+        get
+        {
+            var info = _settings.LastHardwareInfo;
+            if (info is null) return "";
+            var text = EngineSettings.HardwareVerdictText(info);
+            return text.Length > 0 ? char.ToUpperInvariant(text[0]) + text[1..] : text;
+        }
+    }
 
     /// A returning user (settings.json already existed) gets a "welcome back" tour —
     /// their saved configuration is preserved and the preferences step edits it in place.
@@ -157,13 +182,18 @@ public partial class OnboardingController : ObservableObject
     {
         if (!CanContinue) return; // ICommand.Execute doesn't check CanExecute itself
         if (IsLast) Complete();
-        else StepIndex++;
+        else
+        {
+            StepIndex++;
+            if (Step == OnboardingStep.Hardware && !ShowsHardwareStep) StepIndex++;
+        }
     }
 
     [RelayCommand]
     private void Back()
     {
         if (StepIndex > 0) StepIndex--;
+        if (Step == OnboardingStep.Hardware && !ShowsHardwareStep && StepIndex > 0) StepIndex--;
     }
 
     /// "Skip" routes through the unsatisfied mandatory step (the speech model) rather
