@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { motion, useScroll, useMotionValueEvent } from "framer-motion";
 import { Waveform } from "../components/Logo";
 import { Magnetic } from "../components/Motion";
@@ -40,6 +41,9 @@ export function Nav() {
               {label}
             </a>
           ))}
+          <Link to="/pricing" className="text-[13px] text-white/60 transition-colors hover:text-white">
+            Pricing
+          </Link>
         </div>
         <Magnetic strength={0.5}>
           <a
