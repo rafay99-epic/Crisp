@@ -1,0 +1,21 @@
+apps/desktop/Sources/Crisp/Views/SettingsView.swift
+  s_8ac6355e0f6e6e::t_ccc135242ee7a5 282,289,294
+  s_8ac6355e0f6e6e::t_8ee5e21845285b 189-195
+  s_8ac6355e0f6e6e::t_eb97ad946f4e21 203
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "b9be71562986992266731c174a55ed7d79499e88",
+  "prompts": {},
+  "sessions": {
+    "s_8ac6355e0f6e6e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fb8c670e-a4ca-463e-b69b-23c64bb73e04",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
