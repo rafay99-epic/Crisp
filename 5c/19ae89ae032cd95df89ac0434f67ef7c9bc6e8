@@ -1,0 +1,43 @@
+"backlog/tasks/task-35.10 - Windows-speed-up-review-footage-flow.md"
+  s_becf425f85375c::t_ede2c1f6eabfd2 1-27
+"backlog/tasks/task-35.4 - Windows-native-updater-stop-pointing-at-the-macOS-update-system.md"
+  s_becf425f85375c::t_ede2c1f6eabfd2 1-28
+"backlog/tasks/task-35.11 - Windows-improve-parallelization.md"
+  s_becf425f85375c::t_ede2c1f6eabfd2 1-27
+"backlog/tasks/task-35.2 - Windows-suppress-CMD-console-window-on-Python-CLI-calls.md"
+  s_becf425f85375c::t_ede2c1f6eabfd2 1-27
+"backlog/tasks/task-35.6 - Windows-verify-log-file-location.md"
+  s_becf425f85375c::t_ede2c1f6eabfd2 1-26
+"backlog/tasks/task-35 - Windows-port-POC-→-macOS-parity-refinement.md"
+  s_becf425f85375c::t_ede2c1f6eabfd2 1-39
+"backlog/tasks/task-35.1 - Windows-app-icon-missing.md"
+  s_becf425f85375c::t_ede2c1f6eabfd2 1-27
+"backlog/tasks/task-35.7 - Windows-GPU-detection-hardware-accel-selection.md"
+  s_becf425f85375c::t_ede2c1f6eabfd2 1-28
+"backlog/tasks/task-35.8 - Windows-run-transcription-on-GPU-whisper-off-CPU.md"
+  s_becf425f85375c::t_ede2c1f6eabfd2 1-28
+"backlog/tasks/task-35.9 - Windows-GPU-accelerated-encode-decode-for-rendering.md"
+  s_becf425f85375c::t_ede2c1f6eabfd2 1-29
+"backlog/tasks/task-35.3 - Windows-download-speech-model-on-first-run-not-in-installer.md"
+  s_becf425f85375c::t_ede2c1f6eabfd2 1-28
+"backlog/tasks/task-35.5 - Windows-versioning-scheme.md"
+  s_becf425f85375c::t_ede2c1f6eabfd2 1-27
+"backlog/tasks/task-35.12 - Windows-reduce-memory-footprint-during-a-clean.md"
+  s_becf425f85375c::t_ede2c1f6eabfd2 1-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "5c19ae89ae032cd95df89ac0434f67ef7c9bc6e8",
+  "prompts": {},
+  "sessions": {
+    "s_becf425f85375c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0d0e6de4-3273-4c45-8b42-166e819cb946",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
