@@ -157,6 +157,21 @@ public partial class MainWindowViewModel : ViewModelBase
         else _ = Models.RefreshAsync();
         _ = FillerModel.RefreshAsync(); // Wren state is disk-derived too
         _ = Updater.CheckAsync(); // check for a newer release on launch (banner if found)
+        _ = ProbeHardwareAsync(); // GPU + hardware-encoder readout for Settings
+    }
+
+    /// Ask the engine what this machine's GPUs actually accelerate (see
+    /// EngineSettings.ApplyHardwareProbe). Best-effort — a failed probe just leaves
+    /// the generic Settings blurb in place.
+    private async Task ProbeHardwareAsync()
+    {
+        try
+        {
+            var info = await _engine.ProbeHardwareAsync(CancellationToken.None);
+            if (info is null) return;
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => Settings.ApplyHardwareProbe(info));
+        }
+        catch { /* the probe must never disturb a launch */ }
     }
 
     [RelayCommand]
@@ -734,12 +749,17 @@ public partial class MainWindowViewModel : ViewModelBase
         var bundled = Path.Combine(AppContext.BaseDirectory, "engine", "clean_video.py");
         if (File.Exists(bundled)) return bundled;
 
-        // Dev layout: walk up to the shared engine in the repo.
+        // Dev layout: walk up to the shared engine in the repo (packages/engine since
+        // PR #134; the old macOS Resources staging dir kept as a fallback).
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir is not null)
         {
-            var candidate = Path.Combine(dir.FullName, "apps", "desktop", "Resources", "engine", "clean_video.py");
-            if (File.Exists(candidate)) return candidate;
+            foreach (var candidate in new[]
+            {
+                Path.Combine(dir.FullName, "packages", "engine", "clean_video.py"),
+                Path.Combine(dir.FullName, "apps", "desktop", "Resources", "engine", "clean_video.py"),
+            })
+                if (File.Exists(candidate)) return candidate;
             dir = dir.Parent;
         }
         // Last resort: the absolute bundled path (so CrispEngine's working dir isn't ".").

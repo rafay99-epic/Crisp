@@ -26,6 +26,10 @@ public partial class EngineSettings : ObservableObject
     // Encoding
     [ObservableProperty] private string _videoCodec = "hevc";
     [ObservableProperty] private bool _hardwareEncoding = true;
+    /// Live blurb under the Hardware Acceleration row — replaced by the engine's
+    /// --probe-hardware answer shortly after launch (GPU names + what they accelerate).
+    [ObservableProperty] private string _hardwareStatus =
+        "Use the GPU media engine (NVENC / QSV / AMF) when available.";
     [ObservableProperty] private string _videoQuality = "high";
     [ObservableProperty] private string _audioCodec = "aac";
     [ObservableProperty] private int _audioBitrateKbps = 192;
@@ -124,6 +128,44 @@ public partial class EngineSettings : ObservableObject
 
     public void SetDefaultPreset(string? id) => DefaultPresetId = id ?? "";
 
+    /// Digest the engine's hardware probe: update the Settings blurb and — once ever,
+    /// tracked by a marker file — steer the factory-default codec to one this machine's
+    /// GPU actually accelerates. Only ever hevc → h264 (never a silent upgrade the other
+    /// way), only while hardware encoding is on, and never again after the first probe,
+    /// so a deliberate later choice of HEVC sticks.
+    public void ApplyHardwareProbe(HardwareInfo info)
+    {
+        HardwareStatus = HardwareStatusText(info);
+
+        var marker = System.IO.Path.Combine(Channels.ConfigDirectory, ".gpu-defaults-applied");
+        if (System.IO.File.Exists(marker)) return;
+        try
+        {
+            System.IO.Directory.CreateDirectory(Channels.ConfigDirectory);
+            System.IO.File.WriteAllText(marker, string.Join(", ", info.Gpus));
+        }
+        catch { return; } // can't record "done once" → skip the adjust rather than repeat it every launch
+
+        if (HardwareEncoding && VideoCodec == "hevc" && !info.Accelerates("hevc") && info.Accelerates("h264"))
+        {
+            VideoCodec = "h264";
+            FileLog.Info("gpu", $"default codec hevc → h264 — this GPU hardware-encodes H.264 only ({info.H264Encoder})");
+        }
+    }
+
+    private static string HardwareStatusText(HardwareInfo info)
+    {
+        var gpu = info.Gpus.Count > 0 ? string.Join(", ", info.Gpus) : "No GPU detected";
+        var (h264, hevc) = (info.H264Encoder, info.HevcEncoder);
+        if (h264 is null && hevc is null)
+            return $"{gpu} — no working hardware encoder; encoding uses the CPU.";
+        if (h264 is not null && hevc is not null)
+            return $"{gpu} — hardware H.264 + HEVC via {HardwareInfo.VendorLabel(hevc)}.";
+        return h264 is not null
+            ? $"{gpu} — hardware H.264 via {HardwareInfo.VendorLabel(h264)}; HEVC encodes on the CPU."
+            : $"{gpu} — hardware HEVC via {HardwareInfo.VendorLabel(hevc!)}; H.264 encodes on the CPU.";
+    }
+
     /// Explorer right-click "Clean with Crisp" — lives in the registry, not settings.json.
     public bool ExplorerIntegration
     {
@@ -219,6 +261,7 @@ public partial class EngineSettings : ObservableObject
     {
         base.OnPropertyChanged(e);
         if (_loading) return;
+        if (e.PropertyName == nameof(HardwareStatus)) return; // display-only, never persisted
         if (e.PropertyName == nameof(CustomModelPath))
             FileLog.Info("model", string.IsNullOrWhiteSpace(CustomModelPath)
                 ? "custom model cleared — back to the catalog model"

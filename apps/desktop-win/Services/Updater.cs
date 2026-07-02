@@ -201,6 +201,7 @@ public partial class Updater : ObservableObject
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
+                    CreateNoWindow = true, // no console flash from the gh CLI
                 });
                 if (p is null) continue;
                 // Fully async + time-bound: drain both streams (a full stderr pipe can't stall

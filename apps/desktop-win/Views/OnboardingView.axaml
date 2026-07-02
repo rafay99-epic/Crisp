@@ -333,7 +333,7 @@
                                           ItemTemplate="{StaticResource CasedOption}"/>
                             </controls:SettingsRow>
                             <controls:SettingsRow Header="Hardware acceleration"
-                                                  Description="Faster encoding on your GPU (NVENC / QSV / AMF)."
+                                                  Description="{Binding Settings.HardwareStatus}"
                                                   IsEnabled="{Binding !Settings.ForcesOwnCodecs}">
                                 <ToggleSwitch AutomationProperties.Name="Hardware acceleration"
                                               IsChecked="{Binding Settings.HardwareEncoding}"/>

@@ -33,10 +33,13 @@ public sealed class CrispEngine
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
+            // No console window for python — and since the ffmpeg/whisper children it
+            // spawns inherit its (hidden) console, none of them flash a cmd window either.
+            CreateNoWindow = true,
             WorkingDirectory = engineDir,
         };
         psi.ArgumentList.Add(ScriptPath);
-        psi.ArgumentList.Add(videoPath);
+        if (videoPath.Length > 0) psi.ArgumentList.Add(videoPath); // "" = video-less mode (--probe-hardware)
         foreach (var a in extraArgs) psi.ArgumentList.Add(a);
         psi.ArgumentList.Add("--ndjson");
 
@@ -100,6 +103,20 @@ public sealed class CrispEngine
         catch (OperationCanceledException) { throw; }
         catch { return null; }
         return code == 0 ? raw : null; // a captured payload from a failed run is not trustworthy
+    }
+
+    /// Ask the engine which GPUs exist and which hardware encoder each codec would
+    /// actually use (functionally verified engine-side) — null if the probe failed.
+    /// One implementation for the answer (the engine's); the app only displays it.
+    public async Task<HardwareInfo?> ProbeHardwareAsync(CancellationToken ct)
+    {
+        string? raw = null;
+        var capture = new ActionProgress(ev => { if (ev.Event == "hardware") raw = ev.Raw; });
+        int code;
+        try { code = await RunAsync("", new[] { "--probe-hardware" }, capture, ct); }
+        catch (OperationCanceledException) { throw; }
+        catch { return null; }
+        return code == 0 && raw is not null ? HardwareInfo.Parse(raw) : null;
     }
 
     private sealed class ActionProgress : IProgress<EngineEvent>

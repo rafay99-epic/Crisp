@@ -47,7 +47,7 @@
                                       ItemTemplate="{StaticResource CasedOption}"/>
                         </controls:SettingsRow>
                         <controls:SettingsRow Header="Hardware Acceleration"
-                                              Description="Use the GPU media engine (NVENC / QSV / AMF) when available."
+                                              Description="{Binding HardwareStatus}"
                                               Glyph="&#xEC4A;" IsEnabled="{Binding !ForcesOwnCodecs}">
                             <ToggleSwitch AutomationProperties.Name="Hardware acceleration" IsChecked="{Binding HardwareEncoding}"/>
                         </controls:SettingsRow>
