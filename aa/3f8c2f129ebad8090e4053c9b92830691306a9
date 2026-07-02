@@ -1,0 +1,24 @@
+packages/engine/clean_video.py
+  s_d8f40b0f41c189::t_d12843fca8d9b1 219
+packages/engine/tests/test_hardening.py
+  s_d8f40b0f41c189::t_8635782aa5daed 11
+  s_d8f40b0f41c189::t_3883c11c6f665c 70-83
+packages/engine/crisp/pipeline.py
+  s_d8f40b0f41c189::t_989a50c8cac920 419-426
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "aa3f8c2f129ebad8090e4053c9b92830691306a9",
+  "prompts": {},
+  "sessions": {
+    "s_d8f40b0f41c189": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1a519fba-dba1-4dac-bda2-7657cc1073fa",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
