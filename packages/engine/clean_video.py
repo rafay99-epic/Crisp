@@ -226,7 +226,7 @@ def main():
         # Same legacy-console fallback as user_log: an error carrying a non-cp1252
         # filename or tool output must print, not crash the error path itself.
         try:
-            user_err(e)
+            print(f"ERROR: {e}", flush=True)
         except UnicodeEncodeError:
             print(f"ERROR: {e}".encode("ascii", "replace").decode("ascii"), flush=True)
 
