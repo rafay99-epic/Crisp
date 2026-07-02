@@ -1,0 +1,29 @@
+apps/desktop/Sources/CrispCore/Models/Preset.swift
+  s_d8f40b0f41c189::t_5b1d9e3a6ccf94 108-110,112-119
+  s_d8f40b0f41c189::t_03031f06739676 67
+apps/desktop/Sources/Crisp/Views/ContentView.swift
+  s_d8f40b0f41c189::t_21930b55f98ef5 86-87,89
+apps/desktop/Tests/CrispTests/CrispTests.swift
+  s_d8f40b0f41c189::t_83fc6053357b2c 902-913,915-916,920
+  s_d8f40b0f41c189::t_7923e92888be6e 914,917-919
+  s_d8f40b0f41c189::t_dc9cc41b787ed8 892
+  s_d8f40b0f41c189::t_a0179d04466600 335
+apps/desktop/Sources/Crisp/Views/ReviewSheet.swift
+  s_d8f40b0f41c189::t_15bed0a4f71d94 25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "9b61dfaf5c91034db901fc93640f9e2b3a4e929b",
+  "prompts": {},
+  "sessions": {
+    "s_d8f40b0f41c189": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1a519fba-dba1-4dac-bda2-7657cc1073fa",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
