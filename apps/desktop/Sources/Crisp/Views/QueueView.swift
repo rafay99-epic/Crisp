@@ -14,7 +14,12 @@ struct QueueView: View {
     @State private var reviewItem: QueueItem?
     // One editor-handoff picker for the whole queue (hosted here, not per-row) so a
     // batch of exports can't stack/lose sheets and List row recycling can't tear it down.
+    // `editorPickerItem` is the prompt currently on screen; `pendingEditorItems` is a
+    // FIFO of exports that finished while another sheet was up — a single slot would drop
+    // them (batch concurrency > 1, or a Preview/Review sheet already open). We present one
+    // at a time and drain the queue as each sheet dismisses.
     @State private var editorPickerItem: QueueItem?
+    @State private var pendingEditorItems: [QueueItem] = []
 
     var body: some View {
         List {
@@ -23,7 +28,7 @@ struct QueueView: View {
                     QueueRow(item: $item, model: model, player: player, presets: settings.presets,
                              onPreview: { previewItem = item },
                              onReview: { reviewItem = item },
-                             onEditorPicker: { editorPickerItem = item })
+                             onEditorPicker: { enqueueEditorPicker(item) })
                         .listRowSeparator(.hidden)
                 }
                 .onMove(perform: model.moveWaiting)
@@ -40,16 +45,37 @@ struct QueueView: View {
         .listStyle(.inset)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .animation(.snappy, value: model.queue.count)   // animate row insert/remove
-        .sheet(item: $previewItem) { item in
+        .sheet(item: $previewItem, onDismiss: presentNextEditorPicker) { item in
             PreviewSheet(item: item, model: model, settings: settings)
         }
-        .sheet(item: $reviewItem) { item in
+        .sheet(item: $reviewItem, onDismiss: presentNextEditorPicker) { item in
             ReviewSheet(item: item, model: model, settings: settings)
         }
-        .sheet(item: $editorPickerItem) { item in
+        .sheet(item: $editorPickerItem, onDismiss: presentNextEditorPicker) { item in
             EditorPickerSheet(editors: EditorDetector.installed(),
                               onOpen: { EditorDetector.openForImport($0, result: item.result) },
                               onReveal: { EditorDetector.revealProject(for: item.result) })
+        }
+    }
+
+    /// Queue an editor-handoff prompt for `item` (dedup by id — a row's status can
+    /// briefly re-fire `onChange`), then try to show it right away.
+    private func enqueueEditorPicker(_ item: QueueItem) {
+        guard editorPickerItem?.id != item.id,
+              !pendingEditorItems.contains(where: { $0.id == item.id }) else { return }
+        pendingEditorItems.append(item)
+        presentNextEditorPicker()
+    }
+
+    /// Present the head of the FIFO — but only when no other sheet of this view is up
+    /// (three sheets share one host; presenting over another silently fails). Hops to
+    /// the next runloop so it never presents in the same update cycle as a dismissal,
+    /// which SwiftUI also drops.
+    private func presentNextEditorPicker() {
+        DispatchQueue.main.async {
+            guard editorPickerItem == nil, previewItem == nil, reviewItem == nil,
+                  !pendingEditorItems.isEmpty else { return }
+            editorPickerItem = pendingEditorItems.removeFirst()
         }
     }
 
