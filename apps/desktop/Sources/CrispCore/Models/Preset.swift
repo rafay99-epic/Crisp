@@ -70,7 +70,7 @@ public struct Preset: Identifiable, Codable, Equatable, Sendable {
     //   • `CodingKeys` below + `init(from:)` — use `decodeIfPresent(…) ?? <default>` (like
     //     colorDepth) so a preset saved before the field still decodes (forward-compat)
     //   • the snapshot `init(name:strength:config:)` — copy it from the `EngineConfig`
-    //   • `parameters(exportToEditor:)` — restore it onto the throwaway `EngineConfig`
+    //   • `parameters(using:)` — overlay it onto the live `EngineConfig`
     // The first two keep it on disk; the last two keep it flowing config → preset → clean, so
     // a preset saved at e.g. colorDepth "10" actually renders at "10" instead of the default.
     enum CodingKeys: String, CodingKey {
@@ -115,17 +115,18 @@ public struct Preset: Identifiable, Codable, Equatable, Sendable {
                   outputDirectory: config.outputDirectory, backupOriginal: config.backupOriginal)
     }
 
-    /// Resolve this preset to engine parameters, reusing the global mapping: build
-    /// a throwaway `EngineConfig` from the preset's fields and run it through the
-    /// existing `Strength.parameters(using:)`.
+    /// Resolve this preset to engine parameters, reusing the global mapping: start
+    /// from the *live* `EngineConfig`, overlay only the recipe fields this preset
+    /// stores, and run it through the existing `Strength.parameters(using:)`.
     ///
-    /// `exportToEditor` is a global *output mode* (editor handoff), not a per-preset
-    /// recipe knob, so the live setting is threaded in — otherwise a preset-backed row
-    /// would silently render a video even while "Send to editor" is on. No default:
-    /// callers must pass the live setting (or an intentional `false`) so the
-    /// silent-render failure mode can't sneak back in.
-    public func parameters(exportToEditor: Bool) -> CleanParameters {
-        var cfg = EngineConfig.defaults
+    /// Starting from the live config (not `EngineConfig.defaults`) is deliberate: a
+    /// preset stores only its cut/encode/output/backup recipe, so every other global
+    /// knob — `exportToEditor`, `captionsFormat`, `retakeSensitivity`, frame-rate,
+    /// `splitTracks`, fades/snap, … — flows in from the live setting instead of being
+    /// silently reset to a default. This keeps preset-backed rows in step with the
+    /// non-preset path (`strength.parameters(using: settings.config)`).
+    public func parameters(using config: EngineConfig) -> CleanParameters {
+        var cfg = config
         cfg.pauseThreshold = pauseThreshold
         cfg.silenceFloorDB = silenceFloorDB
         cfg.breathingRoom = breathingRoom
@@ -141,7 +142,6 @@ public struct Preset: Identifiable, Codable, Equatable, Sendable {
         cfg.colorDepth = colorDepth
         cfg.outputDirectory = outputDirectory
         cfg.backupOriginal = backupOriginal
-        cfg.exportToEditor = exportToEditor
         return (Strength(rawValue: strength) ?? .custom).parameters(using: cfg)
     }
 }

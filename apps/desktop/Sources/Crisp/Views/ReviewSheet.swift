@@ -22,7 +22,7 @@ struct ReviewSheet: View {
     /// silence floor matter for detection.)
     private var params: CleanParameters {
         if let preset = settings.preset(withID: item.presetID) {
-            return preset.parameters(exportToEditor: settings.exportToEditor)
+            return preset.parameters(using: settings.config)
         }
         return model.strength.parameters(using: settings.config)
     }
