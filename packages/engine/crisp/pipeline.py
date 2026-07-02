@@ -416,6 +416,14 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
         # whether the file lands beside the source or in a chosen folder.
         out_path = unique_output_path(out_path, src)
 
+    # Never overwrite the source. Only reachable with an explicit --out pointing
+    # at the input (the derived path always appends _cleaned) — but render() ends
+    # with os.replace(part, out_path), which would irrecoverably destroy the
+    # original, so refuse before any work starts.
+    if out_path == src:
+        raise CleanError("Output path is the same as the source video — "
+                         "refusing to overwrite the original. Pick a different --out.")
+
     # The container dictates which codecs are legal (e.g. WebM forces VP9 + Opus);
     # coerce now and tell the user about any swap rather than letting ffmpeg fail.
     video_codec, audio_codec, hardware, codec_notes = resolve_codecs(
