@@ -1,0 +1,20 @@
+apps/desktop/Sources/Crisp/Services/Updates/Updater.swift
+  s_d8f40b0f41c189::t_2a830e7cad518b 283-296,298-307,311,314
+  s_d8f40b0f41c189::t_730b41b23d5501 218-238
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "eb8f6024b81c76bbe8672f314ecc8c48792ec5ab",
+  "prompts": {},
+  "sessions": {
+    "s_d8f40b0f41c189": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1a519fba-dba1-4dac-bda2-7657cc1073fa",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
