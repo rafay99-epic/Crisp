@@ -39,6 +39,12 @@ public partial class HomePage : UserControl
         catch { /* picker cancelled / copy failed — nothing to do */ }
     }
 
+    private void OnRevealBackup(object? sender, RoutedEventArgs e)
+    {
+        if (Vm is { } vm && (sender as Control)?.DataContext is Models.QueueItem item)
+            vm.RevealBackupCommand.Execute(item);
+    }
+
     private async void OnReview(object? sender, RoutedEventArgs e)
     {
         // async void: an unhandled exception here would crash the app, so guard the whole body.

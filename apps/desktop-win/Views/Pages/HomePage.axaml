@@ -154,7 +154,7 @@
                         <Button Content="Cancel" Command="{Binding CancelCommand}" IsVisible="{Binding IsRunning}"/>
                         <Button Content="{Binding CleanButtonLabel}" Command="{Binding CleanAllCommand}"
                                 Classes="accent" MinWidth="140" IsVisible="{Binding BottomShowsRecipe}"/>
-                        <Button Content="Clear" Command="{Binding ClearCommand}" IsVisible="{Binding BottomShowsSummary}"/>
+                        <Button Content="Clear" Command="{Binding ClearCommand}" Classes="subtle" IsVisible="{Binding BottomShowsSummary}"/>
                         <Button Content="Show in Folder" Command="{Binding RevealAllCommand}" Classes="accent"
                                 IsVisible="{Binding BottomShowsSummary}"/>
                     </StackPanel>
@@ -187,7 +187,12 @@
                     <TextBlock Grid.Column="0" Text="Queue" Classes="bodyStrong" VerticalAlignment="Center"/>
                     <TextBlock Grid.Column="1" Classes="secondary" Text="{Binding CountLabel}"
                                VerticalAlignment="Center" Margin="0,0,12,0"/>
-                    <Button Grid.Column="2" Content="Add Videos" Click="OnBrowse"/>
+                    <Button Grid.Column="2" Classes="subtle" Click="OnBrowse">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Classes="icon" FontSize="13" Text="&#xE710;" VerticalAlignment="Center"/>
+                            <TextBlock Text="Add Videos" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
                 </Grid>
                 <ScrollViewer>
                     <ItemsControl ItemsSource="{Binding Queue}">
@@ -241,27 +246,48 @@
                                                     Content="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).OpenInEditorLabel}"
                                                     Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).OpenInEditorCommand}"
                                                     CommandParameter="{Binding}" Classes="accent"/>
-                                            <Button IsVisible="{Binding IsPlayable}" Content="Play" ToolTip.Tip="Play the cleaned video"
+                                            <Button IsVisible="{Binding IsPlayable}" Classes="iconButton"
+                                                    ToolTip.Tip="Play the cleaned video" AutomationProperties.Name="Play"
                                                     Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).PlayCommand}"
-                                                    CommandParameter="{Binding}"/>
-                                            <Button IsVisible="{Binding IsDone}" Content="Reveal"
+                                                    CommandParameter="{Binding}">
+                                                <TextBlock Classes="icon" FontSize="14" Text="&#xE768;"/>
+                                            </Button>
+                                            <Button IsVisible="{Binding IsDone}" Classes="iconButton"
+                                                    ToolTip.Tip="Show the cleaned file in Explorer" AutomationProperties.Name="Show in Explorer"
                                                     Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).RevealCommand}"
-                                                    CommandParameter="{Binding}"/>
-                                            <Button IsVisible="{Binding HasBackup}" Content="Backup" ToolTip.Tip="Show the backed-up original"
-                                                    Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).RevealBackupCommand}"
-                                                    CommandParameter="{Binding}"/>
-                                            <Button IsVisible="{Binding HasBackup}" Content="Restore" ToolTip.Tip="Copy the backed-up original to a folder you choose"
-                                                    Click="OnRestore"/>
-                                            <Button IsVisible="{Binding IsFailed}" Content="Retry"
+                                                    CommandParameter="{Binding}">
+                                                <TextBlock Classes="icon" FontSize="14" Text="&#xE838;"/>
+                                            </Button>
+                                            <Button IsVisible="{Binding HasBackup}" Classes="iconButton"
+                                                    ToolTip.Tip="Backup options" AutomationProperties.Name="Backup options">
+                                                <TextBlock Classes="icon" FontSize="14" Text="&#xE712;"/>
+                                                <Button.Flyout>
+                                                    <MenuFlyout Placement="BottomEdgeAlignedRight">
+                                                        <MenuItem Header="Show Backed-up Original" Click="OnRevealBackup">
+                                                            <MenuItem.Icon><TextBlock Classes="icon" FontSize="14" Text="&#xE81C;"/></MenuItem.Icon>
+                                                        </MenuItem>
+                                                        <MenuItem Header="Restore a Copy…" Click="OnRestore">
+                                                            <MenuItem.Icon><TextBlock Classes="icon" FontSize="14" Text="&#xE8C8;"/></MenuItem.Icon>
+                                                        </MenuItem>
+                                                    </MenuFlyout>
+                                                </Button.Flyout>
+                                            </Button>
+                                            <Button IsVisible="{Binding IsFailed}" Classes="iconButton"
+                                                    ToolTip.Tip="Retry" AutomationProperties.Name="Retry"
                                                     Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).RetryCommand}"
-                                                    CommandParameter="{Binding}"/>
-                                            <Button IsVisible="{Binding IsWaiting}" Content="Review"
-                                                    ToolTip.Tip="Review &amp; edit the cuts before cleaning" Click="OnReview"/>
-                                            <Button IsVisible="{Binding IsWaiting}" Classes="iconButton" Width="28" Height="28" Padding="4"
+                                                    CommandParameter="{Binding}">
+                                                <TextBlock Classes="icon" FontSize="14" Text="&#xE72C;"/>
+                                            </Button>
+                                            <Button IsVisible="{Binding IsWaiting}" Classes="iconButton"
+                                                    ToolTip.Tip="Review &amp; edit the cuts before cleaning" AutomationProperties.Name="Review cuts"
+                                                    Click="OnReview">
+                                                <TextBlock Classes="icon" FontSize="14" Text="&#xE8C6;"/>
+                                            </Button>
+                                            <Button IsVisible="{Binding IsWaiting}" Classes="iconButton"
                                                     AutomationProperties.Name="Remove from queue" ToolTip.Tip="Remove from queue"
                                                     Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).RemoveCommand}"
                                                     CommandParameter="{Binding}">
-                                                <TextBlock Classes="icon" FontSize="12" Text="&#xE711;"/>
+                                                <TextBlock Classes="icon" FontSize="14" Text="&#xE711;"/>
                                             </Button>
                                         </StackPanel>
                                     </Grid>

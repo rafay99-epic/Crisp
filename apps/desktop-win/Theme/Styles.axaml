@@ -138,6 +138,13 @@
         <Setter Property="VerticalContentAlignment" Value="Center"/>
     </Style>
 
+    <!-- A quiet command-bar button (icon + text, transparent until hover). -->
+    <Style Selector="Button.subtle">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource CrispControlRadius}"/>
+    </Style>
+
     <!-- A subtle "link" button (text-only accent action). -->
     <Style Selector="Button.link">
         <Setter Property="Background" Value="Transparent"/>

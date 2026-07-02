@@ -9,6 +9,11 @@
          -p:ApplicationIcon per channel. The running window's icon is set separately
          in WindowChrome so `dotnet run` shows it too. -->
     <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
+    <!-- build.ps1's publish output (and the vendored engine binaries it bundles) live
+         inside the project dir; the SDK's default globs only skip bin/obj, and the
+         vendored python runtime ships a Tcl file literally named WmDefault.cs — which
+         would otherwise be compiled (587 errors). -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);publish\**;.vendor\**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
