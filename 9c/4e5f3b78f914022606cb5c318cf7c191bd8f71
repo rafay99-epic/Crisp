@@ -1,0 +1,22 @@
+apps/desktop/Sources/Crisp/Services/Updates/Updater.swift
+  s_d8f40b0f41c189::t_6cfc717706953e 275-283
+  s_d8f40b0f41c189::t_2a830e7cad518b 292-294,298,300-303
+  s_d8f40b0f41c189::t_290a62e8138f6c 295-297,306-311,313,316
+  s_d8f40b0f41c189::t_730b41b23d5501 218-238
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "9c4e5f3b78f914022606cb5c318cf7c191bd8f71",
+  "prompts": {},
+  "sessions": {
+    "s_d8f40b0f41c189": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1a519fba-dba1-4dac-bda2-7657cc1073fa",
+        "model": "claude-fable-5"
+      },
+      "human_author": null
+    }
+  }
+}
