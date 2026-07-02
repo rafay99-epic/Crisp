@@ -71,7 +71,10 @@ public partial class ModelStore : ObservableObject
     public async Task UseAsync(string modelId)
     {
         var spec = ModelCatalog.Spec(modelId);
-        if (spec.Id == _spec.Id || State == ModelState.Downloading) return;
+        // Block while Downloading OR Verifying: PartPath/ModelPath read _spec live, so
+        // swapping it mid-verify would hash the downloaded bytes against the wrong
+        // model's SHA-256 and orphan the finished .part file.
+        if (spec.Id == _spec.Id || (IsBusy && State != ModelState.Checking)) return;
         FileLog.Info(_log, $"switching to {spec.Id}");
         _spec = spec;
         OnPropertyChanged(nameof(Spec));
