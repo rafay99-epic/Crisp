@@ -137,6 +137,9 @@ public partial class EngineSettings : ObservableObject
     {
         HardwareStatus = HardwareStatusText(info);
 
+        // When settings.json couldn't be read this session, the codec flip couldn't
+        // persist — don't burn the once-ever marker on a launch that can't apply it.
+        if (!_canSave) return;
         var marker = System.IO.Path.Combine(Channels.ConfigDirectory, ".gpu-defaults-applied");
         if (System.IO.File.Exists(marker)) return;
         try
