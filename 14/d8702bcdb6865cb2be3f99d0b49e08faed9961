@@ -1,0 +1,36 @@
+apps/desktop/Sources/Crisp/Views/SettingsView.swift
+  s_8ac6355e0f6e6e::t_a43431015830b0 699-700
+  s_8ac6355e0f6e6e::t_1f6b682712ab61 810-811
+  s_8ac6355e0f6e6e::t_8808c6181b7d81 118-119
+  s_8ac6355e0f6e6e::t_660d064a615b75 341-342
+  s_8ac6355e0f6e6e::t_57eca258187e82 177-178
+  s_8ac6355e0f6e6e::t_3fe6db5f2fed3c 635-636
+  s_8ac6355e0f6e6e::t_8a0a3db73bb402 350-351
+  s_8ac6355e0f6e6e::t_bd9c213fe73dc2 136-137
+  s_8ac6355e0f6e6e::t_e4e41718be5def 265-266
+  s_8ac6355e0f6e6e::t_22cacf4e5c831c 660-661
+  s_8ac6355e0f6e6e::t_d971be547f0646 291-292
+  s_8ac6355e0f6e6e::t_836e10cc98fd34 314-315
+  s_8ac6355e0f6e6e::t_67af83bb384509 457-458
+  s_8ac6355e0f6e6e::t_9a23fa6e2f19dd 580-581,583
+  s_8ac6355e0f6e6e::t_e111070d4eef4d 390-391
+  s_8ac6355e0f6e6e::t_4ddea2541090ab 163-164
+apps/desktop/Sources/Crisp/Views/Components/SectionHelp.swift
+  s_8ac6355e0f6e6e::t_b27c2b85d778c8 1-49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "14d8702bcdb6865cb2be3f99d0b49e08faed9961",
+  "prompts": {},
+  "sessions": {
+    "s_8ac6355e0f6e6e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fb8c670e-a4ca-463e-b69b-23c64bb73e04",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
