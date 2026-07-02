@@ -186,10 +186,13 @@ struct SettingsView: View {
             Picker("Output format", selection: $settings.outputContainer) {
                 ForEach(OutputContainer.allCases) { Text($0.label).tag($0.rawValue) }
             }
-            Text(isWebM
-                 ? "WebM always uses VP9 video and Opus audio. It\u{2019}s the most web-friendly format, but slower to encode (no hardware VP9 encoder)."
-                 : "\u{201C}Same as input\u{201D} keeps each video\u{2019}s original container \u{2014} an .mkv stays .mkv, an .mp4 stays .mp4.")
-                .font(.caption).foregroundStyle(.secondary)
+            .help("\u{201C}Same as input\u{201D} keeps each video\u{2019}s original container \u{2014} .mkv stays .mkv, .mp4 stays .mp4.")
+            // Only WebM changes behavior (it forces its own codecs), so surface that tradeoff
+            // inline; every other format is self-evident from its label.
+            if isWebM {
+                Text("WebM always uses VP9 video and Opus audio \u{2014} web-friendly, but slower to encode (no hardware VP9 encoder).")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
 
             // WebM dictates its own codecs, so these don't apply when it's chosen.
             Group {
@@ -197,8 +200,7 @@ struct SettingsView: View {
                     ForEach(VideoCodec.allCases) { Text($0.label).tag($0.rawValue) }
                 }
                 Toggle("Hardware acceleration", isOn: $settings.hardwareEncoding)
-                Text("Apple VideoToolbox \u{2014} faster, but software gives slightly better quality per file size.")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .help("Apple VideoToolbox \u{2014} faster; software gives slightly better quality per file size.")
                 Picker("Audio format", selection: $settings.audioCodec) {
                     ForEach(AudioCodec.allCases) { Text($0.label).tag($0.rawValue) }
                 }
@@ -277,19 +279,19 @@ struct SettingsView: View {
         Section {
             if let editor = EditorDetector.resolve() {
                 Toggle("Send my cuts to a video editor", isOn: $settings.exportToEditor)
-                Text("Crisp finds the cuts and hands them to your editor as a ready-to-edit timeline — no rendering, so it finishes in seconds. Constant-frame-rate footage is copied as-is; variable-frame-rate clips (some screen recordings) are conformed for sync. When it\u{2019}s done, Crisp asks which editor to open and you import the timeline there. Found \(editor.name) on your Mac.")
+                Text("Found \(editor.name) on your Mac.")
                     .font(.caption).foregroundStyle(.secondary)
             } else {
                 // Bind to the real setting so a user who enabled this earlier can still
                 // turn it off here; only block enabling it when no editor is installed.
                 Toggle("Send my cuts to a video editor", isOn: $settings.exportToEditor)
                     .disabled(!settings.exportToEditor)
-                Text("We couldn\u{2019}t find a video editor on your Mac yet. Install DaVinci Resolve (the free version works great) and Crisp can send your cuts straight to it.")
+                Text("No video editor found yet \u{2014} install DaVinci Resolve (the free version works great) to use this.")
                     .font(.caption).foregroundStyle(.secondary)
             }
         } header: {
             SettingsSectionHeader("Send to a video editor",
-                help: "The fastest way out of Crisp \u{2014} skip rendering and finish in your editor. Turn this off to have Crisp render a polished video for you instead.")
+                help: "The fastest way out of Crisp \u{2014} it hands your cuts to your editor as a ready-to-edit timeline, so there\u{2019}s no rendering and it finishes in seconds. Constant-frame-rate footage is copied as-is; variable-frame-rate clips (some screen recordings) are conformed for sync. When it\u{2019}s done Crisp asks which editor to open. Turn this off to have Crisp render a polished video for you instead.")
         }
     }
 
