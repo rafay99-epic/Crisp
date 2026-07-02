@@ -1,13 +1,15 @@
 ---
 id: TASK-35.2
 title: 'Windows: suppress CMD console window on Python/CLI calls'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-07-02 09:24'
 labels:
   - windows
   - bug
 dependencies: []
+references:
+  - 'https://github.com/rafay99-epic/Crisp/pull/158'
 parent_task_id: TASK-35
 priority: high
 ordinal: 37000
