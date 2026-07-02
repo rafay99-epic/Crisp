@@ -11,9 +11,9 @@ import wave
 from pathlib import Path
 
 from crisp.edit import (
-    _batch_windows, _nearest_zero_crossing, _output_owner, build_filter_graph,
-    build_keep_segments, load_keep_segments, output_duration,
-    snap_keep_to_zero_crossings, tag_output_source, unique_output_path,
+    _BATCH_THRESHOLD, _batch_windows, _nearest_zero_crossing, _output_owner,
+    _should_batch, build_filter_graph, build_keep_segments, load_keep_segments,
+    output_duration, snap_keep_to_zero_crossings, tag_output_source, unique_output_path,
 )
 from crisp.errors import CleanError
 
@@ -294,6 +294,30 @@ class BatchWindowsTests(unittest.TestCase):
         (_seek, stop, segs), = _batch_windows([(5.0, 8.0)])   # default batch size
         self.assertGreater(stop, 8.0)
         self.assertEqual(segs, [(5.0, 8.0)])
+
+
+class ShouldBatchTests(unittest.TestCase):
+    """Routing to the batched many-cuts path. Batching runs ONLY with enough
+    segments, no crossfade, and no fps conform — a per-batch `-r` can't reproduce
+    the single-pass frame grid, so VFR normalization must stay single-pass."""
+
+    def _many(self):
+        return [(float(i), float(i) + 0.5) for i in range(_BATCH_THRESHOLD + 1)]
+
+    def test_batches_many_cuts_with_no_fps_and_no_crossfade(self):
+        self.assertTrue(_should_batch(self._many(), crossfade=0.0, fps=None))
+
+    def test_fps_conform_forces_single_pass(self):
+        # The bug: any active fps conform must NOT batch (per-batch -r diverges).
+        self.assertFalse(_should_batch(self._many(), crossfade=0.0, fps="30"))
+        self.assertFalse(_should_batch(self._many(), crossfade=0.0, fps="30000/1001"))
+
+    def test_crossfade_forces_single_pass(self):
+        self.assertFalse(_should_batch(self._many(), crossfade=0.5, fps=None))
+
+    def test_few_segments_stay_single_pass(self):
+        keep = [(float(i), float(i) + 0.5) for i in range(_BATCH_THRESHOLD)]
+        self.assertFalse(_should_batch(keep, crossfade=0.0, fps=None))
 
 
 class BuildFilterGraphTests(unittest.TestCase):
