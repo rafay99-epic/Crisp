@@ -84,10 +84,10 @@ struct ContentView: View {
     /// files" preset is stamped onto rows when they're added, so a row with no
     /// preset genuinely means "use the global controls" — no hidden override.)
     private func resolveParameters(_ item: QueueItem) -> CleanParameters {
-        // Editor handoff is a global output mode, so it applies even to preset-backed
-        // rows (the preset's recipe otherwise wouldn't carry it).
+        // A preset stores only its own recipe; every other global knob (editor handoff,
+        // captions, frame rate, split tracks, …) flows in from the live config.
         if let preset = settings.preset(withID: item.presetID) {
-            return preset.parameters(exportToEditor: settings.exportToEditor)
+            return preset.parameters(using: settings.config)
         }
         return model.strength.parameters(using: settings.config)
     }

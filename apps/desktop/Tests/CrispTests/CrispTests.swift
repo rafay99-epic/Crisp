@@ -352,7 +352,7 @@ final class CrispTests: XCTestCase {
         // through too — otherwise a preset saved at "10" would silently render "auto".
         let preset = Preset(name: "P", strength: .aggressive, config: cfg)
         XCTAssertEqual(preset.colorDepth, "10")                                  // snapshot kept it
-        XCTAssertEqual(preset.parameters(exportToEditor: false).colorDepth, "10")  // and restores it
+        XCTAssertEqual(preset.parameters(using: .defaults).colorDepth, "10")     // and restores it over the live config
     }
 
     func testPresetColorDepthForwardCompatDecodesMissingKey() throws {
@@ -946,7 +946,7 @@ final class CrispTests: XCTestCase {
         cfg.outputDirectory = "/Volumes/NAS"; cfg.backupOriginal = false
         for strength in [Strength.gentle, .aggressive, .custom] {
             let preset = Preset(name: "P", strength: strength, config: cfg)
-            XCTAssertEqual(preset.parameters(exportToEditor: cfg.exportToEditor),
+            XCTAssertEqual(preset.parameters(using: cfg),
                            strength.parameters(using: cfg),
                            "\(strength.rawValue) preset should match the global path")
         }
@@ -956,8 +956,25 @@ final class CrispTests: XCTestCase {
         // The global editor-handoff mode must apply to preset-backed rows too (else they
         // silently render while "Send to editor" is on).
         let preset = Preset(name: "P", strength: .balanced, config: .defaults)
-        XCTAssertEqual(preset.parameters(exportToEditor: true).exportTimeline, "fcpxml")
-        XCTAssertEqual(preset.parameters(exportToEditor: false).exportTimeline, "none")
+        var cfg = EngineConfig.defaults
+        cfg.exportToEditor = true
+        XCTAssertEqual(preset.parameters(using: cfg).exportTimeline, "fcpxml")
+        cfg.exportToEditor = false
+        XCTAssertEqual(preset.parameters(using: cfg).exportTimeline, "none")
+    }
+
+    func testPresetHonorsLiveGlobalOnlySettings() {
+        // A preset stores only its own recipe, so global-only knobs (captions, split
+        // tracks, retake sensitivity, …) must flow in from the LIVE config, not reset to
+        // EngineConfig.defaults — while the preset's own overrides still win.
+        var cfg = EngineConfig.defaults
+        cfg.captionsFormat = "srt"; cfg.splitTracks = true; cfg.retakeSensitivity = "gentle"
+        let preset = Preset(name: "P", strength: .balanced, config: .defaults)
+        let params = preset.parameters(using: cfg)
+        XCTAssertEqual(params.captionsFormat, "srt")        // live global preserved (default "none")
+        XCTAssertTrue(params.splitTracks)                   // live global preserved (default false)
+        XCTAssertEqual(params.retakeSensitivity, "gentle")  // live global preserved (default "aggressive")
+        XCTAssertEqual(params.colorDepth, preset.colorDepth)    // preset's own recipe still wins
     }
 
     func testPresetRoundTripsThroughConfig() throws {
