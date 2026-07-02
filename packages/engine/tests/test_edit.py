@@ -291,7 +291,7 @@ class BatchWindowsTests(unittest.TestCase):
         self.assertAlmostEqual(windows[1][0], 29.0)      # 30.0 - 1.0
 
     def test_stop_reads_past_the_last_segment(self):
-        (seek, stop, segs), = _batch_windows([(5.0, 8.0)], size=32)
+        (_seek, stop, segs), = _batch_windows([(5.0, 8.0)])   # default batch size
         self.assertGreater(stop, 8.0)
         self.assertEqual(segs, [(5.0, 8.0)])
 

@@ -30,7 +30,7 @@ import crisp.edit as edit  # noqa: E402
 
 def make_clip(path):
     subprocess.run(
-        ["ffmpeg", "-y", "-v", "error",
+        [edit.ffmpeg_bin(), "-y", "-v", "error",
          "-f", "lavfi", "-i", "testsrc2=s=320x240:r=30:d=60",
          "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000:duration=60",
          "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac", str(path)],
@@ -47,7 +47,7 @@ def timed_render(src, keep, out, batched):
     edit._BATCH_THRESHOLD = 64 if batched else 10**9
     try:
         t0 = time.time()
-        edit.render(src, keep, out, lambda m: None, lambda f, l="": None,
+        edit.render(src, keep, out, lambda m: None, lambda f, label="": None,
                     video_opts=["-c:v", "libx264", "-preset", "ultrafast"],
                     audio_opts=["-c:a", "aac"], fade=0.010)
         return time.time() - t0

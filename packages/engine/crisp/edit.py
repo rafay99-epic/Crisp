@@ -548,6 +548,18 @@ def _render_batched(src, keep, out_path, part_path, on_log, on_progress,
         t = part_video_opts.index("-tag:v")
         tag = part_video_opts[t:t + 2]
         del part_video_opts[t:t + 2]
+    # Monotonic progress across the passes: the parts climb to ~100% of `total`,
+    # and the join stage's own out_time restarts from 0 — without the clamp the
+    # bar would visibly jump backward. Also the truthful value for a failure:
+    # the ladder in pipeline.py must see how far the render actually got, not
+    # just how many whole batches completed (a mid-first-batch disk failure
+    # would otherwise read as "encoder never started" and re-render everything).
+    last = {"frac": 0.0}
+
+    def emit(frac):
+        last["frac"] = max(last["frac"], max(0.0, min(1.0, frac)))
+        _emit_render_progress(on_progress, last["frac"])
+
     try:
         with tempfile.TemporaryDirectory(prefix="crisp-render-") as tmpdir:
             tmp = Path(tmpdir)
@@ -573,12 +585,11 @@ def _render_batched(src, keep, out_path, part_path, on_log, on_progress,
                        "-progress", "pipe:1", "-nostats", str(part)]
                 rc, err_text = _run_ffmpeg_progress(
                     cmd, logger, name,
-                    lambda secs, base=done: _emit_render_progress(
-                        on_progress, (base + secs) / total))
+                    lambda secs, base=done: emit((base + secs) / total))
                 logger.tool_result(name, rc, err_text if rc != 0 else "")
                 if rc != 0 or not part.exists():
                     err = CleanError(f"Rendering failed.\n{err_text[-1500:]}")
-                    err.render_progress = max(0.0, min(1.0, done / total))
+                    err.render_progress = last["frac"]
                     raise err
                 parts.append(part)
                 done += sum(e - s for s, e in segments)
@@ -597,7 +608,7 @@ def _render_batched(src, keep, out_path, part_path, on_log, on_progress,
                    "-progress", "pipe:1", "-nostats", str(part_path)]
             rc, err_text = _run_ffmpeg_progress(
                 cmd, logger, "ffmpeg render join",
-                lambda secs: _emit_render_progress(on_progress, secs / total))
+                lambda secs: emit(secs / total))
             logger.tool_result("ffmpeg render join", rc, err_text if rc != 0 else "")
             if rc != 0 or not part_path.exists():
                 err = CleanError(f"Rendering failed.\n{err_text[-1500:]}")
