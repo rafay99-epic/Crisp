@@ -64,7 +64,8 @@ from crisp.enginelog import logger_from_env
 
 def main():
     p = argparse.ArgumentParser(description="Remove pauses and filler words from a video.")
-    p.add_argument("video", help="path to the input video file")
+    p.add_argument("video", nargs="?", default=None,
+                   help="path to the input video file (not needed with --probe-hardware)")
     p.add_argument("--model", default=str(DEFAULT_MODEL), help="whisper.cpp model file (.bin)")
     p.add_argument("--pause", type=float, default=DEFAULT_MAX_PAUSE,
                    help=f"cut silences longer than this many seconds (default {DEFAULT_MAX_PAUSE})")
@@ -93,7 +94,9 @@ def main():
     p.add_argument("--video-codec", choices=["h264", "hevc", "vp9"], default=DEFAULT_VIDEO_CODEC,
                    help=f"video encoder; vp9 is for WebM (default {DEFAULT_VIDEO_CODEC})")
     p.add_argument("--hardware", action="store_true",
-                   help="use Apple VideoToolbox hardware encoding (faster)")
+                   help="use GPU hardware encoding when the machine has a working one "
+                        "(Apple VideoToolbox / NVIDIA NVENC / Intel QSV / AMD AMF); "
+                        "falls back to software automatically")
     p.add_argument("--quality", choices=["maximum", "high", "balanced", "smaller"],
                    default=DEFAULT_QUALITY, help=f"encode quality level (default {DEFAULT_QUALITY})")
     p.add_argument("--audio-codec", choices=["aac", "opus"], default=DEFAULT_AUDIO_CODEC,
@@ -176,7 +179,14 @@ def main():
                         '({"keep": [[start, end], ...]}, seconds on the original '
                         "timeline) instead of detecting cuts — used by the app's "
                         "review timeline. Skips analysis, transcription, and the model.")
+    p.add_argument("--probe-hardware", action="store_true",
+                   help="report the machine's GPUs and which hardware encoder each "
+                        "codec would actually use, then exit (no input video needed) "
+                        "— the desktop app shows this in Settings")
     args = p.parse_args()
+
+    if args.video is None and not args.probe_hardware:
+        p.error("the following arguments are required: video")
 
     # The Core ML filler backend needs a model — fail fast at the CLI rather than
     # deep in detection after audio extraction.
@@ -219,6 +229,20 @@ def main():
             user_err(e)
         except UnicodeEncodeError:
             print(f"ERROR: {e}".encode("ascii", "replace").decode("ascii"), flush=True)
+
+    # Hardware readout for the app's Settings: GPUs + the verified encoder per codec.
+    # Before the logger (there's no input video to tag a run log with).
+    if args.probe_hardware:
+        from crisp.encode import probe_hardware
+        info = probe_hardware()
+        if args.ndjson:
+            emit({"event": "hardware", **info})
+        else:
+            gpus = ", ".join(info["gpus"]) or "none detected"
+            encs = ", ".join(f"{c}={e or 'software'}" for c, e in info["encoders"].items())
+            user_log(f"GPUs: {gpus}")
+            user_log(f"Hardware encoders: {encs}")
+        return
 
     # Tee every human status line into the run log, and record the invocation so a
     # log starts with exactly how the engine was called.

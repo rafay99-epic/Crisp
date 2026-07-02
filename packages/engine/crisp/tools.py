@@ -47,7 +47,11 @@ def available_hw_encoders() -> set:
     """The hardware video encoders this ffmpeg build exposes — the `*_videotoolbox`
     (macOS) / `*_nvenc` / `*_qsv` / `*_amf` (Windows) names, parsed from
     `ffmpeg -encoders`. Cached (one subprocess per run); empty set if ffmpeg is
-    missing or the probe fails, so the caller cleanly falls back to software."""
+    missing or the probe fails, so the caller cleanly falls back to software.
+
+    NOTE: listed ≠ usable — stock Windows ffmpeg builds compile in all three vendor
+    encoders regardless of the machine's GPU. `hw_encoder_works` is the functional
+    check; this is only the cheap "compiled in at all" filter."""
     global _HW_ENCODER_CACHE
     if _HW_ENCODER_CACHE is None:
         try:
@@ -58,6 +62,93 @@ def available_hw_encoders() -> set:
         except Exception:
             _HW_ENCODER_CACHE = set()
     return _HW_ENCODER_CACHE
+
+
+_HW_WORKS_CACHE: dict = {}
+
+
+def hw_encoder_works(name: str) -> bool:
+    """Whether `name` can actually open an encode session on THIS machine — verified
+    by encoding a few tiny black frames to the null muxer. An encoder being listed by
+    `ffmpeg -encoders` only means it was compiled in; the driver rejects the session
+    immediately when the GPU (or its media engine) isn't really there — e.g. NVENC
+    with no NVIDIA card ("Cannot load nvcuda.dll"), or AMF on a VCE generation the
+    runtime dropped. Failures return fast (<1s), and the verdict is cached per run."""
+    if name not in _HW_WORKS_CACHE:
+        try:
+            res = subprocess.run(
+                [ffmpeg_bin(), "-hide_banner", "-v", "error",
+                 "-f", "lavfi", "-i", "color=c=black:s=256x256:r=30:d=0.2",
+                 "-frames:v", "3", "-c:v", name, "-f", "null", "-"],
+                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
+            _HW_WORKS_CACHE[name] = res.returncode == 0
+        except Exception:
+            _HW_WORKS_CACHE[name] = False
+    return _HW_WORKS_CACHE[name]
+
+
+# Substrings that identify a GPU vendor in a display-adapter name. Used to skip
+# probing encoders whose vendor has no GPU in the machine at all (an NVENC attempt
+# on an AMD-only box wastes time failing).
+_VENDOR_MARKERS = {
+    "nvidia": ("nvidia", "geforce", "quadro", "tesla", "rtx"),
+    "amd": ("amd", "radeon", "firepro"),
+    "intel": ("intel", "iris", "uhd graphics", "hd graphics", "arc a", "arc b"),
+}
+
+
+def gpu_vendors(names) -> set | None:
+    """Classify display-adapter names into the vendor keys `_ENCODER_VENDORS` uses
+    ("nvidia" / "amd" / "intel"). Returns None — not an empty set — when nothing
+    matched: an unreadable or unrecognized adapter list means "unknown", and the
+    caller must then try every encoder rather than wrongly skipping them all.
+    Pure, so it's unit-testable."""
+    found = {vendor
+             for name in names
+             for vendor, markers in _VENDOR_MARKERS.items()
+             if any(m in name.lower() for m in markers)}
+    return found or None
+
+
+def detect_gpu_names() -> list:
+    """The machine's display-adapter names. Windows: DriverDesc of each adapter under
+    the display class registry key — the same list Device Manager shows — skipping
+    Microsoft's virtual adapters (Basic Display, Remote Display). Best-effort: an
+    empty list when the read fails or nothing real is registered. Other platforms
+    return [] (macOS is Apple-only, no per-vendor selection to inform)."""
+    if sys.platform != "win32":
+        return []
+    try:
+        import winreg
+        names = []
+        display_class = r"SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}"
+        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, display_class) as klass:
+            index = 0
+            while True:
+                try:
+                    sub = winreg.EnumKey(klass, index)
+                except OSError:
+                    break
+                index += 1
+                if not re.fullmatch(r"\d{4}", sub):
+                    continue  # the class key also holds non-adapter subkeys (Properties, …)
+                try:
+                    with winreg.OpenKey(klass, sub) as adapter:
+                        desc, _ = winreg.QueryValueEx(adapter, "DriverDesc")
+                except OSError:
+                    continue
+                if (isinstance(desc, str) and desc
+                        and "microsoft" not in desc.lower() and desc not in names):
+                    names.append(desc)
+        return names
+    except Exception:
+        return []
+
+
+def detect_gpu_vendors() -> set | None:
+    """GPU vendors present in this machine, or None when that can't be determined
+    (see `gpu_vendors` — unknown must not be mistaken for "no GPUs")."""
+    return gpu_vendors(detect_gpu_names())
 
 
 def which_whisper():

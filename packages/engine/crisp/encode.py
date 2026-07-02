@@ -24,24 +24,64 @@ HARDWARE_QV = {"maximum": 80, "high": 65, "balanced": 55, "smaller": 45}
 
 # Hardware encoder candidates per platform, in preference order. macOS has the one
 # VideoToolbox media engine; Windows ffmpeg builds (BtbN/gyan) ship all three vendor
-# encoders, so we list NVIDIA → Intel → AMD and pick the first one ffmpeg actually
-# exposes. A pick the host GPU can't run still falls back to software at render time
-# (the pipeline's existing HW-fail retry). ponytail: family selection only — true
-# per-GPU probing is a follow-up; the software fallback keeps it correct meanwhile.
+# encoders regardless of the machine's GPU, so a pick must be verified against the
+# actual hardware: `pick_hardware_encoder` filters by the GPU vendors present
+# (`vendors`) and then by a functional test encode (`works`) before committing.
+# A pick that still fails at render time falls back to software (the pipeline's
+# existing HW-fail retry), so this stays correct even when a driver lies.
 _HW_CANDIDATES = {
     "darwin": {"h264": ["h264_videotoolbox"], "hevc": ["hevc_videotoolbox"]},
     "win32":  {"h264": ["h264_nvenc", "h264_qsv", "h264_amf"],
                "hevc": ["hevc_nvenc", "hevc_qsv", "hevc_amf"]},
 }
 
+# Which GPU vendor each encoder-name suffix needs (matches tools.gpu_vendors keys).
+_ENCODER_VENDORS = {"nvenc": "nvidia", "qsv": "intel", "amf": "amd", "videotoolbox": "apple"}
 
-def pick_hardware_encoder(codec: str, platform: str, available: set) -> str | None:
-    """First hardware encoder for `codec` that this `platform` offers AND ffmpeg lists
-    in `available`, else None (→ caller uses software). Pure, so it's unit-testable."""
+
+def encoder_vendor(name: str) -> str:
+    """The GPU vendor an encoder name requires ("h264_nvenc" → "nvidia"), or ""
+    for an unrecognized suffix. Pure, so it's unit-testable."""
+    return _ENCODER_VENDORS.get(name.rsplit("_", 1)[-1], "")
+
+
+def pick_hardware_encoder(codec: str, platform: str, available: set,
+                          vendors: set | None = None, works=None) -> str | None:
+    """First hardware encoder for `codec` that this `platform` offers, ffmpeg lists
+    in `available`, AND this machine can actually run — else None (→ software).
+
+    `vendors` is the set of GPU vendors present (from `tools.detect_gpu_vendors`);
+    None means "unknown", which must not skip anything. `works` is a predicate that
+    functionally verifies an encoder (`tools.hw_encoder_works`); None trusts the
+    listing (macOS, and the pure unit tests). Both stay injectable so this remains
+    subprocess-free and unit-testable."""
     for name in _HW_CANDIDATES.get(platform, {}).get(codec, []):
-        if name in available:
-            return name
+        if name not in available:
+            continue
+        if vendors is not None and encoder_vendor(name) not in vendors:
+            continue
+        if works is not None and not works(name):
+            continue
+        return name
     return None
+
+
+def probe_hardware() -> dict:
+    """What the desktop app's Settings shows: the machine's GPU names and the verified
+    hardware encoder each codec would use (None = that codec encodes in software).
+    macOS skips the functional probe — VideoToolbox is always present on Apple
+    Silicon (same reasoning as `video_args`)."""
+    from .tools import (available_hw_encoders, detect_gpu_names, detect_gpu_vendors,
+                        hw_encoder_works)  # lazy: keeps this module subprocess-free to import
+    gpus = detect_gpu_names()
+    if sys.platform == "darwin":
+        encoders = {"h264": "h264_videotoolbox", "hevc": "hevc_videotoolbox"}
+    else:
+        listed, vendors = available_hw_encoders(), detect_gpu_vendors()
+        encoders = {codec: pick_hardware_encoder(codec, sys.platform, listed,
+                                                 vendors=vendors, works=hw_encoder_works)
+                    for codec in ("h264", "hevc")}
+    return {"gpus": gpus, "encoders": encoders}
 
 
 def hardware_quality_args(encoder: str, codec: str, quality: str) -> list:
@@ -287,9 +327,14 @@ def video_args(codec: str, hardware: bool, quality: str, pix_fmt: str = "yuv420p
             # (which run without ffmpeg) still pass.
             enc = "hevc_videotoolbox" if codec == "hevc" else "h264_videotoolbox"
         else:
-            # Windows/Linux: probe which vendor encoder ffmpeg actually exposes (NVENC/QSV/AMF).
-            from .tools import available_hw_encoders  # lazy: keeps this module subprocess-free to import
-            enc = pick_hardware_encoder(codec, sys.platform, available_hw_encoders())
+            # Windows/Linux: pick the vendor encoder (NVENC/QSV/AMF) this machine can
+            # ACTUALLY run — filtered to the GPU vendors present, then verified with a
+            # tiny test encode, so an AMD-only box no longer picks NVENC just because
+            # the ffmpeg build compiled it in (which failed at render → silent CPU encode).
+            from .tools import (available_hw_encoders, detect_gpu_vendors,
+                                hw_encoder_works)  # lazy: keeps this module subprocess-free to import
+            enc = pick_hardware_encoder(codec, sys.platform, available_hw_encoders(),
+                                        vendors=detect_gpu_vendors(), works=hw_encoder_works)
         if enc:
             return ["-c:v", enc] + hardware_quality_args(enc, codec, quality) + hevc_tag + ["-pix_fmt", pix_fmt]
         # No usable hardware encoder on this platform → fall through to software.
