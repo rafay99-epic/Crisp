@@ -1,0 +1,23 @@
+apps/desktop/Sources/Crisp/Views/QueueView.swift
+  s_d8f40b0f41c189::t_1cf30f8c53c5a4 17-20,22
+  s_d8f40b0f41c189::t_0e2e19f074bf6f 31
+  s_d8f40b0f41c189::t_0058c4532e9edd 48,51,54,61-78,80
+  s_d8f40b0f41c189::t_20d73cd81ac191 79
+  s_d8f40b0f41c189::t_d8ca07fe2a7fbf 81
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "20f84676add147da36af272b8338d164a16957c0",
+  "prompts": {},
+  "sessions": {
+    "s_d8f40b0f41c189": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1a519fba-dba1-4dac-bda2-7657cc1073fa",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
