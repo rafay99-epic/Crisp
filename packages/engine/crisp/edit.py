@@ -394,6 +394,23 @@ _BATCH_THRESHOLD = 64
 _BATCH_SIZE = 32
 
 
+def _should_batch(keep, crossfade, fps):
+    """Route this render to the batched many-cuts path? Pure/unit-tested.
+
+    Requires all of: enough segments to pay off the batch overhead; no crossfade
+    (dissolves chain pairwise across the whole timeline, so they can't batch); and
+    NO frame-rate conform active (`fps is None`). A constant-frame-rate conform
+    (`-r`) is a GLOBAL dup/drop decision over the whole output timeline — running it
+    independently per batch and stream-copy-joining the parts does NOT reproduce the
+    single-pass frame grid (which batch owns a grid point landing on a batch seam is
+    globally coupled, so frame count and placement diverge). A VFR source needing
+    normalization therefore takes the correct single-pass graph, trading the batch
+    speedup for a frame-exact result."""
+    return (fps is None
+            and len(keep) > _BATCH_THRESHOLD
+            and _clamped_crossfade([e - s for s, e in keep], crossfade) <= 0.001)
+
+
 def render(src, keep, out_path, on_log, on_progress, video_opts, audio_opts, mux_opts=(),
            fade=0.0, crossfade=0.0, fps=None, logger=None):
     logger = logger or EngineLogger(None)
@@ -417,14 +434,12 @@ def render(src, keep, out_path, on_log, on_progress, video_opts, audio_opts, mux
     # SIGKILL is overwritten (-y) or unlinked on the next render to the same output.
     part_path = out_path.with_name(out_path.stem + ".part" + out_path.suffix)
 
-    # Many cuts → the batched path (see _BATCH_THRESHOLD above). Crossfades chain
-    # pairwise across the whole timeline, so they can't batch — they keep the
-    # single-pass graph (opt-in, and a dissolve over hundreds of cuts is already
-    # the wrong tool).
-    if len(keep) > _BATCH_THRESHOLD and \
-            _clamped_crossfade([e - s for s, e in keep], crossfade) <= 0.001:
+    # Many cuts → the batched path (see _should_batch: enough segments, no
+    # crossfade, and no fps conform — a per-batch `-r` doesn't match the single-pass
+    # frame grid, so VFR normalization stays on the single-pass graph).
+    if _should_batch(keep, crossfade, fps):
         return _render_batched(src, keep, out_path, part_path, on_log, on_progress,
-                               video_opts, audio_opts, mux_opts, fade, fps_opts,
+                               video_opts, audio_opts, mux_opts, fade,
                                total, logger)
 
     lines = build_filter_graph(keep, fade=fade, crossfade=crossfade)
@@ -523,7 +538,7 @@ def _emit_render_progress(on_progress, frac):
 
 
 def _render_batched(src, keep, out_path, part_path, on_log, on_progress,
-                    video_opts, audio_opts, mux_opts, fade, fps_opts, total, logger):
+                    video_opts, audio_opts, mux_opts, fade, total, logger):
     """The many-cuts render path: encode _BATCH_SIZE segments at a time — the
     input-side -ss/-to decodes only that window, and `-copyts` keeps original
     timestamps so each batch's trims select exactly the frames the single-pass
@@ -533,11 +548,17 @@ def _render_batched(src, keep, out_path, part_path, on_log, on_progress,
     per part instead would pad every join with an encoder-delay tail and drift A/V
     across hundreds of segments.
 
-    Verified against the single-pass graph (see benchmarks/verify_render_equivalence.py):
-    video is bit-identical (frame md5); audio is sample-identical except that a
-    window's decoder may place up to one source-audio frame (~21 ms) of the silence
-    at a faded-to-zero cut boundary differently — a constant, NON-accumulating
-    timing offset, below the A/V perception threshold."""
+    Only reached when NO fps conform is active (see _should_batch): a per-batch
+    `-r` restarts the constant-frame-rate dup/drop grid at each batch's t=0, which
+    does not match the single-pass graph's one continuous conform (they diverge by
+    a frame at the seams). VFR normalization therefore uses the single-pass path.
+
+    Verified against the single-pass graph, with no fps conform, by
+    benchmarks/verify_render_equivalence.py: video is bit-identical (frame md5);
+    audio is sample-identical except that a window's decoder may place up to one
+    source-audio frame (~21 ms) of the silence at a faded-to-zero cut boundary
+    differently — a constant, NON-accumulating timing offset, below the A/V
+    perception threshold."""
     windows = _batch_windows(keep)
     on_log(f"Rendering in {len(windows)} passes ({len(keep)} segments)...")
     # Move the codec tag (e.g. hvc1, QuickTime-friendly HEVC) from the part encodes
@@ -581,7 +602,7 @@ def _render_batched(src, keep, out_path, part_path, on_log, on_progress,
                        "-i", str(src), *copyts,
                        "-filter_complex_script", str(graph),
                        "-map", "[outv]", "-map", "[outa]",
-                       *part_video_opts, *fps_opts, "-c:a", "pcm_s24le",
+                       *part_video_opts, "-c:a", "pcm_s24le",
                        "-progress", "pipe:1", "-nostats", str(part)]
                 rc, err_text = _run_ffmpeg_progress(
                     cmd, logger, name,
