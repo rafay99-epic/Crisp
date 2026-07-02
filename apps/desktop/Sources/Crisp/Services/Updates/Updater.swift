@@ -215,10 +215,28 @@ final class Updater {
         guard FileManager.default.fileExists(atPath: source.path) else {
             throw UpdateError(message: "The update image doesn't contain \(bundleInImage).")
         }
-        if FileManager.default.fileExists(atPath: installPath) {
-            try FileManager.default.removeItem(atPath: installPath)
+        // Move the existing install aside first (rename on the same volume, atomic)
+        // so a failed ditto can be rolled back — never delete the working app
+        // before the new one is in place.
+        let fm = FileManager.default
+        let backupPath = installPath + ".old"
+        let hadPrevious = fm.fileExists(atPath: installPath)
+        if hadPrevious {
+            try? fm.removeItem(atPath: backupPath)
+            try fm.moveItem(atPath: installPath, toPath: backupPath)
         }
-        try runTool("/usr/bin/ditto", [source.path, installPath])
+        do {
+            try runTool("/usr/bin/ditto", [source.path, installPath])
+        } catch {
+            if hadPrevious {
+                try? fm.removeItem(atPath: installPath)
+                try? fm.moveItem(atPath: backupPath, toPath: installPath)
+            }
+            throw error
+        }
+        if hadPrevious {
+            try? fm.removeItem(atPath: backupPath)
+        }
     }
 
     // MARK: - Helpers
@@ -254,6 +272,15 @@ final class Updater {
         return nil
     }
 
+    /// Locked accumulator the pipe readability handlers write into — a class so the
+    /// Sendable handler closures don't mutate captured vars (a Swift 6 error).
+    private final class PipeBuffer: @unchecked Sendable {
+        private let lock = NSLock()
+        private var data = Data()
+        func append(_ chunk: Data) { lock.lock(); data.append(chunk); lock.unlock() }
+        var value: Data { lock.lock(); defer { lock.unlock() }; return data }
+    }
+
     @discardableResult
     nonisolated private static func runTool(_ path: String, _ arguments: [String]) throws -> String {
         let process = Process()
@@ -262,15 +289,31 @@ final class Updater {
         let stdout = Pipe(), stderr = Pipe()
         process.standardOutput = stdout
         process.standardError = stderr
+
+        // Drain both pipes while the child runs — a full 64 KB pipe buffer would
+        // otherwise block the child's write while we block on waitUntilExit.
+        let outBuffer = PipeBuffer(), errBuffer = PipeBuffer()
+        stdout.fileHandleForReading.readabilityHandler = { outBuffer.append($0.availableData) }
+        stderr.fileHandleForReading.readabilityHandler = { errBuffer.append($0.availableData) }
+
         try process.run()
-        guard waitUntilExit(process, timeout: 60) else {
+        let finished = waitUntilExit(process, timeout: 60)
+        stdout.fileHandleForReading.readabilityHandler = nil
+        stderr.fileHandleForReading.readabilityHandler = nil
+        guard finished else {
             throw UpdateError(message: "\(path) timed out and was stopped.")
         }
+        // Pick up anything buffered between the last handler call and exit. Only
+        // after a clean exit: a killed child can leave a grandchild holding the
+        // pipe open, and read-to-EOF would hang on it.
+        outBuffer.append(stdout.fileHandleForReading.readDataToEndOfFile())
+        errBuffer.append(stderr.fileHandleForReading.readDataToEndOfFile())
+
         guard process.terminationStatus == 0 else {
-            let message = String(data: stderr.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+            let message = String(data: errBuffer.value, encoding: .utf8) ?? ""
             throw UpdateError(message: message.isEmpty ? "\(path) exited with \(process.terminationStatus)" : message)
         }
-        return String(data: stdout.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        return String(data: outBuffer.value, encoding: .utf8) ?? ""
     }
 
     @discardableResult
