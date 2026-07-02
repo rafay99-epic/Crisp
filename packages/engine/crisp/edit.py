@@ -540,12 +540,14 @@ def _render_batched(src, keep, out_path, part_path, on_log, on_progress,
     timing offset, below the A/V perception threshold."""
     windows = _batch_windows(keep)
     on_log(f"Rendering in {len(windows)} passes ({len(keep)} segments)...")
-    # Carry the codec tag (e.g. hvc1, QuickTime-friendly HEVC) into the final remux —
-    # the stream-copy would otherwise fall back to the muxer's default tag.
-    tag = []
-    if "-tag:v" in video_opts:
-        t = list(video_opts).index("-tag:v")
-        tag = list(video_opts[t:t + 2])
+    # Move the codec tag (e.g. hvc1, QuickTime-friendly HEVC) from the part encodes
+    # to the final remux: NUT rejects it outright ("Tag hvc1 incompatible with
+    # output codec id"), and it only means anything in the target container anyway.
+    part_video_opts, tag = list(video_opts), []
+    if "-tag:v" in part_video_opts:
+        t = part_video_opts.index("-tag:v")
+        tag = part_video_opts[t:t + 2]
+        del part_video_opts[t:t + 2]
     try:
         with tempfile.TemporaryDirectory(prefix="crisp-render-") as tmpdir:
             tmp = Path(tmpdir)
@@ -567,7 +569,7 @@ def _render_batched(src, keep, out_path, part_path, on_log, on_progress,
                        "-i", str(src), *copyts,
                        "-filter_complex_script", str(graph),
                        "-map", "[outv]", "-map", "[outa]",
-                       *video_opts, *fps_opts, "-c:a", "pcm_s24le",
+                       *part_video_opts, *fps_opts, "-c:a", "pcm_s24le",
                        "-progress", "pipe:1", "-nostats", str(part)]
                 rc, err_text = _run_ffmpeg_progress(
                     cmd, logger, name,

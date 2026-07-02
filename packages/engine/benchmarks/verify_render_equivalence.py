@@ -148,6 +148,23 @@ def main():
         print(f"case 2: {len(irregular)} irregular segments, mid-file")
         ok &= check_case("c2", src, irregular, tmp)
 
+        # case 3: the production flag shape — HEVC with the QuickTime hvc1 tag,
+        # which the NUT intermediates must not receive (they reject stream tags;
+        # this exact combination broke the first real-footage render).
+        print("case 3: batched render with production HEVC opts (-tag:v hvc1)")
+        try:
+            edit._BATCH_THRESHOLD = 64
+            edit.render(src, regular, Path(tmp) / "c3.mov",
+                        lambda m: None, lambda f, l="": None,
+                        video_opts=["-c:v", "libx265", "-preset", "ultrafast",
+                                    "-crf", "28", "-tag:v", "hvc1",
+                                    "-pix_fmt", "yuv420p"],
+                        audio_opts=["-c:a", "aac", "-b:a", "192k"], fade=0.010)
+            print("  hevc+hvc1 batched render: PASS")
+        except Exception as e:  # noqa: BLE001 — report, don't crash the verifier
+            print(f"  hevc+hvc1 batched render: FAIL ({e})")
+            ok = False
+
         print("\nOVERALL:", "PASS" if ok else "FAIL")
         sys.exit(0 if ok else 1)
 
