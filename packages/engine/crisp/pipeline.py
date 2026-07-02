@@ -419,8 +419,14 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
     # Never overwrite the source. Only reachable with an explicit --out pointing
     # at the input (the derived path always appends _cleaned) — but render() ends
     # with os.replace(part, out_path), which would irrecoverably destroy the
-    # original, so refuse before any work starts.
-    if out_path == src:
+    # original, so refuse before any work starts. samefile() catches what a path
+    # compare can't: hardlinks, and case-variant paths on case-insensitive
+    # filesystems (macOS APFS), where "CLIP.MP4" would still clobber "clip.mp4".
+    try:
+        out_is_src = out_path == src or (out_path.exists() and out_path.samefile(src))
+    except OSError:
+        out_is_src = False   # racy stat — the plain compare above already ran
+    if out_is_src:
         raise CleanError("Output path is the same as the source video — "
                          "refusing to overwrite the original. Pick a different --out.")
 
