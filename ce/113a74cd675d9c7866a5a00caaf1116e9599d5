@@ -1,0 +1,25 @@
+packages/engine/crisp/edit.py
+  s_d8f40b0f41c189::t_99e0b72c606cd9 541,551-561
+  s_d8f40b0f41c189::t_68c7e94959a006 437-440,442
+  s_d8f40b0f41c189::t_3606e56a065c8b 605
+  s_d8f40b0f41c189::t_168ef368dabcf3 397-413
+packages/engine/tests/test_edit.py
+  s_d8f40b0f41c189::t_8f75d0bc354ca1 14-16
+  s_d8f40b0f41c189::t_5d0e15394a1306 299-322
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "ce113a74cd675d9c7866a5a00caaf1116e9599d5",
+  "prompts": {},
+  "sessions": {
+    "s_d8f40b0f41c189": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1a519fba-dba1-4dac-bda2-7657cc1073fa",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
