@@ -738,7 +738,7 @@ public partial class MainWindowViewModel : ViewModelBase
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir is not null)
         {
-            var candidate = Path.Combine(dir.FullName, "apps", "desktop", "Resources", "engine", "clean_video.py");
+            var candidate = Path.Combine(dir.FullName, "packages", "engine", "clean_video.py");
             if (File.Exists(candidate)) return candidate;
             dir = dir.Parent;
         }
