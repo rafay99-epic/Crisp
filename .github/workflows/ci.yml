@@ -93,6 +93,7 @@ jobs:
       - uses: actions/checkout@v7
       - name: Build app and installer
         env:
+          CRISP_LICENSING: "YES" # Polar.sh gateway live on the published build
           CRISP_POLAR_ORG_ID: ${{ secrets.CRISP_POLAR_ORG_ID }}
           CRISP_POLAR_CHECKOUT_URL: ${{ secrets.CRISP_POLAR_CHECKOUT_URL }}
           CRISP_POLAR_PORTAL_URL: ${{ secrets.CRISP_POLAR_PORTAL_URL }}
@@ -131,6 +132,7 @@ jobs:
 
       - name: Build app and installer
         env:
+          CRISP_LICENSING: "YES" # Polar.sh gateway live on the published build
           CRISP_POLAR_ORG_ID: ${{ secrets.CRISP_POLAR_ORG_ID }}
           CRISP_POLAR_CHECKOUT_URL: ${{ secrets.CRISP_POLAR_CHECKOUT_URL }}
           CRISP_POLAR_PORTAL_URL: ${{ secrets.CRISP_POLAR_PORTAL_URL }}
