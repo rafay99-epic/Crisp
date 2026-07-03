@@ -1,0 +1,22 @@
+packages/engine/tests/test_hardening.py
+  s_d8f40b0f41c189::t_102fb85cce37dc 84-95
+  s_d8f40b0f41c189::t_89f43a2b556a7e 4
+packages/engine/crisp/pipeline.py
+  s_d8f40b0f41c189::t_0e518bd6e9e5ec 422-429
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "b724f6088efee47bce2fba15479825405c012bf1",
+  "prompts": {},
+  "sessions": {
+    "s_d8f40b0f41c189": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1a519fba-dba1-4dac-bda2-7657cc1073fa",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
