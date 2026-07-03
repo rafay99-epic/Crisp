@@ -1,0 +1,21 @@
+apps/desktop/build.sh
+  s_241d93c5e0c347::t_8b6a9c6d05bd16 183-195
+apps/desktop/Scripts/MakeIcon.swift
+  s_241d93c5e0c347::t_ca38c7982935f8 115-117,119
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "1939fc0580c8d50fd5a1e3946626e2ad13bcf20a",
+  "prompts": {},
+  "sessions": {
+    "s_241d93c5e0c347": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "399773ba-c90d-4a98-b880-56c1cb57de77",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
