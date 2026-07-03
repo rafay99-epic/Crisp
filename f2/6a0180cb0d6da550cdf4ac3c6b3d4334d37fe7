@@ -1,0 +1,26 @@
+apps/web/src/pages/Pricing.tsx
+  s_aa725a467245af::t_7fa46dcb2e9c43 65-69
+  s_aa725a467245af::t_8b2c09c045133c 92
+  s_aa725a467245af::t_2f739a04fc5178 3
+apps/web/src/components/Logo.tsx
+  s_aa725a467245af::t_0303dfe9ee867c 90-100
+apps/web/src/pages/Features.tsx
+  s_aa725a467245af::t_4c58e892ff1c36 325-344
+  s_aa725a467245af::t_d23837a5d3a2f6 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "f26a0180cb0d6da550cdf4ac3c6b3d4334d37fe7",
+  "prompts": {},
+  "sessions": {
+    "s_aa725a467245af": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a60f40fe-9c49-4706-ba0b-746c68cdfc0c",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
