@@ -1,13 +1,14 @@
 ---
 id: TASK-6
 title: 'Auto-reframe to vertical / short-form (9:16)'
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-07-01 19:21'
+updated_date: '2026-07-03 08:22'
 labels: []
 dependencies: []
 priority: medium
-ordinal: 6000
+ordinal: 7000
 ---
 
 ## Description

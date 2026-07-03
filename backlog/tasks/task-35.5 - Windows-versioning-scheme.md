@@ -1,16 +1,17 @@
 ---
 id: TASK-35.5
 title: 'Windows: versioning scheme'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-07-02 09:25'
+updated_date: '2026-07-03 08:22'
 labels:
   - windows
   - bug
 dependencies: []
 parent_task_id: TASK-35
 priority: medium
-ordinal: 40000
+ordinal: 51000
 ---
 
 ## Description

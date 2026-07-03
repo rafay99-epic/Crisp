@@ -1,16 +1,17 @@
 ---
 id: TASK-35.1
 title: 'Windows: app icon missing'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-07-02 09:24'
+updated_date: '2026-07-03 08:22'
 labels:
   - windows
   - bug
 dependencies: []
 parent_task_id: TASK-35
 priority: medium
-ordinal: 36000
+ordinal: 50000
 ---
 
 ## Description

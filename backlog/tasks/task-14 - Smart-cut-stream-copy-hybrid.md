@@ -1,13 +1,14 @@
 ---
 id: TASK-14
 title: Smart-cut / stream-copy hybrid
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-07-01 19:21'
+updated_date: '2026-07-03 08:22'
 labels: []
 dependencies: []
 priority: low
-ordinal: 14000
+ordinal: 9000
 ---
 
 ## Description

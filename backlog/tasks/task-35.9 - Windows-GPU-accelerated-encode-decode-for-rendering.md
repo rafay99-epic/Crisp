@@ -1,9 +1,10 @@
 ---
 id: TASK-35.9
 title: 'Windows: GPU-accelerated encode + decode for rendering'
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-07-02 09:25'
+updated_date: '2026-07-03 08:22'
 labels:
   - windows
   - performance
@@ -11,7 +12,7 @@ dependencies:
   - TASK-35.7
 parent_task_id: TASK-35
 priority: high
-ordinal: 44000
+ordinal: 6000
 ---
 
 ## Description

@@ -1,13 +1,14 @@
 ---
 id: TASK-13
 title: Re-weight the progress bar
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-07-01 19:21'
+updated_date: '2026-07-03 08:22'
 labels: []
 dependencies: []
 priority: low
-ordinal: 13000
+ordinal: 8000
 ---
 
 ## Description

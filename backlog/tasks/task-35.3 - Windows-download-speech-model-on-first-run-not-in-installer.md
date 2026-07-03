@@ -1,16 +1,17 @@
 ---
 id: TASK-35.3
 title: 'Windows: download speech model on first run (not in installer)'
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-07-02 09:24'
+updated_date: '2026-07-03 08:22'
 labels:
   - windows
   - bug
 dependencies: []
 parent_task_id: TASK-35
 priority: high
-ordinal: 38000
+ordinal: 5000
 ---
 
 ## Description

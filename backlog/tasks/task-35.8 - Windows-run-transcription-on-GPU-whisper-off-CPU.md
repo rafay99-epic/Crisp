@@ -1,9 +1,10 @@
 ---
 id: TASK-35.8
 title: 'Windows: run transcription on GPU (whisper off CPU)'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-07-02 09:25'
+updated_date: '2026-07-03 08:22'
 labels:
   - windows
   - performance
@@ -11,7 +12,7 @@ dependencies:
   - TASK-35.7
 parent_task_id: TASK-35
 priority: high
-ordinal: 43000
+ordinal: 53000
 ---
 
 ## Description
