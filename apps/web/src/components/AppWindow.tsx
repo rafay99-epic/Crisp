@@ -5,7 +5,7 @@
  * at any size. Shows a lively mid-work composite: one done row, one cleaning
  * row, one waiting row, plus the bottom control bar.
  */
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import {
   Scissors,
   Gear,
@@ -43,10 +43,12 @@ function Toolbar() {
 
 /** A green check inside a filled circle — a completed queue item. */
 function DoneCircle() {
+  // `initial={false}` skips straight to the final state for reduced-motion users.
+  const reduceMotion = useReducedMotion();
   return (
     <motion.span
       className="grid size-[22px] place-items-center rounded-full bg-[#34c759]"
-      initial={{ scale: 0 }}
+      initial={reduceMotion ? false : { scale: 0 }}
       whileInView={{ scale: 1 }}
       viewport={{ once: true }}
       transition={{ type: "spring", stiffness: 500, damping: 18, delay: 0.15 }}
@@ -102,6 +104,7 @@ function Checkbox() {
 }
 
 export function AppWindow({ className = "" }: { className?: string }) {
+  const reduceMotion = useReducedMotion();
   return (
     <div
       className={`overflow-hidden rounded-[12px] bg-[#1c1c1e] ring-1 ring-white/10 ${className}`}
@@ -145,7 +148,7 @@ export function AppWindow({ className = "" }: { className?: string }) {
               <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
                 <motion.div
                   className="h-full rounded-full bg-[var(--color-accent)]"
-                  initial={{ width: "0%" }}
+                  initial={reduceMotion ? false : { width: "0%" }}
                   whileInView={{ width: "64%" }}
                   viewport={{ once: true }}
                   transition={{ duration: 1, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
