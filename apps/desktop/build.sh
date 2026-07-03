@@ -38,7 +38,7 @@ esac
 case "$(echo "${CRISP_LICENSING:-}" | tr '[:upper:]' '[:lower:]')" in
   1|yes|true)
     for var in CRISP_POLAR_ORG_ID CRISP_POLAR_CHECKOUT_URL CRISP_POLAR_PORTAL_URL CRISP_POLAR_LOOKUP_URL; do
-      if [ -z "${(P)var:-}" ]; then
+      if [ -z "${${(P)var:-}//[[:space:]]/}" ]; then
         echo "CRISP_LICENSING is on but $var is empty — refusing to build a paywalled app with broken Polar config." >&2
         exit 1
       fi
