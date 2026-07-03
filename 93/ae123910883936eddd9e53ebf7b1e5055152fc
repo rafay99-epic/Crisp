@@ -1,0 +1,19 @@
+"backlog/tasks/task-38 - Crisp-Pro-branding-—-Pro-mark-Upgrade-to-Pro-CTA-in-app-Pro-title.md"
+  s_aa725a467245af::t_27f5b617d4a9aa 1-20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "93ae123910883936eddd9e53ebf7b1e5055152fc",
+  "prompts": {},
+  "sessions": {
+    "s_aa725a467245af": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a60f40fe-9c49-4706-ba0b-746c68cdfc0c",
+        "model": "unknown"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
