@@ -87,6 +87,17 @@ export function AppIcon({ className = "" }: { className?: string }) {
   );
 }
 
+/** The "PRO" pill — pairs with the wordmark on Crisp Pro surfaces (pricing, banners). */
+export function ProBadge({ className = "" }: { className?: string }) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-full bg-[var(--color-accent-bright)]/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--color-accent-bright)] ring-1 ring-inset ring-[var(--color-accent-bright)]/30 ${className}`}
+    >
+      Pro
+    </span>
+  );
+}
+
 export function Waveform({ className = "", color }: { className?: string; color?: string }) {
   return (
     <svg viewBox="0 0 100 100" className={className} aria-hidden>

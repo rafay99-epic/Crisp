@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { Waveform } from "../components/Logo";
+import { ProBadge, Waveform } from "../components/Logo";
 import { Footer } from "../sections/Footer";
 import { Reveal, KineticText } from "../components/Motion";
 import { CopyCommand } from "../components/AppBits";
@@ -321,6 +321,26 @@ export function Features() {
             <FeatureGroup key={g.eyebrow} {...g} />
           ))}
         </div>
+
+        {/* Pro banner — everything above is one plan. */}
+        <Reveal>
+          <div className="relative z-10 mx-auto mt-16 flex max-w-2xl flex-wrap items-center justify-center gap-x-3 gap-y-2 rounded-2xl border border-[var(--color-accent-bright)]/20 bg-[var(--color-accent-bright)]/[0.06] px-6 py-4 text-center">
+            <span className="flex items-center gap-2 font-semibold text-white">
+              <Waveform className="size-[16px]" />
+              Crisp Pro
+              <ProBadge />
+            </span>
+            <span className="text-[14px] text-white/60">
+              Everything on this page, one subscription.
+            </span>
+            <Link
+              to="/pricing"
+              className="text-[14px] font-semibold text-[var(--color-accent-bright)] transition-colors hover:text-white"
+            >
+              Upgrade to Pro ›
+            </Link>
+          </div>
+        </Reveal>
 
         <Reveal>
           <div className="relative z-10 mx-auto mt-8 max-w-md rounded-2xl border border-white/[0.08] bg-white/[0.03] p-8 text-center">

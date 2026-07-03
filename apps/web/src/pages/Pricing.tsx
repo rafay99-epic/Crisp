@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { Waveform } from "../components/Logo";
+import { ProBadge, Waveform } from "../components/Logo";
 import { Footer } from "../sections/Footer";
 import { Reveal, KineticText } from "../components/Motion";
 import { CheckSeal } from "../components/Icons";
@@ -62,7 +62,11 @@ export function Pricing() {
 
           <Reveal delay={0.15}>
             <div className="mx-auto mt-14 max-w-md rounded-2xl border border-white/[0.08] bg-white/[0.03] p-8 text-left">
-              <p className="text-[15px] font-semibold text-white">Crisp Pro</p>
+              <p className="flex items-center gap-2 text-[15px] font-semibold text-white">
+                <Waveform className="size-[16px]" />
+                Crisp Pro
+                <ProBadge />
+              </p>
               <p className="mt-2 flex items-baseline gap-1.5">
                 <span className="text-[48px] font-semibold tracking-[-0.02em] text-white">$8</span>
                 <span className="text-[15px] text-white/45">/month</span>
@@ -85,7 +89,7 @@ export function Pricing() {
                 href={POLAR_CHECKOUT}
                 className="mt-8 block rounded-full bg-white px-5 py-3 text-center text-[14px] font-semibold text-black transition-transform hover:scale-[1.02]"
               >
-                Get Crisp Pro
+                Upgrade to Pro
               </a>
               <p className="mt-3 text-center text-[12px] text-white/40">
                 Checkout & billing are handled securely by Polar.
