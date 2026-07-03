@@ -229,8 +229,17 @@ final class Updater {
             try runTool("/usr/bin/ditto", [source.path, installPath])
         } catch {
             if hadPrevious {
+                // Roll back — and if even that fails, say where the working app
+                // went instead of silently stranding it at .old.
                 try? fm.removeItem(atPath: installPath)
-                try? fm.moveItem(atPath: backupPath, toPath: installPath)
+                do {
+                    try fm.moveItem(atPath: backupPath, toPath: installPath)
+                } catch let rollback {
+                    throw UpdateError(message: "\(error.localizedDescription) "
+                        + "Restoring the previous version also failed "
+                        + "(\(rollback.localizedDescription)). Your app was kept at "
+                        + "\(backupPath) — rename it back to \(installPath) to recover.")
+                }
             }
             throw error
         }
