@@ -1,0 +1,22 @@
+.github/workflows/nightly.yml
+  s_268041790273df::t_ac648e979bafba 86-91
+.github/workflows/ci.yml
+  s_268041790273df::t_6c3edd3e00e630 96
+  s_268041790273df::t_ecdddd3597377d 135
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "df0d4862b7fca1a065497072930ef392f75aceae",
+  "prompts": {},
+  "sessions": {
+    "s_268041790273df": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a24dbf11-86b9-40f1-8369-c04c6e3feefa",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
