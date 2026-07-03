@@ -1,0 +1,19 @@
+"backlog/tasks/task-37 - Website-features-page-—-full-feature-list.md"
+  s_241d93c5e0c347::t_93a5f95e8766c6 4,7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "710ff26b5b2fca65a75653e69f2ad03e62f92b4f",
+  "prompts": {},
+  "sessions": {
+    "s_241d93c5e0c347": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "399773ba-c90d-4a98-b880-56c1cb57de77",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
