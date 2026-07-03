@@ -1,0 +1,23 @@
+apps/desktop/Sources/Crisp/Views/Licensing/LicenseSettingsView.swift
+  s_aa725a467245af::t_9b936bda48ea76 37
+apps/desktop/Sources/Crisp/App/CrispApp.swift
+  s_aa725a467245af::t_f69cd4870cc497 32-34
+  s_aa725a467245af::t_4697d114d88604 118
+  s_aa725a467245af::t_89bae3283bf46d 115-117,119-123
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "8f411af6b89002d544e4ade42f0bd212fdc49834",
+  "prompts": {},
+  "sessions": {
+    "s_aa725a467245af": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a60f40fe-9c49-4706-ba0b-746c68cdfc0c",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
