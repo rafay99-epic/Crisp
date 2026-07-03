@@ -1,0 +1,20 @@
+"backlog/tasks/task-36 - macOS-26-tinted-dark-app-icon-appearance-support.md"
+  s_241d93c5e0c347::t_30f224cbf37bf6 1-17
+  s_241d93c5e0c347::t_59fca5a6ead8b0 18-20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "42cca47f48e4f3f7d01369bff155fd7c2ac51809",
+  "prompts": {},
+  "sessions": {
+    "s_241d93c5e0c347": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "399773ba-c90d-4a98-b880-56c1cb57de77",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
