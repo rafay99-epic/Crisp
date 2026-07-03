@@ -1,0 +1,23 @@
+turbo.json
+  s_241d93c5e0c347::t_fc53578b4b0739 17-21
+package.json
+  s_241d93c5e0c347::t_123fe4e348b934 13-14
+apps/web/content/features.md
+  s_241d93c5e0c347::t_7983781b33a746 1-130
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "726de35d1c867c8a0d906089002f977fc872fda4",
+  "prompts": {},
+  "sessions": {
+    "s_241d93c5e0c347": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "399773ba-c90d-4a98-b880-56c1cb57de77",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
