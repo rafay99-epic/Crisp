@@ -1,10 +1,10 @@
 ---
 id: TASK-37
 title: Website features page — full feature list
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-07-03 09:14'
-updated_date: '2026-07-03 09:14'
+updated_date: '2026-07-03 15:13'
 labels: []
 dependencies: []
 references:
