@@ -1,0 +1,19 @@
+apps/desktop/build.sh
+  s_268041790273df::t_c4d88453f12c28 41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "62bc870930038f48741412174c711bdedd80de61",
+  "prompts": {},
+  "sessions": {
+    "s_268041790273df": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a24dbf11-86b9-40f1-8369-c04c6e3feefa",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
