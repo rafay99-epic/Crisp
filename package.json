@@ -10,6 +10,8 @@
     "build": "turbo run build",
     "lint": "turbo run lint",
     "preview": "turbo run preview",
+    "format": "turbo run format",
+    "format:check": "turbo run format:check",
     "bench": "swift run --package-path research/FillerBench FillerBench",
     "test:bench": "swift build --package-path research/FillerBench"
   },
