@@ -112,9 +112,11 @@ for (index, h) in barHeights.enumerated() {
     if index == gapAfterIndex { x += gapWidth }
 }
 
-// Two soft cut-edges framing the gap.
+// Two soft cut-edges framing the gap. The glyph layer sits on both the light
+// and dark appearance fills, so it uses a neutral mid-gray that reads on either;
+// the flat icon keeps the original white hairlines on its dark gradient.
 let gapCenterX = region.minX + slot * CGFloat(gapAfterIndex + 1) + gapWidth / 2
-NSColor(calibratedWhite: 1, alpha: 0.16).setStroke()
+(glyphOnly ? NSColor(calibratedWhite: 0.5, alpha: 0.3) : NSColor(calibratedWhite: 1, alpha: 0.16)).setStroke()
 for dx in [-gapWidth / 2 - 4, gapWidth / 2 + 4] as [CGFloat] {
     let edge = NSBezierPath()
     edge.move(to: NSPoint(x: gapCenterX + dx, y: centerY - maxBarHeight * 0.62))

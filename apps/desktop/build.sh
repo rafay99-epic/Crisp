@@ -180,9 +180,19 @@ if [ ! -f "$CAR_CACHE" ] && xcrun --find actool >/dev/null 2>&1; then
   cp "$GLYPH" "$ICON_SRC/Assets/waveform.png"
   cat > "$ICON_SRC/icon.json" <<'JSON'
 {
-  "fill" : {
-    "linear-gradient" : [ "srgb:0.165,0.165,0.180,1.000", "srgb:0.086,0.086,0.094,1.000" ]
-  },
+  "fill-specializations" : [
+    {
+      "value" : {
+        "linear-gradient" : [ "srgb:0.961,0.961,0.969,1.000", "srgb:0.863,0.863,0.882,1.000" ]
+      }
+    },
+    {
+      "appearance" : "dark",
+      "value" : {
+        "linear-gradient" : [ "srgb:0.165,0.165,0.180,1.000", "srgb:0.086,0.086,0.094,1.000" ]
+      }
+    }
+  ],
   "groups" : [
     {
       "layers" : [
