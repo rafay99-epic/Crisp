@@ -12,6 +12,9 @@ export function Footer() {
           <span className="text-white/40">— make your recordings crisp.</span>
         </div>
         <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
+          <Link to="/features" className="transition-colors hover:text-white">
+            Features
+          </Link>
           <Link to="/pricing" className="transition-colors hover:text-white">
             Pricing
           </Link>

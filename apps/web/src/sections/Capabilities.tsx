@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import { Reveal, KineticText } from "../components/Motion";
 import { SilenceVisual, FillerTranscript, FilmStrip, StrengthControl } from "../components/AppBits";
@@ -129,6 +130,15 @@ export function Capabilities() {
 
       <div className="mt-16 flex justify-center opacity-50">
         <MiniWave bars={60} tone="dim" className="h-8 w-full max-w-md" />
+      </div>
+
+      <div className="mt-10 text-center">
+        <Link
+          to="/features"
+          className="text-[13px] text-[var(--color-accent-bright)] transition-colors hover:text-white"
+        >
+          See everything Crisp does →
+        </Link>
       </div>
     </section>
   );

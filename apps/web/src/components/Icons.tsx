@@ -87,6 +87,40 @@ export const Gear = (p: IconProps) => (
   </Base>
 );
 
+export const Plus = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M12 5v14M5 12h14" />
+  </Base>
+);
+
+export const Clock = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M3.5 12a8.5 8.5 0 1 1 2.6 6.1" />
+    <path d="M6.1 18.1 5.4 14l4.1.7" />
+    <path d="M12 7.5V12l3 1.8" />
+  </Base>
+);
+
+export const Monitor = (p: IconProps) => (
+  <Base {...p}>
+    <rect x="3" y="4.5" width="18" height="12" rx="2" />
+    <path d="M9 20h6M12 16.5V20" />
+  </Base>
+);
+
+export const XCircle = (p: IconProps) => (
+  <Base {...p}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="m9.2 9.2 5.6 5.6M14.8 9.2l-5.6 5.6" />
+  </Base>
+);
+
+export const ChevronUpDown = (p: IconProps) => (
+  <Base {...p}>
+    <path d="m8 10 4-4 4 4M8 14l4 4 4-4" />
+  </Base>
+);
+
 export const Apple = (p: IconProps) => (
   <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden {...p}>
     <path d="M16.5 12.4c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.1-2.8.9-3.5.9s-1.8-.8-3-.8c-1.5 0-2.9.9-3.7 2.3-1.6 2.7-.4 6.8 1.1 9 .7 1.1 1.6 2.3 2.8 2.2 1.1 0 1.5-.7 2.9-.7s1.7.7 2.9.7 2-1 2.7-2.1c.9-1.2 1.2-2.4 1.2-2.5 0 0-2.3-.9-2.3-3.6Zm-2.3-6.6c.6-.8 1-1.8.9-2.9-.9 0-2 .6-2.6 1.4-.6.7-1.1 1.7-.9 2.8 1 0 2-.6 2.6-1.3Z" />
