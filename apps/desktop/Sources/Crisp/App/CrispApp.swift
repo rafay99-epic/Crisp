@@ -29,6 +29,9 @@ struct CrispApp: App {
                         fillerModelStore: fillerModelStore, fillerUpdater: fillerUpdater,
                         settings: settings, watchAgent: watchAgent, onboarding: onboarding,
                         player: player, whatsNew: whatsNew, licenseStore: licenseStore)
+                // The ambient "you're on Pro" sign: the window title reads "Crisp Pro"
+                // while a subscription is active (no icon/badge noise anywhere else).
+                .navigationTitle(windowTitle)
                 .task { logLaunch() }
                 .task { updater.checkOnLaunch() }
                 .task { await modelStore.refresh() }
@@ -107,6 +110,15 @@ struct CrispApp: App {
             MenuBarPanel(quickDrop: quickDrop, settings: settings)
         }
         .menuBarExtraStyle(.window)
+    }
+
+    /// "Crisp Pro" once a subscription is active; the plain channel name otherwise
+    /// (or whenever licensing ships dark).
+    private var windowTitle: String {
+        if Channel.licensingEnabled, licenseStore.state == .licensed {
+            return "\(Channel.current.displayName) Pro"
+        }
+        return Channel.current.displayName
     }
 
     /// Drives `MenuBarExtra`'s visibility from the saved preference.

@@ -34,7 +34,7 @@ struct LicenseSettingsView: View {
     @ViewBuilder private var statusBadge: some View {
         switch license.state {
         case .licensed:
-            Label("Active", systemImage: "checkmark.seal.fill").foregroundStyle(.green)
+            Label("Crisp Pro — Active", systemImage: "checkmark.seal.fill").foregroundStyle(.green)
         case .trial(let days):
             Label("Trial — \(days) day\(days == 1 ? "" : "s") left", systemImage: "clock")
                 .foregroundStyle(days <= 3 ? AnyShapeStyle(.orange) : AnyShapeStyle(.secondary))
