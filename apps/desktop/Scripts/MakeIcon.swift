@@ -8,6 +8,10 @@ let outputPath = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "i
 // Second arg picks the channel: "nightly" and "dev" recolor the waveform and
 // stamp a badge so the Dock instantly distinguishes them from Stable.
 let channel = CommandLine.arguments.count > 2 ? CommandLine.arguments[2] : "stable"
+// Third arg "glyph" renders just the waveform + badge on a transparent canvas —
+// the foreground layer of the macOS 26 layered icon (.icon → Assets.car), where
+// the system supplies the squircle, background fill, and dark/tinted treatments.
+let glyphOnly = CommandLine.arguments.count > 3 && CommandLine.arguments[3] == "glyph"
 func rgb(_ r: Int, _ g: Int, _ b: Int) -> NSColor {
     NSColor(calibratedRed: CGFloat(r) / 255, green: CGFloat(g) / 255, blue: CGFloat(b) / 255, alpha: 1)
 }
@@ -41,35 +45,46 @@ let box = NSRect(x: inset, y: inset, width: 824, height: 824)
 let radius: CGFloat = 185
 let squircle = NSBezierPath(roundedRect: box, xRadius: radius, yRadius: radius)
 
-// Soft drop shadow like system icons.
-NSGraphicsContext.current?.saveGraphicsState()
-let shadow = NSShadow()
-shadow.shadowColor = NSColor.black.withAlphaComponent(0.35)
-shadow.shadowOffset = NSSize(width: 0, height: -14)
-shadow.shadowBlurRadius = 28
-shadow.set()
-NSColor(calibratedWhite: 0.09, alpha: 1).setFill()
-squircle.fill()
-NSGraphicsContext.current?.restoreGraphicsState()
+if glyphOnly {
+    // The layered icon's mask covers the full 1024 canvas (no margins), so scale
+    // the 824-box geometry up around the center to keep the same visual weight.
+    let scale = 1024.0 / box.width
+    let transform = NSAffineTransform()
+    transform.translateX(by: 512, yBy: 512)
+    transform.scale(by: scale)
+    transform.translateX(by: -512, yBy: -512)
+    transform.concat()
+} else {
+    // Soft drop shadow like system icons.
+    NSGraphicsContext.current?.saveGraphicsState()
+    let shadow = NSShadow()
+    shadow.shadowColor = NSColor.black.withAlphaComponent(0.35)
+    shadow.shadowOffset = NSSize(width: 0, height: -14)
+    shadow.shadowBlurRadius = 28
+    shadow.set()
+    NSColor(calibratedWhite: 0.09, alpha: 1).setFill()
+    squircle.fill()
+    NSGraphicsContext.current?.restoreGraphicsState()
 
-// Dark gradient fill (linear-gradient(160deg, #2a2a2e, #161618)).
-NSGraphicsContext.current?.saveGraphicsState()
-squircle.addClip()
-NSGradient(
-    starting: NSColor(calibratedRed: 0x2a / 255.0, green: 0x2a / 255.0, blue: 0x2e / 255.0, alpha: 1),
-    ending: NSColor(calibratedRed: 0x16 / 255.0, green: 0x16 / 255.0, blue: 0x18 / 255.0, alpha: 1)
-)?.draw(in: box, angle: -70)
-NSGraphicsContext.current?.restoreGraphicsState()
+    // Dark gradient fill (linear-gradient(160deg, #2a2a2e, #161618)).
+    NSGraphicsContext.current?.saveGraphicsState()
+    squircle.addClip()
+    NSGradient(
+        starting: NSColor(calibratedRed: 0x2a / 255.0, green: 0x2a / 255.0, blue: 0x2e / 255.0, alpha: 1),
+        ending: NSColor(calibratedRed: 0x16 / 255.0, green: 0x16 / 255.0, blue: 0x18 / 255.0, alpha: 1)
+    )?.draw(in: box, angle: -70)
+    NSGraphicsContext.current?.restoreGraphicsState()
 
-// Hairline border (1px rgba(255,255,255,0.12)).
-let borderWidth: CGFloat = 12
-let borderPath = NSBezierPath(
-    roundedRect: box.insetBy(dx: borderWidth / 2, dy: borderWidth / 2),
-    xRadius: radius - borderWidth / 2, yRadius: radius - borderWidth / 2
-)
-borderPath.lineWidth = borderWidth
-NSColor(calibratedWhite: 1, alpha: 0.12).setStroke()
-borderPath.stroke()
+    // Hairline border (1px rgba(255,255,255,0.12)).
+    let borderWidth: CGFloat = 12
+    let borderPath = NSBezierPath(
+        roundedRect: box.insetBy(dx: borderWidth / 2, dy: borderWidth / 2),
+        xRadius: radius - borderWidth / 2, yRadius: radius - borderWidth / 2
+    )
+    borderPath.lineWidth = borderWidth
+    NSColor(calibratedWhite: 1, alpha: 0.12).setStroke()
+    borderPath.stroke()
+}
 
 // Waveform: a symmetric row of rounded vertical bars centered in the squircle,
 // with a clean gap in the middle (the "cut"). Heights are a fixed pattern so

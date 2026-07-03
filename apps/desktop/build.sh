@@ -164,6 +164,63 @@ if [ ! -f "$ICON_CACHE" ]; then
 fi
 cp "$ICON_CACHE" "$APP/Contents/Resources/AppIcon.icns"
 
+# macOS 26 layered icon: author an Icon Composer .icon document (dark-gradient
+# background fill + transparent waveform glyph layer) and compile it with actool
+# into Assets.car, so the Dock icon adopts the system light/dark/tinted icon
+# appearances. Cached beside the .icns — delete the .car to force a re-render.
+# Older macOS keeps using the hand-rendered .icns; without Xcode's actool the
+# step is skipped and the app ships the flat icon exactly as before.
+CAR_CACHE="${ICON_CACHE%.icns}.car"
+if [ ! -f "$CAR_CACHE" ] && xcrun --find actool >/dev/null 2>&1; then
+  echo "Compiling layered icon (Assets.car)…"
+  GLYPH="/tmp/crisp_icon_${CHANNEL}_glyph.png"
+  swift Scripts/MakeIcon.swift "$GLYPH" "$CHANNEL" glyph
+  ICON_SRC="/tmp/Crisp-$CHANNEL-icon/AppIcon.icon"
+  rm -rf "$ICON_SRC" && mkdir -p "$ICON_SRC/Assets"
+  cp "$GLYPH" "$ICON_SRC/Assets/waveform.png"
+  cat > "$ICON_SRC/icon.json" <<'JSON'
+{
+  "fill" : {
+    "linear-gradient" : [ "srgb:0.165,0.165,0.180,1.000", "srgb:0.086,0.086,0.094,1.000" ]
+  },
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "image-name" : "waveform.png",
+          "name" : "waveform"
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [ "watchOS" ],
+    "squares" : "shared"
+  }
+}
+JSON
+  CAR_TMP="/tmp/Crisp-$CHANNEL-car"
+  rm -rf "$CAR_TMP" && mkdir -p "$CAR_TMP"
+  xcrun actool "$ICON_SRC" --compile "$CAR_TMP" --app-icon AppIcon \
+    --platform macosx --minimum-deployment-target 15.0 \
+    --output-partial-info-plist "$CAR_TMP/partial.plist" \
+    --output-format human-readable-text --notices --warnings --errors
+  cp "$CAR_TMP/Assets.car" "$CAR_CACHE"
+fi
+if [ -f "$CAR_CACHE" ]; then
+  cp "$CAR_CACHE" "$APP/Contents/Resources/Assets.car"
+  "$PB" -c "Add :CFBundleIconName string AppIcon" "$APP/Contents/Info.plist" 2>/dev/null \
+    || "$PB" -c "Set :CFBundleIconName AppIcon" "$APP/Contents/Info.plist"
+fi
+
 # App Intents metadata — Shortcuts/Spotlight read
 # Contents/Resources/Metadata.appintents. `swift build` emits Crisp.swiftconstvalues
 # (via the -emit-const-values flag wired into Package.swift);

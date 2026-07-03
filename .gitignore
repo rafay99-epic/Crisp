@@ -7,6 +7,9 @@ build/
 # (The stable AppIcon.icns IS committed so CI doesn't need to re-render it.)
 apps/desktop/Resources/AppIcon-Nightly.icns
 apps/desktop/Resources/AppIcon-Dev.icns
+# Compiled macOS 26 layered icons (Assets.car) — actool output, rebuilt by
+# build.sh on demand (CI runners have Xcode), never committed.
+apps/desktop/Resources/*.car
 
 # The whisper speech model (148 MB) — downloaded by setup.sh, never committed.
 packages/engine/models/
