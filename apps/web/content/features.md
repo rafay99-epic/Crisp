@@ -62,10 +62,11 @@ _Cuts re-encode. Nothing degrades._
   silently crushed to 8-bit.
 - **Screen recordings welcome.** Variable-frame-rate sources are normalized to constant
   so audio and video never drift.
-- **Split export.** Optionally write separate video-only and audio-only files beside
-  the cleaned output — for finishing picture and sound in different apps.
-- **Captions that match the cut.** Optional SRT or WebVTT sidecars, re-timed to the
-  cleaned video, shaped to broadcast conventions (two lines max, readable durations).
+- **Split export.** _(opt-in)_ Optionally write separate video-only and audio-only files
+  beside the cleaned output — for finishing picture and sound in different apps.
+- **Captions that match the cut.** _(opt-in)_ Optional SRT or WebVTT sidecars, re-timed
+  to the cleaned video, shaped to broadcast conventions (two lines max, readable
+  durations).
 
 ## Fits how you work
 

@@ -70,7 +70,7 @@ function Spinner() {
     <svg
       viewBox="0 0 24 24"
       fill="none"
-      className="size-[20px] animate-spin text-white/70"
+      className="size-[20px] text-white/70 motion-safe:animate-spin"
       aria-hidden
     >
       <circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeOpacity={0.2} strokeWidth={2.2} />
