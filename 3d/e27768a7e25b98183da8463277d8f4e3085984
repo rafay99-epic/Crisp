@@ -1,0 +1,22 @@
+apps/web/src/components/AppWindow.tsx
+  s_aa725a467245af::t_979a201fed03ce 151
+  s_aa725a467245af::t_6ac252bb82abe3 46-47,51
+  s_aa725a467245af::t_bb0b0df0163c0e 107
+  s_aa725a467245af::t_44ed0c8bc7e8d6 8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "3de27768a7e25b98183da8463277d8f4e3085984",
+  "prompts": {},
+  "sessions": {
+    "s_aa725a467245af": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a60f40fe-9c49-4706-ba0b-746c68cdfc0c",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
