@@ -1,0 +1,36 @@
+apps/web/src/sections/Footer.tsx
+  s_241d93c5e0c347::t_9ecc1ea8e5710c 15-17
+apps/web/src/router.tsx
+  s_241d93c5e0c347::t_669643baa776ad 82-88
+  s_241d93c5e0c347::t_aca996f93e75d7 66-70
+  s_241d93c5e0c347::t_eb765c6b14223a 14
+apps/web/src/pages/Features.tsx
+  s_241d93c5e0c347::t_11da020c524106 1-350
+apps/web/src/components/AppWindow.tsx
+  s_241d93c5e0c347::t_5c3eccf0243c2f 2-6,8-17,19,31-88,90-99,113,116-122,125-134,136,139-157,160-165,167-170,173,175-177,179-180,183-187,191-192,194-196,198,202-203,208-210
+  s_241d93c5e0c347::t_4ec3c5fec2454c 178,181-182,188-190,193
+  s_241d93c5e0c347::t_890c293749368d 18
+apps/web/src/sections/Capabilities.tsx
+  s_241d93c5e0c347::t_5f1a93ad6ee246 134-142
+  s_241d93c5e0c347::t_7250e861356bc7 1
+apps/web/src/components/Icons.tsx
+  s_241d93c5e0c347::t_9b81873231628b 90-123
+apps/web/src/sections/Nav.tsx
+  s_241d93c5e0c347::t_c8fd2095f90040 33-41,48-50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "1ba4360df042cc6c8b719a8191f1b62eab58182a",
+  "prompts": {},
+  "sessions": {
+    "s_241d93c5e0c347": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "399773ba-c90d-4a98-b880-56c1cb57de77",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
