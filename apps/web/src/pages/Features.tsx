@@ -5,6 +5,7 @@ import { Footer } from "../sections/Footer";
 import { Reveal, KineticText } from "../components/Motion";
 import { CopyCommand } from "../components/AppBits";
 import { BREW_INSTALL } from "../site";
+import { useSeo } from "../useSeo";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
@@ -271,6 +272,12 @@ function FeatureGroup({ eyebrow, title, features }: Group) {
 }
 
 export function Features() {
+  useSeo({
+    title: "Features — Everything Crisp does",
+    description:
+      "Everything Crisp does: silence and filler removal, retake detection, hardware encoding, watch folders, Finder actions, and DaVinci Resolve handoff.",
+    path: "/features",
+  });
   return (
     <>
       {/* slim header — matches Pricing/LegalPage */}
