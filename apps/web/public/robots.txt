@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://crisp.rafay99.com/sitemap.xml
