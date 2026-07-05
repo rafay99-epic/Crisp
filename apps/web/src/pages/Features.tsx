@@ -275,7 +275,7 @@ export function Features() {
   useSeo({
     title: "Features — Everything Crisp does",
     description:
-      "Every cut, guardrail, and convenience in Crisp: silence and filler removal, retake detection, hardware encoding, watch folders, Finder actions, DaVinci Resolve handoff, and more.",
+      "Everything Crisp does: silence and filler removal, retake detection, hardware encoding, watch folders, Finder actions, and DaVinci Resolve handoff.",
     path: "/features",
   });
   return (

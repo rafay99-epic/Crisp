@@ -10,7 +10,8 @@ let out = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "og.png"
 let W = 1200, H = 630
 
 func rgb(_ r: Double, _ g: Double, _ b: Double, _ a: Double = 1) -> NSColor {
-    NSColor(calibratedRed: r / 255, green: g / 255, blue: b / 255, alpha: a)
+    // sRGB (not calibrated) so pixels match the intended hex in the deviceRGB bitmap.
+    NSColor(srgbRed: r / 255, green: g / 255, blue: b / 255, alpha: a)
 }
 let accent = rgb(10, 132, 255) // --color-accent
 let accentBright = rgb(125, 192, 255) // top of the blue gradient

@@ -21,7 +21,7 @@ export function Pricing() {
   useSeo({
     title: "Pricing — Crisp Pro, $8/month",
     description:
-      "One plan, everything unlocked. Crisp Pro is $8/month — automatic pause and filler removal, native macOS, never downscaled, your originals backed up. Billing via Polar.",
+      "One plan, everything unlocked. Crisp Pro is $8/month — automatic pause and filler removal, native macOS, never downscaled, originals backed up.",
     path: "/pricing",
   });
   return (

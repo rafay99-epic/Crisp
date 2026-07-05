@@ -15,7 +15,7 @@ export function Home() {
   useSeo({
     title: "Crisp — Make your recordings crisp.",
     description:
-      "A native macOS app that automatically removes long pauses and filler words from your screen recordings — audio and video together — for tight jump-cuts. 100% local. Your footage is never touched.",
+      "A native macOS app that automatically removes long pauses and filler words from your recordings — audio and video together — for tight jump-cuts. 100% local.",
     path: "/",
   });
   return (
