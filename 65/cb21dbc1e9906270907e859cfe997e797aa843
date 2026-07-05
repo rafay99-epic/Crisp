@@ -1,0 +1,27 @@
+apps/web/src/pages/Pricing.tsx
+  s_9ce072e4e6351f::t_69cb7493bae186 24
+apps/web/scripts/make-og.swift
+  s_9ce072e4e6351f::t_78381390d7daa2 13-14
+apps/web/src/pages/Home.tsx
+  s_9ce072e4e6351f::t_7456b0c367eb46 18
+apps/web/src/pages/Features.tsx
+  s_9ce072e4e6351f::t_1644333f94eb1d 278
+apps/web/index.html
+  s_9ce072e4e6351f::t_1df0e16c927a20 13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "65cb21dbc1e9906270907e859cfe997e797aa843",
+  "prompts": {},
+  "sessions": {
+    "s_9ce072e4e6351f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "04e151a8-7c63-41bb-9e04-39922efa01f3",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
