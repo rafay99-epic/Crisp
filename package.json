@@ -16,6 +16,6 @@
     "test:bench": "swift build --package-path research/FillerBench"
   },
   "devDependencies": {
-    "turbo": "^2.1.3"
+    "turbo": "^2.10.2"
   }
 }
