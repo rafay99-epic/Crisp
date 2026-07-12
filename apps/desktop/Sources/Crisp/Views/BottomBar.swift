@@ -18,14 +18,6 @@ struct BottomBar: View {
 
     private var pending: Int { model.waitingCount }
     private var doneCount: Int { model.doneCount }
-    /// Repeated-take removal needs the speech model to transcribe, which the fast
-    /// on-device filler model can't — so the toggle is unavailable only when that model
-    /// is the *active* backend (filler removal on and the model enabled). With fillers
-    /// off, whisper runs and retakes are available again. Matches `CleanModel.start`.
-    private var retakesUnavailable: Bool {
-        model.removeFillers && settings.fillerModelEnabled
-    }
-
     var body: some View {
         HStack(spacing: 14) {
             leading
@@ -65,22 +57,12 @@ struct BottomBar: View {
                         Text("Remove").font(.callout).foregroundStyle(.secondary).fixedSize()
                         Toggle("Fillers", isOn: $model.removeFillers)
                             .toggleStyle(.checkbox)
-                        // Retake removal needs the speech model to transcribe, which the
-                        // fast on-device filler model can't do — so it's unavailable while
-                        // that model is on (mirrors how captions are disabled), shown off
-                        // and greyed rather than silently falling back to whisper.
-                        Toggle("Repeated takes", isOn: Binding(
-                            get: { model.removeRetakes && !retakesUnavailable },
-                            set: { model.removeRetakes = $0 }))
+                        Toggle("Repeated takes", isOn: $model.removeRetakes)
                             .toggleStyle(.checkbox)
-                            .disabled(retakesUnavailable)
-                            .help(retakesUnavailable
-                                  ? "Unavailable with the fast on-device filler model — finding repeated takes needs the speech model to transcribe. Turn the fast model off in Settings to use this."
-                                  : "Remove a phrase you flubbed and immediately said again, keeping the corrected take.")
+                            .help("Remove a phrase you flubbed and immediately said again, keeping the corrected take.")
                     }
                 }
                 .fixedSize()        // keep the whole recipe row on one line
-                if retakesUnavailable { retakeUnavailableNote }
                 estimateRow
             }
         } else {
@@ -104,20 +86,6 @@ struct BottomBar: View {
             Text("Crisp only writes a cleaned copy \u{2014} your originals are untouched.")
                 .font(.caption).foregroundStyle(.secondary).lineLimit(1)
         }
-    }
-
-    /// Visible reason the "Repeated takes" toggle is greyed out (a tooltip alone
-    /// isn't discoverable): the fast filler model can't transcribe, so it can't find
-    /// retakes — point the user to the more powerful speech model.
-    @ViewBuilder private var retakeUnavailableNote: some View {
-        HStack(spacing: 4) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .imageScale(.small).foregroundStyle(.orange)
-            Text("The fast filler model can't find repeated takes.")
-            SettingsLink { Text("Switch in Settings") }
-                .buttonStyle(.link)
-        }
-        .font(.caption).foregroundStyle(.secondary).fixedSize()
     }
 
     /// Pre-flight estimate: a button to predict the time saved before cleaning, or

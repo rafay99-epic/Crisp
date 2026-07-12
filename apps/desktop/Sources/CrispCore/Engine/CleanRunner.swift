@@ -49,8 +49,8 @@ public struct CleanRunner {
         public var removeFillers: Bool
         /// Remove repeated takes: a phrase you flubbed and immediately said again, which
         /// shows up as a repeated run of words in the transcript (see crisp.retake). On
-        /// by default; needs a whisper transcript (the on-device filler model can't
-        /// transcribe, so retakes are skipped when the Core ML filler backend is active).
+        /// by default; always reads the whisper transcript, whichever backend finds
+        /// the fillers.
         public var removeRetakes: Bool
         public var backupDirectory: URL?
         /// >0 asks the engine to emit an N-bucket waveform for the UI (the bare
@@ -139,32 +139,25 @@ public struct CleanRunner {
         if let keepFile = options.keepFilePath {
             args += ["--keep-file", keepFile]
         } else {
-            // The fast on-device filler model can't transcribe, so captions can't be
-            // produced alongside it. Settings hard-disables captions while it's on; this
-            // guards every other entry point (per-row presets, the watcher, Shortcuts) so
-            // the fast model is never silently bypassed to run whisper just for captions.
+            // The fast on-device filler model only owns the filler step — retakes and
+            // captions still transcribe with whisper in the same clean.
             let usingFastFiller = options.removeFillers && options.fillerBackend == "coreml"
                 && options.fillerModelPath != nil
-            let wantCaptions = parameters.captionsFormat != "none" && !usingFastFiller
+            let wantCaptions = parameters.captionsFormat != "none"
             if wantCaptions { args += ["--captions", parameters.captionsFormat] }
-            // The model is needed for the transcript — for filler removal, captions
-            // (which re-time the same transcription onto the cut timeline), *or* retake
-            // detection (which matches repeated runs in that transcript).
-            let needsTranscript = options.removeFillers || wantCaptions || options.removeRetakes
+            // The model is needed for the transcript — for whisper-backend filler
+            // removal, captions (which re-time the same transcription onto the cut
+            // timeline), *or* retake detection (which matches repeated runs in that
+            // transcript). Mirrors the engine's `need_transcript`.
+            let needsTranscript = wantCaptions || options.removeRetakes
+                || (options.removeFillers && !usingFastFiller)
             if needsTranscript, let model = options.modelPath { args += ["--model", model] }
             // Opt-in: detect fillers with the on-device classifier instead of whisper.
-            // Retake removal needs a real transcript the classifier can't produce, so
-            // the engine simply skips retakes on the coreml backend (the caller sends
-            // removeRetakes=false here); it never silently switches back to whisper.
             if usingFastFiller, let fillerModel = options.fillerModelPath {
                 args += ["--filler-backend", "coreml", "--filler-model", fillerModel]
             }
             if !options.removeFillers { args.append("--no-fillers") }
-            // Belt-and-suspenders: the classifier backend produces no transcript, so
-            // retakes are impossible there. Refuse to emit the flag when it's active —
-            // callers already gate this and the engine backstops it, but this makes the
-            // pure argv unable to express the illegal "retakes + coreml" combination.
-            if options.removeRetakes && !usingFastFiller {
+            if options.removeRetakes {
                 args += ["--retake-sensitivity", parameters.retakeSensitivity]
             } else {
                 args.append("--no-retakes")

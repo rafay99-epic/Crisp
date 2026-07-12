@@ -86,8 +86,8 @@ DEFAULT_FILLER_BACKEND = "whisper"  # whisper | coreml (fast on-device classifie
 
 # Retake removal (see crisp.retake): when you misspeak and immediately say a phrase
 # again, the first attempt is a repeated run of words in the transcript — cut it and
-# keep the corrected take. Conservative defaults so it can run automatically. Needs a
-# real whisper transcript (the coreml filler backend doesn't transcribe).
+# keep the corrected take. Conservative defaults so it can run automatically. Reads
+# the whisper transcript (transcribed alongside the coreml filler backend if needed).
 DEFAULT_REMOVE_RETAKES = True
 # Each sensitivity preset is a full policy, not just a word count:
 #   min_run          — matched words needed to treat a pause-anchored repeat as a redo.
