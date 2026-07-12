@@ -1,0 +1,42 @@
+apps/desktop/Sources/Crisp/Views/SettingsView.swift
+  s_5d7306ec3dae64::t_5fcd6982006aaa 394
+  s_5d7306ec3dae64::t_5b28882a84b029 347-354,356-358,362
+  s_5d7306ec3dae64::t_c14f3785bc5918 376
+  s_5d7306ec3dae64::t_0e03d4050d04b9 147-148
+packages/engine/crisp/config.py
+  s_5d7306ec3dae64::t_93708c7fe83c28 89-90
+apps/desktop/Sources/Crisp/Services/Cleaning/CleanModel.swift
+  s_5d7306ec3dae64::t_0e6140834c8b0d 18-19
+  s_5d7306ec3dae64::t_e9c22a169b525b 157-159
+apps/desktop/Sources/Crisp/Views/Onboarding/OnboardingView.swift
+  s_5d7306ec3dae64::t_f092b71d9199e1 75
+apps/desktop/Sources/Crisp/Views/ContentView.swift
+  s_5d7306ec3dae64::t_690f5f759bd3ca 33-34,38-39,42
+apps/desktop/Sources/CrispCore/Engine/CleanRunner.swift
+  s_5d7306ec3dae64::t_b49a7e5eba2380 142-143,146,148-153,160
+  s_5d7306ec3dae64::t_25a11fc7676e5b 52-53
+apps/desktop/Tests/CrispTests/CrispTests.swift
+  s_5d7306ec3dae64::t_61f7358a50941c 711-731
+packages/engine/crisp/pipeline.py
+  s_5d7306ec3dae64::t_2ac7c8013bfe2b 461-467,469
+  s_5d7306ec3dae64::t_bbd29b61704462 570-572,575-591
+  s_5d7306ec3dae64::t_c38838f9fd5125 592-593
+apps/desktop/Sources/Crisp/Views/BottomBar.swift
+  s_5d7306ec3dae64::t_f4ab753e3d7703 60,62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "ac58c14879a5fc93e3afa2cb9337f0d0047b0883",
+  "prompts": {},
+  "sessions": {
+    "s_5d7306ec3dae64": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "77425f10-e18f-4c4b-98a2-841aa3f9bb13",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Abdul Rafay <99marafay@gmail.com>"
+    }
+  }
+}
