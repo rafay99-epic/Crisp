@@ -144,21 +144,8 @@ struct SettingsView: View {
                 ForEach(RetakeSensitivity.allCases) { Text($0.label).tag($0.rawValue) }
             }
             .pickerStyle(.segmented)
-            // Retake detection reads the transcript, which the fast on-device filler
-            // model can't produce — so it's unavailable while that model is on, the
-            // same way captions are. Disable the control and say so clearly.
-            .disabled(settings.fillerModelEnabled)
-            if settings.fillerModelEnabled {
-                Label {
-                    Text("**Not available with our custom fast model.** Finding repeated takes needs the speech model to read your words \u{2014} the fast filler model can't transcribe. Turn it off (below) to use the more powerful speech model.")
-                        .font(.caption).foregroundStyle(.secondary)
-                } icon: {
-                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
-                }
-            } else {
-                Text(RetakeSensitivity(rawValue: settings.retakeSensitivity)?.detail ?? "")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
+            Text(RetakeSensitivity(rawValue: settings.retakeSensitivity)?.detail ?? "")
+                .font(.caption).foregroundStyle(.secondary)
         } header: {
             SettingsSectionHeader("Repeated takes",
                 help: "When you flub a line and immediately say it again, Crisp keeps the corrected take and cuts the first. Turn it on/off per clean with \u{201C}Remove repeated takes.\u{201D} Needs the speech model.")
@@ -300,18 +287,6 @@ struct SettingsView: View {
             Picker("Subtitle files", selection: $settings.captionsFormat) {
                 ForEach(CaptionFormat.allCases) { Text($0.label).tag($0.rawValue) }
             }
-            // Captions are transcribed, which only the speech model can do — the custom
-            // fast filler model (Wren) detects filler audio but can't produce text. So
-            // captions are unavailable while the fast model is on (it's cleared on enable).
-            .disabled(settings.fillerModelEnabled)
-            if settings.fillerModelEnabled {
-                Label {
-                    Text("**This feature might not be available with our custom fast model.** Captions need the speech model to transcribe \u{2014} turn off the fast filler model (Cutting tab) to add them.")
-                        .font(.caption).foregroundStyle(.secondary)
-                } icon: {
-                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
-                }
-            }
         } header: {
             SettingsSectionHeader("Captions",
                 help: "Writes a subtitle file (.srt or .vtt) next to each cleaned video \u{2014} ready for YouTube, Premiere, or the web. Crisp re-times the subtitles to the cut video so they stay in sync after pauses and fillers are removed (filler words are left out). Captions are transcribed, so they need the speech model.")
@@ -369,25 +344,22 @@ struct SettingsView: View {
 
     @ViewBuilder private var speechModelSection: some View {
         Section {
-            if settings.fillerModelEnabled {
-                // Mutually exclusive with the on-device filler model: when Wren is on,
-                // whisper isn't used for fillers, so its picker is hidden here.
-                Label(settings.captionsFormat == "none"
-                      ? "The on-device filler model (below) is handling filler detection — the speech model isn't used."
-                      : "The on-device filler model (below) handles fillers; the speech model is still used for captions.",
-                      systemImage: "bird")
-                    .font(.callout).foregroundStyle(.secondary)
-            } else {
-                Picker("Model", selection: activeModelBinding) {
-                    ForEach(ModelCatalog.all) { Text($0.displayName).tag($0.id) }
-                }
-                // Don't switch mid-download, or mid-clean (the running clean already
-                // locked in its model — switching would only mislead).
-                .disabled(modelStore.state.isBusy || model.isRunning)
-                Text(modelStore.spec.summary)
-                    .font(.caption).foregroundStyle(.secondary)
-                ModelInstallControl(store: modelStore, allowRemove: true, removeDisabled: model.isRunning)
+            Picker("Model", selection: activeModelBinding) {
+                ForEach(ModelCatalog.all) { Text($0.displayName).tag($0.id) }
             }
+            // Don't switch mid-download, or mid-clean (the running clean already
+            // locked in its model — switching would only mislead).
+            .disabled(modelStore.state.isBusy || model.isRunning)
+            Text(modelStore.spec.summary)
+                .font(.caption).foregroundStyle(.secondary)
+            if settings.fillerModelEnabled {
+                // Wren owns the filler step; whisper still transcribes for repeated
+                // takes and captions in the same clean.
+                Label("The on-device filler model (below) handles fillers; the speech model still finds repeated takes and writes captions.",
+                      systemImage: "bird")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            ModelInstallControl(store: modelStore, allowRemove: true, removeDisabled: model.isRunning)
         } header: {
             SettingsSectionHeader("Speech model",
                 help: "Used to find filler words (and to write captions). Larger models catch more fillers and place cuts more precisely, but download and run slower. Pauses are detected from the audio either way.")
@@ -401,16 +373,7 @@ struct SettingsView: View {
                 set: { on in
                     settings.fillerModelEnabled = on
                     AppInfo.logger("model").info("filler model \(on ? "enabled" : "disabled")")
-                    if on {
-                        // Hard-disable captions: they need whisper (the fast model can't
-                        // transcribe), so clear any caption setting rather than silently
-                        // falling back to the speech model and bypassing the fast model.
-                        if settings.captionsFormat != "none" {
-                            settings.captionsFormat = "none"
-                            AppInfo.logger("model").info("captions cleared — unavailable with the fast filler model")
-                        }
-                        Task { await fillerModelStore.refresh() }
-                    }
+                    if on { Task { await fillerModelStore.refresh() } }
                 })
     }
     private var activeFillerModelBinding: Binding<String> {
@@ -428,7 +391,7 @@ struct SettingsView: View {
                 .disabled(model.isRunning)
             if settings.fillerModelEnabled {
                 Label {
-                    Text("**English only.** Experimental — built for clear English speech. It can occasionally cut a real word, and it won't work on other languages. For non-English audio, captions, or removing repeated takes, turn this off and use the speech model.")
+                    Text("**English only.** Experimental — built for clear English speech. It can occasionally cut a real word, and it won't work on other languages. It only finds fillers — repeated takes and captions still use the speech model. For non-English audio, turn this off.")
                         .font(.caption).foregroundStyle(.secondary)
                 } icon: {
                     Image(systemName: "exclamationmark.triangle.fill")
