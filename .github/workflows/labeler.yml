@@ -35,7 +35,7 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - uses: actions/labeler@v6
+      - uses: actions/labeler@v6.2.0
         with:
           configuration-path: .github/labeler.yml
           sync-labels: true
