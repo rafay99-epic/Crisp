@@ -17,9 +17,14 @@ cd "$(dirname "$0")/.."          # → apps/desktop
 VENDOR="$PWD/.vendor"
 DL="$VENDOR/dl"
 BIN="$VENDOR/bin"
+# Upstream licence texts for the binaries we ship. build.sh stages these into
+# Contents/Resources/engine/licenses. The bundled ffmpeg is a GPLv3 build, which
+# REQUIRES conveying the licence with the binary; Crisp's own Apache-2.0 LICENSE
+# does not cover it. Kept out of bin/ so the signing loop doesn't walk text files.
+LIC="$VENDOR/licenses"
 
 [[ "${1:-}" == "--clean" ]] && rm -rf "$VENDOR"
-mkdir -p "$DL" "$BIN"
+mkdir -p "$DL" "$BIN" "$LIC"
 
 # ---- Pinned sources -------------------------------------------------------
 FFMPEG_URL="https://ffmpeg.martin-riedl.de/download/macos/arm64/1778761665_8.1.1/ffmpeg.zip"
@@ -29,6 +34,11 @@ FFPROBE_SHA="135e70d2518beeb568183952dbc4bdeca1628dd49a7376d57e6b27dbc57d209f"
 PY_URL="https://github.com/astral-sh/python-build-standalone/releases/download/20260610/cpython-3.13.14+20260610-aarch64-apple-darwin-install_only_stripped.tar.gz"
 PY_SHA="79daa8e9dea1e64ad50aebb05a807289023a474c2020b72361eb44d67fa2401e"
 WHISPER_TAG="v1.9.0"
+# The licence for the ffmpeg build above, taken from FFmpeg's own tree at the
+# matching tag. That build is configured --enable-gpl --enable-version3, so GPLv3
+# is the operative licence (not the LGPL that a default build would carry).
+FFMPEG_LICENSE_URL="https://raw.githubusercontent.com/FFmpeg/FFmpeg/n8.1.1/COPYING.GPLv3"
+FFMPEG_LICENSE_SHA="8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
 
 verify() {  # file expected-sha
   local got; got=$(shasum -a 256 "$1" | awk '{print $1}')
@@ -57,6 +67,11 @@ if [[ ! -x "$BIN/ffprobe" ]]; then
   chmod +x "$BIN/ffprobe"
 fi
 
+if [[ ! -f "$LIC/ffmpeg-COPYING.GPLv3.txt" ]]; then
+  fetch "$FFMPEG_LICENSE_URL" "$DL/ffmpeg-gplv3.txt" "$FFMPEG_LICENSE_SHA"
+  cp "$DL/ffmpeg-gplv3.txt" "$LIC/ffmpeg-COPYING.GPLv3.txt"
+fi
+
 # ---- python (stdlib-only runtime) -----------------------------------------
 if [[ ! -x "$BIN/python/bin/python3" ]]; then
   fetch "$PY_URL" "$DL/python.tar.gz" "$PY_SHA"
@@ -69,6 +84,7 @@ if [[ ! -x "$BIN/python/bin/python3" ]]; then
   rm -f "$DL"/python/bin/pip*(N) "$DL"/python/bin/idle*(N) "$DL"/python/bin/2to3*(N)
   mv "$DL/python" "$BIN/python"
 fi
+cp "$BIN/python/lib/python3.13/LICENSE.txt" "$LIC/python-LICENSE.txt"
 
 # ---- whisper-cli (built from a pinned tag) --------------------------------
 if [[ ! -x "$BIN/whisper-cli" ]]; then
@@ -87,6 +103,8 @@ if [[ ! -x "$BIN/whisper-cli" ]]; then
   cp "$SRC/build/bin/whisper-cli" "$BIN/whisper-cli"
   chmod +x "$BIN/whisper-cli"
 fi
+[[ -f "$DL/whisper.cpp/LICENSE" ]] && cp "$DL/whisper.cpp/LICENSE" "$LIC/whisper.cpp-LICENSE.txt"
 
 echo "✅ Vendored engine binaries → $BIN"
+echo "✅ Upstream licences        → $LIC"
 du -sh "$BIN"/* 2>/dev/null || true

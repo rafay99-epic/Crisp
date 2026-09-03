@@ -83,6 +83,11 @@ cp ../../packages/engine/clean_video.py "$APP/Contents/Resources/engine/clean_vi
 cp -R ../../packages/engine/crisp "$APP/Contents/Resources/engine/crisp"
 find "$APP/Contents/Resources/engine/crisp" -name __pycache__ -type d -prune -exec rm -rf {} +
 cp -R .vendor/bin "$APP/Contents/Resources/engine/bin"
+# Upstream licence texts for the bundled binaries (see Scripts/vendor.sh). The
+# ffmpeg build is GPLv3, which requires shipping its licence alongside it; Crisp's
+# own Apache-2.0 LICENSE does not cover the third-party programs it drives. Kept
+# outside engine/bin so the signing loop below doesn't walk plain text files.
+cp -R .vendor/licenses "$APP/Contents/Resources/engine/licenses"
 # The on-device filler detector (swift-built, not vendored). Lives beside
 # whisper-cli in engine/bin so the engine-bin signing loop below covers it and
 # CleanEngine.bundledTool("crisp-filler") finds it.

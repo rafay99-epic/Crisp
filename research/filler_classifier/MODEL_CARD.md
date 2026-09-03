@@ -76,5 +76,5 @@ https://huggingface.co/rafay99-epic/crisp-models/resolve/v0.0.5/Wren.mlmodel
 
 ## License
 
-Code: GPL-3.0 (Crisp). Model weights derive from PodcastFillers (CC).
+Code: Apache-2.0 (Crisp). Model weights derive from PodcastFillers (CC).
 Credited to Syntax Lab Technology / Abdul Rafay.

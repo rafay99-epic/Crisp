@@ -24,7 +24,7 @@ struct LicenseSettingsView: View {
         } header: {
             Text("License")
         } footer: {
-            Text("Crisp is \(PolarConfig.priceText). Your purchase supports development — the app stays open source (GPL-3.0).")
+            Text("Crisp is \(PolarConfig.priceText). Your purchase supports development — the app stays open source (Apache-2.0).")
                 .font(.caption).foregroundStyle(.secondary)
         }
     }
