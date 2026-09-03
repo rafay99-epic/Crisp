@@ -1,0 +1,137 @@
+[
+  {
+    "a": "were",
+    "b": "we're",
+    "ratio": 0.8888888888888888
+  },
+  {
+    "a": "colour",
+    "b": "color",
+    "ratio": 0.9090909090909091
+  },
+  {
+    "a": "open",
+    "b": "opens",
+    "ratio": 0.8888888888888888
+  },
+  {
+    "a": "the",
+    "b": "they",
+    "ratio": 0.8571428571428571
+  },
+  {
+    "a": "is",
+    "b": "it",
+    "ratio": 0.5
+  },
+  {
+    "a": "in",
+    "b": "on",
+    "ratio": 0.5
+  },
+  {
+    "a": "startup",
+    "b": "enterprise",
+    "ratio": 0.11764705882352941
+  },
+  {
+    "a": "parser",
+    "b": "parse",
+    "ratio": 0.9090909090909091
+  },
+  {
+    "a": "today",
+    "b": "todays",
+    "ratio": 0.9090909090909091
+  },
+  {
+    "a": "going",
+    "b": "gone",
+    "ratio": 0.6666666666666666
+  },
+  {
+    "a": "api",
+    "b": "api",
+    "ratio": 1.0
+  },
+  {
+    "a": "",
+    "b": "",
+    "ratio": 1.0
+  },
+  {
+    "a": "a",
+    "b": "",
+    "ratio": 0.0
+  },
+  {
+    "a": "hello",
+    "b": "hello",
+    "ratio": 1.0
+  },
+  {
+    "a": "hello",
+    "b": "olleh",
+    "ratio": 0.4
+  },
+  {
+    "a": "abcdef",
+    "b": "abcdeg",
+    "ratio": 0.8333333333333334
+  },
+  {
+    "a": "kitten",
+    "b": "sitting",
+    "ratio": 0.6153846153846154
+  },
+  {
+    "a": "interface",
+    "b": "interfaces",
+    "ratio": 0.9473684210526315
+  },
+  {
+    "a": "record",
+    "b": "recorded",
+    "ratio": 0.8571428571428571
+  },
+  {
+    "a": "slow",
+    "b": "slowly",
+    "ratio": 0.8
+  },
+  {
+    "a": "performance",
+    "b": "performances",
+    "ratio": 0.9565217391304348
+  },
+  {
+    "a": "database",
+    "b": "databases",
+    "ratio": 0.9411764705882353
+  },
+  {
+    "a": "value",
+    "b": "values",
+    "ratio": 0.9090909090909091
+  },
+  {
+    "a": "aaaa",
+    "b": "aaab",
+    "ratio": 0.75
+  },
+  {
+    "a": "abab",
+    "b": "baba",
+    "ratio": 0.75
+  },
+  {
+    "a": "xyz",
+    "b": "abc",
+    "ratio": 0.0
+  },
+  {
+    "a": "swift",
+    "b": "swifty",
+    "ratio": 0.9090909090909091
+  }
+]

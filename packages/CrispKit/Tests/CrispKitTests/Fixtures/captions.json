@@ -1,0 +1,362 @@
+[
+  {
+    "name": "wrapping-and-splitting",
+    "words": [
+      {
+        "text": "this",
+        "start": 0.0,
+        "end": 0.22
+      },
+      {
+        "text": "is",
+        "start": 0.25,
+        "end": 0.47
+      },
+      {
+        "text": "a",
+        "start": 0.5,
+        "end": 0.72
+      },
+      {
+        "text": "fairly",
+        "start": 0.75,
+        "end": 0.97
+      },
+      {
+        "text": "long",
+        "start": 1.0,
+        "end": 1.22
+      },
+      {
+        "text": "sentence",
+        "start": 1.25,
+        "end": 1.47
+      },
+      {
+        "text": "that",
+        "start": 1.5,
+        "end": 1.72
+      },
+      {
+        "text": "will",
+        "start": 1.75,
+        "end": 1.97
+      },
+      {
+        "text": "certainly",
+        "start": 2.0,
+        "end": 2.22
+      },
+      {
+        "text": "need",
+        "start": 2.25,
+        "end": 2.47
+      },
+      {
+        "text": "to",
+        "start": 2.5,
+        "end": 2.72
+      },
+      {
+        "text": "wrap",
+        "start": 2.75,
+        "end": 2.97
+      },
+      {
+        "text": "onto",
+        "start": 3.0,
+        "end": 3.22
+      },
+      {
+        "text": "a",
+        "start": 3.25,
+        "end": 3.47
+      },
+      {
+        "text": "second",
+        "start": 3.5,
+        "end": 3.72
+      },
+      {
+        "text": "line",
+        "start": 3.75,
+        "end": 3.97
+      },
+      {
+        "text": "and",
+        "start": 4.0,
+        "end": 4.22
+      },
+      {
+        "text": "then",
+        "start": 4.25,
+        "end": 4.47
+      },
+      {
+        "text": "start",
+        "start": 4.5,
+        "end": 4.72
+      },
+      {
+        "text": "a",
+        "start": 4.75,
+        "end": 4.97
+      },
+      {
+        "text": "brand",
+        "start": 5.0,
+        "end": 5.22
+      },
+      {
+        "text": "new",
+        "start": 5.25,
+        "end": 5.47
+      },
+      {
+        "text": "cue",
+        "start": 5.5,
+        "end": 5.72
+      },
+      {
+        "text": "entirely",
+        "start": 5.75,
+        "end": 5.97
+      }
+    ],
+    "keep": [
+      [
+        0.0,
+        12.0
+      ]
+    ],
+    "expected": {
+      "cues": [
+        {
+          "start": 0.0,
+          "end": 3.97,
+          "lines": [
+            "this is a fairly long sentence that will",
+            "certainly need to wrap onto a second line"
+          ]
+        },
+        {
+          "start": 4.0,
+          "end": 5.97,
+          "lines": [
+            "and then start a brand new cue entirely"
+          ]
+        }
+      ],
+      "srt": "1\r\n00:00:00,000 --> 00:00:03,970\r\nthis is a fairly long sentence that will\r\ncertainly need to wrap onto a second line\r\n\r\n2\r\n00:00:04,000 --> 00:00:05,970\r\nand then start a brand new cue entirely\r\n\r\n",
+      "vtt": "WEBVTT\n\n00:00:00.000 --> 00:00:03.970\nthis is a fairly long sentence that will\ncertainly need to wrap onto a second line\n\n00:00:04.000 --> 00:00:05.970\nand then start a brand new cue entirely\n\n"
+    }
+  },
+  {
+    "name": "sentences-fillers-and-gaps",
+    "words": [
+      {
+        "text": "Hello",
+        "start": 0.0,
+        "end": 0.4
+      },
+      {
+        "text": "there.",
+        "start": 0.45,
+        "end": 0.9
+      },
+      {
+        "text": "um",
+        "start": 1.0,
+        "end": 1.3
+      },
+      {
+        "text": "How",
+        "start": 2.0,
+        "end": 2.3
+      },
+      {
+        "text": "are",
+        "start": 2.35,
+        "end": 2.6
+      },
+      {
+        "text": "you?",
+        "start": 2.65,
+        "end": 3.0
+      },
+      {
+        "text": "Fine.",
+        "start": 4.2,
+        "end": 4.7
+      }
+    ],
+    "keep": [
+      [
+        0.0,
+        1.0
+      ],
+      [
+        1.9,
+        5.0
+      ]
+    ],
+    "expected": {
+      "cues": [
+        {
+          "start": 0.0,
+          "end": 0.9,
+          "lines": [
+            "Hello there."
+          ]
+        },
+        {
+          "start": 1.1,
+          "end": 2.1,
+          "lines": [
+            "How are you?"
+          ]
+        },
+        {
+          "start": 3.3,
+          "end": 4.15,
+          "lines": [
+            "Fine."
+          ]
+        }
+      ],
+      "srt": "1\r\n00:00:00,000 --> 00:00:00,900\r\nHello there.\r\n\r\n2\r\n00:00:01,100 --> 00:00:02,100\r\nHow are you?\r\n\r\n3\r\n00:00:03,300 --> 00:00:04,150\r\nFine.\r\n\r\n",
+      "vtt": "WEBVTT\n\n00:00:00.000 --> 00:00:00.900\nHello there.\n\n00:00:01.100 --> 00:00:02.100\nHow are you?\n\n00:00:03.300 --> 00:00:04.150\nFine.\n\n"
+    }
+  },
+  {
+    "name": "short-cue-stretching",
+    "words": [
+      {
+        "text": "a",
+        "start": 0.0,
+        "end": 0.1
+      },
+      {
+        "text": "b",
+        "start": 0.15,
+        "end": 0.25
+      },
+      {
+        "text": "c",
+        "start": 0.3,
+        "end": 0.4
+      }
+    ],
+    "keep": [
+      [
+        0.0,
+        1.0
+      ]
+    ],
+    "expected": {
+      "cues": [
+        {
+          "start": 0.0,
+          "end": 0.85,
+          "lines": [
+            "a b c"
+          ]
+        }
+      ],
+      "srt": "1\r\n00:00:00,000 --> 00:00:00,850\r\na b c\r\n\r\n",
+      "vtt": "WEBVTT\n\n00:00:00.000 --> 00:00:00.850\na b c\n\n"
+    }
+  },
+  {
+    "name": "straddling-and-removed",
+    "words": [
+      {
+        "text": "straddles",
+        "start": 0.5,
+        "end": 1.5
+      },
+      {
+        "text": "gap",
+        "start": 2.0,
+        "end": 2.4
+      },
+      {
+        "text": "kept",
+        "start": 3.1,
+        "end": 3.5
+      }
+    ],
+    "keep": [
+      [
+        0.0,
+        1.0
+      ],
+      [
+        3.0,
+        4.0
+      ]
+    ],
+    "expected": {
+      "cues": [
+        {
+          "start": 0.5,
+          "end": 1.5,
+          "lines": [
+            "straddles kept"
+          ]
+        }
+      ],
+      "srt": "1\r\n00:00:00,500 --> 00:00:01,500\r\nstraddles kept\r\n\r\n",
+      "vtt": "WEBVTT\n\n00:00:00.500 --> 00:00:01.500\nstraddles kept\n\n"
+    }
+  },
+  {
+    "name": "vtt-escaping",
+    "words": [
+      {
+        "text": "<b>markup</b>",
+        "start": 0.0,
+        "end": 0.5
+      },
+      {
+        "text": "A&B",
+        "start": 0.6,
+        "end": 1.0
+      }
+    ],
+    "keep": [
+      [
+        0.0,
+        2.0
+      ]
+    ],
+    "expected": {
+      "cues": [
+        {
+          "start": 0.0,
+          "end": 1.0,
+          "lines": [
+            "<b>markup</b> A&B"
+          ]
+        }
+      ],
+      "srt": "1\r\n00:00:00,000 --> 00:00:01,000\r\n<b>markup</b> A&B\r\n\r\n",
+      "vtt": "WEBVTT\n\n00:00:00.000 --> 00:00:01.000\n&lt;b&gt;markup&lt;/b&gt; A&amp;B\n\n"
+    }
+  },
+  {
+    "name": "empty",
+    "words": [],
+    "keep": [
+      [
+        0.0,
+        1.0
+      ]
+    ],
+    "expected": {
+      "cues": [],
+      "srt": "",
+      "vtt": "WEBVTT\n\n"
+    }
+  }
+]

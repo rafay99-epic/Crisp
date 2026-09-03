@@ -14,6 +14,7 @@ on:
     paths:
       - "apps/desktop/**"
       - "packages/engine/**"
+      - "packages/CrispKit/**"
       - ".github/workflows/nightly.yml"
       # Docs-only changes never need a build — skip .md-only diffs (last-match-wins).
       - "!**/*.md"
@@ -46,6 +47,21 @@ jobs:
       - name: Run engine unit tests
         working-directory: packages/engine
         run: python3 -m unittest discover -s tests -t .
+      # CrispKit is the platform-free half of the engine, ported to Swift ahead of
+      # the media layer. Its parity suite asserts against fixtures generated FROM
+      # the Python engine, so the two cannot silently diverge while both exist.
+      - name: Run CrispKit tests
+        working-directory: packages/CrispKit
+        run: swift test
+      - name: Fixtures are up to date with the Python engine
+        working-directory: .
+        run: |
+          python3 packages/CrispKit/Tools/generate-fixtures.py
+          if ! git diff --quiet -- packages/CrispKit/Tests/CrispKitTests/Fixtures; then
+            echo "::error::CrispKit fixtures are stale. Run: python3 packages/CrispKit/Tools/generate-fixtures.py"
+            git diff --stat -- packages/CrispKit/Tests/CrispKitTests/Fixtures
+            exit 1
+          fi
       - name: Install SwiftLint
         run: brew install swiftlint
       - name: Lint

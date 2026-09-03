@@ -1,0 +1,427 @@
+[
+  {
+    "token": "um",
+    "normalized": "um",
+    "isFiller": true
+  },
+  {
+    "token": "umm",
+    "normalized": "umm",
+    "isFiller": true
+  },
+  {
+    "token": "uh",
+    "normalized": "uh",
+    "isFiller": true
+  },
+  {
+    "token": "uhh",
+    "normalized": "uhh",
+    "isFiller": true
+  },
+  {
+    "token": "uhm",
+    "normalized": "uhm",
+    "isFiller": true
+  },
+  {
+    "token": "uhmm",
+    "normalized": "uhmm",
+    "isFiller": true
+  },
+  {
+    "token": "umh",
+    "normalized": "umh",
+    "isFiller": true
+  },
+  {
+    "token": "ummh",
+    "normalized": "ummh",
+    "isFiller": true
+  },
+  {
+    "token": "er",
+    "normalized": "er",
+    "isFiller": true
+  },
+  {
+    "token": "err",
+    "normalized": "err",
+    "isFiller": true
+  },
+  {
+    "token": "erm",
+    "normalized": "erm",
+    "isFiller": true
+  },
+  {
+    "token": "errm",
+    "normalized": "errm",
+    "isFiller": true
+  },
+  {
+    "token": "hm",
+    "normalized": "hm",
+    "isFiller": true
+  },
+  {
+    "token": "hmm",
+    "normalized": "hmm",
+    "isFiller": true
+  },
+  {
+    "token": "huh",
+    "normalized": "huh",
+    "isFiller": true
+  },
+  {
+    "token": "hu",
+    "normalized": "hu",
+    "isFiller": true
+  },
+  {
+    "token": "humm",
+    "normalized": "humm",
+    "isFiller": true
+  },
+  {
+    "token": "mm",
+    "normalized": "mm",
+    "isFiller": true
+  },
+  {
+    "token": "mmm",
+    "normalized": "mmm",
+    "isFiller": true
+  },
+  {
+    "token": "mhm",
+    "normalized": "mhm",
+    "isFiller": true
+  },
+  {
+    "token": "mhmm",
+    "normalized": "mhmm",
+    "isFiller": true
+  },
+  {
+    "token": "mmhmm",
+    "normalized": "mmhmm",
+    "isFiller": true
+  },
+  {
+    "token": "ah",
+    "normalized": "ah",
+    "isFiller": true
+  },
+  {
+    "token": "ahh",
+    "normalized": "ahh",
+    "isFiller": true
+  },
+  {
+    "token": "ahem",
+    "normalized": "ahem",
+    "isFiller": true
+  },
+  {
+    "token": "aw",
+    "normalized": "aw",
+    "isFiller": true
+  },
+  {
+    "token": "aww",
+    "normalized": "aww",
+    "isFiller": true
+  },
+  {
+    "token": "uh-huh",
+    "normalized": "uh-huh",
+    "isFiller": true
+  },
+  {
+    "token": "mm-hmm",
+    "normalized": "mm-hmm",
+    "isFiller": true
+  },
+  {
+    "token": "ummmm",
+    "normalized": "ummmm",
+    "isFiller": true
+  },
+  {
+    "token": "uhhhh",
+    "normalized": "uhhhh",
+    "isFiller": true
+  },
+  {
+    "token": "ummmh",
+    "normalized": "ummmh",
+    "isFiller": true
+  },
+  {
+    "token": "uhhm",
+    "normalized": "uhhm",
+    "isFiller": true
+  },
+  {
+    "token": "huhh",
+    "normalized": "huhh",
+    "isFiller": true
+  },
+  {
+    "token": "hummm",
+    "normalized": "hummm",
+    "isFiller": true
+  },
+  {
+    "token": "hmmmm",
+    "normalized": "hmmmm",
+    "isFiller": true
+  },
+  {
+    "token": "errrm",
+    "normalized": "errrm",
+    "isFiller": true
+  },
+  {
+    "token": "aahhh",
+    "normalized": "aahhh",
+    "isFiller": true
+  },
+  {
+    "token": "awwww",
+    "normalized": "awwww",
+    "isFiller": true
+  },
+  {
+    "token": "mmmm",
+    "normalized": "mmmm",
+    "isFiller": true
+  },
+  {
+    "token": "mmhm",
+    "normalized": "mmhm",
+    "isFiller": true
+  },
+  {
+    "token": "uhhuh",
+    "normalized": "uhhuh",
+    "isFiller": true
+  },
+  {
+    "token": "uh huh",
+    "normalized": "uh huh",
+    "isFiller": true
+  },
+  {
+    "token": "mm hmm",
+    "normalized": "mm hmm",
+    "isFiller": true
+  },
+  {
+    "token": "mhmmm",
+    "normalized": "mhmmm",
+    "isFiller": true
+  },
+  {
+    "token": "Um",
+    "normalized": "um",
+    "isFiller": true
+  },
+  {
+    "token": "UH",
+    "normalized": "uh",
+    "isFiller": true
+  },
+  {
+    "token": "Hmm.",
+    "normalized": "hmm",
+    "isFiller": true
+  },
+  {
+    "token": "um,",
+    "normalized": "um",
+    "isFiller": true
+  },
+  {
+    "token": "—uh—",
+    "normalized": "uh",
+    "isFiller": true
+  },
+  {
+    "token": "(um)",
+    "normalized": "um",
+    "isFiller": true
+  },
+  {
+    "token": "[uh]",
+    "normalized": "uh",
+    "isFiller": true
+  },
+  {
+    "token": "\"hmm\"",
+    "normalized": "hmm",
+    "isFiller": true
+  },
+  {
+    "token": "um…",
+    "normalized": "um",
+    "isFiller": true
+  },
+  {
+    "token": "'uh'",
+    "normalized": "uh",
+    "isFiller": true
+  },
+  {
+    "token": "away",
+    "normalized": "away",
+    "isFiller": false
+  },
+  {
+    "token": "him",
+    "normalized": "him",
+    "isFiller": false
+  },
+  {
+    "token": "hum",
+    "normalized": "hum",
+    "isFiller": false
+  },
+  {
+    "token": "human",
+    "normalized": "human",
+    "isFiller": false
+  },
+  {
+    "token": "here",
+    "normalized": "here",
+    "isFiller": false
+  },
+  {
+    "token": "the",
+    "normalized": "the",
+    "isFiller": false
+  },
+  {
+    "token": "error",
+    "normalized": "error",
+    "isFiller": false
+  },
+  {
+    "token": "answer",
+    "normalized": "answer",
+    "isFiller": false
+  },
+  {
+    "token": "awesome",
+    "normalized": "awesome",
+    "isFiller": false
+  },
+  {
+    "token": "murmur",
+    "normalized": "murmur",
+    "isFiller": false
+  },
+  {
+    "token": "mummy",
+    "normalized": "mummy",
+    "isFiller": false
+  },
+  {
+    "token": "ahead",
+    "normalized": "ahead",
+    "isFiller": false
+  },
+  {
+    "token": "aha",
+    "normalized": "aha",
+    "isFiller": false
+  },
+  {
+    "token": "what",
+    "normalized": "what",
+    "isFiller": false
+  },
+  {
+    "token": "america",
+    "normalized": "america",
+    "isFiller": false
+  },
+  {
+    "token": "summer",
+    "normalized": "summer",
+    "isFiller": false
+  },
+  {
+    "token": "hammer",
+    "normalized": "hammer",
+    "isFiller": false
+  },
+  {
+    "token": "erm.. ",
+    "normalized": "erm",
+    "isFiller": true
+  },
+  {
+    "token": "auto",
+    "normalized": "auto",
+    "isFiller": false
+  },
+  {
+    "token": "moment",
+    "normalized": "moment",
+    "isFiller": false
+  },
+  {
+    "token": "humble",
+    "normalized": "humble",
+    "isFiller": false
+  },
+  {
+    "token": "although",
+    "normalized": "although",
+    "isFiller": false
+  },
+  {
+    "token": "who",
+    "normalized": "who",
+    "isFiller": false
+  },
+  {
+    "token": "how",
+    "normalized": "how",
+    "isFiller": false
+  },
+  {
+    "token": "",
+    "normalized": "",
+    "isFiller": false
+  },
+  {
+    "token": " ",
+    "normalized": "",
+    "isFiller": false
+  },
+  {
+    "token": "...",
+    "normalized": "",
+    "isFiller": false
+  },
+  {
+    "token": "-",
+    "normalized": "",
+    "isFiller": false
+  },
+  {
+    "token": "…",
+    "normalized": "",
+    "isFiller": false
+  },
+  {
+    "token": "  ,  ",
+    "normalized": "",
+    "isFiller": false
+  }
+]
