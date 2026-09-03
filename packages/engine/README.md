@@ -3,7 +3,6 @@
 The shared, UI-agnostic core that both frontends drive as a subprocess:
 
 - `apps/desktop` (macOS, Swift) — bundles this into `Contents/Resources/engine/`
-- `apps/desktop-win` (Windows, .NET) — bundles this into `publish/engine/`
 
 The core knows nothing about any UI. It speaks NDJSON on stdout (`--ndjson`) for
 the apps and prints `→` lines in the human CLI mode. Tweak the core here without

@@ -4,8 +4,8 @@
 #
 # Consumed by .github/workflows/labeler.yml (actions/labeler@v6).
 
-# The shared Python cleaning core, bundled by both desktop apps → ci.yml /
-# nightly.yml / windows.yml all run the engine tests.
+# The shared Python cleaning core, bundled by the desktop app → ci.yml /
+# nightly.yml both run the engine tests.
 "area:engine":
   - changed-files:
       - any-glob-to-any-file:
@@ -16,12 +16,6 @@
   - changed-files:
       - any-glob-to-any-file:
           - "apps/desktop/**"
-
-# The Windows app (Avalonia/.NET port) → windows.yml.
-"area:platform":
-  - changed-files:
-      - any-glob-to-any-file:
-          - "apps/desktop-win/**"
 
 # The marketing site → website.yml.
 "area:website":

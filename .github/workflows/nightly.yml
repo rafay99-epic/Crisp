@@ -13,9 +13,6 @@ on:
     branches: [nightly]
     paths:
       - "apps/desktop/**"
-      # A Windows-only change still rebuilds the DMG so the one shared `nightly`
-      # release carries both assets built from the same commit (see windows.yml).
-      - "apps/desktop-win/**"
       - "packages/engine/**"
       - ".github/workflows/nightly.yml"
       # Docs-only changes never need a build — skip .md-only diffs (last-match-wins).
@@ -76,10 +73,9 @@ jobs:
         run: |
           echo "VERSION=0.$(git rev-list --count HEAD)" >> "$GITHUB_ENV"
           echo "SHA=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
-          # Commit count on nightly — a monotonic build number the macOS DMG and the
-          # Windows exe compute identically from this same commit, so the single shared
-          # release's "build N" title orders both platforms coherently (windows.yml
-          # bakes the same value). Both updaters parse `build (\d+)` from the title.
+          # Commit count on nightly — a monotonic build number baked into the DMG so
+          # the release's "build N" title orders builds coherently. The updater parses
+          # `build (\d+)` from the title.
           echo "BUILD=$(git rev-list --count HEAD)" >> "$GITHUB_ENV"
 
       - name: Build Nightly app and installer
@@ -108,9 +104,9 @@ jobs:
           # Notes: list the PRs merged since the previous nightly build. PREV = the
           # commit the rolling `nightly` tag currently points at (the last published
           # build); diff PREV..HEAD with the shared changelog generator. Read it from
-          # the tag itself — we no longer delete+recreate the release (that would drop
-          # the Windows exe windows.yml uploads here), so target_commitish can't be the
-          # source. First build (no prior tag) → just the install boilerplate.
+          # the tag itself — we upsert rather than delete+recreate the release, so
+          # target_commitish can't be the source. First build (no prior tag) → just the
+          # install boilerplate.
           git fetch origin 'refs/tags/nightly:refs/tags/nightly' --force 2>/dev/null || true
           PREV=$(git rev-parse -q --verify 'refs/tags/nightly^{commit}' 2>/dev/null || true)
           NOTES_FILE="$(mktemp)"
@@ -137,12 +133,15 @@ jobs:
             echo "⚠️ Unsigned pre-release build for testing. Right-click → Open the first time to get past Gatekeeper."
           } > "$NOTES_FILE"
           # Upsert, never delete: refresh the title/notes and the DMG in place so the
-          # Windows exe on this release survives. windows.yml uploads Crisp-Nightly-Setup.exe
-          # to the same release; the two assets never collide (different names).
+          # release keeps a stable identity across builds.
           if gh release view nightly >/dev/null 2>&1; then
             gh release edit nightly --prerelease \
               --title "Crisp Nightly · build $BUILD" --notes-file "$NOTES_FILE"
             gh release upload nightly build/Crisp-Nightly.dmg --clobber
+            # The Windows port is gone, but a previously published exe is still
+            # attached to this rolling release and nothing refreshes it any more.
+            # Drop it so nobody downloads an unsupported, permanently stale build.
+            gh release delete-asset nightly Crisp-Nightly-Setup.exe --yes 2>/dev/null || true
           else
             gh release create nightly build/Crisp-Nightly.dmg --prerelease \
               --target "$GITHUB_SHA" --title "Crisp Nightly · build $BUILD" --notes-file "$NOTES_FILE"
