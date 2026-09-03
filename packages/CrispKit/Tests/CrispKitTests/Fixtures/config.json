@@ -1,0 +1,83 @@
+{
+  "maxPause": 0.6,
+  "noiseDB": -30,
+  "keepPause": 0.15,
+  "minKeep": 0.05,
+  "tightPause": 0.3,
+  "fadeMS": 10,
+  "crossfadeMS": 0,
+  "snapMS": 12,
+  "audioBitrateKbps": 192,
+  "fillerMinSolo": 0.5,
+  "fillerPausePad": 0.2,
+  "retakeMaxGap": 2.0,
+  "retakeMaxAbandon": 12,
+  "retakeTokenSimilarity": 0.85,
+  "retakeAnchorPause": 0.3,
+  "retakePausePad": 0.35,
+  "retakeStutterMaxGap": 1.0,
+  "defaultSensitivity": "aggressive",
+  "sensitivities": {
+    "gentle": {
+      "min_run": 5,
+      "require_pause": true,
+      "min_run_no_pause": null,
+      "sem_min": 0.78
+    },
+    "balanced": {
+      "min_run": 4,
+      "require_pause": true,
+      "min_run_no_pause": 7,
+      "sem_min": 0.78
+    },
+    "aggressive": {
+      "min_run": 3,
+      "require_pause": false,
+      "min_run_no_pause": 5,
+      "sem_min": 0.7
+    }
+  },
+  "fillerVocabulary": [
+    "ah",
+    "ahem",
+    "ahh",
+    "aw",
+    "aww",
+    "er",
+    "erm",
+    "err",
+    "errm",
+    "hm",
+    "hmm",
+    "hu",
+    "huh",
+    "humm",
+    "mhm",
+    "mhmm",
+    "mm",
+    "mm-hmm",
+    "mmhmm",
+    "mmm",
+    "uh",
+    "uh-huh",
+    "uhh",
+    "uhm",
+    "uhmm",
+    "um",
+    "umh",
+    "umm",
+    "ummh"
+  ],
+  "captions": {
+    "maxCharsPerLine": 42,
+    "maxLines": 2,
+    "minCueDur": 0.85,
+    "maxCueDur": 6.0,
+    "cueSplitGap": 0.5,
+    "minGap": 0.08
+  },
+  "framerate": {
+    "vfrRelTol": 0.005,
+    "maxPlausibleFPS": 240.0
+  }
+}

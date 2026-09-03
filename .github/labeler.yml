@@ -4,12 +4,14 @@
 #
 # Consumed by .github/workflows/labeler.yml (actions/labeler@v6).
 
-# The shared Python cleaning core, bundled by the desktop app → ci.yml /
-# nightly.yml both run the engine tests.
+# The cleaning core, in both its forms: the Python engine the app still drives,
+# and CrispKit, the platform-free Swift port replacing it → ci.yml / nightly.yml
+# run both test suites plus the fixture parity check.
 "area:engine":
   - changed-files:
       - any-glob-to-any-file:
           - "packages/engine/**"
+          - "packages/CrispKit/**"
 
 # The macOS app (Swift/SwiftUI) → ci.yml / nightly.yml.
 "area:desktop":

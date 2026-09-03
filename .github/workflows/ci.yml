@@ -19,6 +19,7 @@ on:
     paths:
       - "apps/desktop/**"
       - "packages/engine/**"
+      - "packages/CrispKit/**"
       - ".github/workflows/ci.yml"
       # Docs-only changes never need a build — skip .md-only diffs (last-match-wins).
       - "!**/*.md"
@@ -26,6 +27,7 @@ on:
     paths:
       - "apps/desktop/**"
       - "packages/engine/**"
+      - "packages/CrispKit/**"
       - ".github/workflows/ci.yml"
       # Docs-only changes never need a build — skip .md-only diffs (last-match-wins).
       - "!**/*.md"
@@ -77,6 +79,30 @@ jobs:
         working-directory: packages/engine
         run: python3 -m unittest discover -s tests -t .
 
+  # CrispKit is the platform-free half of the engine, ported to Swift ahead of the
+  # media layer. Its parity suite asserts against fixtures generated FROM the Python
+  # engine, so the two implementations cannot silently diverge while both exist.
+  crispkit:
+    name: CrispKit (Swift core)
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v7
+      - name: Run tests
+        working-directory: packages/CrispKit
+        run: swift test
+      # The fixtures are the parity contract. Regenerating them must be a no-op: if
+      # a change to the Python engine moves a default or a cut decision, this fails
+      # here rather than shipping two different "defaults".
+      - name: Fixtures are up to date with the Python engine
+        working-directory: .
+        run: |
+          python3 packages/CrispKit/Tools/generate-fixtures.py
+          if ! git diff --quiet -- packages/CrispKit/Tests/CrispKitTests/Fixtures; then
+            echo "::error::CrispKit fixtures are stale. Run: python3 packages/CrispKit/Tools/generate-fixtures.py"
+            git diff --stat -- packages/CrispKit/Tests/CrispKitTests/Fixtures
+            exit 1
+          fi
+
   # PR only: build + package the DMG (this IS the release-config build check —
   # build.sh does a universal `swift build -c release`, so a separate build job
   # would just compile the same thing again on another runner) and upload it as
@@ -85,7 +111,7 @@ jobs:
     name: Build & package DMG
     if: github.event_name == 'pull_request'
     runs-on: macos-26
-    needs: [test, lint, engine-test]
+    needs: [test, lint, engine-test, crispkit]
     steps:
       - uses: actions/checkout@v7
       - name: Build app and installer
@@ -105,7 +131,7 @@ jobs:
           path: apps/desktop/build/Crisp.dmg
 
   # main only: build + publish the GitHub Release (version = commit count).
-  # `needs: [test, lint, engine-test]` gates it, and build.sh below is the release-config
+  # `needs: [test, lint, engine-test, crispkit]` gates it, and build.sh below is the release-config
   # build — if tests or lint fail, this job is skipped and nothing is built or
   # published, so users never auto-update onto a build that didn't pass. A red
   # build.sh here fails the job before `gh release create` runs, so a broken
@@ -114,7 +140,7 @@ jobs:
     name: Build and publish release
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: macos-26
-    needs: [test, lint, engine-test]
+    needs: [test, lint, engine-test, crispkit]
     # `models: read` lets highlights.sh call GitHub Models for the friendly notes.
     permissions:
       contents: write
