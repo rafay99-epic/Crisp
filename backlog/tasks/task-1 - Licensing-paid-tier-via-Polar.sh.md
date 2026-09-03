@@ -15,7 +15,7 @@ ordinal: 1000
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-**Committed foundation #1 — do first.** Gate a paid tier behind a license using **Polar.sh** as Merchant of Record (handles global VAT + payouts; works from Pakistan, no Stripe). License activate/validate mirrors the existing `ModelStore` lifecycle: trial → key/OAuth gate, state derived on launch, offline-tolerant (7–14 day grace). Stay GPL-3.0 — gates the official build, not the source. Supersedes the earlier Lemon Squeezy plan.
+**Committed foundation #1 — do first.** Gate a paid tier behind a license using **Polar.sh** as Merchant of Record (handles global VAT + payouts; works from Pakistan, no Stripe). License activate/validate mirrors the existing `ModelStore` lifecycle: trial → key/OAuth gate, state derived on launch, offline-tolerant (7–14 day grace). Licence gates the official build, not the source (Apache-2.0). Supersedes the earlier Lemon Squeezy plan.
 
 Roadmap: idea.md #22.
 <!-- SECTION:DESCRIPTION:END -->
