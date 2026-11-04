@@ -37,7 +37,7 @@ const Caps = ({ children }: { children: ReactNode }) => (
 );
 const code = "rounded bg-white/10 px-1 py-0.5 font-mono text-[13px]";
 
-const UPDATED = "June 18, 2026";
+const UPDATED = "September 4, 2026";
 const NOT_ADVICE = (
   <>
     This document is provided for transparency and your convenience. It is not legal advice and does
@@ -234,7 +234,7 @@ export const privacyDoc: LegalDoc = {
       heading: "11. Open source & contact",
       body: (
         <p>
-          Crisp is open source under the GPL-3.0; you can verify everything above in{" "}
+          Crisp is open source under the Apache-2.0 licence; you can verify everything above in{" "}
           <A href={REPO}>the source code</A>. Questions, requests, or privacy concerns?{" "}
           {contactLine}.
         </p>
@@ -251,9 +251,8 @@ export const termsDoc: LegalDoc = {
     <>
       These Terms of Use (“Terms”) govern your use of the Crisp application and this website, both
       provided by {AUTHOR} (“we,” “us”). Crisp is free, open-source software; these plain-language
-      Terms sit alongside the{" "}
-      <A href={`${REPO}/blob/main/LICENSE`}>GNU General Public License v3.0</A> (“GPL-3.0”), which
-      legally governs the source code. Please read them carefully.
+      Terms sit alongside the <A href={`${REPO}/blob/main/LICENSE`}>Apache License, Version 2.0</A>{" "}
+      (“Apache-2.0”), which legally governs the source code. Please read them carefully.
     </>
   ),
   sections: [
@@ -272,10 +271,10 @@ export const termsDoc: LegalDoc = {
       heading: "2. Licence",
       body: (
         <p>
-          Crisp is free and open-source software licensed under the GPL-3.0. You may use, study,
-          modify, and redistribute it under the terms of that licence, which controls for anything
-          concerning the source code. These Terms govern your use of the distributed app and this
-          site.
+          Crisp is free and open-source software licensed under the Apache-2.0 licence. You may use,
+          study, modify, and redistribute it under the terms of that licence, which controls for
+          anything concerning the source code. These Terms govern your use of the distributed app
+          and this site.
         </p>
       ),
     },
@@ -376,9 +375,9 @@ export const termsDoc: LegalDoc = {
       body: (
         <p>
           The “Crisp” name, logo, icon, and the content of this website are © {AUTHOR} and protected
-          by applicable law. The GPL-3.0 applies to the source code, not to the project’s name or
-          branding; nothing here grants you a right to use our marks except as the GPL or applicable
-          law allows.
+          by applicable law. The Apache-2.0 licence applies to the source code, not to the project’s
+          name or branding; section 6 of that licence expressly withholds trademark rights, and
+          nothing here grants you a right to use our marks except as applicable law allows.
         </p>
       ),
     },
@@ -429,10 +428,10 @@ export const termsDoc: LegalDoc = {
         <p>
           If any provision of these Terms is held unenforceable, the rest remain in effect and the
           unenforceable part is limited to the minimum extent necessary. These Terms, together with
-          the GPL-3.0 and our <A href="/privacy">Privacy Policy</A>, are the entire agreement
-          between us regarding their subject matter. Our failure to enforce a provision is not a
-          waiver. You may not assign these Terms; we may. We are not liable for events beyond our
-          reasonable control. Section headings are for convenience only.
+          the Apache-2.0 licence and our <A href="/privacy">Privacy Policy</A>, are the entire
+          agreement between us regarding their subject matter. Our failure to enforce a provision is
+          not a waiver. You may not assign these Terms; we may. We are not liable for events beyond
+          our reasonable control. Section headings are for convenience only.
         </p>
       ),
     },

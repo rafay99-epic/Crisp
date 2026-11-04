@@ -29,7 +29,7 @@ export function Privacy() {
           <p className="mx-auto mt-7 max-w-xl text-[19px] leading-relaxed text-white/55">
             No account, no cloud, no upload. Finding the silence, transcribing the fillers,
             rendering the cut — every step runs on-device. And because Crisp is open source under
-            the GPL-3.0, you can read exactly what it does.
+            the Apache-2.0 licence, you can read exactly what it does.
           </p>
         </Reveal>
 

@@ -1,0 +1,61 @@
+Crisp
+Copyright 2026 Syntax Lab Technology / Abdul Rafay (https://rafay99.com)
+
+This product includes software developed by Syntax Lab Technology.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+this file except in compliance with the License. You may obtain a copy of the
+License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+--------------------------------------------------------------------------------
+Third-party programs bundled with the macOS application
+--------------------------------------------------------------------------------
+
+Crisp's own source code is Apache-2.0. The shipped macOS application additionally
+bundles the third-party programs below. They are NOT linked into Crisp: each is a
+separate executable that Crisp launches as a subprocess, so each remains under its
+own licence and Crisp's Apache-2.0 licence does not extend to them.
+
+The full licence text for each ships inside the application bundle at
+`Contents/Resources/engine/licenses/`, staged by `apps/desktop/Scripts/vendor.sh`.
+
+FFmpeg 8.1.1 (ffmpeg, ffprobe)
+    https://ffmpeg.org
+    GNU General Public License, version 3 or later.
+    IMPORTANT: the vendored build is configured `--enable-gpl --enable-version3`,
+    which makes GPLv3 the operative licence for these binaries, not the LGPL that
+    a default FFmpeg build carries. Bundled licence:
+    engine/licenses/ffmpeg-COPYING.GPLv3.txt
+    Source: https://github.com/FFmpeg/FFmpeg at tag n8.1.1.
+    Binaries vendored from https://ffmpeg.martin-riedl.de (pinned + SHA-256 checked).
+
+whisper.cpp v1.9.0 (whisper-cli)
+    https://github.com/ggml-org/whisper.cpp
+    MIT License. Built from the pinned tag by Scripts/vendor.sh.
+    Bundled licence: engine/licenses/whisper.cpp-LICENSE.txt
+
+CPython 3.13 (python-build-standalone runtime)
+    https://github.com/astral-sh/python-build-standalone
+    Python Software Foundation License Version 2.
+    Bundled licence: engine/licenses/python-LICENSE.txt
+
+Note on platform scope: these binaries are macOS-only. iOS and iPadOS cannot spawn
+subprocesses at all, so the Apple mobile builds ship none of them and use
+AVFoundation and Core ML instead.
+
+--------------------------------------------------------------------------------
+Models
+--------------------------------------------------------------------------------
+
+Neither model is bundled. Both are downloaded on first run into the per-channel
+data directory.
+
+ggml-base.en (speech model)
+    Derived from OpenAI Whisper, MIT License.
+
+Wren (filler-word classifier)
+    Trained by Syntax Lab Technology. Weights derive from the PodcastFillers
+    dataset, distributed under Creative Commons terms. See
+    research/filler_classifier/MODEL_CARD.md.
