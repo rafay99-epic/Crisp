@@ -708,6 +708,27 @@ final class CrispTests: XCTestCase {
         XCTAssertFalse(offArgs.contains("--retake-sensitivity"))
     }
 
+    func testClassifierBackendCoexistsWithRetakesAndCaptions() {
+        // The fast filler model only owns the filler step: retakes and captions still
+        // run off the whisper transcript in the same clean, so the argv carries the
+        // classifier flags AND the transcript model + retake/caption flags together.
+        var cfg = EngineConfig.defaults
+        cfg.captionsFormat = "srt"
+        let params = Strength.aggressive.parameters(using: cfg)
+        let opts = CleanRunner.Options(modelPath: "/models/ggml.bin", removeFillers: true,
+                                       removeRetakes: true, backupDirectory: nil,
+                                       fillerBackend: "coreml", fillerModelPath: "/models/Wren.mlmodel")
+        let args = CleanRunner.arguments(scriptPath: "/eng/clean_video.py",
+                                         input: URL(fileURLWithPath: "/v/in.mp4"),
+                                         parameters: params, options: opts)
+        XCTAssertEqual(valueAfter("--filler-backend", in: args), "coreml")
+        XCTAssertEqual(valueAfter("--filler-model", in: args), "/models/Wren.mlmodel")
+        XCTAssertEqual(valueAfter("--model", in: args), "/models/ggml.bin")
+        XCTAssertEqual(valueAfter("--retake-sensitivity", in: args), "aggressive")
+        XCTAssertEqual(valueAfter("--captions", in: args), "srt")
+        XCTAssertFalse(args.contains("--no-retakes"))
+    }
+
     func testRetakeSensitivityCarriesThrough() {
         var cfg = EngineConfig.defaults
         cfg.retakeSensitivity = "aggressive"

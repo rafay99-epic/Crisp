@@ -458,17 +458,15 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
         on_log("Captions aren't written when rendering a reviewed cut list.")
         captions = "none"
     want_captions = captions != "none"
-    # Retake detection needs a real transcript, which the Core ML classifier can't
-    # produce. Rather than silently switch a classifier run onto whisper, the engine
-    # owns the invariant: retakes are skipped whenever the classifier is the backend.
-    # (The app disables the toggle in that case; the CLI just gets pauses+fillers.)
-    do_retakes = remove_retakes and filler_backend != "coreml"
-    need_transcript = (remove_fillers or want_captions or do_retakes) and not keep_file
-    # Captions still need whisper to transcribe, so the classifier only applies when
-    # captions are off (retakes no longer force whisper — they're skipped above).
-    use_classifier = need_transcript and filler_backend == "coreml" and not want_captions
+    do_retakes = remove_retakes and not keep_file
+    # The Core ML classifier detects filler AUDIO but can't transcribe — so it only
+    # ever owns the filler step. Retakes and captions read a whisper transcript, and
+    # both backends run in the same clean when needed (the classifier adds ~100ms).
+    use_classifier = remove_fillers and filler_backend == "coreml" and not keep_file
+    need_transcript = (want_captions or do_retakes
+                       or (remove_fillers and not use_classifier)) and not keep_file
     whisper_bin = None
-    if need_transcript and not use_classifier:
+    if need_transcript:
         if not model.exists():
             raise CleanError(f"Speech model not found: {model}\nRun setup.sh to download it.")
         whisper_bin = which_whisper()
@@ -569,28 +567,30 @@ def clean_video(src, out_path=None, model=None, pause=DEFAULT_MAX_PAUSE,
                 silences = detect_silences(wav, noise, pause, on_log, logger=logger)
 
             if need_transcript:
-                if use_classifier:
-                    # The fast model reports only when done, so name the step up front.
-                    on_progress(0.16, "Finding filler words…")
-                    words = filler_words(which_filler(), filler_model, wav,
-                                         on_log, stage(0.16, 0.58), logger=logger)
-                    # Keep only fillers at a pause or clearly long — don't cut
-                    # brief hesitations embedded mid-sentence (rough, removes flow).
-                    before = len(words)
-                    words = gate_fillers_by_silence(words, silences)
-                    logger.debug(f"silence-gate: kept {len(words)}/{before} fillers")
-                else:
-                    words = transcribe(whisper_bin, model, wav, tmp / "transcript",
-                                       on_log, stage(0.15, 0.58), logger=logger)
+                words = transcribe(whisper_bin, model, wav, tmp / "transcript",
+                                   on_log, stage(0.15, 0.55 if use_classifier else 0.58),
+                                   logger=logger)
                 on_log(f"Found {len(words)} spoken words.")
 
-            # Only cut filler words when the user asked to; if we transcribed purely
-            # for captions, every word stays in the cut plan (fillers are still
-            # excluded from the caption text below).
-            cut_words = words if remove_fillers else []
-            # Retakes need the real transcript; `do_retakes` is already false for the
-            # classifier backend (which produces no transcript), so this only runs when
-            # whisper supplied `words`.
+            # Filler spans to cut: the classifier's audio spans when it's the backend
+            # (whisper provably omits most hesitations from its transcript), else the
+            # transcript itself (is_filler picks the hesitation words out in edit).
+            # If we transcribed purely for captions/retakes, nothing enters the cut plan.
+            if use_classifier:
+                # The fast model reports only when done, so name the step up front.
+                on_progress(0.55 if need_transcript else 0.16, "Finding filler words…")
+                spans = filler_words(which_filler(), filler_model, wav, on_log,
+                                     stage(0.55 if need_transcript else 0.16, 0.58),
+                                     logger=logger)
+                # Keep only fillers at a pause or clearly long — don't cut
+                # brief hesitations embedded mid-sentence (rough, removes flow).
+                before = len(spans)
+                cut_words = gate_fillers_by_silence(spans, silences)
+                logger.debug(f"silence-gate: kept {len(cut_words)}/{before} fillers")
+            else:
+                cut_words = words if remove_fillers else []
+            # Retakes read the whisper transcript — present whenever they're on,
+            # regardless of which backend found the fillers.
             retakes = []
             if do_retakes and words:
                 # Its own visible step (after "Detecting pauses" / "Transcribing"), so

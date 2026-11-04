@@ -15,9 +15,8 @@ final class CleanModel {
     var queue: [QueueItem] = []
     var strength: Strength = .aggressive
     var removeFillers = true
-    /// Remove repeated takes — a phrase you flubbed and immediately said again. Needs
-    /// the whisper transcript, so it's skipped when the fast on-device filler
-    /// classifier is the active backend (see `start`).
+    /// Remove repeated takes — a phrase you flubbed and immediately said again.
+    /// Always reads the whisper transcript, whichever backend finds the fillers.
     var removeRetakes = true
     /// The preset stamped onto newly added files (the user's "default for new
     /// files"); kept in sync with settings by the view. `nil` ⇒ new files use the
@@ -155,12 +154,9 @@ final class CleanModel {
         // afterward can't change files that are already in flight.
         let fillers = removeFillers
         let fillerModel = fillers ? fillerModelPath : nil   // coreml backend when present
-        // Retakes need a whisper transcript, which the fast on-device classifier can't
-        // produce. Rather than silently override the user's model choice, retake removal
-        // is unavailable while the classifier is the active backend (the UI disables the
-        // toggle the same way captions are — see ContentView/BottomBar). So it only runs
-        // when the classifier isn't doing the fillers.
-        let retakes = removeRetakes && fillerModel == nil
+        // Retakes always read a whisper transcript; when the classifier is doing the
+        // fillers the engine runs both backends in the same clean.
+        let retakes = removeRetakes
         activeFillerModelPath = fillerModel
         activeFeedbackModelID = fillerModel != nil ? feedbackModelID : nil   // record only classifier cleans
         // Record the filler backend up front, so the log says which model this clean used.
