@@ -90,7 +90,7 @@ if sys.platform == "darwin":
         _libc.setxattr.restype = ctypes.c_int
         _libc.setxattr.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_void_p,
                                    ctypes.c_size_t, ctypes.c_uint32, ctypes.c_int]
-    except (OSError, AttributeError):  # pragma: no cover - libc without these symbols
+    except (OSError, AttributeError, TypeError):  # pragma: no cover - libc without these symbols
         _libc = None
 
 
