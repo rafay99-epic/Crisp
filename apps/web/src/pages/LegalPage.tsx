@@ -3,10 +3,12 @@ import { motion } from "framer-motion";
 import { Waveform } from "../components/Logo";
 import { Footer } from "../sections/Footer";
 import type { LegalDoc } from "../content/legal";
+import { useSeo } from "../useSeo";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
 export function LegalPage({ doc }: { doc: LegalDoc }) {
+  useSeo({ title: `${doc.title} — Crisp`, description: doc.summary, path: doc.slug });
   return (
     <>
       {/* slim header */}

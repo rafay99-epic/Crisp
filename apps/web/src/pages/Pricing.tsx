@@ -5,6 +5,7 @@ import { Footer } from "../sections/Footer";
 import { Reveal, KineticText } from "../components/Motion";
 import { CheckSeal } from "../components/Icons";
 import { POLAR_CHECKOUT, POLAR_PORTAL } from "../site";
+import { useSeo } from "../useSeo";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
@@ -17,6 +18,12 @@ const FEATURES = [
 ];
 
 export function Pricing() {
+  useSeo({
+    title: "Pricing — Crisp Pro, $8/month",
+    description:
+      "One plan, everything unlocked. Crisp Pro is $8/month — automatic pause and filler removal, native macOS, never downscaled, originals backed up.",
+    path: "/pricing",
+  });
   return (
     <>
       {/* slim header — matches LegalPage */}

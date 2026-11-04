@@ -12,6 +12,10 @@ let channel = CommandLine.arguments.count > 2 ? CommandLine.arguments[2] : "stab
 // the foreground layer of the macOS 26 layered icon (.icon → Assets.car), where
 // the system supplies the squircle, background fill, and dark/tinted treatments.
 let glyphOnly = CommandLine.arguments.count > 3 && CommandLine.arguments[3] == "glyph"
+// "circle" renders the mark on a full-canvas circle instead of the squircle — a
+// social-avatar shape (Instagram et al. crop profile pics to a circle), so the
+// dark fill reaches the crop edge with no transparent corners.
+let circleShape = CommandLine.arguments.count > 3 && CommandLine.arguments[3] == "circle"
 func rgb(_ r: Int, _ g: Int, _ b: Int) -> NSColor {
     NSColor(calibratedRed: CGFloat(r) / 255, green: CGFloat(g) / 255, blue: CGFloat(b) / 255, alpha: 1)
 }
@@ -54,6 +58,18 @@ if glyphOnly {
     transform.scale(by: scale)
     transform.translateX(by: -512, yBy: -512)
     transform.concat()
+} else if circleShape {
+    // Full-canvas circle: dark gradient reaches the crop edge, no shadow/border
+    // (a circle-cropped avatar has no corners to shade and its edge is the crop).
+    let canvas = NSRect(x: 0, y: 0, width: size, height: size)
+    let circle = NSBezierPath(ovalIn: canvas)
+    NSGraphicsContext.current?.saveGraphicsState()
+    circle.addClip()
+    NSGradient(
+        starting: NSColor(calibratedRed: 0x2a / 255.0, green: 0x2a / 255.0, blue: 0x2e / 255.0, alpha: 1),
+        ending: NSColor(calibratedRed: 0x16 / 255.0, green: 0x16 / 255.0, blue: 0x18 / 255.0, alpha: 1)
+    )?.draw(in: canvas, angle: -70)
+    NSGraphicsContext.current?.restoreGraphicsState()
 } else {
     // Soft drop shadow like system icons.
     NSGraphicsContext.current?.saveGraphicsState()

@@ -1,4 +1,8 @@
 /** Shared site constants — single source of truth for links + copy. */
+/** Canonical origin — used for canonical tags, og:url, sitemap, structured data. No trailing slash. */
+export const SITE_URL = "https://crisp.rafay99.com";
+/** Absolute URL of the 1200×630 social share card (public/og.png). */
+export const OG_IMAGE = `${SITE_URL}/og.png`;
 export const REPO = "https://github.com/rafay99-epic/Crisp";
 export const RELEASES = `${REPO}/releases/latest`;
 export const AUTHOR = "Syntax Lab Technology";

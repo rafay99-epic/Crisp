@@ -21,6 +21,8 @@ const contactLine = (
 export type LegalSection = { heading: string; body: ReactNode };
 export type LegalDoc = {
   title: string;
+  slug: string; // route path, for canonical/og:url
+  summary: string; // plain-text meta description
   updated: string;
   intro: ReactNode;
   note: ReactNode; // small "not legal advice / transparency" line under the intro
@@ -47,6 +49,9 @@ const NOT_ADVICE = (
 
 export const privacyDoc: LegalDoc = {
   title: "Privacy Policy",
+  slug: "/privacy",
+  summary:
+    "Crisp is private by default — everything runs on your Mac. No servers, no accounts, and we never see your recordings. Read exactly how it handles your data.",
   updated: UPDATED,
   note: NOT_ADVICE,
   intro: (
@@ -245,6 +250,9 @@ export const privacyDoc: LegalDoc = {
 
 export const termsDoc: LegalDoc = {
   title: "Terms of Use",
+  slug: "/terms",
+  summary:
+    "The plain-language Terms of Use for Crisp, the native macOS app from Syntax Lab Technology — alongside the GPL-3.0 license that governs the source code.",
   updated: UPDATED,
   note: NOT_ADVICE,
   intro: (
