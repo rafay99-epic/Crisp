@@ -72,7 +72,7 @@ struct OnboardingView: View {
                    title: settings.hasExistingConfig ? "Welcome back to Crisp" : "Welcome to Crisp",
                    subtitle: settings.hasExistingConfig
                     ? "Your saved settings are preserved — nothing has changed. Here’s a quick tour of how everything works."
-                    : "Crisp tightens up your screen recordings and talking-head videos — automatically cutting out long pauses and filler words for clean, snappy jump-cuts, plus repeated takes when you use the Whisper speech model.")
+                    : "Crisp tightens up your screen recordings and talking-head videos — automatically cutting out long pauses, filler words, and repeated takes for clean, snappy jump-cuts.")
             featureRow("checkmark.shield.fill", "Your footage is safe",
                        "Crisp never edits or deletes your original. It only ever writes a new cleaned copy beside it.")
             featureRow("rectangle.on.rectangle", "No quality loss",
