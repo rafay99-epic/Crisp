@@ -3,10 +3,10 @@ import { AppIcon } from "../components/Logo";
 import { CopyCommand } from "../components/AppBits";
 import { Reveal, KineticText } from "../components/Motion";
 import { CheckSeal } from "../components/Icons";
-import { REPO, REQUIREMENTS, BREW_INSTALL } from "../site";
+import { REPO, REQUIREMENTS, BREW_INSTALL, DMG_URL } from "../site";
 
 const PERKS = [
-  "Installs cleanly — no Gatekeeper warnings",
+  "Developer ID signed, notarized by Apple",
   "Updates itself with your other casks",
   "One command to remove it completely",
 ];
@@ -35,8 +35,8 @@ export function Download() {
         />
         <Reveal delay={0.1}>
           <p className="mx-auto mt-5 max-w-lg text-[19px] leading-relaxed text-white/60">
-            One line in Terminal with Homebrew. It handles everything — signing, install, and
-            updates — so you skip the “unidentified developer” song and dance.
+            One line in Terminal with Homebrew. It installs Crisp, keeps it updated, and removes it
+            cleanly when you're done.
           </p>
         </Reveal>
 
@@ -67,6 +67,13 @@ export function Download() {
                 brew.sh
               </a>
               , then run the line above.
+            </p>
+            <p>
+              Prefer a direct download?{" "}
+              <a href={DMG_URL} className="text-[var(--color-accent-bright)] hover:underline">
+                Get Crisp.dmg
+              </a>
+              , open it, and drag Crisp to Applications.
             </p>
             <p>
               Want the newest builds? Add the Nightly channel beside your stable copy:{" "}

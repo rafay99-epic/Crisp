@@ -252,23 +252,47 @@ else
   echo "⚠️  appintentsmetadataprocessor/const-values unavailable — skipping Shortcuts metadata."
 fi
 
-# Sign inside-out: every bundled Mach-O first, then the app. Defaults to ad-hoc
-# (`-`); set CODESIGN_IDENTITY to a Developer ID to add hardened runtime +
-# timestamp for notarization (the bundled binaries need the runtime too).
-SIGN_ID="${CODESIGN_IDENTITY:--}"
-SIGN_OPTS=(--force --sign "$SIGN_ID")
-[[ "$SIGN_ID" != "-" ]] && SIGN_OPTS+=(--options runtime --timestamp)
-
-echo "Signing bundled binaries…"
-find "$APP/Contents/Resources/engine/bin" -type f -print0 | while IFS= read -r -d '' f; do
-  if file "$f" | grep -q "Mach-O"; then
-    codesign "${SIGN_OPTS[@]}" "$f" 2>/dev/null || true
+# Code signing. Every build signs with the team's Developer ID Application
+# certificate: hardened runtime + secure timestamp, which notarization requires
+# (make-dmg.sh notarizes the DMG in CI). There is no ad-hoc fallback: a missing
+# identity fails the build. The Developer ID identity keeps TCC grants and
+# Keychain items across updates and rebuilds, since the designated requirement
+# is the Team ID, not a per-build hash.
+#
+# CODESIGN_IDENTITY overrides the identity. CODESIGN_KEYCHAIN (set by ./sign.sh)
+# signs from an unlocked throwaway keychain, so no keychain dialog blocks a run.
+# UNSIGNED=1 skips signing for CI's PR packaging check, whose DMG never ships.
+# Signed inside-out: every bundled Mach-O (ffmpeg, ffprobe, whisper-cli, the
+# Python runtime with its dylib and extension modules, crisp-filler, crisp-embed),
+# then the sibling executables, then the app. Never --deep. No entitlements: none
+# of the bundled code needs JIT, unsigned memory or other runtime exceptions.
+if [[ "${UNSIGNED:-0}" == 1 ]]; then
+  echo "UNSIGNED=1: not signing (PR packaging check only, never published)"
+else
+  SIGN_ID="${CODESIGN_IDENTITY:-Developer ID Application: Syntax Labs (Private) Limited (MGH5K382YN)}"
+  # Check the keychain codesign will use (sign.sh's throwaway one when set). Captured
+  # first: `grep -q` exiting early under pipefail can fail the pipeline on SIGPIPE.
+  IDENTITIES="$(security find-identity -p codesigning ${CODESIGN_KEYCHAIN:+"$CODESIGN_KEYCHAIN"})"
+  if ! grep -qF "\"$SIGN_ID\"" <<< "$IDENTITIES"; then
+    echo "error: \"$SIGN_ID\" is not in the keychain. Use ./sign.sh, or import ~/.vitals-signing/developer-id.p12." >&2
+    exit 1
   fi
-done
-# The watch-folder agent and Quick Action cleaner are additional Mach-Os in
-# Contents/MacOS — sign them before the outer app seal (codesign won't sign
-# sibling executables on its own).
-codesign "${SIGN_OPTS[@]}" "$APP/Contents/MacOS/CrispWatcher"
-codesign "${SIGN_OPTS[@]}" "$APP/Contents/MacOS/CrispClean"
-codesign "${SIGN_OPTS[@]}" "$APP"
+  SIGN_OPTS=(--force --options runtime --timestamp --sign "$SIGN_ID")
+  [[ -n "${CODESIGN_KEYCHAIN:-}" ]] && SIGN_OPTS+=(--keychain "$CODESIGN_KEYCHAIN")
+  echo "Signing with $SIGN_ID (hardened runtime)"
+
+  echo "Signing bundled binaries…"
+  find "$APP/Contents/Resources/engine/bin" -type f -print0 | while IFS= read -r -d '' f; do
+    if file -b "$f" | grep -q "Mach-O"; then
+      codesign "${SIGN_OPTS[@]}" "$f"
+    fi
+  done
+  # The watch-folder agent and Quick Action cleaner are additional Mach-Os in
+  # Contents/MacOS; sign them before the outer app seal (codesign won't sign
+  # sibling executables on its own).
+  codesign "${SIGN_OPTS[@]}" "$APP/Contents/MacOS/CrispWatcher"
+  codesign "${SIGN_OPTS[@]}" "$APP/Contents/MacOS/CrispClean"
+  codesign "${SIGN_OPTS[@]}" "$APP"
+  codesign --verify --strict --deep "$APP"
+fi
 echo "Done → $PWD/$APP"
