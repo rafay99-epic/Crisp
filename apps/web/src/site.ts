@@ -1,6 +1,8 @@
 /** Shared site constants — single source of truth for links + copy. */
 export const REPO = "https://github.com/rafay99-epic/Crisp";
 export const RELEASES = `${REPO}/releases/latest`;
+/** The newest Stable DMG, signed and notarized (the GitHub release asset). */
+export const DMG_URL = `${RELEASES}/download/Crisp.dmg`;
 export const AUTHOR = "Syntax Lab Technology";
 export const AUTHOR_URL = "https://rafay99.com";
 export const CONTACT_EMAIL = "99marafay@gmail.com";

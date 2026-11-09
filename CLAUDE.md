@@ -118,6 +118,16 @@ subprocess. License: **GPL-3.0**. Conventions mirror the Vitals project.
   single rolling `nightly` pre-release with `Crisp-Nightly.dmg`. The release title
   **must contain `build <n>`** — the Nightly updater parses it. CI is one pipeline:
   publish `needs:` build `needs:` test + lint, so a red test never reaches users.
+- **Published DMGs are signed and notarized.** Both feeds sign with the Syntax Labs
+  Developer ID Application certificate (team `MGH5K382YN`, hardened runtime +
+  timestamp) and notarize + staple the DMG with an App Store Connect key
+  (`.github/scripts/setup-signing.sh` → `build.sh` → `make-dmg.sh`; secrets are the
+  same as Vitals'). A missing secret or a rejected notarization fails the release,
+  never ships an unsigned build. `./sign.sh` makes the same notarized DMG locally.
+  There is no ad-hoc signing: local and Dev builds sign with the same Developer
+  ID, and a missing identity fails the build. PR CI packages with `UNSIGNED=1`
+  (no secrets there; that DMG never ships). The bundled Python runs with
+  `PYTHONDONTWRITEBYTECODE` so no `__pycache__` breaks the bundle seal.
 - **`./dev.sh`** / **`./nightly.sh`** build those channels locally next to Stable.
 
 ## Commands
@@ -132,6 +142,7 @@ swift test            # the Swift suite CI gates on
 ./build.sh            # universal release build → build/Crisp.app  (CRISP_CHANNEL selects channel)
 ./dev.sh              # build + install "Crisp Dev" next to Stable
 ./make-dmg.sh         # package the channel's DMG
+./sign.sh             # Developer ID signed + notarized Nightly DMG (./sign.sh stable)
 swiftlint             # lint (CI uses --reporter github-actions-logging)
 ```
 
