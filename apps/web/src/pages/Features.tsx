@@ -4,7 +4,7 @@ import { ProBadge, Waveform } from "../components/Logo";
 import { Footer } from "../sections/Footer";
 import { Reveal, KineticText } from "../components/Motion";
 import { CopyCommand } from "../components/AppBits";
-import { BREW_INSTALL } from "../site";
+import { BREW_INSTALL, DMG_URL } from "../site";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
@@ -353,13 +353,12 @@ export function Features() {
             <div className="mt-6">
               <CopyCommand command={BREW_INSTALL} />
             </div>
-            <Link
-              to="/"
-              hash="download"
+            <a
+              href={DMG_URL}
               className="mt-4 block text-[12px] text-white/40 transition-colors hover:text-white/70"
             >
               Or download the .dmg directly
-            </Link>
+            </a>
           </div>
         </Reveal>
       </main>

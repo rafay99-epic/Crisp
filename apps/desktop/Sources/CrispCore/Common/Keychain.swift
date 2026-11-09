@@ -6,12 +6,12 @@ import Security
 /// **per-channel** service, so Stable / Nightly / Dev never read each other's
 /// license (mirrors how `Channel.dataDirectory` keeps channels isolated).
 ///
-/// **Dev uses `UserDefaults`, not the Keychain.** `./dev.sh` re-signs the app
-/// ad-hoc on every rebuild, which makes previously-stored Keychain items unreadable
-/// by the next build — so a Dev session would "forget" the license/activation after
-/// each rebuild and re-activation would hit the device limit. Dev is local-only and
-/// never shipped, so a plaintext fallback there is an acceptable trade for reliable
-/// dogfooding. **Stable and Nightly (the shipped builds) always use the real
+/// **Dev uses `UserDefaults`, not the Keychain.** `./dev.sh` used to re-sign the
+/// app ad-hoc on every rebuild, which made previously-stored Keychain items unreadable
+/// by the next build, so a Dev session "forgot" the license after each rebuild and
+/// re-activation hit the device limit. Dev builds now carry the Developer ID, so
+/// this fallback can go in a follow-up. Dev is local-only and never shipped, so a
+/// plaintext fallback there is an acceptable trade for reliable dogfooding. **Stable and Nightly (the shipped builds) always use the real
 /// Keychain** — that's the security boundary that matters.
 public enum Keychain {
     private static let log = AppInfo.logger("keychain")

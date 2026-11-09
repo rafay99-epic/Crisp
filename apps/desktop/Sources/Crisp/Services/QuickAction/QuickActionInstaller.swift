@@ -4,7 +4,8 @@ import CrispCore
 /// Installs the Finder **"Clean with Crisp"** Quick Action — an Automator
 /// workflow dropped into `~/Library/Services/`. We use a workflow (run by Apple's
 /// own `WorkflowServiceRunner`) rather than an app-vended `NSServices` entry
-/// because macOS suppresses Services from ad-hoc/unsigned apps, which Crisp is.
+/// because macOS suppresses Services from unsigned apps, which local and Dev
+/// builds were when this was written (they now carry the Developer ID).
 /// The workflow just shells out to the bundled `CrispClean` CLI, so the actual
 /// clean runs through the same `QuickClean` path as everything else.
 ///

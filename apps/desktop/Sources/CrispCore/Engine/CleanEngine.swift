@@ -57,6 +57,9 @@ public enum CleanEngine {
         if let e = bundledTool("crisp-embed") { env["CRISP_EMBED"] = e }
         env["PATH"] = "/opt/homebrew/bin:" + (env["PATH"] ?? "")
         env["CRISP_LOG_DIR"] = Channel.current.logsDirectory.path
+        // The engine lives inside the signed app bundle; a __pycache__ written
+        // beside it would break the bundle's code-signature seal.
+        env["PYTHONDONTWRITEBYTECODE"] = "1"
         return env
     }
 
