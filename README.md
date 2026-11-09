@@ -111,4 +111,4 @@ GitHub Issues are for **real bugs only**; features and ideas are Backlog.md task
 
 ## License
 
-[GPL-3.0](LICENSE) · © Syntax Lab Technology / Abdul Rafay ([rafay99.com](https://rafay99.com))
+[Apache-2.0](LICENSE) · © Syntax Lab Technology / Abdul Rafay ([rafay99.com](https://rafay99.com))

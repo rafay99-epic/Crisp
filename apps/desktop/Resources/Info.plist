@@ -25,7 +25,7 @@
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>
-	<string>© 2026 Syntax Lab Technology. Licensed under GPL-3.0.</string>
+	<string>© 2026 Syntax Lab Technology. Licensed under Apache-2.0.</string>
 	<key>CrispChannel</key>
 	<string>stable</string>
 	<key>CFBundleURLTypes</key>

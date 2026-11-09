@@ -28,7 +28,7 @@ export function Footer() {
             GitHub
           </a>
           <a href={`${REPO}/blob/main/LICENSE`} className="transition-colors hover:text-white">
-            GPL-3.0
+            Apache-2.0
           </a>
           <a href={AUTHOR_URL} className="transition-colors hover:text-white">
             {AUTHOR}

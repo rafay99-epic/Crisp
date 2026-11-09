@@ -1,6 +1,6 @@
 # CodeRabbit configuration — https://docs.coderabbit.ai/reference/configuration
 # Crisp: native macOS SwiftUI app (apps/desktop) driving a stdlib-only Python
-# engine. GPL-3.0. Credited to Syntax Lab Technology / Abdul Rafay.
+# engine. Apache-2.0. Credited to Syntax Lab Technology / Abdul Rafay.
 language: en-US
 
 reviews:
