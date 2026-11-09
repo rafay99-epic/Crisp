@@ -51,7 +51,23 @@ hdiutil create -volname "$VOLUME" -srcfolder "$STAGE" -ov -fs HFS+ -format UDRW 
 
 echo "Mounting for Finder layout…"
 DEVICE=$(hdiutil attach "$RW_DMG" -noautoopen | awk '/\/Volumes\//{print $1; exit}')
-trap 'hdiutil detach "$DEVICE" >/dev/null 2>&1 || true' EXIT
+trap 'hdiutil detach "$DEVICE" -force >/dev/null 2>&1 || true' EXIT
+
+# Detaching right after the Finder layout step is racy: Finder and Spotlight (mds)
+# both keep the freshly written volume open for a moment after the window closes,
+# so a bare `hdiutil detach` intermittently fails with "Resource busy" and kills
+# the whole packaging job — even though the image content is already complete and
+# synced. Retry briefly, then force. Forcing is safe here because the layout is
+# written and synced before we ever try; there is nothing left to flush.
+detach_image() {
+  local attempt
+  for attempt in 1 2 3 4 5; do
+    hdiutil detach "$DEVICE" >/dev/null 2>&1 && return 0
+    sleep 2
+  done
+  echo "note: volume still busy after retries — forcing detach"
+  hdiutil detach "$DEVICE" -force >/dev/null 2>&1
+}
 
 # Mark the volume as having a custom icon (.VolumeIcon.icns).
 if command -v SetFile >/dev/null 2>&1; then
@@ -86,7 +102,7 @@ then
 fi
 
 sync
-hdiutil detach "$DEVICE" >/dev/null
+detach_image || { echo "✗ could not detach $DEVICE" >&2; exit 1; }
 trap - EXIT
 
 echo "Compressing…"
