@@ -18,6 +18,7 @@ on:
       - "apps/desktop-win/**"
       - "packages/engine/**"
       - ".github/workflows/nightly.yml"
+      - ".github/scripts/setup-signing.sh"
       # Docs-only changes never need a build — skip .md-only diffs (last-match-wins).
       - "!**/*.md"
   workflow_dispatch:

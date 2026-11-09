@@ -270,7 +270,10 @@ if [[ "${UNSIGNED:-0}" == 1 ]]; then
   echo "UNSIGNED=1: not signing (PR packaging check only, never published)"
 else
   SIGN_ID="${CODESIGN_IDENTITY:-Developer ID Application: Syntax Labs (Private) Limited (MGH5K382YN)}"
-  if ! security find-identity -p codesigning | grep -qF "\"$SIGN_ID\""; then
+  # Check the keychain codesign will use (sign.sh's throwaway one when set). Captured
+  # first: `grep -q` exiting early under pipefail can fail the pipeline on SIGPIPE.
+  IDENTITIES="$(security find-identity -p codesigning ${CODESIGN_KEYCHAIN:+"$CODESIGN_KEYCHAIN"})"
+  if ! grep -qF "\"$SIGN_ID\"" <<< "$IDENTITIES"; then
     echo "error: \"$SIGN_ID\" is not in the keychain. Use ./sign.sh, or import ~/.vitals-signing/developer-id.p12." >&2
     exit 1
   fi

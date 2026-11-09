@@ -6,7 +6,7 @@ import { CheckSeal } from "../components/Icons";
 import { REPO, REQUIREMENTS, BREW_INSTALL, DMG_URL } from "../site";
 
 const PERKS = [
-  "Signed and notarized by Apple",
+  "Developer ID signed, notarized by Apple",
   "Updates itself with your other casks",
   "One command to remove it completely",
 ];

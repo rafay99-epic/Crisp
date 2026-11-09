@@ -23,6 +23,7 @@ on:
       - "apps/desktop-win/**"
       - "packages/engine/**"
       - ".github/workflows/ci.yml"
+      - ".github/scripts/setup-signing.sh"
       # Docs-only changes never need a build — skip .md-only diffs (last-match-wins).
       - "!**/*.md"
   pull_request:
@@ -30,6 +31,7 @@ on:
       - "apps/desktop/**"
       - "packages/engine/**"
       - ".github/workflows/ci.yml"
+      - ".github/scripts/setup-signing.sh"
       # Docs-only changes never need a build — skip .md-only diffs (last-match-wins).
       - "!**/*.md"
 
